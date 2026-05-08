@@ -5,7 +5,7 @@
 ## 功能
 
 - [x] 数据层：Tushare 数据获取，MongoDB 存储
-- [ ] 分析层：技术指标计算
+- [x] 分析层：技术指标计算（MA、MACD）
 - [ ] 预测层：价格预测
 - [ ] 回测层：策略回测
 
@@ -14,19 +14,15 @@
 ```
 trade-alpha/
 ├── src/
-│   └── trade_alpha/           # 源码
-│       ├── __init__.py
-│       ├── config.py
-│       └── data/
-│           ├── __init__.py
-│           ├── fetcher.py
-│           └── storage.py
+│   └── trade_alpha/
+│       ├── db/                # 数据库模块
+│       ├── data/              # 数据获取模块
+│       └── indicators/        # 技术指标模块
 ├── tests/
-│   └── trade_alpha/           # 测试（与源码层级对应）
-│       └── data/
-│           ├── test_fetcher.py
-│           ├── test_storage.py
-│           └── test_data_integration.py
+│   └── trade_alpha/
+│       ├── db/
+│       ├── data/
+│       └── indicators/
 ├── pyproject.toml
 └── .env.example
 ```
@@ -49,11 +45,17 @@ pip install -e . pytest
 ## 使用示例
 
 ```python
-from trade_alpha.data import fetch_and_store
-
 # 获取并存储股票数据
-count = fetch_and_store("000001.SZ", "20240101", "20241231")
-print(f"Stored {count} records")
+from trade_alpha.data import fetch_and_store
+fetch_and_store("000001.SZ", "20240101", "20241231")
+
+# 计算并存储均线
+from trade_alpha.indicators import calculate_and_store_ma
+calculate_and_store_ma("000001.SZ", periods=[5, 10, 20, 60])
+
+# 计算并存储 MACD
+from trade_alpha.indicators import calculate_and_store_macd
+calculate_and_store_macd("000001.SZ")
 ```
 
 ## 开发
