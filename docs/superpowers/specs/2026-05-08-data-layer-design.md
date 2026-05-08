@@ -24,12 +24,18 @@
 ## 目录结构
 
 ```
-data/              # 数据层
-  fetcher.py      # 数据获取
-  storage.py      # 数据存储
-  __init__.py     # 导出接口函数
-config/           # 配置
-.env.example      # 环境变量示例
+src/trade_alpha/
+├── __init__.py
+├── config.py
+└── data/
+    ├── __init__.py
+    ├── fetcher.py
+    └── storage.py
+
+tests/trade_alpha/data/
+├── test_fetcher.py
+├── test_storage.py
+└── test_data_integration.py
 ```
 
 ## 后续迭代
