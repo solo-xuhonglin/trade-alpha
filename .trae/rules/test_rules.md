@@ -45,13 +45,13 @@ trade-alpha/
 
 ```bash
 # 运行所有测试
-.venv\Scripts\pytest tests/ -v
+pytest tests/ -v
 
 # 运行单元测试（排除集成测试）
-.venv\Scripts\pytest tests/ -v -m "not integration"
+pytest tests/ -v -m "not integration"
 
 # 运行集成测试
-.venv\Scripts\pytest tests/ -v -m integration
+pytest tests/ -v -m integration
 ```
 
 ## 测试原则

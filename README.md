@@ -60,11 +60,11 @@ print(f"Stored {count} records")
 
 ```bash
 # 运行所有测试
-.venv\Scripts\pytest tests/ -v
+pytest tests/ -v
 
 # 运行单元测试
-.venv\Scripts\pytest tests/ -v -m "not integration"
+pytest tests/ -v -m "not integration"
 
 # 运行集成测试
-.venv\Scripts\pytest tests/ -v -m integration
+pytest tests/ -v -m integration
 ```

@@ -6,11 +6,7 @@ from trade_alpha.config import load_config
 
 
 def get_pro_api():
-    """Get Tushare Pro API instance.
-
-    Returns:
-        Tushare Pro API
-    """
+    """Get Tushare Pro API instance."""
     config = load_config()
     if config.tushare_token:
         ts.set_token(config.tushare_token)
