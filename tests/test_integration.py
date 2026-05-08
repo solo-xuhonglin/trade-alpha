@@ -1,29 +1,47 @@
 """Integration tests with real environment."""
 
 import pytest
-from data.fetcher import fetch_stock_data
+from data import fetch_and_store
+from data.storage import Storage
 
 
 class TestIntegration:
-    """Integration tests with real Tushare API."""
+    """Integration tests with real Tushare API and MongoDB."""
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        """Setup and teardown for each test."""
+        self.storage = Storage()
+        self.ts_code = "002594.SZ"
+        self.start_date = "20240101"
+        self.end_date = "20240131"
+
+        yield
+
+        self.storage.close()
+
+    def cleanup_data(self):
+        """Clean up test data from MongoDB."""
+        coll = self.storage._get_collection()
+        coll.delete_many({"ts_code": self.ts_code})
+
+    def count_stored_records(self):
+        """Count stored records for the test stock."""
+        coll = self.storage._get_collection()
+        return coll.count_documents({"ts_code": self.ts_code})
 
     @pytest.mark.integration
-    def test_fetch_real_stock_data(self):
-        """Test fetching real stock data from Tushare."""
-        result = fetch_stock_data("002594.SZ", "20240101", "20240131")
+    def test_end_to_end_flow(self):
+        """Test complete flow: cleanup -> fetch -> store -> verify -> cleanup."""
+        self.cleanup_data()
 
-        assert result is not None
-        assert len(result) > 0
-        assert result.iloc[0]["ts_code"] == "002594.SZ"
-        assert "trade_date" in result.columns
-        assert "open" in result.columns
-        assert "close" in result.columns
+        assert self.count_stored_records() == 0
 
-    @pytest.mark.integration
-    def test_fetch_real_stock_data_sorted(self):
-        """Test that real data is sorted by trade_date."""
-        result = fetch_stock_data("002594.SZ", "20240101", "20240110")
+        count = fetch_and_store(self.ts_code, self.start_date, self.end_date)
 
-        assert result is not None
-        dates = result["trade_date"].tolist()
-        assert dates == sorted(dates)
+        assert count > 0
+
+        stored_count = self.count_stored_records()
+        assert stored_count == count
+
+        self.cleanup_data()

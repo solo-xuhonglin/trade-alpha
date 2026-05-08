@@ -2,6 +2,7 @@
 
 from typing import Any
 from pymongo import MongoClient, ASCENDING
+from pymongo.operations import UpdateOne
 from pymongo.errors import BulkWriteError
 from config import load_config
 
@@ -50,11 +51,13 @@ class Storage:
             ts_code = record.get("ts_code")
             trade_date = record.get("trade_date")
             if ts_code and trade_date:
-                operations.append({
-                    "filter": {"ts_code": ts_code, "trade_date": trade_date},
-                    "update": {"$set": record},
-                    "upsert": True
-                })
+                operations.append(
+                    UpdateOne(
+                        {"ts_code": ts_code, "trade_date": trade_date},
+                        {"$set": record},
+                        upsert=True
+                    )
+                )
 
         if not operations:
             return 0
