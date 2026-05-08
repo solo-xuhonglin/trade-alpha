@@ -9,8 +9,8 @@ from data.fetcher import fetch_stock_data
 class TestFetcher:
     """Test cases for fetcher module."""
 
-    @patch("data.fetcher.ts")
-    def test_fetch_stock_data_success(self, mock_ts):
+    @patch("data.fetcher.get_pro_api")
+    def test_fetch_stock_data_success(self, mock_api):
         mock_df = pd.DataFrame({
             "ts_code": ["000001.SZ"],
             "trade_date": ["20240101"],
@@ -20,7 +20,7 @@ class TestFetcher:
             "close": [10.5],
             "vol": [1000000],
         })
-        mock_ts.pro.daily.return_value = mock_df
+        mock_api.return_value.daily.return_value = mock_df
 
         result = fetch_stock_data("000001.SZ", "20240101", "20240101")
 
@@ -28,17 +28,17 @@ class TestFetcher:
         assert len(result) == 1
         assert result.iloc[0]["ts_code"] == "000001.SZ"
 
-    @patch("data.fetcher.ts")
-    def test_fetch_stock_data_empty(self, mock_ts):
+    @patch("data.fetcher.get_pro_api")
+    def test_fetch_stock_data_empty(self, mock_api):
         mock_df = pd.DataFrame()
-        mock_ts.pro.daily.return_value = mock_df
+        mock_api.return_value.daily.return_value = mock_df
 
         result = fetch_stock_data("000001.SZ", "20240101", "20240101")
 
         assert result is None
 
-    @patch("data.fetcher.ts")
-    def test_fetch_stock_data_returns_sorted(self, mock_ts):
+    @patch("data.fetcher.get_pro_api")
+    def test_fetch_stock_data_returns_sorted(self, mock_api):
         mock_df = pd.DataFrame({
             "ts_code": ["000001.SZ", "000001.SZ"],
             "trade_date": ["20240102", "20240101"],
@@ -48,7 +48,7 @@ class TestFetcher:
             "close": [10.5, 10.0],
             "vol": [1000000, 900000],
         })
-        mock_ts.pro.return_value.daily.return_value = mock_df
+        mock_api.return_value.daily.return_value = mock_df
 
         result = fetch_stock_data("000001.SZ", "20240101", "20240102")
 
