@@ -1,15 +1,15 @@
-"""Tests for fetcher module."""
+"""Unit tests for data.fetcher module."""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pandas as pd
-from data.fetcher import fetch_stock_data
+from trade_alpha.data.fetcher import fetch_stock_data
 
 
 class TestFetcher:
     """Test cases for fetcher module."""
 
-    @patch("data.fetcher.get_pro_api")
+    @patch("trade_alpha.data.fetcher.get_pro_api")
     def test_fetch_stock_data_success(self, mock_api):
         mock_df = pd.DataFrame({
             "ts_code": ["000001.SZ"],
@@ -28,7 +28,7 @@ class TestFetcher:
         assert len(result) == 1
         assert result.iloc[0]["ts_code"] == "000001.SZ"
 
-    @patch("data.fetcher.get_pro_api")
+    @patch("trade_alpha.data.fetcher.get_pro_api")
     def test_fetch_stock_data_empty(self, mock_api):
         mock_df = pd.DataFrame()
         mock_api.return_value.daily.return_value = mock_df
@@ -37,7 +37,7 @@ class TestFetcher:
 
         assert result is None
 
-    @patch("data.fetcher.get_pro_api")
+    @patch("trade_alpha.data.fetcher.get_pro_api")
     def test_fetch_stock_data_returns_sorted(self, mock_api):
         mock_df = pd.DataFrame({
             "ts_code": ["000001.SZ", "000001.SZ"],

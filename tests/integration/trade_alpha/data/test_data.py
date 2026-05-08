@@ -1,11 +1,11 @@
-"""Integration tests with real environment."""
+"""Integration tests for data module with real environment."""
 
 import pytest
-from data import fetch_and_store
-from data.storage import Storage
+from trade_alpha.data import fetch_and_store
+from trade_alpha.data.storage import Storage
 
 
-class TestIntegration:
+class TestDataIntegration:
     """Integration tests with real Tushare API and MongoDB."""
 
     @pytest.fixture(autouse=True)

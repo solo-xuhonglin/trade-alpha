@@ -1,7 +1,7 @@
 """Data layer for fetching and storing stock data."""
 
-from data.fetcher import fetch_stock_data
-from data.storage import Storage
+from trade_alpha.data.fetcher import fetch_stock_data
+from trade_alpha.data.storage import Storage
 
 
 def fetch_and_store(ts_code: str, start_date: str, end_date: str) -> int:

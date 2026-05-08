@@ -4,7 +4,7 @@ from typing import Any
 from pymongo import MongoClient, ASCENDING
 from pymongo.operations import UpdateOne
 from pymongo.errors import BulkWriteError
-from config import load_config
+from trade_alpha.config import load_config
 
 
 class Storage:

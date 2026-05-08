@@ -2,7 +2,7 @@
 
 import tushare as ts
 import pandas as pd
-from config import load_config
+from trade_alpha.config import load_config
 
 
 def get_pro_api():
