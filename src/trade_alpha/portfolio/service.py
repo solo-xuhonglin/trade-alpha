@@ -77,3 +77,58 @@ def get_or_create_portfolio(name: str, initial_capital: float) -> tuple[str, Por
         portfolio_id = str(portfolio_doc["_id"])
 
     return portfolio_id, portfolio_to_obj(portfolio_doc)
+
+
+def list_portfolios() -> list[Dict]:
+    """List all portfolios."""
+    dao = MongoDB()
+    collection = dao._get_collection("portfolios")
+    results = list(collection.find())
+    dao.close()
+    return results
+
+
+def update_portfolio(
+    portfolio_id: str,
+    buy_fee_rate: Optional[float] = None,
+    sell_fee_rate: Optional[float] = None,
+    stamp_tax_rate: Optional[float] = None,
+    min_fee: Optional[float] = None,
+) -> bool:
+    """Update portfolio fee settings."""
+    from bson import ObjectId
+
+    dao = MongoDB()
+    collection = dao._get_collection("portfolios")
+
+    update_doc = {}
+    if buy_fee_rate is not None:
+        update_doc["buy_fee_rate"] = buy_fee_rate
+    if sell_fee_rate is not None:
+        update_doc["sell_fee_rate"] = sell_fee_rate
+    if stamp_tax_rate is not None:
+        update_doc["stamp_tax_rate"] = stamp_tax_rate
+    if min_fee is not None:
+        update_doc["min_fee"] = min_fee
+
+    if not update_doc:
+        dao.close()
+        return False
+
+    result = collection.update_one(
+        {"_id": ObjectId(portfolio_id)},
+        {"$set": update_doc}
+    )
+    dao.close()
+    return result.modified_count > 0
+
+
+def delete_portfolio(portfolio_id: str) -> bool:
+    """Delete portfolio."""
+    from bson import ObjectId
+
+    dao = MongoDB()
+    collection = dao._get_collection("portfolios")
+    result = collection.delete_one({"_id": ObjectId(portfolio_id)})
+    dao.close()
+    return result.deleted_count > 0
