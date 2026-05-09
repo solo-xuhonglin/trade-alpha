@@ -15,11 +15,8 @@ def main():
     end_date = today.strftime("%Y%m%d")
 
     print(f"Fetching data for {ts_code} from {start_date} to {end_date}...")
-    try:
-        count = fetch_and_store(ts_code, start_date, end_date)
-        print(f"  Fetched {count} records")
-    except Exception as e:
-        print(f"  Error fetching data: {e}")
+    count = fetch_and_store(ts_code, start_date, end_date)
+    print(f"  Fetched {count} records")
 
     print("Calculating indicators...")
     calculate_and_store_ma(ts_code, periods=[5, 10, 20, 60])
