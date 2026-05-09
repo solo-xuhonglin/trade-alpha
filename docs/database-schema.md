@@ -92,3 +92,21 @@ MongoDB 存储股票行情数据和技术指标。
 | `target_close` | float | 预测收盘价 |
 | `target_high` | float | 预测最高价 |
 | `target_low` | float | 预测最低价 |
+
+### signals
+
+存储交易信号。
+
+**索引**: `{ts_code: 1, trade_date: 1, strategy: 1}` 联合唯一索引
+
+**字段**:
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `ts_code` | string | 股票代码 |
+| `trade_date` | string | 决策日期 (YYYYMMDD) |
+| `strategy` | string | 策略名称 (e.g., "price") |
+| `action` | string | 交易动作 ("buy" / "sell" / "hold") |
+| `current_price` | float | 当前价格 |
+| `target_price` | float | 目标价格 |
+| `reason` | string | 决策原因 |
