@@ -97,10 +97,9 @@ trade-alpha/
 │       ├── ma.py           # 均线计算
 │       ├── macd.py         # MACD 计算
 │       └── service.py      # 指标服务
-├── tests/
-│   └── trade_alpha/        # 测试与源码层级对应
-├── docs/
-│   └── system/             # 本文档所在目录
+├── tests/                  # 测试与源码层级对应
+│   └── trade_alpha/
+├── docs/                   # 文档
 └── pyproject.toml
 ```
 
