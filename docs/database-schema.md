@@ -74,3 +74,21 @@ MongoDB 存储股票行情数据和技术指标。
   "macd_hist": 0.03
 }
 ```
+
+### predictions
+
+存储预测结果。
+
+**索引**: `{ts_code: 1, trade_date: 1, model: 1}` 联合唯一索引
+
+**字段**:
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `ts_code` | string | 股票代码 |
+| `trade_date` | string | 预测日期 (YYYYMMDD) |
+| `model` | string | 模型名称 (e.g., "linear") |
+| `target_open` | float | 预测开盘价 |
+| `target_close` | float | 预测收盘价 |
+| `target_high` | float | 预测最高价 |
+| `target_low` | float | 预测最低价 |
