@@ -23,6 +23,7 @@ class Storage:
 
     def insert_many(self, records: list[dict[str, Any]], collection: str = "daily") -> int:
         coll = self._get_collection(collection)
+        self._ensure_index(collection)
         operations = []
         for record in records:
             ts_code = record.get("ts_code")
@@ -71,7 +72,7 @@ class Storage:
         """
         return self.insert_many(records, collection)
 
-    def ensure_index(self, collection: str = "daily") -> None:
+    def _ensure_index(self, collection: str = "daily") -> None:
         coll = self._get_collection(collection)
         coll.create_index([("ts_code", ASCENDING), ("trade_date", ASCENDING)], unique=True)
 
