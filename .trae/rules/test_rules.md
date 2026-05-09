@@ -4,32 +4,35 @@
 
 ### 单元测试
 - **目的**：测试单个函数或类的行为
-- **位置**：`tests/trade_alpha/<模块>/test_<模块名>.py`
+- **位置**：`backend/tests/trade_alpha/<模块>/test_<模块名>.py`
 - **特点**：使用 mock 隔离外部依赖（数据库、API等）
 
 ### 集成测试
 - **目的**：验证完整业务流程
-- **位置**：`tests/trade_alpha/<模块>/test_<模块名>_integration.py`
+- **位置**：`backend/tests/trade_alpha/<模块>/test_<模块名>_integration.py`
 - **特点**：使用真实环境（真实数据库、真实API）
 
 ## 目录结构
 
 ```
 trade-alpha/
-├── src/
-│   └── trade_alpha/           # 源码
-│       ├── __init__.py
-│       ├── config.py
-│       └── data/
-│           ├── __init__.py
-│           ├── fetcher.py
-│           └── storage.py
-└── tests/
-    └── trade_alpha/           # 与源码层级对应
-        └── data/
-            ├── test_fetcher.py
-            ├── test_storage.py
-            └── test_data_integration.py
+├── backend/
+│   ├── src/
+│   │   └── trade_alpha/           # 源码
+│   │       ├── __init__.py
+│   │       ├── config.py
+│   │       └── data/
+│   │           ├── __init__.py
+│   │           ├── fetcher.py
+│   │           └── storage.py
+│   └── tests/
+│       └── trade_alpha/           # 与源码层级对应
+│           └── data/
+│               ├── test_fetcher.py
+│               ├── test_storage.py
+│               └── test_data_integration.py
+└── frontend/
+    └── ...
 ```
 
 ## 测试命名规范
@@ -44,6 +47,9 @@ trade-alpha/
 ## 运行命令
 
 ```bash
+# 从 backend 目录运行测试
+cd backend
+
 # 运行所有测试
 pytest tests/ -v
 
@@ -52,6 +58,9 @@ pytest tests/ -v -m "not integration"
 
 # 运行集成测试
 pytest tests/ -v -m integration
+
+# 运行特定模块测试
+pytest tests/trade_alpha/data/ -v
 ```
 
 ## 测试原则
