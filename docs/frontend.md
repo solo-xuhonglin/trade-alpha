@@ -1,0 +1,228 @@
+# 前端设计
+
+## 概述
+
+Trade-Alpha 前端基于 Vue 3 + Vuetify 4 实现，提供数据管理、账户管理、策略管理、回测、交易记录等功能。
+
+## 技术栈
+
+| 技术 | 版本 | 用途 |
+|-----|------|------|
+| Vue | 3.x | 前端框架 |
+| TypeScript | 5.x | 类型安全 |
+| Vuetify | 4.x | UI 组件库 |
+| Vue Router | 4.x | 路由管理 |
+| Vite | 6.x | 构建工具 |
+| Axios | 1.x | HTTP 客户端 |
+| ECharts | 5.x | 图表库 |
+
+## 项目结构
+
+```
+frontend/
+├── src/
+│   ├── api/                    # API 调用封装
+│   │   ├── index.ts           # Axios 实例配置
+│   │   ├── data.ts            # 数据 API
+│   │   ├── portfolio.ts       # 账户 API
+│   │   ├── strategy.ts        # 策略 API
+│   │   └── backtest.ts        # 回测 API
+│   ├── components/             # 公共组件
+│   │   └── AppLayout.vue      # 应用布局
+│   ├── views/                  # 页面视图
+│   │   ├── DataView.vue       # 数据管理
+│   │   ├── PortfolioView.vue  # 账户管理
+│   │   ├── StrategyView.vue   # 策略管理
+│   │   ├── BacktestView.vue   # 回测
+│   │   └── TradesView.vue     # 交易记录
+│   ├── router/
+│   │   └── index.ts           # 路由配置
+│   ├── plugins/
+│   │   └── vuetify.ts         # Vuetify 配置
+│   ├── App.vue                 # 根组件
+│   └── main.ts                 # 入口文件
+├── index.html
+├── package.json
+├── tsconfig.json
+├── tsconfig.app.json
+└── vite.config.ts
+```
+
+## 布局设计
+
+采用左侧导航 + 主内容区布局：
+
+```
+┌──────────────────────────────────────────────┐
+│  Trade-Alpha                                │  ← 顶部栏 (v-app-bar)
+├────────────┬─────────────────────────────────┤
+│            │                                 │
+│  数据管理   │                                 │
+│  账户管理   │        主内容区                  │  ← router-view
+│  策略管理   │                                 │
+│  回测      │                                 │
+│  交易记录   │                                 │
+│            │                                 │
+└────────────┴─────────────────────────────────┘
+     ↑
+  左侧导航 (v-navigation-drawer)
+```
+
+## 页面设计
+
+### 1. 数据管理 `/data`
+
+**功能**:
+- 下载股票数据
+- 查看股票列表
+- 查看 K 线图
+
+**组件**:
+- 输入表单：股票代码、日期范围
+- 数据表格：股票列表
+- 弹窗：ECharts K 线图
+
+### 2. 账户管理 `/portfolios`
+
+**功能**:
+- 查看账户列表
+- 创建/编辑/删除账户
+
+**组件**:
+- 数据表格：账户列表
+- 弹窗表单：账户编辑
+
+### 3. 策略管理 `/strategies`
+
+**功能**:
+- 查看策略列表
+- 创建/编辑/删除策略
+- 动态配置字段（根据策略类型）
+
+**组件**:
+- 数据表格：策略列表
+- 弹窗表单：策略编辑
+- 动态表单字段
+
+### 4. 回测 `/backtest`
+
+**功能**:
+- 运行回测
+- 查看回测结果
+- 查看回测历史
+
+**组件**:
+- 表单：回测参数
+- 结果卡片：收益率、回撤、夏普比率等
+- 数据表格：回测历史
+
+### 5. 交易记录 `/trades`
+
+**功能**:
+- 选择回测
+- 查看交易记录
+
+**组件**:
+- 下拉选择：回测列表
+- 数据表格：交易记录
+
+## API 封装
+
+### 基础配置
+
+```typescript
+// src/api/index.ts
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 30000,
+})
+
+export default api
+```
+
+### 使用示例
+
+```typescript
+import { strategyApi } from '@/api/strategy'
+
+// 获取策略列表
+const strategies = await strategyApi.list()
+
+// 创建策略
+await strategyApi.create({
+  name: 'MA20策略',
+  type: 'ma',
+  config: { ma_period: 20, threshold: 0.01 }
+})
+```
+
+## 开发配置
+
+### Vite 代理
+
+开发时通过代理转发 API 请求：
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      }
+    }
+  }
+})
+```
+
+### TypeScript 配置
+
+路径别名配置：
+
+```json
+// tsconfig.app.json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
+```
+
+## 启动命令
+
+```bash
+# 安装依赖
+cd frontend
+npm install
+
+# 开发模式
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 预览生产版本
+npm run preview
+```
+
+## 构建产物
+
+构建后生成 `dist/` 目录：
+
+```
+dist/
+├── index.html
+├── assets/
+│   ├── index-xxx.js
+│   └── index-xxx.css
+└── ...
+```
+
+生产部署时，将 `dist/` 目录部署到 Web 服务器，或由后端 FastAPI 托管。

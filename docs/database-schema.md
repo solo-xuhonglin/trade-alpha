@@ -2,7 +2,7 @@
 
 ## 概述
 
-MongoDB 存储股票行情数据和技术指标。
+MongoDB 存储股票行情数据、技术指标、策略配置和回测结果。
 
 ## 数据库信息
 
@@ -111,6 +111,46 @@ MongoDB 存储股票行情数据和技术指标。
 | `target_price` | float | 目标价格 |
 | `reason` | string | 决策原因 |
 
+### strategies
+
+存储策略配置实例。
+
+**索引**: `{name: 1}` 唯一索引
+
+**字段**:
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `name` | string | 策略名称（唯一） |
+| `type` | string | 策略类型 ("price", "ma", "macd") |
+| `config` | object | 策略配置 |
+| `created_at` | datetime | 创建时间 |
+
+**策略配置示例**
+
+PriceStrategy:
+```json
+{
+  "buy_threshold": 0.01,
+  "sell_threshold": 0.01
+}
+```
+
+MAStrategy:
+```json
+{
+  "ma_period": 20,
+  "threshold": 0.01
+}
+```
+
+MACDStrategy:
+```json
+{
+  "threshold": 0.5
+}
+```
+
 ### portfolios
 
 存储账户信息，包括手续费配置。
@@ -144,7 +184,7 @@ MongoDB 存储股票行情数据和技术指标。
 | `ts_code` | string | 股票代码 |
 | `start_date` | string | 回测开始日期 |
 | `end_date` | string | 回测结束日期 |
-| `strategy` | string | 策略名称 |
+| `strategy` | string | 策略名称或ID |
 | `initial_capital` | float | 初始资金 |
 | `final_value` | float | 最终资产 |
 | `total_return` | float | 总收益率 |
