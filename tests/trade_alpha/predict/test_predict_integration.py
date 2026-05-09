@@ -4,6 +4,7 @@ import pytest
 from trade_alpha.predict import predict
 from trade_alpha.data.service import fetch_and_store
 from trade_alpha.db.storage import Storage
+from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd
 
 
 class TestPredictIntegration:
@@ -31,7 +32,6 @@ class TestPredictIntegration:
         fetch_count = fetch_and_store(self.ts_code, "20240101", "20240131")
         assert fetch_count > 0
 
-        from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd
         calculate_and_store_ma(self.ts_code, periods=[5, 10])
         calculate_and_store_macd(self.ts_code)
 
