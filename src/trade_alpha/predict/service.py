@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from trade_alpha.db.storage import Storage
+from trade_alpha.dao.mongodb import MongoDB
 from trade_alpha.predict.linear import LinearPredictor
 
 
@@ -29,7 +29,7 @@ def predict(
     if targets is None:
         targets = ["open", "close", "high", "low"]
 
-    storage = Storage()
+    storage = MongoDB()
     records = storage.find_by_ts_code(ts_code)
 
     if not records:

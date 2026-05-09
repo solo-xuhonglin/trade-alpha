@@ -1,7 +1,7 @@
 """Data service module."""
 
 from trade_alpha.data.fetcher import fetch_stock_data
-from trade_alpha.db.storage import Storage
+from trade_alpha.dao.mongodb import MongoDB
 
 
 def fetch_and_store(ts_code: str, start_date: str, end_date: str) -> int:
@@ -18,5 +18,5 @@ def fetch_and_store(ts_code: str, start_date: str, end_date: str) -> int:
     df = fetch_stock_data(ts_code, start_date, end_date)
     if df is None or df.empty:
         return 0
-    storage = Storage()
+    storage = MongoDB()
     return storage.insert_many(df.to_dict("records"))

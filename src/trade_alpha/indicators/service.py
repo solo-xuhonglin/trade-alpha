@@ -1,7 +1,7 @@
 """Indicators service module."""
 
 import pandas as pd
-from trade_alpha.db.storage import Storage
+from trade_alpha.dao.mongodb import MongoDB
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
 
@@ -19,7 +19,7 @@ def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> in
     if periods is None:
         periods = [5, 10, 20, 60]
 
-    storage = Storage()
+    storage = MongoDB()
     records = storage.find_by_ts_code(ts_code)
 
     if not records:
@@ -45,7 +45,7 @@ def calculate_and_store_macd(ts_code: str) -> int:
     Returns:
         Number of records updated
     """
-    storage = Storage()
+    storage = MongoDB()
     records = storage.find_by_ts_code(ts_code)
 
     if not records:

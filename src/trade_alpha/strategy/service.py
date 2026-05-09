@@ -1,7 +1,7 @@
 """Strategy service."""
 
 from datetime import datetime
-from trade_alpha.db.storage import Storage
+from trade_alpha.dao.mongodb import MongoDB
 from trade_alpha.strategy.base import StrategyContext
 from trade_alpha.strategy.price import PriceStrategy
 
@@ -24,7 +24,7 @@ def generate_signal(
     Returns:
         Signal result dictionary
     """
-    storage = Storage()
+    storage = MongoDB()
     records = storage.find_by_ts_code(ts_code)
 
     if not records:

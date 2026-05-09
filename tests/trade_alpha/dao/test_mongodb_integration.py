@@ -1,16 +1,16 @@
-"""Integration tests for db.storage module with real environment."""
+"""Integration tests for dao.mongodb module with real environment."""
 
 import pytest
-from trade_alpha.data.service import fetch_and_store
-from trade_alpha.db.storage import Storage
+from trade_alpha.data import fetch_and_store
+from trade_alpha.dao import MongoDB
 
 
-class TestStorageIntegration:
+class TestMongoDBIntegration:
     """Integration tests with real MongoDB."""
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
-        self.storage = Storage()
+        self.storage = MongoDB()
         self.ts_code = "002594.SZ"
         self.start_date = "20240101"
         self.end_date = "20240131"
@@ -19,7 +19,7 @@ class TestStorageIntegration:
 
         self.storage.close()
 
-    def cleanup_data(self):
+    def cleanup(self):
         coll = self.storage._get_collection()
         coll.delete_many({"ts_code": self.ts_code})
 
@@ -27,10 +27,11 @@ class TestStorageIntegration:
         coll = self.storage._get_collection()
         return coll.count_documents({"ts_code": self.ts_code})
 
+    @pytest.mark.order(1)
     @pytest.mark.integration
-    def test_fetch_and_store_flow(self):
-        """Test complete flow: cleanup -> fetch -> store -> verify -> cleanup."""
-        self.cleanup_data()
+    def test_storage_operations(self):
+        """Test storage operations: cleanup -> fetch -> store -> verify."""
+        self.cleanup()
 
         assert self.count_stored_records() == 0
 
@@ -40,5 +41,3 @@ class TestStorageIntegration:
 
         stored_count = self.count_stored_records()
         assert stored_count == count
-
-        self.cleanup_data()

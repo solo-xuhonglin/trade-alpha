@@ -2,9 +2,7 @@
 
 import pytest
 from trade_alpha.predict import predict
-from trade_alpha.data.service import fetch_and_store
-from trade_alpha.db.storage import Storage
-from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd
+from trade_alpha.dao import MongoDB
 
 
 class TestPredictIntegration:
@@ -12,28 +10,25 @@ class TestPredictIntegration:
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
-        self.storage = Storage()
+        self.storage = MongoDB()
         self.ts_code = "002594.SZ"
 
         yield
 
         self.storage.close()
 
-    def cleanup_predictions(self):
+    def cleanup(self):
         coll = self.storage._get_collection("predictions")
         coll.delete_many({"ts_code": self.ts_code})
 
+    @pytest.mark.order(4)
     @pytest.mark.integration
-    def test_predict_real_data(self):
-        """Test: fetch data -> calculate indicators -> predict -> verify."""
-        self.cleanup_predictions()
+    def test_predict(self):
+        """Test predict with existing indicators."""
+        records = self.storage.find_by_ts_code(self.ts_code)
+        assert len(records) > 0, "No data available, run data/indicators integration tests first"
 
-        self.storage._get_collection("daily").delete_many({"ts_code": self.ts_code})
-        fetch_count = fetch_and_store(self.ts_code, "20240101", "20240131")
-        assert fetch_count > 0
-
-        calculate_and_store_ma(self.ts_code, periods=[5, 10])
-        calculate_and_store_macd(self.ts_code)
+        self.cleanup()
 
         result = predict(
             ts_code=self.ts_code,

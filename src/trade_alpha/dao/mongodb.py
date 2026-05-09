@@ -1,4 +1,4 @@
-"""MongoDB storage module."""
+"""MongoDB DAO module."""
 
 from typing import Any
 from pymongo import MongoClient, ASCENDING
@@ -7,8 +7,8 @@ from pymongo.errors import BulkWriteError
 from trade_alpha.config import load_config
 
 
-class Storage:
-    """MongoDB storage handler."""
+class MongoDB:
+    """MongoDB DAO handler."""
 
     def __init__(self, uri: str | None = None, db_name: str | None = None):
         config = load_config()
