@@ -10,46 +10,71 @@
 - [x] 策略层：交易信号生成
 - [x] 账户层：资金管理、交易记录
 - [x] 回测层：策略回测、指标计算
+- [x] API 层：FastAPI RESTful 接口
+- [x] 前端界面：Vue 3 + Vuetify 4
 
 ## 项目结构
 
 ```
 trade-alpha/
-├── src/
-│   └── trade_alpha/
-│       ├── dao/               # 数据访问层 (MongoDB)
-│       ├── data/              # 数据获取模块
-│       ├── indicators/        # 技术指标模块
-│       ├── predict/           # 预测模块
-│       ├── strategy/          # 交易策略模块
-│       ├── portfolio/        # 账户管理模块
-│       └── backtest/         # 回测模块
-├── tests/
-│   └── trade_alpha/
-│       ├── dao/
-│       ├── data/
-│       ├── indicators/
-│       ├── predict/
-│       ├── strategy/
-│       ├── portfolio/
-│       └── backtest/
-├── pyproject.toml
-└── .env.example
+├── backend/                   # 后端项目
+│   ├── src/trade_alpha/      # Python 源码
+│   │   ├── dao/              # 数据访问层 (MongoDB)
+│   │   ├── data/             # 数据获取模块
+│   │   ├── indicators/       # 技术指标模块
+│   │   ├── predict/          # 预测模块
+│   │   ├── strategy/         # 交易策略模块
+│   │   ├── portfolio/        # 账户管理模块
+│   │   ├── backtest/         # 回测模块
+│   │   └── api/              # FastAPI 接口
+│   ├── tests/                # 测试
+│   ├── main.py
+│   └── pyproject.toml
+├── frontend/                  # 前端项目
+│   └── src/                  # Vue 3 源码
+└── docs/                      # 文档
 ```
 
 ## 环境配置
 
 ```bash
+cd backend
 cp .env.example .env
 # 编辑 .env 填入 TUSHARE_TOKEN
 ```
 
 ## 安装
 
+### 后端
+
 ```bash
+cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e . pytest
+```
+
+### 前端
+
+```bash
+cd frontend
+npm install
+```
+
+## 启动
+
+### 后端 API
+
+```bash
+cd backend
+uvicorn trade_alpha.api.main:app --reload --port 8000
+```
+
+### 前端
+
+```bash
+cd frontend
+npm run dev
 ```
 
 ## 使用示例
@@ -86,6 +111,7 @@ print(f"总收益率: {result.total_return:.2%}, 最大回撤: {result.max_drawd
 
 ```bash
 # 运行所有测试
+cd backend
 pytest tests/ -v
 
 # 运行单元测试
