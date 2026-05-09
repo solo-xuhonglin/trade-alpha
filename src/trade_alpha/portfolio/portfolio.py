@@ -26,6 +26,7 @@ class Portfolio:
         stamp_tax_rate: float = 0.001,
         min_fee: float = 5.0,
     ):
+        self.initial_capital = initial_capital
         self.cash = initial_capital
         self.position = 0
         self.buy_fee_rate = buy_fee_rate
