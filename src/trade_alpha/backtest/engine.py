@@ -78,6 +78,7 @@ class BacktestEngine:
             context.current_price = float(record["close"])
             context.prediction = {"close": float(next_record["open"])}
             context.indicators = {}
+            context.position = self.portfolio.position
             
             action = self.strategy.decide(context)
             

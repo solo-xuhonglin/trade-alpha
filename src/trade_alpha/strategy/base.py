@@ -12,6 +12,7 @@ class StrategyContext:
     current_price: float
     prediction: dict[str, float]
     indicators: dict[str, float]
+    position: int = 0
 
 
 class BaseStrategy(ABC):
