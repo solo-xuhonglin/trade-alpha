@@ -29,14 +29,23 @@ src/trade_alpha/
 定义统一接口，所有策略需实现：
 
 ```python
+@dataclass
+class StrategyContext:
+    """策略上下文数据"""
+    ts_code: str
+    trade_date: str
+    current_price: float
+    prediction: dict[str, float]
+    indicators: dict[str, float]
+
+
 class BaseStrategy(ABC):
     @abstractmethod
-    def decide(self, current_price: float, prediction: dict[str, float]) -> str:
+    def decide(self, context: StrategyContext) -> str:
         """决策
 
         Args:
-            current_price: 当前价格
-            prediction: 预测结果 {target: value}
+            context: 策略上下文，包含当前价格、预测值、技术指标等
 
         Returns:
             交易动作: "buy", "sell", "hold"
