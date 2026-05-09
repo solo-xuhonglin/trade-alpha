@@ -431,7 +431,7 @@ git commit -m "test: add predict module tests"
 
 ---
 
-## Task 6: 集成测试（可选）
+## Task 6: 集成测试
 
 **Files:**
 - Create: `tests/trade_alpha/predict/test_predict_integration.py`
