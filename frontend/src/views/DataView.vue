@@ -1,45 +1,46 @@
 <template>
-  <v-card class="ma-2 pa-4" variant="outlined" rounded="xl">
-    <v-card-title class="text-h5 font-weight-bold">数据管理</v-card-title>
+  <v-card class="mb-4">
+    <v-card-title>数据管理</v-card-title>
     <v-card-text>
-      <v-row dense>
+      <v-row>
         <v-col cols="12" sm="4" md="3">
-          <v-text-field v-model="newTsCode" label="股票代码" placeholder="000001.SZ" variant="outlined" density="comfortable" hide-details />
+          <v-text-field v-model="newTsCode" label="股票代码" placeholder="000001.SZ" />
         </v-col>
-        <v-col cols="12" sm="4" md="2">
-          <v-text-field v-model="newStartDate" label="开始日期" placeholder="20240101" variant="outlined" density="comfortable" hide-details />
+        <v-col cols="12" sm="3" md="2">
+          <v-text-field v-model="newStartDate" label="开始日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="4" md="2">
-          <v-text-field v-model="newEndDate" label="结束日期" placeholder="20241231" variant="outlined" density="comfortable" hide-details />
+        <v-col cols="12" sm="3" md="2">
+          <v-text-field v-model="newEndDate" label="结束日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="4" md="2">
-          <v-btn color="primary" block @click="fetchData" :loading="loading" density="comfortable">下载</v-btn>
+        <v-col cols="12" sm="2" md="1">
+          <v-btn color="primary" block @click="fetchData" :loading="loading">下载</v-btn>
         </v-col>
       </v-row>
     </v-card-text>
   </v-card>
 
-  <v-card class="ma-2" variant="outlined" rounded="xl">
-    <v-data-table :headers="headers" :items="stockList" :loading="loading" density="comfortable" hover>
+  <v-card>
+    <v-card-title>数据列表</v-card-title>
+    <v-data-table :headers="headers" :items="stockList" :loading="loading">
       <template v-slot:item.actions="{ item }">
-        <v-btn size="small" color="primary" variant="flat" @click="viewChart(item)" class="mr-2">查看</v-btn>
-        <v-btn size="small" color="error" variant="flat" @click="deleteStock(item)">删除</v-btn>
+        <v-btn color="primary" variant="text" @click="viewChart(item)">查看</v-btn>
+        <v-btn color="error" variant="text" @click="deleteStock(item)">删除</v-btn>
       </template>
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="chartDialog" max-width="90vw" scrollable>
-    <v-card rounded="xl">
+  <v-dialog v-model="chartDialog" max-width="90vw">
+    <v-card>
       <v-card-title class="d-flex align-center">
-        <span class="text-h6 font-weight-bold">{{ selectedStock }} K线图</span>
+        <span>{{ selectedStock }} K线图</span>
         <v-spacer />
-        <v-btn icon variant="text" size="small" @click="chartDialog = false">
+        <v-btn icon variant="text" @click="chartDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
       <v-divider />
       <v-card-text>
-        <div ref="chartRef" style="width: 100%; height: 70vh; min-height: 400px;"></div>
+        <div ref="chartRef" style="width: 100%; height: 60vh; min-height: 300px;"></div>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -50,10 +51,12 @@ import { ref, nextTick, onUnmounted } from 'vue'
 import { dataApi, type DataRecord } from '@/api/data'
 import * as echarts from 'echarts'
 
+const formatDate = (date: Date) => date.toISOString().split('T')[0]
+
 const loading = ref(false)
 const newTsCode = ref('')
-const newStartDate = ref('')
-const newEndDate = ref('')
+const newStartDate = ref(formatDate(new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)))
+const newEndDate = ref(formatDate(new Date()))
 const stockList = ref<{ ts_code: string; count: number; latest_date: string }[]>([])
 const chartDialog = ref(false)
 const selectedStock = ref('')
@@ -72,7 +75,9 @@ const fetchData = async () => {
   if (!newTsCode.value || !newStartDate.value || !newEndDate.value) return
   loading.value = true
   try {
-    await dataApi.fetchData(newTsCode.value, newStartDate.value, newEndDate.value)
+    const start = newStartDate.value.replace(/-/g, '')
+    const end = newEndDate.value.replace(/-/g, '')
+    await dataApi.fetchData(newTsCode.value, start, end)
   } finally {
     loading.value = false
   }

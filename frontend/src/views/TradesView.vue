@@ -1,14 +1,22 @@
 <template>
-  <v-card class="ma-2" variant="outlined" rounded="xl">
+  <v-card>
     <v-card-title class="d-flex align-center">
-      <span class="text-h5 font-weight-bold">交易记录</span>
+      交易记录
       <v-spacer />
-      <v-select v-model="selectedBacktestId" :items="backtests" item-title="id" item-value="id" label="选择回测" variant="outlined" density="comfortable" hide-details class="w-100" style="max-width: 300px" @update:modelValue="loadTrades" />
+      <v-select
+        v-model="selectedBacktestId"
+        :items="backtests"
+        item-title="id"
+        item-value="id"
+        label="选择回测"
+        style="max-width: 300px"
+        @update:modelValue="loadTrades"
+      />
     </v-card-title>
     <v-divider />
-    <v-data-table :headers="headers" :items="trades" :loading="loading" density="comfortable" hover>
+    <v-data-table :headers="headers" :items="trades" :loading="loading">
       <template v-slot:item.action="{ item }">
-        <v-chip :color="item.action === 'buy' ? 'success' : 'error'" size="small" variant="flat">
+        <v-chip :color="item.action === 'buy' ? 'success' : 'error'">
           {{ item.action === 'buy' ? '买入' : '卖出' }}
         </v-chip>
       </template>
