@@ -35,23 +35,57 @@
             </v-col>
             <template v-if="form.type === 'price'">
               <v-col cols="12" sm="6">
-                <v-text-field v-model.number="form.config.buy_threshold" label="买入阈值" type="number" step="0.01" />
+                <v-text-field
+                  v-model.number="form.config.buy_threshold"
+                  label="买入阈值"
+                  type="number"
+                  step="0.01"
+                  hint="预测涨幅超过此值时买入，默认0.01(1%)"
+                  persistent-hint
+                />
               </v-col>
               <v-col cols="12" sm="6">
-                <v-text-field v-model.number="form.config.sell_threshold" label="卖出阈值" type="number" step="0.01" />
+                <v-text-field
+                  v-model.number="form.config.sell_threshold"
+                  label="卖出阈值"
+                  type="number"
+                  step="0.01"
+                  hint="预测跌幅超过此值时卖出，默认0.01(1%)"
+                  persistent-hint
+                />
               </v-col>
             </template>
             <template v-if="form.type === 'ma'">
               <v-col cols="12" sm="6">
-                <v-text-field v-model.number="form.config.ma_period" label="MA周期" type="number" />
+                <v-text-field
+                  v-model.number="form.config.ma_period"
+                  label="MA周期"
+                  type="number"
+                  hint="移动平均线计算周期(天)，默认20"
+                  persistent-hint
+                />
               </v-col>
               <v-col cols="12" sm="6">
-                <v-text-field v-model.number="form.config.threshold" label="阈值" type="number" step="0.01" />
+                <v-text-field
+                  v-model.number="form.config.threshold"
+                  label="阈值"
+                  type="number"
+                  step="0.01"
+                  hint="价格与MA偏离阈值，默认0.01(1%)"
+                  persistent-hint
+                />
               </v-col>
             </template>
             <template v-if="form.type === 'macd'">
               <v-col cols="12">
-                <v-text-field v-model.number="form.config.threshold" label="阈值" type="number" step="0.1" />
+                <v-text-field
+                  v-model.number="form.config.threshold"
+                  label="阈值"
+                  type="number"
+                  step="0.1"
+                  hint="MACD与信号线差值阈值，默认0.5"
+                  persistent-hint
+                />
               </v-col>
             </template>
           </v-row>
@@ -90,6 +124,12 @@ const editingId = ref<string | null>(null)
 const deletingItem = ref<Strategy | null>(null)
 const strategyTypes = ['price', 'ma', 'macd']
 
+const defaultConfigs: Record<string, Record<string, any>> = {
+  price: { buy_threshold: 0.01, sell_threshold: 0.01 },
+  ma: { ma_period: 20, threshold: 0.01 },
+  macd: { threshold: 0.5 },
+}
+
 const form = ref({
   name: '',
   type: 'price',
@@ -119,7 +159,11 @@ const openDialog = (item?: Strategy) => {
     form.value = { name: item.name, type: item.type, config: { ...item.config } }
   } else {
     editingId.value = null
-    form.value = { name: 'default_strategy', type: 'price', config: {} }
+    form.value = {
+      name: 'default_strategy',
+      type: 'price',
+      config: { ...defaultConfigs['price'] },
+    }
   }
   dialog.value = true
 }
