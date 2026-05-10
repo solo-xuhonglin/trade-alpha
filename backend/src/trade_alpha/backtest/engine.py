@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Dict
 from unittest.mock import MagicMock
-from trade_alpha.portfolio import Portfolio, Trade
+from trade_alpha.portfolio import PortfolioManager, Trade
 
 
 @dataclass
@@ -37,7 +37,7 @@ class BacktestEngine:
         start_date: str,
         end_date: str,
         strategy,
-        portfolio: Portfolio,
+        portfolio: PortfolioManager,
     ):
         self.ts_code = ts_code
         self.start_date = start_date

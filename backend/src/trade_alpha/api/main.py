@@ -1,6 +1,7 @@
 """FastAPI application entry point."""
 
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -15,6 +16,7 @@ from trade_alpha.api.routers import (
     model_configs,
     trainings,
 )
+from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
 
 setup_logging()
@@ -42,10 +44,18 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+    await close_db()
+
+
 app = FastAPI(
     title="Trade-Alpha API",
     description="Stock trading analysis system API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(LoggingMiddleware)

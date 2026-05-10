@@ -1,10 +1,10 @@
 """Strategy API endpoints."""
 
 from fastapi import APIRouter, HTTPException
+from beanie import PydanticObjectId
 from trade_alpha.api.schemas import (
     StrategyCreateRequest,
     StrategyUpdateRequest,
-    StrategyResponse,
 )
 from trade_alpha.strategy.service import (
     create_strategy,
@@ -17,62 +17,68 @@ from trade_alpha.strategy.service import (
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
 
-def _doc_to_response(doc: dict) -> StrategyResponse:
-    """Convert MongoDB document to response model."""
-    return StrategyResponse(
-        id=str(doc["_id"]),
-        name=doc["name"],
-        type=doc["type"],
-        config=doc["config"],
-        created_at=doc["created_at"],
-    )
-
-
-@router.get("", response_model=list[StrategyResponse])
-def get_strategies():
+@router.get("")
+async def get_strategies():
     """Get all strategies."""
-    strategies = list_strategies()
-    return [_doc_to_response(s) for s in strategies]
+    return await list_strategies()
 
 
-@router.get("/{strategy_id}", response_model=StrategyResponse)
-def get_strategy(strategy_id: str):
+@router.get("/{strategy_id}")
+async def get_strategy(strategy_id: str):
     """Get strategy by ID."""
-    strategy = get_strategy_by_id(strategy_id)
+    try:
+        obj_id = PydanticObjectId(strategy_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid strategy ID")
+    
+    strategy = await get_strategy_by_id(obj_id)
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
-    return _doc_to_response(strategy)
+    return strategy
 
 
-@router.post("", response_model=StrategyResponse)
-def create_strategy_endpoint(request: StrategyCreateRequest):
+@router.post("")
+async def create_strategy_endpoint(request: StrategyCreateRequest):
     """Create a new strategy."""
-    strategy_id = create_strategy(
-        name=request.name,
-        strategy_type=request.type,
-        config=request.config,
-    )
-    strategy = get_strategy_by_id(strategy_id)
-    return _doc_to_response(strategy)
+    try:
+        return await create_strategy(
+            name=request.name,
+            strategy_type=request.type,
+            config=request.config,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/{strategy_id}")
-def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequest):
+async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequest):
     """Update strategy."""
-    success = update_strategy(
-        strategy_id=strategy_id,
-        name=request.name,
-        config=request.config,
-    )
-    if not success:
+    try:
+        obj_id = PydanticObjectId(strategy_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid strategy ID")
+    
+    try:
+        return await update_strategy(
+            strategy_id=obj_id,
+            name=request.name,
+            config=request.config,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
         raise HTTPException(status_code=404, detail="Strategy not found")
-    return {"message": "Strategy updated"}
 
 
 @router.delete("/{strategy_id}")
-def delete_strategy_endpoint(strategy_id: str):
+async def delete_strategy_endpoint(strategy_id: str):
     """Delete strategy."""
-    success = delete_strategy(strategy_id)
-    if not success:
+    try:
+        obj_id = PydanticObjectId(strategy_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid strategy ID")
+    
+    deleted = await delete_strategy(obj_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Strategy not found")
     return {"message": "Strategy deleted"}

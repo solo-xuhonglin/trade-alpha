@@ -1,5 +1,6 @@
 """Tushare data fetcher module."""
 
+import os
 import tushare as ts
 import pandas as pd
 from datetime import datetime, timedelta
@@ -9,9 +10,8 @@ from trade_alpha.config import load_config
 def get_pro_api():
     """Get Tushare Pro API instance."""
     config = load_config()
-    if config.tushare_token:
-        ts.set_token(config.tushare_token)
-    return ts.pro_api()
+    token = config.tushare_token or os.getenv("TUSHARE_TOKEN") or os.getenv("TS_TOKEN")
+    return ts.pro_api(token=token)
 
 
 def fetch_stock_data(ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
@@ -39,26 +39,16 @@ def fetch_stock_list() -> pd.DataFrame | None:
         DataFrame with stock basic info, or None if no data
     """
     api = get_pro_api()
-    # 获取 A 股股票列表
     df = api.stock_basic(exchange="", list_status="L", fields="ts_code,name,industry,list_date,market")
     if df is None or df.empty:
         return None
-    # 过滤 A 股
     df = df[df["ts_code"].str.endswith((".SH", ".SZ", ".BJ"))].copy()
-    # 映射市场字段
     df["market"] = df["ts_code"].apply(_map_market)
     return df
 
 
 def _map_market(ts_code: str) -> str:
-    """Map ts_code to market name.
-
-    Args:
-        ts_code: Stock code
-
-    Returns:
-        Market name ("主板"/"创业板"/"科创板"/"北交所")
-    """
+    """Map ts_code to market name."""
     if ts_code.endswith(".BJ"):
         return "北交所"
     if ts_code.startswith("688"):
@@ -69,17 +59,9 @@ def _map_market(ts_code: str) -> str:
 
 
 def fetch_daily_basic(trade_date: str | None = None) -> pd.DataFrame | None:
-    """Fetch daily basic data from Tushare.
-
-    Args:
-        trade_date: Trade date (YYYYMMDD), defaults to latest trading day
-
-    Returns:
-        DataFrame with daily basic data, or None if no data
-    """
+    """Fetch daily basic data from Tushare."""
     api = get_pro_api()
     if trade_date is None:
-        # 获取最近的交易日
         today = datetime.now()
         for i in range(10):
             check_date = today - timedelta(days=i)

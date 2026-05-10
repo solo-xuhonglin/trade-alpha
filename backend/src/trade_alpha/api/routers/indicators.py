@@ -15,9 +15,9 @@ router = APIRouter(prefix="/indicators", tags=["indicators"])
 
 
 @router.post("/ma", response_model=IndicatorResult)
-def calculate_ma_endpoint(request: MACalculateRequest):
+async def calculate_ma_endpoint(request: MACalculateRequest):
     """Calculate and store MA."""
-    count = calculate_and_store_ma(
+    count = await calculate_and_store_ma(
         ts_code=request.ts_code,
         periods=request.periods,
     )
@@ -25,7 +25,7 @@ def calculate_ma_endpoint(request: MACalculateRequest):
 
 
 @router.post("/macd", response_model=IndicatorResult)
-def calculate_macd_endpoint(request: MACDCalculateRequest):
+async def calculate_macd_endpoint(request: MACDCalculateRequest):
     """Calculate and store MACD."""
-    count = calculate_and_store_macd(ts_code=request.ts_code)
+    count = await calculate_and_store_macd(ts_code=request.ts_code)
     return IndicatorResult(ts_code=request.ts_code, updated_count=count)

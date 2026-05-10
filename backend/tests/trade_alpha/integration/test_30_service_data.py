@@ -1,8 +1,9 @@
 """Integration tests for data service."""
 
 import pytest
-from trade_alpha.data import fetch_and_store_stock_daily
-from trade_alpha.dao import MongoDB, StockDailyDAO
+from trade_alpha.data.service import fetch_and_store_stock_daily
+from trade_alpha.dao import StockDaily
+from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd
 
 
 @pytest.mark.integration
@@ -11,32 +12,36 @@ class TestServiceData:
     """Integration tests for data service."""
 
     @pytest.fixture(autouse=True)
-    def setup_teardown(self):
+    async def setup_teardown(self):
         """Setup and teardown for each test."""
-        self.dao = MongoDB()
         self.ts_code = "002594.SZ"
         self.backup_ts_code = "601398.SH"
 
         yield
 
-        self.dao.close()
+        await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
 
-    def test_fetch_and_store_stock_daily(self):
+    @pytest.mark.asyncio
+    async def test_fetch_and_store_stock_daily(self, setup_db):
         """Test complete flow: fetch -> store -> verify."""
-        coll = self.dao._get_collection("stock_daily")
-        coll.delete_many({"ts_code": self.backup_ts_code})
+        await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
 
-        count = fetch_and_store_stock_daily(self.backup_ts_code, "20240101", "20240131")
+        count = await fetch_and_store_stock_daily(self.backup_ts_code, "20240101", "20240131")
 
         assert count > 0
-        assert coll.count_documents({"ts_code": self.backup_ts_code}) == count
+        found = await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).to_list()
+        assert len(found) >= count
 
-        coll.delete_many({"ts_code": self.backup_ts_code})
+        await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
 
-    def test_ensure_default_data(self):
+    @pytest.mark.asyncio
+    async def test_ensure_default_data(self, setup_db):
         """Ensure default stock data exists for Layer 4 tests."""
-        dao = StockDailyDAO()
-        existing = dao.find_by_ts_code(self.ts_code)
+        existing = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
 
         if not existing:
-            fetch_and_store_stock_daily(self.ts_code, "20230101", "20231231")
+            await fetch_and_store_stock_daily(self.ts_code, "20230101", "20231231")
+        
+        # Calculate indicators for training
+        await calculate_and_store_ma(self.ts_code)
+        await calculate_and_store_macd(self.ts_code)

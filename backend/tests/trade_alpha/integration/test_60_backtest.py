@@ -1,75 +1,69 @@
 """Integration tests for backtest service."""
 
 import pytest
+from beanie import PydanticObjectId
 from trade_alpha.backtest import service as backtest_service
-from trade_alpha.data import fetch_and_store_stock_daily
-from trade_alpha.dao import MongoDB
+from trade_alpha.data.service import fetch_and_store_stock_daily
 from trade_alpha.portfolio import service as portfolio_service
 from trade_alpha.strategy import service as strategy_service
-from trade_alpha.predict import training_service
+from trade_alpha.predict import training_service, config_service
+from trade_alpha.dao import Backtest, BacktestTrade
 
 
-def _ensure_default_portfolio():
+async def _ensure_default_portfolio():
     """Ensure default portfolio exists."""
-    portfolios = portfolio_service.list_portfolios()
+    portfolios = await portfolio_service.list_portfolios()
     for p in portfolios:
-        if p["name"] == "test_portfolio":
+        if p.name == "test_portfolio":
             return p
-    portfolio_service.create_portfolio(
+    return await portfolio_service.create_portfolio(
         name="test_portfolio",
         initial_capital=100000,
         buy_fee_rate=0.0003,
         sell_fee_rate=0.0003,
     )
-    return portfolio_service.get_portfolio_by_name("test_portfolio")
 
 
-def _ensure_default_strategy():
+async def _ensure_default_strategy():
     """Ensure default strategy exists."""
-    strategies = strategy_service.list_strategies()
+    strategies = await strategy_service.list_strategies()
     for s in strategies:
-        if s["name"] == "test_strategy":
+        if s.name == "test_strategy":
             return s
-    strategy_service.create_strategy(
+    return await strategy_service.create_strategy(
         name="test_strategy",
         strategy_type="price",
         config={"buy_threshold": 0.02, "sell_threshold": -0.02},
     )
-    strategies = strategy_service.list_strategies()
-    for s in strategies:
-        if s["name"] == "test_strategy":
-            return s
-    return None
 
 
-def _ensure_default_training(config_id: str):
+async def _ensure_default_config():
+    """Ensure default config exists."""
+    configs = await config_service.list_configs()
+    for c in configs:
+        if c.name == "test_model_config":
+            return c
+    return await config_service.create_config(
+        name="test_model_config",
+        model_type="linear",
+        params={},
+        targets=["open", "close", "high", "low"],
+    )
+
+
+async def _ensure_default_training(config_id: PydanticObjectId):
     """Ensure default training exists."""
-    trainings = training_service.list_trainings(config_id=config_id)
+    trainings = await training_service.list_trainings(config_id=config_id)
     for t in trainings:
-        if t["name"] == "test_training":
+        if t.name == "test_training":
             return t
-    training_service.create_training(
+    return await training_service.create_training(
         config_id=config_id,
         name="test_training",
         ts_codes=["002594.SZ"],
         start_date="20230101",
         end_date="20231231",
     )
-    trainings = training_service.list_trainings(config_id=config_id)
-    for t in trainings:
-        if t["name"] == "test_training":
-            return t
-    return None
-
-
-def _get_default_config():
-    """Get default model config."""
-    from trade_alpha.predict import config_service
-    configs = config_service.list_configs()
-    for c in configs:
-        if c["name"] == "test_model_config":
-            return c
-    return None
 
 
 @pytest.mark.integration
@@ -78,35 +72,34 @@ class TestBacktest:
     """Integration tests for backtest service."""
 
     @pytest.fixture(autouse=True)
-    def setup_teardown(self):
+    async def setup_teardown(self):
         """Setup and teardown for each test."""
         self.ts_code = "002594.SZ"
         self.start_date = "20230101"
         self.end_date = "20231231"
 
-        fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
+        await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
 
-        portfolio = _ensure_default_portfolio()
-        strategy = _ensure_default_strategy()
-        config = _get_default_config()
-        training = _ensure_default_training(config["_id"])
+        portfolio = await _ensure_default_portfolio()
+        strategy = await _ensure_default_strategy()
+        config = await _ensure_default_config()
+        training = await _ensure_default_training(config.id)
 
-        self.portfolio_id = str(portfolio["_id"])
-        self.strategy_id = str(strategy["_id"])
-        self.training_id = str(training["_id"])
+        self.portfolio_id = portfolio.id
+        self.strategy_id = strategy.id
+        self.training_id = training.id
 
         yield
 
-        dao = MongoDB()
-        backtests = list(dao._get_collection("backtests").find({"ts_code": self.ts_code}))
+        backtests = await Backtest.find(Backtest.ts_code == self.ts_code).to_list()
         for bt in backtests:
-            dao._get_collection("backtest_trades").delete_many({"backtest_id": bt["_id"]})
-            dao._get_collection("backtests").delete_one({"_id": bt["_id"]})
-        dao.close()
+            await BacktestTrade.find(BacktestTrade.backtest_id == bt.id).delete()
+        await Backtest.find(Backtest.ts_code == self.ts_code).delete()
 
-    def _run_backtest(self):
-        """Helper to run backtest with test fixtures."""
-        return backtest_service.run_backtest(
+    @pytest.mark.asyncio
+    async def test_run_backtest(self, setup_db):
+        """Test running backtest."""
+        result = await backtest_service.run_backtest(
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
@@ -115,63 +108,72 @@ class TestBacktest:
             training_id=self.training_id,
         )
 
-    def test_run_backtest(self):
-        """Test running backtest."""
-        result = self._run_backtest()
-
         assert result is not None
         assert result.final_value > 0
         assert result.total_trades >= 0
 
-    def test_run_backtest_with_ma_strategy(self):
+    @pytest.mark.asyncio
+    async def test_run_backtest_with_ma_strategy(self, setup_db):
         """Test running backtest with MA strategy."""
-        result = self._run_backtest()
+        result = await backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
+        )
 
         assert result is not None
-        assert result.strategy_id == self.strategy_id
+        assert result.strategy_id == str(self.strategy_id)
 
-    def test_backtest_persistence(self):
+    @pytest.mark.asyncio
+    async def test_backtest_persistence(self, setup_db):
         """Test backtest result is saved."""
-        result = self._run_backtest()
+        result = await backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
+        )
 
         assert result.backtest_id is not None
 
-        dao = MongoDB()
-        from bson import ObjectId
-        saved = dao._get_collection("backtests").find_one({"_id": ObjectId(result.backtest_id)})
-        dao.close()
-
+        saved = await Backtest.get(PydanticObjectId(result.backtest_id))
         assert saved is not None
 
-    def test_backtest_trades_saved(self):
+    @pytest.mark.asyncio
+    async def test_backtest_trades_saved(self, setup_db):
         """Test trades are saved during backtest."""
-        result = self._run_backtest()
+        result = await backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
+        )
 
         if result.total_trades > 0:
-            dao = MongoDB()
-            from bson import ObjectId
-            trades = list(dao._get_collection("backtest_trades").find({"backtest_id": ObjectId(result.backtest_id)}))
-            dao.close()
+            trades = await BacktestTrade.find(
+                BacktestTrade.backtest_id == PydanticObjectId(result.backtest_id)
+            ).to_list()
             assert len(trades) == result.total_trades
 
-    def test_backtest_metrics(self):
+    @pytest.mark.asyncio
+    async def test_backtest_metrics(self, setup_db):
         """Test backtest metrics calculation."""
-        result = self._run_backtest()
+        result = await backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
+        )
 
         assert result.total_return is not None
         assert result.max_drawdown is not None
         assert result.sharpe_ratio is not None
-
-    def test_ensure_default_backtest(self):
-        """Ensure default backtest exists."""
-        dao = MongoDB()
-        existing = list(dao._get_collection("backtests").find({
-            "ts_code": self.ts_code,
-            "portfolio_id": self.portfolio_id,
-        }))
-        dao.close()
-
-        if existing:
-            return
-
-        self._run_backtest()

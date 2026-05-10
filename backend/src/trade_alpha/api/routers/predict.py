@@ -1,37 +1,31 @@
 """Predict API endpoints."""
 
 from fastapi import APIRouter, HTTPException
-from trade_alpha.api.schemas import PredictRequest, PredictResponse
-from trade_alpha.predict.service import predict as do_predict
-from trade_alpha.dao import PredictionDAO
+from trade_alpha.api.schemas import PredictRequest
+from trade_alpha.predict.service import (
+    predict as do_predict,
+    get_prediction_by_ts_code,
+    delete_predictions_by_ts_code,
+)
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 
 
-@router.get("/{ts_code}", response_model=PredictResponse)
-def get_prediction(ts_code: str):
+@router.get("/{ts_code}")
+async def get_prediction(ts_code: str):
     """Get latest prediction for a stock."""
-    dao = PredictionDAO()
-    r = dao.find_latest_by_ts_code(ts_code)
+    prediction = await get_prediction_by_ts_code(ts_code)
 
-    if not r:
+    if not prediction:
         raise HTTPException(status_code=404, detail="No prediction found")
 
-    return PredictResponse(
-        ts_code=r["ts_code"],
-        trade_date=r["trade_date"],
-        model=r["model"],
-        target_open=r.get("target_open"),
-        target_close=r.get("target_close"),
-        target_high=r.get("target_high"),
-        target_low=r.get("target_low"),
-    )
+    return prediction
 
 
-@router.post("", response_model=PredictResponse)
-def create_prediction(request: PredictRequest):
+@router.post("")
+async def create_prediction(request: PredictRequest):
     """Generate prediction."""
-    result = do_predict(
+    predictions = await do_predict(
         ts_code=request.ts_code,
         targets=request.targets,
         model=request.model,
@@ -39,16 +33,15 @@ def create_prediction(request: PredictRequest):
         end_date=request.end_date,
     )
 
-    if not result:
+    if not predictions:
         raise HTTPException(status_code=400, detail="Prediction failed")
 
-    prediction = get_prediction(request.ts_code)
+    prediction = await get_prediction_by_ts_code(request.ts_code)
     return prediction
 
 
 @router.delete("/{ts_code}")
-def delete_prediction(ts_code: str):
+async def delete_prediction(ts_code: str):
     """Delete predictions for a stock."""
-    dao = PredictionDAO()
-    deleted_count = dao.delete_by_ts_code(ts_code)
+    deleted_count = await delete_predictions_by_ts_code(ts_code)
     return {"deleted_count": deleted_count}

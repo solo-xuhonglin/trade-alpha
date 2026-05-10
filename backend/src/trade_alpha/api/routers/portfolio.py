@@ -1,94 +1,82 @@
 """Portfolio API endpoints."""
 
 from fastapi import APIRouter, HTTPException
-from trade_alpha.api.schemas import (
-    PortfolioCreateRequest,
-    PortfolioUpdateRequest,
-    PortfolioResponse,
-)
-from trade_alpha.portfolio.service import (
+from pydantic import BaseModel
+from beanie import PydanticObjectId
+
+from trade_alpha.portfolio import (
     create_portfolio,
     get_portfolio_by_id,
-    get_portfolio,
     list_portfolios,
+    update_portfolio,
+    delete_portfolio,
 )
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
 
-def _doc_to_response(doc: dict) -> PortfolioResponse:
-    """Convert MongoDB document to response model."""
-    return PortfolioResponse(
-        id=str(doc["_id"]),
-        name=doc["name"],
-        initial_capital=doc["initial_capital"],
-        cash=doc.get("cash", doc["initial_capital"]),
-        position=doc.get("position", 0),
-        buy_fee_rate=doc["buy_fee_rate"],
-        sell_fee_rate=doc["sell_fee_rate"],
-        stamp_tax_rate=doc["stamp_tax_rate"],
-        min_fee=doc["min_fee"],
-    )
+class PortfolioCreateRequest(BaseModel):
+    name: str
+    initial_capital: float = 100000.0
+    buy_fee_rate: float = 0.0003
+    sell_fee_rate: float = 0.0003
+    stamp_tax_rate: float = 0.001
+    min_fee: float = 5.0
 
 
-@router.get("", response_model=list[PortfolioResponse])
-def get_portfolios():
-    """Get all portfolios."""
-    portfolios = list_portfolios()
-    return [_doc_to_response(p) for p in portfolios]
+class PortfolioUpdateRequest(BaseModel):
+    buy_fee_rate: float | None = None
+    sell_fee_rate: float | None = None
+    stamp_tax_rate: float | None = None
+    min_fee: float | None = None
 
 
-@router.get("/{portfolio_id}", response_model=PortfolioResponse)
-def get_portfolio_endpoint(portfolio_id: str):
+@router.get("")
+async def get_portfolios():
+    """List all portfolios."""
+    return await list_portfolios()
+
+
+@router.get("/{portfolio_id}")
+async def get_portfolio(portfolio_id: PydanticObjectId):
     """Get portfolio by ID."""
-    portfolio = get_portfolio_by_id(portfolio_id)
+    portfolio = await get_portfolio_by_id(portfolio_id)
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
-    return _doc_to_response(portfolio)
+    return portfolio
 
 
-@router.post("", response_model=PortfolioResponse)
-def create_portfolio_endpoint(request: PortfolioCreateRequest):
+@router.post("")
+async def create_portfolio_endpoint(request: PortfolioCreateRequest):
     """Create a new portfolio."""
-    existing = get_portfolio_by_name(request.name)
-    if existing:
-        raise HTTPException(status_code=400, detail="Portfolio name already exists")
-
-    portfolio_id = create_portfolio(
-        name=request.name,
-        initial_capital=request.initial_capital,
-        buy_fee_rate=request.buy_fee_rate,
-        sell_fee_rate=request.sell_fee_rate,
-        stamp_tax_rate=request.stamp_tax_rate,
-        min_fee=request.min_fee,
-    )
-    portfolio = get_portfolio_by_id(portfolio_id)
-    return _doc_to_response(portfolio)
+    try:
+        portfolio = await create_portfolio(
+            name=request.name,
+            initial_capital=request.initial_capital,
+            buy_fee_rate=request.buy_fee_rate,
+            sell_fee_rate=request.sell_fee_rate,
+            stamp_tax_rate=request.stamp_tax_rate,
+            min_fee=request.min_fee,
+        )
+        return portfolio
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/{portfolio_id}")
-def update_portfolio_endpoint(portfolio_id: str, request: PortfolioUpdateRequest):
+async def update_portfolio_endpoint(portfolio_id: PydanticObjectId, request: PortfolioUpdateRequest):
     """Update portfolio."""
-    from trade_alpha.portfolio.service import update_portfolio
-
-    success = update_portfolio(
-        portfolio_id=portfolio_id,
-        buy_fee_rate=request.buy_fee_rate,
-        sell_fee_rate=request.sell_fee_rate,
-        stamp_tax_rate=request.stamp_tax_rate,
-        min_fee=request.min_fee,
-    )
-    if not success:
+    update_data = {k: v for k, v in request.model_dump().items() if v is not None}
+    portfolio = await update_portfolio(portfolio_id, **update_data)
+    if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
-    return {"message": "Portfolio updated"}
+    return portfolio
 
 
 @router.delete("/{portfolio_id}")
-def delete_portfolio_endpoint(portfolio_id: str):
+async def delete_portfolio_endpoint(portfolio_id: PydanticObjectId):
     """Delete portfolio."""
-    from trade_alpha.portfolio.service import delete_portfolio
-
-    success = delete_portfolio(portfolio_id)
-    if not success:
+    deleted = await delete_portfolio(portfolio_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return {"message": "Portfolio deleted"}

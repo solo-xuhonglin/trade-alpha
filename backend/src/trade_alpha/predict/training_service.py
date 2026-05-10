@@ -2,9 +2,9 @@
 
 import os
 from datetime import datetime
-from typing import Optional, Dict, Any, List
-from bson import ObjectId
-from trade_alpha.dao import MongoDB, StockDailyDAO, TrainingDAO
+from typing import Optional, List
+from beanie import PydanticObjectId
+from trade_alpha.dao import StockDaily, Training
 from trade_alpha.logging import get_logger
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.predict.xgboost import XGBoostPredictor
@@ -26,58 +26,46 @@ def _ensure_model_dir(config_id: str):
     os.makedirs(os.path.join(MODELS_DIR, config_id), exist_ok=True)
 
 
-def create_training(
-    config_id: str,
+async def create_training(
+    config_id: PydanticObjectId,
     name: str,
     ts_codes: List[str],
     start_date: str,
     end_date: str,
-) -> str:
-    """Create training with sample mixing strategy.
-
-    Args:
-        config_id: Model configuration ID
-        name: Training name
-        ts_codes: List of stock codes
-        start_date: Start date (YYYYMMDD)
-        end_date: End date (YYYYMMDD)
-
-    Returns:
-        Training ID
-    """
+) -> Training:
+    """Create training with sample mixing strategy."""
     import pandas as pd
     import numpy as np
-    from sklearn.metrics import mean_squared_error, mean_absolute_error
 
     from trade_alpha.predict.config_service import get_config_by_id
 
     logger.info(f"Creating training '{name}' with config {config_id}")
 
-    config = get_config_by_id(config_id)
+    config = await get_config_by_id(config_id)
     if not config:
-        logger.error(f"Config not found: {config_id}")
         raise ValueError(f"Config not found: {config_id}")
 
-    model_type = config["model_type"]
-    params = config.get("params", {})
-    targets = config["targets"]
+    model_type = config.model_type
+    params = config.params or {}
+    targets = config.targets
 
-    dao = StockDailyDAO()
     all_dfs = []
-
     for ts_code in ts_codes:
-        records = dao.find_by_ts_code(ts_code)
+        records = await StockDaily.find(
+            StockDaily.ts_code == ts_code,
+            StockDaily.trade_date >= start_date,
+            StockDaily.trade_date <= end_date,
+        ).sort(StockDaily.trade_date).to_list()
+        
         if not records:
             logger.warning(f"No data found for stock {ts_code}")
             continue
-        df = pd.DataFrame(records)
-        df = df[(df["trade_date"] >= start_date) & (df["trade_date"] <= end_date)]
+        
+        df = pd.DataFrame([r.model_dump() for r in records])
         df["ts_code"] = ts_code
         all_dfs.append(df)
 
     if not all_dfs:
-        dao.db.close()
-        logger.error("No data found for specified stocks and date range")
         raise ValueError("No data found for specified stocks and date range")
 
     combined_df = pd.concat(all_dfs, ignore_index=True)
@@ -90,7 +78,6 @@ def create_training(
     combined_df = combined_df.sort_values(["trade_date", "ts_code"])
 
     if len(combined_df) < 20:
-        dao.db.close()
         raise ValueError("Insufficient data for training (minimum 20 samples)")
 
     X = combined_df[all_feature_cols].values[:-1]
@@ -113,127 +100,103 @@ def create_training(
 
     logger.info(f"Training prepared with {len(combined_df)} samples")
 
-    training_dao = TrainingDAO()
+    training = Training(
+        config_id=config_id,
+        name=name,
+        ts_codes=ts_codes,
+        start_date=start_date,
+        end_date=end_date,
+        feature_cols=all_feature_cols,
+        metrics=metrics,
+        created_at=datetime.utcnow(),
+    )
 
-    training = {
-        "config_id": ObjectId(config_id),
-        "name": name,
-        "ts_codes": ts_codes,
-        "start_date": start_date,
-        "end_date": end_date,
-        "feature_cols": all_feature_cols,
-        "metrics": metrics,
-        "created_at": datetime.utcnow(),
-    }
+    await training.insert()
 
-    training_id = training_dao.insert(training)
-
-    _ensure_model_dir(config_id)
-    model_path = os.path.join(MODELS_DIR, config_id, f"{training_id}.pkl")
+    _ensure_model_dir(str(config_id))
+    model_path = os.path.join(MODELS_DIR, str(config_id), f"{training.id}.pkl")
     predictor.save(model_path)
 
-    training_dao.update(training_id, {"model_path": model_path})
+    training.model_path = model_path
+    await training.save()
 
-    dao.db.close()
-    logger.info(f"Training '{name}' completed with ID {training_id}")
-    return training_id
+    logger.info(f"Training '{name}' completed with ID {training.id}")
+    return training
 
 
-def get_training_by_id(training_id: str) -> Optional[Dict]:
+async def get_training_by_id(training_id: PydanticObjectId) -> Optional[Training]:
     """Get training by ID."""
-    dao = TrainingDAO()
-    return dao.find_by_id(training_id)
+    return await Training.get(training_id)
 
 
-def get_training_by_name(name: str) -> Optional[Dict]:
+async def get_training_by_name(name: str) -> Optional[Training]:
     """Get training by name."""
-    dao = TrainingDAO()
-    return dao.find_by_name(name)
+    return await Training.find_one(Training.name == name)
 
 
-def list_trainings(config_id: str = None) -> List[Dict]:
+async def list_trainings(config_id: PydanticObjectId = None) -> List[Training]:
     """List trainings with optional filter."""
-    dao = TrainingDAO()
-    results = dao.find_all(config_id)
-    logger.debug(f"Found {len(results)} trainings")
-    return results
+    if config_id:
+        return await Training.find(
+            Training.config_id == config_id
+        ).to_list()
+    return await Training.find_all().to_list()
 
 
-def delete_training(training_id: str) -> bool:
+async def delete_training(training_id: PydanticObjectId) -> bool:
     """Delete training and model file."""
     logger.info(f"Deleting training {training_id}")
-    dao = TrainingDAO()
 
-    training = dao.find_by_id(training_id)
+    training = await Training.get(training_id)
     if not training:
         logger.warning(f"Training {training_id} not found")
         return False
 
-    if training.get("model_path") and os.path.exists(training["model_path"]):
-        logger.debug(f"Deleting model file: {training['model_path']}")
-        os.remove(training["model_path"])
+    if training.model_path and os.path.exists(training.model_path):
+        logger.debug(f"Deleting model file: {training.model_path}")
+        os.remove(training.model_path)
 
-    success = dao.delete(training_id)
+    await training.delete()
     logger.info(f"Training {training_id} deleted successfully")
-    return success
+    return True
 
 
-def delete_trainings_by_config(config_id: str) -> int:
-    """Delete all trainings for a config."""
-    trainings = list_trainings(config_id)
-    logger.info(f"Deleting {len(trainings)} trainings for config {config_id}")
-    count = 0
-    for t in trainings:
-        if delete_training(str(t["_id"])):
-            count += 1
-    return count
-
-
-def predict_with_training(training_id: str, ts_code: str = None) -> Dict[str, float]:
-    """Predict using trained model.
-
-    Args:
-        training_id: Training ID
-        ts_code: Stock code (optional, uses first from training)
-
-    Returns:
-        Predictions dict
-    """
+async def predict_with_training(training_id: PydanticObjectId, ts_code: str = None) -> dict[str, float]:
+    """Predict using trained model."""
     import pandas as pd
 
     from trade_alpha.predict.config_service import get_config_by_id
 
     logger.info(f"Running prediction with training {training_id}")
 
-    training = get_training_by_id(training_id)
+    training = await get_training_by_id(training_id)
     if not training:
-        logger.error(f"Training {training_id} not found")
         raise ValueError(f"Training not found: {training_id}")
 
-    config = get_config_by_id(str(training["config_id"]))
+    config = await get_config_by_id(training.config_id)
     if not config:
-        raise ValueError(f"Config not found: {training['config_id']}")
+        raise ValueError(f"Config not found: {training.config_id}")
 
-    ts_code = ts_code or training["ts_codes"][0]
+    ts_code = ts_code or training.ts_codes[0]
 
-    dao = StockDailyDAO()
-    records = dao.find_by_ts_code(ts_code)
-    dao.db.close()
+    records = await StockDaily.find(
+        StockDaily.ts_code == ts_code
+    ).sort(-StockDaily.trade_date).to_list()
 
     if not records:
         raise ValueError(f"No data found for {ts_code}")
 
-    df = pd.DataFrame(records)
+    df = pd.DataFrame([r.model_dump() for r in records])
     df = df.sort_values("trade_date")
 
-    feature_cols = training["feature_cols"]
+    feature_cols = training.feature_cols
     df = df.dropna(subset=feature_cols)
 
-    predictor = PREDICTORS[config["model_type"]]()
-    predictor.load(training["model_path"])
+    predictor = PREDICTORS[config.model_type]()
+    predictor.load(training.model_path)
 
     last_features = df[feature_cols].iloc[-1:].values
-    predictions = predictor.predict(last_features, config["targets"])
+    predictions = predictor.predict(last_features, config.targets)
 
     logger.info(f"Prediction completed for {ts_code}: {predictions}")
     return predictions

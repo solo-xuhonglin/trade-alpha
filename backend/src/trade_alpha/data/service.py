@@ -1,40 +1,43 @@
 """Data service module."""
 
 import pandas as pd
+from datetime import datetime
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic
-from trade_alpha.dao import StockDailyDAO, StockListDAO
+from trade_alpha.dao import StockDaily, StockList
 from trade_alpha.logging import get_logger
 
 logger = get_logger("data_service")
 
 
-def fetch_and_store_stock_daily(ts_code: str, start_date: str, end_date: str) -> int:
-    """Fetch stock daily data from Tushare and store to MongoDB.
+async def fetch_and_store_stock_daily(ts_code: str, start_date: str, end_date: str) -> int:
+    """Fetch stock daily data from Tushare and store to MongoDB."""
 
-    Args:
-        ts_code: Stock code (e.g., "000001.SZ")
-        start_date: Start date (YYYYMMDD)
-        end_date: End date (YYYYMMDD)
-
-    Returns:
-        Number of records stored
-    """
     logger.info(f"Fetching daily data for {ts_code} from {start_date} to {end_date}")
     df = fetch_stock_data(ts_code, start_date, end_date)
     if df is None or df.empty:
         logger.warning(f"No data fetched for {ts_code} from {start_date} to {end_date}")
         return 0
+
     logger.info(f"Successfully fetched {len(df)} records for {ts_code}")
-    dao = StockDailyDAO()
-    return dao.insert_many(df.to_dict("records"))
+
+    records = df.to_dict("records")
+    for record in records:
+        record["trade_date"] = str(record["trade_date"])
+
+    existing = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
+    existing_dates = {r.trade_date for r in existing}
+
+    new_records = [r for r in records if r["trade_date"] not in existing_dates]
+
+    if new_records:
+        await StockDaily.insert_many([StockDaily(**r) for r in new_records])
+
+    return len(new_records)
 
 
-def fetch_and_store_stock_list() -> int:
-    """Fetch stock list from Tushare and store to MongoDB.
+async def fetch_and_store_stock_list() -> int:
+    """Fetch stock list from Tushare and store to MongoDB."""
 
-    Returns:
-        Number of stocks updated
-    """
     logger.info("Fetching stock list from Tushare")
     stock_df = fetch_stock_list()
     if stock_df is None or stock_df.empty:
@@ -49,12 +52,79 @@ def fetch_and_store_stock_list() -> int:
         stock_df["pe"] = None
         stock_df["pb"] = None
 
-    records = stock_df.to_dict("records")
+    count = 0
+    for _, row in stock_df.iterrows():
+        existing = await StockList.find_one(StockList.ts_code == row["ts_code"])
+        stock = StockList(
+            ts_code=row["ts_code"],
+            name=row["name"],
+            industry=row.get("industry"),
+            list_date=str(row["list_date"]) if pd.notna(row.get("list_date")) else None,
+            market=row.get("market"),
+            total_mv=float(row["total_mv"]) if pd.notna(row.get("total_mv")) else None,
+            pe=float(row["pe"]) if pd.notna(row.get("pe")) else None,
+            pb=float(row["pb"]) if pd.notna(row.get("pb")) else None,
+            updated_at=datetime.utcnow(),
+        )
+        if existing:
+            for key, value in stock.model_dump(exclude={"id"}).items():
+                setattr(existing, key, value)
+            await existing.save()
+        else:
+            await stock.insert()
+        count += 1
 
-    dao = StockListDAO()
-    count = dao.insert_stock_list(records)
     logger.info(f"Successfully stored {count} stocks")
     return count
+
+
+async def list_stocks(page: int = 1, page_size: int = 20) -> tuple[list[StockList], int]:
+    """List stocks with pagination."""
+    total = await StockList.count()
+    skip = (page - 1) * page_size
+    stocks = await StockList.find_all().skip(skip).limit(page_size).to_list()
+    return stocks, total
+
+
+async def get_downloaded_summary() -> list[dict]:
+    """Get summary of downloaded data per stock."""
+    pipeline = [
+        {"$group": {
+            "_id": "$ts_code",
+            "count": {"$sum": 1},
+            "latest_date": {"$max": "$trade_date"}
+        }}
+    ]
+    from trade_alpha.dao.mongodb import get_database
+    db = await get_database()
+    result = []
+    async for doc in db.stock_daily.aggregate(pipeline):
+        result.append({
+            "ts_code": doc["_id"],
+            "count": doc["count"],
+            "latest_date": doc["latest_date"]
+        })
+    return result
+
+
+async def find_stock_daily_by_ts_code(
+    ts_code: str,
+    start_date: str = None,
+    end_date: str = None,
+) -> list[StockDaily]:
+    """Find stock daily records by ts_code with optional date filter."""
+    query = StockDaily.find(StockDaily.ts_code == ts_code)
+    if start_date:
+        query = query.filter(StockDaily.trade_date >= start_date)
+    if end_date:
+        query = query.filter(StockDaily.trade_date <= end_date)
+    return await query.sort(StockDaily.trade_date).to_list()
+
+
+async def delete_stock_daily_by_ts_code(ts_code: str) -> int:
+    """Delete stock daily records by ts_code."""
+    result = await StockDaily.find(StockDaily.ts_code == ts_code).delete()
+    return result.deleted_count
 
 
 fetch_and_store = fetch_and_store_stock_daily

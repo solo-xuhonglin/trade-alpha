@@ -1,9 +1,9 @@
 """Prediction service."""
 
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
-from trade_alpha.dao import StockDailyDAO, PredictionDAO
+from beanie import PydanticObjectId
+from trade_alpha.dao import StockDaily, Prediction
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.logging import get_logger
 
@@ -31,35 +31,24 @@ def predict_next(predictor, features, targets):
     return predictions
 
 
-def predict(
+async def predict(
     ts_code: str,
     targets: list[str] | None = None,
     model: str = "linear",
     start_date: str | None = None,
     end_date: str | None = None
 ) -> dict[str, float]:
-    """Predict stock prices and store results.
+    """Predict stock prices and store results."""
 
-    Args:
-        ts_code: Stock code
-        targets: List of prediction targets, default ["open", "close", "high", "low"]
-        model: Model name, default "linear"
-        start_date: Training data start date (YYYYMMDD)
-        end_date: Training data end date (YYYYMMDD)
-
-    Returns:
-        Prediction results dictionary
-    """
     if targets is None:
         targets = ["open", "close", "high", "low"]
 
-    stock_dao = StockDailyDAO()
-    records = stock_dao.find_by_ts_code(ts_code)
+    records = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
 
     if not records:
         return {}
 
-    df = pd.DataFrame(records)
+    df = pd.DataFrame([r.model_dump() for r in records])
 
     if start_date:
         df = df[df["trade_date"] >= start_date]
@@ -92,15 +81,29 @@ def predict(
     last_date = df["trade_date"].iloc[-1]
     next_date = (datetime.strptime(last_date, "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d")
 
-    result_record = {
-        "ts_code": ts_code,
-        "trade_date": next_date,
-        "model": model,
-    }
-    for target in targets:
-        result_record[f"target_{target}"] = predictions.get(target)
-
-    prediction_dao = PredictionDAO()
-    prediction_dao.insert(result_record)
+    prediction = Prediction(
+        ts_code=ts_code,
+        trade_date=next_date,
+        model=model,
+        target_open=predictions.get("open"),
+        target_close=predictions.get("close"),
+        target_high=predictions.get("high"),
+        target_low=predictions.get("low"),
+        created_at=datetime.utcnow(),
+    )
+    await prediction.insert()
 
     return predictions
+
+
+async def get_prediction_by_ts_code(ts_code: str) -> Prediction | None:
+    """Get latest prediction for a stock."""
+    return await Prediction.find(
+        Prediction.ts_code == ts_code
+    ).sort(-Prediction.trade_date).first_or_none()
+
+
+async def delete_predictions_by_ts_code(ts_code: str) -> int:
+    """Delete predictions for a stock."""
+    result = await Prediction.find(Prediction.ts_code == ts_code).delete()
+    return result.deleted_count

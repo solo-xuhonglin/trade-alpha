@@ -11,7 +11,7 @@ class TestTrainingService:
     """Integration tests for training service."""
 
     @pytest.fixture(autouse=True)
-    def setup_teardown(self):
+    async def setup_teardown(self):
         """Setup and teardown for each test."""
         self.ts_code = "002594.SZ"
         self.backup_ts_code = "601398.SH"
@@ -20,30 +20,32 @@ class TestTrainingService:
         self.default_config_name = "test_model_config"
         self.default_training_name = "test_training"
 
-        fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
-        fetch_and_store_stock_daily(self.backup_ts_code, self.start_date, self.end_date)
+        await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
+        await fetch_and_store_stock_daily(self.backup_ts_code, self.start_date, self.end_date)
 
-        config = config_service.get_config_by_name(self.default_config_name)
+        config = await config_service.get_config_by_name(self.default_config_name)
         if config:
-            self.config_id = str(config["_id"])
+            self.config_id = config.id
         else:
-            self.config_id = config_service.create_config(
+            config = await config_service.create_config(
                 name=self.default_config_name,
                 model_type="linear",
                 params={},
                 targets=["close"],
             )
+            self.config_id = config.id
 
         yield
 
-        trainings = training_service.list_trainings(config_id=self.config_id)
+        trainings = await training_service.list_trainings(config_id=self.config_id)
         for t in trainings:
-            if t["name"] != self.default_training_name:
-                training_service.delete_training(str(t["_id"]))
+            if t.name != self.default_training_name:
+                await training_service.delete_training(t.id)
 
-    def test_create_training_single_stock(self):
+    @pytest.mark.asyncio
+    async def test_create_training_single_stock(self):
         """Test creating training with single stock."""
-        training_id = training_service.create_training(
+        training = await training_service.create_training(
             config_id=self.config_id,
             name="test_single_temp",
             ts_codes=[self.ts_code],
@@ -51,15 +53,13 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        assert training_id is not None
-
-        training = training_service.get_training_by_id(training_id)
         assert training is not None
-        assert self.ts_code in training["ts_codes"]
+        assert self.ts_code in training.ts_codes
 
-    def test_create_training_multi_stocks(self):
+    @pytest.mark.asyncio
+    async def test_create_training_multi_stocks(self):
         """Test creating training with multiple stocks."""
-        training_id = training_service.create_training(
+        training = await training_service.create_training(
             config_id=self.config_id,
             name="test_multi_temp",
             ts_codes=[self.ts_code, self.backup_ts_code],
@@ -67,14 +67,13 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        assert training_id is not None
+        assert training is not None
+        assert len(training.ts_codes) == 2
 
-        training = training_service.get_training_by_id(training_id)
-        assert len(training["ts_codes"]) == 2
-
-    def test_list_trainings(self):
+    @pytest.mark.asyncio
+    async def test_list_trainings(self):
         """Test listing trainings."""
-        training_service.create_training(
+        await training_service.create_training(
             config_id=self.config_id,
             name="test_list_temp",
             ts_codes=[self.ts_code],
@@ -82,12 +81,13 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        trainings = training_service.list_trainings()
+        trainings = await training_service.list_trainings()
         assert len(trainings) > 0
 
-    def test_list_trainings_by_config(self):
+    @pytest.mark.asyncio
+    async def test_list_trainings_by_config(self):
         """Test listing trainings by config."""
-        training_service.create_training(
+        await training_service.create_training(
             config_id=self.config_id,
             name="test_filter_temp",
             ts_codes=[self.ts_code],
@@ -95,12 +95,13 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        trainings = training_service.list_trainings(config_id=self.config_id)
-        assert all(str(t["config_id"]) == self.config_id for t in trainings)
+        trainings = await training_service.list_trainings(config_id=self.config_id)
+        assert all(t.config_id == self.config_id for t in trainings)
 
-    def test_delete_training(self):
+    @pytest.mark.asyncio
+    async def test_delete_training(self):
         """Test deleting training."""
-        training_id = training_service.create_training(
+        training = await training_service.create_training(
             config_id=self.config_id,
             name="test_delete_temp",
             ts_codes=[self.ts_code],
@@ -108,15 +109,16 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        deleted = training_service.delete_training(training_id)
+        deleted = await training_service.delete_training(training.id)
         assert deleted is True
 
-        training = training_service.get_training_by_id(training_id)
-        assert training is None
+        result = await training_service.get_training_by_id(training.id)
+        assert result is None
 
-    def test_predict(self):
+    @pytest.mark.asyncio
+    async def test_predict(self):
         """Test prediction with trained model."""
-        training_id = training_service.create_training(
+        training = await training_service.create_training(
             config_id=self.config_id,
             name="test_predict_temp",
             ts_codes=[self.ts_code],
@@ -124,17 +126,18 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        predictions = training_service.predict_with_training(training_id)
+        predictions = await training_service.predict_with_training(training.id)
         assert "close" in predictions
 
-    def test_ensure_default_training(self):
+    @pytest.mark.asyncio
+    async def test_ensure_default_training(self):
         """Ensure default training exists for Layer 6 tests."""
-        trainings = training_service.list_trainings(config_id=self.config_id)
+        trainings = await training_service.list_trainings(config_id=self.config_id)
         for t in trainings:
-            if t["name"] == self.default_training_name:
+            if t.name == self.default_training_name:
                 return
 
-        training_service.create_training(
+        await training_service.create_training(
             config_id=self.config_id,
             name=self.default_training_name,
             ts_codes=[self.ts_code],

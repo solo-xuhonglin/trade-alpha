@@ -1,68 +1,49 @@
-"""Integration tests for StockDailyDAO business methods."""
+"""Integration tests for StockDaily Beanie model."""
 
 import pytest
-from trade_alpha.dao import StockDailyDAO
+from trade_alpha.dao import StockDaily
 
 
 @pytest.mark.integration
 @pytest.mark.order(20)
-class TestDAODaily:
-    """Integration tests for StockDailyDAO business methods."""
+class TestStockDaily:
+    """Integration tests for StockDaily Beanie model."""
 
     @pytest.fixture(autouse=True)
-    def setup_teardown(self):
+    async def setup_teardown(self):
         """Setup and teardown for each test."""
-        self.dao = StockDailyDAO()
         self.ts_code = "002594.SZ"
         self.backup_ts_code = "601398.SH"
 
         yield
 
-        self.dao.delete_by_ts_code(self.ts_code)
-        self.dao.delete_by_ts_code(self.backup_ts_code)
-        self.dao.db.close()
+        await StockDaily.find(StockDaily.ts_code == self.ts_code).delete()
+        await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
 
-    def test_insert_and_find(self):
+    @pytest.mark.asyncio
+    async def test_insert_and_find(self, setup_db):
         """Test insert and find operations."""
         records = [
-            {"ts_code": self.ts_code, "trade_date": "20240101", "open": 10.0, "close": 10.5, "high": 10.8, "low": 9.9, "vol": 1000, "amount": 10000},
-            {"ts_code": self.ts_code, "trade_date": "20240102", "open": 10.5, "close": 11.0, "high": 11.2, "low": 10.3, "vol": 1200, "amount": 12000},
+            StockDaily(ts_code=self.ts_code, trade_date="20240101", open=10.0, close=10.5, high=10.8, low=9.9, vol=1000, amount=10000),
+            StockDaily(ts_code=self.ts_code, trade_date="20240102", open=10.5, close=11.0, high=11.2, low=10.3, vol=1200, amount=12000),
         ]
 
-        count = self.dao.insert_many(records)
-        assert count == 2
+        await StockDaily.insert_many(records)
 
-        found = self.dao.find_by_ts_code(self.ts_code)
+        found = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
         assert len(found) >= 2
-        dates = [r["trade_date"] for r in found]
+        dates = [r.trade_date for r in found]
         assert "20240101" in dates
         assert "20240102" in dates
 
-    def test_delete_by_ts_code(self):
+    @pytest.mark.asyncio
+    async def test_delete_by_ts_code(self, setup_db):
         """Test delete operation."""
-        records = [
-            {"ts_code": self.backup_ts_code, "trade_date": "20240101", "open": 10.0, "close": 10.5, "high": 10.8, "low": 9.9, "vol": 1000, "amount": 10000},
-        ]
-        self.dao.insert_many(records)
+        record = StockDaily(ts_code=self.backup_ts_code, trade_date="20240101", open=10.0, close=10.5, high=10.8, low=9.9, vol=1000, amount=10000)
+        await record.insert()
 
-        deleted = self.dao.delete_by_ts_code(self.backup_ts_code)
-        assert deleted >= 1
+        result = await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
+        assert result.deleted_count >= 1
 
-        found = self.dao.find_by_ts_code(self.backup_ts_code)
+        found = await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).to_list()
         assert len(found) == 0
-
-    def test_get_downloaded_summary(self):
-        """Test get downloaded summary."""
-        records = [
-            {"ts_code": self.ts_code, "trade_date": "20240101", "open": 10.0, "close": 10.5, "high": 10.8, "low": 9.9, "vol": 1000, "amount": 10000},
-            {"ts_code": self.ts_code, "trade_date": "20240102", "open": 10.5, "close": 11.0, "high": 11.2, "low": 10.3, "vol": 1200, "amount": 12000},
-        ]
-        self.dao.insert_many(records)
-
-        summary = self.dao.get_downloaded_summary()
-        assert isinstance(summary, list)
-
-        found = next((s for s in summary if s["ts_code"] == self.ts_code), None)
-        assert found is not None
-        assert found["count"] >= 2
-        assert found["latest_date"] == "20240102"
