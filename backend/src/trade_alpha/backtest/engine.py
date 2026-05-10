@@ -11,10 +11,11 @@ class BacktestResult:
     """Backtest result container."""
     backtest_id: str = ""
     portfolio_id: str = ""
+    strategy_id: str = ""
+    training_id: str = ""
     ts_code: str = ""
     start_date: str = ""
     end_date: str = ""
-    strategy: str = ""
     initial_capital: float = 0.0
     final_value: float = 0.0
     total_return: float = 0.0
@@ -104,7 +105,7 @@ class BacktestEngine:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            strategy=str(self.strategy.__class__.__name__),
+            strategy_id=str(self.strategy.__class__.__name__),
             initial_capital=initial_capital,
             final_value=final_value,
             total_return=total_return,
