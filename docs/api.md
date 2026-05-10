@@ -528,10 +528,11 @@ GET /api/backtests
     {
       "id": "507f1f77bcf86cd799439011",
       "portfolio_id": "507f1f77bcf86cd799439012",
+      "strategy_id": "507f1f77bcf86cd799439013",
+      "training_id": "507f1f77bcf86cd799439014",
       "ts_code": "000001.SZ",
       "start_date": "20240101",
       "end_date": "20241231",
-      "strategy": "507f1f77bcf86cd799439013",
       "initial_capital": 100000.0,
       "final_value": 120000.0,
       "total_return": 0.20,
@@ -548,6 +549,24 @@ GET /api/backtests
   "page": 1,
   "page_size": 20,
   "total_pages": 5
+}
+```
+
+### 运行回测
+
+```
+POST /api/backtests
+```
+
+**请求体**:
+```json
+{
+  "ts_code": "000001.SZ",
+  "start_date": "20240101",
+  "end_date": "20241231",
+  "portfolio_id": "507f1f77bcf86cd799439012",
+  "strategy_id": "507f1f77bcf86cd799439013",
+  "training_id": "507f1f77bcf86cd799439014"
 }
 ```
 
@@ -588,21 +607,41 @@ GET /api/backtests/{id}/trades
 }
 ```
 
-### 运行回测
+### 获取交易列表（支持筛选）
 
 ```
-POST /api/backtests
+GET /api/backtests/trades
 ```
 
-**请求体**:
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20，最大 100
+- `portfolio_id` (query, optional): 账户 ID
+- `strategy_id` (query, optional): 策略 ID
+- `training_id` (query, optional): 训练结果 ID
+- `ts_code` (query, optional): 股票代码
+
+筛选条件为空时，该条件不参与查询。多个条件同时存在时为 AND 关系。
+
+### 获取交易筛选选项
+
+```
+GET /api/backtests/trades/options
+```
+
+**响应**:
 ```json
 {
-  "ts_code": "000001.SZ",
-  "start_date": "20240101",
-  "end_date": "20241231",
-  "strategy_id": "507f1f77bcf86cd799439013",
-  "portfolio_name": "default",
-  "initial_capital": 100000.0
+  "portfolios": [
+    { "id": "507f1f77bcf86cd799439010", "name": "账户A" }
+  ],
+  "strategies": [
+    { "id": "507f1f77bcf86cd799439011", "name": "MA20策略" }
+  ],
+  "trainings": [
+    { "id": "507f1f77bcf86cd799439012", "name": "训练-2024" }
+  ],
+  "ts_codes": ["000001.SZ", "600000.SH"]
 }
 ```
 
