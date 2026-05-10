@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from trade_alpha.api.schemas import DataFetchRequest, DataRecordResponse, StockResponse, StockListUpdateResponse, StockListResponse
 from trade_alpha.data.service import fetch_and_store, update_stock_list
-from trade_alpha.dao import DailyDAO, StockListDAO
+from trade_alpha.dao import StockDailyDAO, StockListDAO
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -16,7 +16,7 @@ def list_stocks(
 ):
     """List stocks with download status and pagination."""
     stock_dao = StockListDAO()
-    daily_dao = DailyDAO()
+    daily_dao = StockDailyDAO()
 
     total = stock_dao.count_stocks()
     skip = (page - 1) * page_size
@@ -74,7 +74,7 @@ def get_data(
     end_date: Optional[str] = Query(None),
 ):
     """Get stock data."""
-    dao = DailyDAO()
+    dao = StockDailyDAO()
     records = dao.find_by_ts_code(ts_code)
 
     if start_date:
@@ -118,6 +118,6 @@ def fetch_data(request: DataFetchRequest):
 @router.delete("/{ts_code}")
 def delete_data(ts_code: str):
     """Delete stock data."""
-    dao = DailyDAO()
+    dao = StockDailyDAO()
     count = dao.delete_by_ts_code(ts_code)
     return {"deleted_count": count}

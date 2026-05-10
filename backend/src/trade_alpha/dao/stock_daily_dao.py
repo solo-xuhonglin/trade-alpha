@@ -81,6 +81,3 @@ class StockDailyDAO:
             }}
         ]
         return self.db.aggregate_generic(pipeline, self.collection)
-
-
-DailyDAO = StockDailyDAO
