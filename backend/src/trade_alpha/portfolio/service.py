@@ -2,7 +2,10 @@
 
 from typing import Optional, Dict
 from trade_alpha.dao import MongoDB
+from trade_alpha.logging import get_logger
 from trade_alpha.portfolio.portfolio import Portfolio
+
+logger = get_logger("portfolio_service")
 
 
 def create_portfolio(
@@ -14,6 +17,7 @@ def create_portfolio(
     min_fee: float = 5.0,
 ) -> str:
     """Create a new portfolio."""
+    logger.info(f"Creating portfolio: name={name}, initial_capital={initial_capital}")
     dao = MongoDB()
     collection = dao._get_collection("portfolios")
 
@@ -30,6 +34,7 @@ def create_portfolio(
 
     result = collection.insert_one(portfolio_doc)
     dao.close()
+    logger.info(f"Portfolio created successfully: id={result.inserted_id}")
     return str(result.inserted_id)
 
 
@@ -71,9 +76,11 @@ def get_or_create_portfolio(name: str, initial_capital: float) -> tuple[str, Por
     """
     portfolio_doc = get_portfolio(name)
     if not portfolio_doc:
+        logger.info(f"Creating new portfolio: name={name}")
         portfolio_id = create_portfolio(name, initial_capital)
         portfolio_doc = get_portfolio(name)
     else:
+        logger.debug(f"Using existing portfolio: name={name}")
         portfolio_id = str(portfolio_doc["_id"])
 
     return portfolio_id, portfolio_to_obj(portfolio_doc)
@@ -85,6 +92,7 @@ def list_portfolios() -> list[Dict]:
     collection = dao._get_collection("portfolios")
     results = list(collection.find())
     dao.close()
+    logger.debug(f"Listed {len(results)} portfolios")
     return results
 
 
@@ -120,6 +128,7 @@ def update_portfolio(
         {"$set": update_doc}
     )
     dao.close()
+    logger.info(f"Portfolio updated successfully: id={portfolio_id}")
     return result.modified_count > 0
 
 
@@ -131,4 +140,5 @@ def delete_portfolio(portfolio_id: str) -> bool:
     collection = dao._get_collection("portfolios")
     result = collection.delete_one({"_id": ObjectId(portfolio_id)})
     dao.close()
+    logger.info(f"Portfolio deleted: id={portfolio_id}")
     return result.deleted_count > 0

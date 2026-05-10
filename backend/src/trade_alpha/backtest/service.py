@@ -3,12 +3,16 @@
 from typing import List
 from trade_alpha.dao import MongoDB
 from trade_alpha.dao.stock_daily_dao import StockDailyDAO
+from trade_alpha.logging import get_logger
 from trade_alpha.portfolio import Trade
 from trade_alpha.backtest.engine import BacktestResult
+
+logger = get_logger("backtest_service")
 
 
 def save_backtest(result: BacktestResult) -> str:
     """Save backtest result."""
+    logger.info("Saving backtest result")
     from bson import ObjectId
 
     dao = MongoDB()
@@ -37,11 +41,13 @@ def save_backtest(result: BacktestResult) -> str:
     backtest_id = str(result_obj.inserted_id)
     result.backtest_id = backtest_id
     dao.close()
+    logger.info(f"Backtest result saved: {backtest_id}")
     return backtest_id
 
 
 def save_trades(backtest_id: str, portfolio_id: str, trades: List[Trade], ts_code: str = "") -> None:
     """Save trade records."""
+    logger.info(f"Saving {len(trades)} trades for backtest: {backtest_id}")
     from bson import ObjectId
 
     dao = MongoDB()
@@ -78,6 +84,7 @@ def run_backtest(
     initial_capital: float = 100000,
 ) -> BacktestResult:
     """Run backtest with the given parameters."""
+    logger.info(f"Starting backtest for {ts_code} from {start_date} to {end_date}")
     from trade_alpha.backtest.engine import BacktestEngine
     from trade_alpha.portfolio import get_or_create_portfolio
     from trade_alpha.strategy import STRATEGIES
@@ -92,6 +99,7 @@ def run_backtest(
     ]
 
     if not filtered_records:
+        logger.warning(f"No data available for backtest: {ts_code} from {start_date} to {end_date}")
         return BacktestResult(
             ts_code=ts_code,
             start_date=start_date,
@@ -103,8 +111,10 @@ def run_backtest(
 
     strategy_cls = STRATEGIES.get(strategy)
     if strategy_cls is None:
+        logger.error(f"Unknown strategy: {strategy}")
         raise ValueError(f"Unknown strategy: {strategy}")
 
+    logger.debug(f"Using strategy: {strategy}")
     strategy_obj = strategy_cls()
     engine = BacktestEngine(ts_code, start_date, end_date, strategy_obj, portfolio)
 
@@ -116,4 +126,5 @@ def run_backtest(
     backtest_id = save_backtest(result)
     save_trades(backtest_id, portfolio_id, portfolio.trades, ts_code)
 
+    logger.info(f"Backtest completed: {ts_code}, return rate: {result.total_return:.2%}")
     return result

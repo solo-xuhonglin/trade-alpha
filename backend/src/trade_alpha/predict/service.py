@@ -5,6 +5,30 @@ import numpy as np
 from datetime import datetime, timedelta
 from trade_alpha.dao.mongodb import MongoDB
 from trade_alpha.predict.linear import LinearPredictor
+from trade_alpha.logging import get_logger
+
+logger = get_logger("predict_service")
+
+
+def get_model(model_type: str):
+    logger.debug(f"get_model called with model_type={model_type}")
+    if model_type == "linear":
+        return LinearPredictor()
+    logger.warning(f"Unknown model type: {model_type}")
+    return LinearPredictor()
+
+
+def train_model(predictor, X, y, targets):
+    logger.info("Training model...")
+    predictor.fit(X, y, targets)
+    logger.info("Model training completed")
+
+
+def predict_next(predictor, features, targets):
+    logger.info("Making predictions...")
+    predictions = predictor.predict(features, targets)
+    logger.info(f"Predictions: {predictions}")
+    return predictions
 
 
 def predict(

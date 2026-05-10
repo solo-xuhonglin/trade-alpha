@@ -21,10 +21,12 @@
 
 ```
 docs/
-├── system-design.md    # 系统设计文档（整体架构、模块说明）
-├── database-schema.md  # 数据库表结构
-├── api.md              # API 接口文档
-└── frontend.md         # 前端设计与架构文档
+├── system-design.md         # 系统设计文档（整体架构、模块说明）
+├── database-schema.md       # 数据库表结构
+├── api.md                  # API 接口文档
+├── frontend.md             # 前端设计与架构文档
+├── backend-integration-testing.md  # 后端集成测试文档
+└── frontend-e2e-testing.md  # 前端 E2E 测试文档
 ```
 
 ## 提交规范

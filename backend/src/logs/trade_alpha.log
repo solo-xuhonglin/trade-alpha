@@ -1,0 +1,192 @@
+2026-05-10 15:56:51.190 [INFO    ] [req_d51f3e23   ] [api            ] [request_start  ] GET /api/backtests
+2026-05-10 15:56:51.191 [INFO    ] [req_0ac1e95a   ] [api            ] [request_start  ] GET /api/strategies
+2026-05-10 15:56:51.195 [DEBUG   ] [req_d51f3e23   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:51.196 [DEBUG   ] [req_0ac1e95a   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:51.205 [DEBUG   ] [req_d51f3e23   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:56:51.205 [DEBUG   ] [req_0ac1e95a   ] [dao            ] [_get_collection] New connection: strategies
+2026-05-10 15:56:51.215 [DEBUG   ] [req_0ac1e95a   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:51.215 [DEBUG   ] [req_d51f3e23   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:51.216 [DEBUG   ] [req_0ac1e95a   ] [strategy_service] [-              ] Listed 1 strategies
+2026-05-10 15:56:51.217 [INFO    ] [req_d51f3e23   ] [api            ] [request_end    ] GET /api/backtests - 200 (26.8ms)
+2026-05-10 15:56:51.219 [INFO    ] [req_0ac1e95a   ] [api            ] [request_end    ] GET /api/strategies - 200 (27.7ms)
+2026-05-10 15:56:51.226 [INFO    ] [req_0f2246c1   ] [api            ] [request_start  ] GET /api/backtests
+2026-05-10 15:56:51.226 [DEBUG   ] [req_0f2246c1   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:51.230 [DEBUG   ] [req_0f2246c1   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:56:51.237 [DEBUG   ] [req_0f2246c1   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:51.239 [INFO    ] [req_0f2246c1   ] [api            ] [request_end    ] GET /api/backtests - 200 (13.2ms)
+2026-05-10 15:56:52.600 [INFO    ] [req_491632b3   ] [api            ] [request_start  ] GET /api/backtests
+2026-05-10 15:56:52.601 [DEBUG   ] [req_491632b3   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:52.604 [DEBUG   ] [req_491632b3   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:56:52.613 [DEBUG   ] [req_491632b3   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:52.614 [INFO    ] [req_491632b3   ] [api            ] [request_end    ] GET /api/backtests - 200 (14.5ms)
+2026-05-10 15:56:52.650 [INFO    ] [req_02b762ec   ] [api            ] [request_start  ] GET /api/strategies
+2026-05-10 15:56:52.651 [INFO    ] [req_225e6467   ] [api            ] [request_start  ] GET /api/backtests
+2026-05-10 15:56:52.652 [DEBUG   ] [req_02b762ec   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:52.652 [DEBUG   ] [req_225e6467   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:52.656 [DEBUG   ] [req_225e6467   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:56:52.656 [DEBUG   ] [req_02b762ec   ] [dao            ] [_get_collection] New connection: strategies
+2026-05-10 15:56:52.663 [DEBUG   ] [req_02b762ec   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:52.663 [DEBUG   ] [req_225e6467   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:52.664 [DEBUG   ] [req_02b762ec   ] [strategy_service] [-              ] Listed 1 strategies
+2026-05-10 15:56:52.665 [INFO    ] [req_02b762ec   ] [api            ] [request_end    ] GET /api/strategies - 200 (15.5ms)
+2026-05-10 15:56:52.666 [INFO    ] [req_225e6467   ] [api            ] [request_end    ] GET /api/backtests - 200 (14.9ms)
+2026-05-10 15:56:54.413 [INFO    ] [req_e4be08bb   ] [api            ] [request_start  ] GET /api/data/stocks
+2026-05-10 15:56:54.415 [DEBUG   ] [req_e4be08bb   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:54.415 [DEBUG   ] [req_e4be08bb   ] [dao            ] [create_index   ] Creating index on stock_list: [('ts_code', 1)], unique=True
+2026-05-10 15:56:54.421 [DEBUG   ] [req_e4be08bb   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.426 [DEBUG   ] [req_e4be08bb   ] [dao            ] [create_index   ] Creating index on stock_list: [('total_mv', -1)], unique=False
+2026-05-10 15:56:54.426 [DEBUG   ] [req_e4be08bb   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.427 [DEBUG   ] [req_e4be08bb   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:54.427 [DEBUG   ] [req_e4be08bb   ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 15:56:54.431 [DEBUG   ] [req_e4be08bb   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:54.437 [DEBUG   ] [req_e4be08bb   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.445 [DEBUG   ] [req_e4be08bb   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.447 [DEBUG   ] [req_e4be08bb   ] [dao            ] [find_generic   ] Found 20 records in stock_list
+2026-05-10 15:56:54.447 [DEBUG   ] [req_e4be08bb   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:54.450 [DEBUG   ] [req_e4be08bb   ] [dao            ] [aggregate_generic] Aggregated 2 results from stock_daily
+2026-05-10 15:56:54.452 [INFO    ] [req_e4be08bb   ] [api            ] [request_end    ] GET /api/data/stocks - 200 (38.6ms)
+2026-05-10 15:56:54.487 [INFO    ] [req_74e6e40c   ] [api            ] [request_start  ] GET /api/data/stocks
+2026-05-10 15:56:54.488 [DEBUG   ] [req_74e6e40c   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:54.488 [DEBUG   ] [req_74e6e40c   ] [dao            ] [create_index   ] Creating index on stock_list: [('ts_code', 1)], unique=True
+2026-05-10 15:56:54.493 [DEBUG   ] [req_74e6e40c   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.499 [DEBUG   ] [req_74e6e40c   ] [dao            ] [create_index   ] Creating index on stock_list: [('total_mv', -1)], unique=False
+2026-05-10 15:56:54.499 [DEBUG   ] [req_74e6e40c   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.500 [DEBUG   ] [req_74e6e40c   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:54.500 [DEBUG   ] [req_74e6e40c   ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 15:56:54.504 [DEBUG   ] [req_74e6e40c   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:54.511 [DEBUG   ] [req_74e6e40c   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.519 [DEBUG   ] [req_74e6e40c   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:54.520 [DEBUG   ] [req_74e6e40c   ] [dao            ] [find_generic   ] Found 20 records in stock_list
+2026-05-10 15:56:54.521 [DEBUG   ] [req_74e6e40c   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:54.523 [DEBUG   ] [req_74e6e40c   ] [dao            ] [aggregate_generic] Aggregated 2 results from stock_daily
+2026-05-10 15:56:54.525 [INFO    ] [req_74e6e40c   ] [api            ] [request_end    ] GET /api/data/stocks - 200 (37.7ms)
+2026-05-10 15:56:55.658 [INFO    ] [req_07b3adb9   ] [api            ] [request_start  ] GET /api/data/stocks
+2026-05-10 15:56:55.659 [DEBUG   ] [req_07b3adb9   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:55.660 [DEBUG   ] [req_07b3adb9   ] [dao            ] [create_index   ] Creating index on stock_list: [('ts_code', 1)], unique=True
+2026-05-10 15:56:55.663 [DEBUG   ] [req_07b3adb9   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.669 [DEBUG   ] [req_07b3adb9   ] [dao            ] [create_index   ] Creating index on stock_list: [('total_mv', -1)], unique=False
+2026-05-10 15:56:55.669 [DEBUG   ] [req_07b3adb9   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.670 [DEBUG   ] [req_07b3adb9   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:55.670 [DEBUG   ] [req_07b3adb9   ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 15:56:55.673 [DEBUG   ] [req_07b3adb9   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:55.679 [DEBUG   ] [req_07b3adb9   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.683 [DEBUG   ] [req_07b3adb9   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.685 [DEBUG   ] [req_07b3adb9   ] [dao            ] [find_generic   ] Found 20 records in stock_list
+2026-05-10 15:56:55.685 [DEBUG   ] [req_07b3adb9   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:55.687 [DEBUG   ] [req_07b3adb9   ] [dao            ] [aggregate_generic] Aggregated 2 results from stock_daily
+2026-05-10 15:56:55.690 [INFO    ] [req_07b3adb9   ] [api            ] [request_end    ] GET /api/data/stocks - 200 (31.2ms)
+2026-05-10 15:56:55.734 [INFO    ] [req_d99fcb0f   ] [api            ] [request_start  ] GET /api/data/stocks
+2026-05-10 15:56:55.735 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:55.735 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [create_index   ] Creating index on stock_list: [('ts_code', 1)], unique=True
+2026-05-10 15:56:55.738 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.743 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [create_index   ] Creating index on stock_list: [('total_mv', -1)], unique=False
+2026-05-10 15:56:55.743 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.744 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:55.744 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 15:56:55.747 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:55.753 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.756 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:55.758 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [find_generic   ] Found 20 records in stock_list
+2026-05-10 15:56:55.758 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:55.759 [DEBUG   ] [req_d99fcb0f   ] [dao            ] [aggregate_generic] Aggregated 2 results from stock_daily
+2026-05-10 15:56:55.761 [INFO    ] [req_d99fcb0f   ] [api            ] [request_end    ] GET /api/data/stocks - 200 (27.3ms)
+2026-05-10 15:56:56.841 [INFO    ] [req_f6b3cc4e   ] [api            ] [request_start  ] GET /api/data/stocks
+2026-05-10 15:56:56.842 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:56.842 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [create_index   ] Creating index on stock_list: [('ts_code', 1)], unique=True
+2026-05-10 15:56:56.845 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.852 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [create_index   ] Creating index on stock_list: [('total_mv', -1)], unique=False
+2026-05-10 15:56:56.852 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.853 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:56.853 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 15:56:56.857 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:56.863 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.871 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.873 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [find_generic   ] Found 20 records in stock_list
+2026-05-10 15:56:56.873 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:56.876 [DEBUG   ] [req_f6b3cc4e   ] [dao            ] [aggregate_generic] Aggregated 2 results from stock_daily
+2026-05-10 15:56:56.878 [INFO    ] [req_f6b3cc4e   ] [api            ] [request_end    ] GET /api/data/stocks - 200 (36.7ms)
+2026-05-10 15:56:56.927 [INFO    ] [req_74fa03b6   ] [api            ] [request_start  ] GET /api/data/stocks
+2026-05-10 15:56:56.928 [DEBUG   ] [req_74fa03b6   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:56.928 [DEBUG   ] [req_74fa03b6   ] [dao            ] [create_index   ] Creating index on stock_list: [('ts_code', 1)], unique=True
+2026-05-10 15:56:56.931 [DEBUG   ] [req_74fa03b6   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.936 [DEBUG   ] [req_74fa03b6   ] [dao            ] [create_index   ] Creating index on stock_list: [('total_mv', -1)], unique=False
+2026-05-10 15:56:56.936 [DEBUG   ] [req_74fa03b6   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.936 [DEBUG   ] [req_74fa03b6   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:56.937 [DEBUG   ] [req_74fa03b6   ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 15:56:56.940 [DEBUG   ] [req_74fa03b6   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:56.944 [DEBUG   ] [req_74fa03b6   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.948 [DEBUG   ] [req_74fa03b6   ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 15:56:56.949 [DEBUG   ] [req_74fa03b6   ] [dao            ] [find_generic   ] Found 20 records in stock_list
+2026-05-10 15:56:56.949 [DEBUG   ] [req_74fa03b6   ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 15:56:56.951 [DEBUG   ] [req_74fa03b6   ] [dao            ] [aggregate_generic] Aggregated 2 results from stock_daily
+2026-05-10 15:56:56.953 [INFO    ] [req_74fa03b6   ] [api            ] [request_end    ] GET /api/data/stocks - 200 (25.4ms)
+2026-05-10 15:56:58.441 [INFO    ] [req_25cebbee   ] [api            ] [request_start  ] GET /api/portfolios
+2026-05-10 15:56:58.443 [DEBUG   ] [req_25cebbee   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:58.449 [DEBUG   ] [req_25cebbee   ] [dao            ] [_get_collection] New connection: portfolios
+2026-05-10 15:56:58.455 [DEBUG   ] [req_25cebbee   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:58.456 [DEBUG   ] [req_25cebbee   ] [portfolio_service] [-              ] Listed 6 portfolios
+2026-05-10 15:56:58.457 [INFO    ] [req_25cebbee   ] [api            ] [request_end    ] GET /api/portfolios - 200 (16.0ms)
+2026-05-10 15:56:59.257 [INFO    ] [req_c0b56249   ] [api            ] [request_start  ] GET /api/portfolios
+2026-05-10 15:56:59.257 [DEBUG   ] [req_c0b56249   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:56:59.261 [DEBUG   ] [req_c0b56249   ] [dao            ] [_get_collection] New connection: portfolios
+2026-05-10 15:56:59.267 [DEBUG   ] [req_c0b56249   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:56:59.267 [DEBUG   ] [req_c0b56249   ] [portfolio_service] [-              ] Listed 6 portfolios
+2026-05-10 15:56:59.269 [INFO    ] [req_c0b56249   ] [api            ] [request_end    ] GET /api/portfolios - 200 (11.8ms)
+2026-05-10 15:57:00.191 [INFO    ] [req_7f720516   ] [api            ] [request_start  ] GET /api/portfolios
+2026-05-10 15:57:00.192 [DEBUG   ] [req_7f720516   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:00.196 [DEBUG   ] [req_7f720516   ] [dao            ] [_get_collection] New connection: portfolios
+2026-05-10 15:57:00.201 [DEBUG   ] [req_7f720516   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:57:00.202 [DEBUG   ] [req_7f720516   ] [portfolio_service] [-              ] Listed 6 portfolios
+2026-05-10 15:57:00.203 [INFO    ] [req_7f720516   ] [api            ] [request_end    ] GET /api/portfolios - 200 (12.2ms)
+2026-05-10 15:57:01.708 [INFO    ] [req_294a5522   ] [api            ] [request_start  ] GET /api/strategies
+2026-05-10 15:57:01.709 [DEBUG   ] [req_294a5522   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:01.712 [DEBUG   ] [req_294a5522   ] [dao            ] [_get_collection] New connection: strategies
+2026-05-10 15:57:01.719 [DEBUG   ] [req_294a5522   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:57:01.720 [DEBUG   ] [req_294a5522   ] [strategy_service] [-              ] Listed 1 strategies
+2026-05-10 15:57:01.721 [INFO    ] [req_294a5522   ] [api            ] [request_end    ] GET /api/strategies - 200 (12.1ms)
+2026-05-10 15:57:02.544 [INFO    ] [req_6d9f2e58   ] [api            ] [request_start  ] GET /api/strategies
+2026-05-10 15:57:02.545 [DEBUG   ] [req_6d9f2e58   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:02.609 [DEBUG   ] [req_6d9f2e58   ] [dao            ] [_get_collection] New connection: strategies
+2026-05-10 15:57:02.617 [DEBUG   ] [req_6d9f2e58   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:57:02.618 [DEBUG   ] [req_6d9f2e58   ] [strategy_service] [-              ] Listed 1 strategies
+2026-05-10 15:57:02.619 [INFO    ] [req_6d9f2e58   ] [api            ] [request_end    ] GET /api/strategies - 200 (75.4ms)
+2026-05-10 15:57:03.401 [INFO    ] [req_1876fa2b   ] [api            ] [request_start  ] GET /api/strategies
+2026-05-10 15:57:03.401 [DEBUG   ] [req_1876fa2b   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:03.405 [DEBUG   ] [req_1876fa2b   ] [dao            ] [_get_collection] New connection: strategies
+2026-05-10 15:57:03.410 [DEBUG   ] [req_1876fa2b   ] [dao            ] [close          ] Closing MongoDB connection
+2026-05-10 15:57:03.411 [DEBUG   ] [req_1876fa2b   ] [strategy_service] [-              ] Listed 1 strategies
+2026-05-10 15:57:03.411 [INFO    ] [req_1876fa2b   ] [api            ] [request_end    ] GET /api/strategies - 200 (10.8ms)
+2026-05-10 15:57:04.894 [INFO    ] [req_4783e96f   ] [api            ] [request_start  ] GET /api/backtests/trades
+2026-05-10 15:57:04.895 [DEBUG   ] [req_4783e96f   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:04.899 [DEBUG   ] [req_4783e96f   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:57:04.961 [INFO    ] [req_dab7e30f   ] [api            ] [request_start  ] GET /api/backtests/trades
+2026-05-10 15:57:04.962 [DEBUG   ] [req_dab7e30f   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:04.966 [DEBUG   ] [req_dab7e30f   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:57:05.699 [INFO    ] [req_de90a564   ] [api            ] [request_start  ] GET /api/backtests/trades
+2026-05-10 15:57:05.700 [DEBUG   ] [req_de90a564   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:05.704 [DEBUG   ] [req_de90a564   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 15:57:05.782 [INFO    ] [req_b255081b   ] [api            ] [request_start  ] GET /api/backtests/trades
+2026-05-10 15:57:05.783 [DEBUG   ] [req_b255081b   ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 15:57:05.820 [DEBUG   ] [req_b255081b   ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 16:40:52.853 [DEBUG   ] [-              ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 16:40:52.853 [DEBUG   ] [-              ] [dao            ] [__init__       ] Connecting to trade_alpha
+2026-05-10 16:40:52.853 [DEBUG   ] [-              ] [dao            ] [create_index   ] Creating index on stock_daily: [('ts_code', 1), ('trade_date', 1)], unique=True
+2026-05-10 16:40:52.859 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 16:40:52.868 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 16:40:52.872 [INFO    ] [-              ] [dao            ] [delete_generic ] Deleted 242 records from stock_daily
+2026-05-10 16:40:52.872 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: stock_daily
+2026-05-10 16:40:52.876 [INFO    ] [-              ] [dao            ] [delete_generic ] Deleted 242 records from stock_daily
+2026-05-10 16:40:52.880 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: stock_list
+2026-05-10 16:40:52.982 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: portfolios
+2026-05-10 16:40:52.983 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: strategies
+2026-05-10 16:40:52.984 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: signals
+2026-05-10 16:40:52.984 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: model_configs
+2026-05-10 16:40:52.985 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: trainings
+2026-05-10 16:40:52.987 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: trainings
+2026-05-10 16:40:52.988 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: model_configs
+2026-05-10 16:40:52.989 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: trainings
+2026-05-10 16:40:52.990 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 16:40:52.991 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: backtest_trades
+2026-05-10 16:40:52.992 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: backtests
+2026-05-10 16:40:52.993 [DEBUG   ] [-              ] [dao            ] [_get_collection] New connection: backtest_trades
+2026-05-10 16:40:52.993 [DEBUG   ] [-              ] [dao            ] [close          ] Closing MongoDB connection

@@ -5,10 +5,12 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from trade_alpha.dao import MongoDB, StockDailyDAO
+from trade_alpha.logging import get_logger
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.predict.xgboost import XGBoostPredictor
 from trade_alpha.predict.lstm import LSTMPredictor
 
+logger = get_logger("training_service")
 
 MODELS_DIR = "models"
 COLLECTION = "trainings"
@@ -50,8 +52,11 @@ def create_training(
 
     from trade_alpha.predict.config_service import get_config_by_id
 
+    logger.info(f"Creating training '{name}' with config {config_id}")
+
     config = get_config_by_id(config_id)
     if not config:
+        logger.error(f"Config not found: {config_id}")
         raise ValueError(f"Config not found: {config_id}")
 
     model_type = config["model_type"]
@@ -64,6 +69,7 @@ def create_training(
     for ts_code in ts_codes:
         records = dao.find_by_ts_code(ts_code)
         if not records:
+            logger.warning(f"No data found for stock {ts_code}")
             continue
         df = pd.DataFrame(records)
         df = df[(df["trade_date"] >= start_date) & (df["trade_date"] <= end_date)]
@@ -72,6 +78,7 @@ def create_training(
 
     if not all_dfs:
         dao.db.close()
+        logger.error("No data found for specified stocks and date range")
         raise ValueError("No data found for specified stocks and date range")
 
     combined_df = pd.concat(all_dfs, ignore_index=True)
@@ -105,6 +112,8 @@ def create_training(
         metrics[f"{target}_mae"] = float(abs(actual_val - pred_val))
     metrics["sample_count"] = len(combined_df)
 
+    logger.info(f"Training prepared with {len(combined_df)} samples")
+
     storage = MongoDB()
     collection = storage._get_collection(COLLECTION)
 
@@ -133,6 +142,7 @@ def create_training(
 
     storage.close()
     dao.db.close()
+    logger.info(f"Training '{name}' completed with ID {training_id}")
     return training_id
 
 
@@ -156,30 +166,36 @@ def list_trainings(config_id: str = None) -> List[Dict]:
 
     results = list(collection.find(query))
     dao.close()
+    logger.debug(f"Found {len(results)} trainings")
     return results
 
 
 def delete_training(training_id: str) -> bool:
     """Delete training and model file."""
+    logger.info(f"Deleting training {training_id}")
     dao = MongoDB()
     collection = dao._get_collection(COLLECTION)
 
     training = collection.find_one({"_id": ObjectId(training_id)})
     if not training:
+        logger.warning(f"Training {training_id} not found")
         dao.close()
         return False
 
     if training.get("model_path") and os.path.exists(training["model_path"]):
+        logger.debug(f"Deleting model file: {training['model_path']}")
         os.remove(training["model_path"])
 
     result = collection.delete_one({"_id": ObjectId(training_id)})
     dao.close()
+    logger.info(f"Training {training_id} deleted successfully")
     return result.deleted_count > 0
 
 
 def delete_trainings_by_config(config_id: str) -> int:
     """Delete all trainings for a config."""
     trainings = list_trainings(config_id)
+    logger.info(f"Deleting {len(trainings)} trainings for config {config_id}")
     count = 0
     for t in trainings:
         if delete_training(str(t["_id"])):
@@ -201,8 +217,11 @@ def predict_with_training(training_id: str, ts_code: str = None) -> Dict[str, fl
 
     from trade_alpha.predict.config_service import get_config_by_id
 
+    logger.info(f"Running prediction with training {training_id}")
+
     training = get_training_by_id(training_id)
     if not training:
+        logger.error(f"Training {training_id} not found")
         raise ValueError(f"Training not found: {training_id}")
 
     config = get_config_by_id(str(training["config_id"]))
@@ -230,4 +249,5 @@ def predict_with_training(training_id: str, ts_code: str = None) -> Dict[str, fl
     last_features = df[feature_cols].iloc[-1:].values
     predictions = predictor.predict(last_features, config["targets"])
 
+    logger.info(f"Prediction completed for {ts_code}: {predictions}")
     return predictions

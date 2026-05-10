@@ -5,6 +5,9 @@ from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.operations import UpdateOne
 from pymongo.errors import BulkWriteError
 from trade_alpha.config import load_config
+from trade_alpha.logging import get_logger
+
+logger = get_logger("dao")
 
 
 class MongoDB:
@@ -15,10 +18,12 @@ class MongoDB:
         self.uri = uri or config.mongodb_uri
         self.db_name = db_name or config.mongodb_db
         self._client: MongoClient | None = None
+        logger.debug("__init__", f"Connecting to {self.db_name}")
 
     def _get_collection(self, name: str):
         if self._client is None:
             self._client = MongoClient(self.uri)
+        logger.debug("_get_collection", f"New connection: {name}")
         return self._client[self.db_name][name]
 
     def insert_many_generic(
@@ -55,8 +60,11 @@ class MongoDB:
 
         try:
             result = coll.bulk_write(operations, ordered=False)
-            return result.upserted_count + result.modified_count
+            count = result.upserted_count + result.modified_count
+            logger.info("insert_many_generic", f"Upserted/modified {count} records in {collection}")
+            return count
         except BulkWriteError as e:
+            logger.warning("insert_many_generic", f"BulkWriteError: {e.details}")
             return e.details.get("nUpserted", 0) + e.details.get("nModified", 0)
 
     def find_generic(
@@ -89,7 +97,9 @@ class MongoDB:
             cursor = cursor.skip(skip)
         if limit > 0:
             cursor = cursor.limit(limit)
-        return list(cursor)
+        results = list(cursor)
+        logger.debug("find_generic", f"Found {len(results)} records in {collection}")
+        return results
 
     def delete_generic(self, filter_query: dict[str, Any], collection: str) -> int:
         """Generic delete method.
@@ -103,6 +113,7 @@ class MongoDB:
         """
         coll = self._get_collection(collection)
         result = coll.delete_many(filter_query)
+        logger.info("delete_generic", f"Deleted {result.deleted_count} records from {collection}")
         return result.deleted_count
 
     def aggregate_generic(
@@ -120,7 +131,9 @@ class MongoDB:
             List of aggregation results
         """
         coll = self._get_collection(collection)
-        return list(coll.aggregate(pipeline))
+        results = list(coll.aggregate(pipeline))
+        logger.debug("aggregate_generic", f"Aggregated {len(results)} results from {collection}")
+        return results
 
     def create_index(self, collection: str, index_spec: list[tuple[str, int]], unique: bool = False) -> None:
         """Create an index.
@@ -130,10 +143,12 @@ class MongoDB:
             index_spec: Index specification
             unique: Whether index is unique
         """
+        logger.debug("create_index", f"Creating index on {collection}: {index_spec}, unique={unique}")
         coll = self._get_collection(collection)
         coll.create_index(index_spec, unique=unique)
 
     def close(self) -> None:
+        logger.debug("close", "Closing MongoDB connection")
         if self._client:
             self._client.close()
             self._client = None

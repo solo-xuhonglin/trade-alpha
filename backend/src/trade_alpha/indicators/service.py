@@ -4,6 +4,9 @@ import pandas as pd
 from trade_alpha.dao.mongodb import MongoDB
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
+from trade_alpha.logging import get_logger
+
+logger = get_logger("indicators_service")
 
 
 def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> int:
@@ -16,6 +19,7 @@ def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> in
     Returns:
         Number of records updated
     """
+    logger.info(f"Calculating MA for {ts_code} with periods {periods}")
     if periods is None:
         periods = [5, 10, 20, 60]
 
@@ -23,6 +27,7 @@ def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> in
     records = storage.find_by_ts_code(ts_code)
 
     if not records:
+        logger.warning(f"No data found for {ts_code}")
         return 0
 
     df = pd.DataFrame(records)
@@ -33,6 +38,7 @@ def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> in
 
     result = storage.update_many(update_records)
     storage.close()
+    logger.info(f"Successfully calculated and stored MA for {ts_code}: {result} records updated")
     return result
 
 
@@ -45,10 +51,12 @@ def calculate_and_store_macd(ts_code: str) -> int:
     Returns:
         Number of records updated
     """
+    logger.info(f"Calculating MACD for {ts_code}")
     storage = MongoDB()
     records = storage.find_by_ts_code(ts_code)
 
     if not records:
+        logger.warning(f"No data found for {ts_code}")
         return 0
 
     df = pd.DataFrame(records)
@@ -59,4 +67,5 @@ def calculate_and_store_macd(ts_code: str) -> int:
 
     result = storage.update_many(update_records)
     storage.close()
+    logger.info(f"Successfully calculated and stored MACD for {ts_code}: {result} records updated")
     return result

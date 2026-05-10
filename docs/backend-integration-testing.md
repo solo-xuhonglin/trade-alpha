@@ -1,4 +1,4 @@
-# 集成测试文档
+# 后端集成测试文档
 
 ## 测试规则
 
@@ -103,7 +103,6 @@ Layer 6: 回归测试
 
 ```bash
 cd backend
-$env:PYTHONPATH='src'
 
 # 运行所有集成测试
 pytest tests/trade_alpha/integration/ -v

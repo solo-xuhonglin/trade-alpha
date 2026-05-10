@@ -1,6 +1,10 @@
 """FastAPI application entry point."""
 
-from fastapi import FastAPI
+import time
+
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from trade_alpha.api.routers import (
     data,
     indicators,
@@ -11,12 +15,40 @@ from trade_alpha.api.routers import (
     model_configs,
     trainings,
 )
+from trade_alpha.logging import generate_request_id, get_logger, setup_logging
+
+setup_logging()
+logger = get_logger("api")
+
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        req_id = generate_request_id()
+        start_time = time.perf_counter()
+
+        logger.info(
+            "request_start",
+            f"{request.method} {request.url.path}"
+        )
+
+        response = await call_next(request)
+
+        duration = time.perf_counter() - start_time
+        logger.info(
+            "request_end",
+            f"{request.method} {request.url.path} - {response.status_code} ({duration*1000:.1f}ms)"
+        )
+
+        return response
+
 
 app = FastAPI(
     title="Trade-Alpha API",
-    description="股票交易数据分析系统 API",
+    description="Stock trading analysis system API",
     version="1.0.0",
 )
+
+app.add_middleware(LoggingMiddleware)
 
 app.include_router(data.router, prefix="/api")
 app.include_router(indicators.router, prefix="/api")

@@ -4,6 +4,9 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 from trade_alpha.dao import MongoDB
 from trade_alpha.dao.stock_daily_dao import StockDailyDAO
+from trade_alpha.logging import get_logger
+
+logger = get_logger("strategy_service")
 
 
 def create_strategy(
@@ -21,6 +24,7 @@ def create_strategy(
     Returns:
         Strategy ID
     """
+    logger.info(f"Creating strategy: name={name}, type={strategy_type}")
     dao = MongoDB()
     collection = dao._get_collection("strategies")
 
@@ -33,6 +37,7 @@ def create_strategy(
 
     result = collection.insert_one(strategy_doc)
     dao.close()
+    logger.info(f"Strategy created successfully: id={result.inserted_id}")
     return str(result.inserted_id)
 
 
@@ -53,6 +58,7 @@ def list_strategies() -> list[Dict]:
     collection = dao._get_collection("strategies")
     results = list(collection.find())
     dao.close()
+    logger.debug(f"Listed {len(results)} strategies")
     return results
 
 
@@ -87,6 +93,7 @@ def update_strategy(strategy_id: str, name: Optional[str] = None, config: Option
         {"$set": update_doc}
     )
     dao.close()
+    logger.info(f"Strategy updated: id={strategy_id}, success={result.modified_count > 0}")
     return result.modified_count > 0
 
 
@@ -102,6 +109,7 @@ def delete_strategy(strategy_id: str) -> bool:
     collection = dao._get_collection("strategies")
     result = collection.delete_one({"_id": ObjectId(strategy_id)})
     dao.close()
+    logger.info(f"Strategy deleted: id={strategy_id}, success={result.deleted_count > 0}")
     return result.deleted_count > 0
 
 
@@ -123,10 +131,12 @@ def generate_signal(
     from trade_alpha.strategy.base import StrategyContext
     from trade_alpha.strategy import STRATEGIES
 
+    logger.info(f"Generating signal for ts_code={ts_code}, strategy={strategy}")
     dao = StockDailyDAO()
     records = dao.find_by_ts_code(ts_code)
 
     if not records:
+        logger.warning(f"No data found for ts_code={ts_code}")
         return {}
 
     latest = records[-1]
@@ -159,6 +169,7 @@ def generate_signal(
 
     strategy_cls = STRATEGIES.get(strategy)
     if strategy_cls is None:
+        logger.warning(f"Unknown strategy: {strategy}")
         storage.close()
         return {}
 
@@ -180,9 +191,11 @@ def generate_signal(
     storage.insert_many_generic([signal_record], "signals", lambda r: {"ts_code": r.get("ts_code"), "trade_date": r.get("trade_date")})
     storage.close()
 
-    return {
+    result = {
         "action": action,
         "current_price": context.current_price,
         "target_price": prediction.get("close"),
         "reason": signal_record["reason"],
     }
+    logger.info(f"Signal generated: {result}")
+    return result
