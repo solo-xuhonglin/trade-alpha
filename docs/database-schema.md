@@ -11,7 +11,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和回测结果。
 
 ## 集合 (Collections)
 
-### daily
+### stock_daily
 
 每日行情数据集合。
 

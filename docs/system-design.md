@@ -92,9 +92,19 @@ trade-alpha/
 
 ### 3. DAO 模块 (dao)
 
-- `mongodb.py`: 基础 MongoDB 操作
-- `daily_dao.py`: 行情数据访问
-- `stock_list_dao.py`: 股票列表访问
+使用 Beanie ODM 异步数据访问层：
+
+- `mongodb.py`: MongoDB 连接管理和 Beanie 初始化
+- `stock_daily.py`: 股票日线数据 Document
+- `stock_list.py`: 股票列表 Document
+- `portfolio.py`: 账户 Document
+- `strategy.py`: 策略 Document
+- `model_config.py`: 模型配置 Document
+- `training.py`: 训练记录 Document
+- `backtest.py`: 回测记录 Document
+- `backtest_trade.py`: 回测交易 Document
+- `prediction.py`: 预测结果 Document
+- `signal.py`: 交易信号 Document
 
 ### 4. 数据模块 (data)
 
