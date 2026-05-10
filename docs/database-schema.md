@@ -257,3 +257,79 @@ MACDStrategy:
 | `fee` | float | 手续费 |
 | `cash_after` | float | 交易后现金 |
 | `position_after` | int | 交易后持仓 |
+
+### model_configs
+
+存储模型配置信息。
+
+**索引**: `{name: 1}` 唯一索引
+
+**字段**:
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `name` | string | 配置名称（唯一） |
+| `model_type` | string | 模型类型 ("linear", "xgboost", "lstm") |
+| `params` | object | 模型参数 |
+| `targets` | array | 预测目标列表 |
+| `created_at` | datetime | 创建时间 |
+| `updated_at` | datetime | 更新时间 |
+
+**模型类型与参数**:
+
+linear:
+```json
+{
+  "fit_intercept": true
+}
+```
+
+xgboost:
+```json
+{
+  "n_estimators": 100,
+  "max_depth": 5,
+  "learning_rate": 0.1
+}
+```
+
+lstm:
+```json
+{
+  "epochs": 50,
+  "batch_size": 32,
+  "units": 64
+}
+```
+
+### trainings
+
+存储训练记录和指标。
+
+**索引**: `{config_id: 1}` 索引
+
+**字段**:
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `config_id` | ObjectId | 关联的模型配置ID |
+| `name` | string | 训练名称 |
+| `ts_codes` | array | 训练使用的股票代码列表 |
+| `start_date` | string | 训练开始日期 |
+| `end_date` | string | 训练结束日期 |
+| `feature_cols` | array | 特征列列表 |
+| `metrics` | object | 训练指标 |
+| `model_path` | string | 模型文件路径 |
+| `created_at` | datetime | 创建时间 |
+
+**指标示例**:
+
+```json
+{
+  "open_mse": 0.15,
+  "open_mae": 0.35,
+  "close_mse": 0.12,
+  "close_mae": 0.28,
+  "sample_count": 1000
+}
+```

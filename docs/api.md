@@ -216,6 +216,157 @@ POST /api/predict
 DELETE /api/predict/{ts_code}
 ```
 
+## 模型配置
+
+### 获取配置列表
+
+```
+GET /api/model-configs
+```
+
+**参数**:
+- `model_type` (query, optional): 过滤模型类型
+
+**响应**:
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "linear-default",
+    "model_type": "linear",
+    "params": {"fit_intercept": true},
+    "targets": ["open", "close"]
+  }
+]
+```
+
+### 创建配置
+
+```
+POST /api/model-configs
+```
+
+**请求体**:
+```json
+{
+  "name": "linear-default",
+  "model_type": "linear",
+  "params": {"fit_intercept": true},
+  "targets": ["open", "close"]
+}
+```
+
+**模型类型**:
+- `linear`: 线性回归
+- `xgboost`: XGBoost
+- `lstm`: LSTM
+
+### 获取配置详情
+
+```
+GET /api/model-configs/{id}
+```
+
+### 更新配置
+
+```
+PUT /api/model-configs/{id}
+```
+
+### 删除配置
+
+```
+DELETE /api/model-configs/{id}
+```
+
+级联删除关联的训练记录。
+
+## 训练管理
+
+### 获取训练列表
+
+```
+GET /api/trainings
+```
+
+**参数**:
+- `config_id` (query, optional): 过滤配置ID
+
+**响应**:
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439012",
+    "config_id": "507f1f77bcf86cd799439011",
+    "name": "训练-2024",
+    "ts_codes": ["000001.SZ", "600000.SH"],
+    "start_date": "20230101",
+    "end_date": "20231231",
+    "metrics": {
+      "open_mse": 0.15,
+      "open_mae": 0.35,
+      "close_mse": 0.12,
+      "close_mae": 0.28,
+      "sample_count": 1000
+    }
+  }
+]
+```
+
+### 创建训练
+
+```
+POST /api/trainings
+```
+
+**请求体**:
+```json
+{
+  "config_id": "507f1f77bcf86cd799439011",
+  "name": "训练-2024",
+  "ts_codes": ["000001.SZ", "600000.SH"],
+  "start_date": "20230101",
+  "end_date": "20231231"
+}
+```
+
+### 获取训练详情
+
+```
+GET /api/trainings/{id}
+```
+
+### 删除训练
+
+```
+DELETE /api/trainings/{id}
+```
+
+### 使用训练模型预测
+
+```
+POST /api/trainings/{id}/predict
+```
+
+**请求体**:
+```json
+{
+  "ts_code": "000001.SZ"
+}
+```
+
+**响应**:
+```json
+{
+  "predictions": {
+    "open": 10.50,
+    "close": 10.75,
+    "high": 10.80,
+    "low": 10.45
+  }
+}
+```
+
 ## 策略管理
 
 ### 获取策略列表
