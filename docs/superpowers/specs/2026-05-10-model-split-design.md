@@ -20,7 +20,7 @@
         "max_depth": 6,
         "learning_rate": 0.1
     },
-    "targets": ["close"],           # 预测目标列
+    "targets": ["open", "close", "high", "low"],  # 预测目标列（可多个）
     "created_at": datetime,
     "updated_at": datetime
 }
@@ -44,9 +44,22 @@
         "mae": 0.18,
         "sample_count": 500         # 训练样本总数
     },
-    "model_path": "models/xgboost/xxx.pkl",
+    "model_path": "models/{config_id}/{training_id}.pkl",  # 按配置ID组织
     "created_at": datetime
 }
+```
+
+### 文件存储结构
+
+```
+models/
+├── {config_id_1}/
+│   ├── {training_id_1}.pkl
+│   ├── {training_id_2}.pkl
+│   └── ...
+├── {config_id_2}/
+│   ├── {training_id_3}.pkl
+│   └── ...
 ```
 
 ## 训练策略
@@ -59,16 +72,23 @@
 - 可选添加 `ts_code` 作为分类特征
 - 模型学习价格变动的通用规律
 
+### 多目标预测
+
+支持同时预测多个目标：
+- `targets: ["open", "close", "high", "low"]`
+- 模型输出多个预测值
+- 评估指标按目标分别计算
+
 ### 训练流程
 
 ```
 1. 获取所有指定股票的日线数据
 2. 按日期范围过滤
 3. 混合所有股票数据
-4. 构建特征和目标
+4. 构建特征和目标（多目标）
 5. 训练模型
-6. 计算评估指标
-7. 保存模型文件
+6. 计算评估指标（每个目标）
+7. 保存模型文件到 models/{config_id}/{training_id}.pkl
 8. 记录训练结果
 ```
 
@@ -82,16 +102,16 @@
 | GET | /model-configs | 列出所有配置 |
 | GET | /model-configs/{id} | 获取配置详情 |
 | PUT | /model-configs/{id} | 更新配置 |
-| DELETE | /model-configs/{id} | 删除配置（级联删除训练结果） |
+| DELETE | /model-configs/{id} | 删除配置（级联删除训练结果和模型文件） |
 
 ### 训练 API
 
 | 方法 | 端点 | 说明 |
 |-----|------|------|
 | POST | /trainings | 执行训练 |
-| GET | /trainings | 列出训练结果 |
+| GET | /trainings | 列出训练结果（可按 config_id 过滤） |
 | GET | /trainings/{id} | 获取训练详情 |
-| DELETE | /trainings/{id} | 删除训练结果 |
+| DELETE | /trainings/{id} | 删除训练结果和模型文件 |
 | POST | /trainings/{id}/predict | 使用训练结果预测 |
 
 ### 请求示例
@@ -106,7 +126,7 @@ POST /model-configs
         "n_estimators": 100,
         "max_depth": 6
     },
-    "targets": ["close"]
+    "targets": ["open", "close", "high", "low"]
 }
 ```
 
@@ -130,6 +150,18 @@ POST /trainings/{id}/predict
 }
 ```
 
+**响应示例**
+```json
+{
+    "predictions": {
+        "open": 45.2,
+        "close": 46.1,
+        "high": 47.0,
+        "low": 44.8
+    }
+}
+```
+
 ## 回测关联
 
 回测模块需要修改，使用 `training_id` 替代 `model_id`：
@@ -141,6 +173,47 @@ POST /trainings/{id}/predict
     ...
 }
 ```
+
+## 集成测试设计
+
+### 测试文件
+
+| Order | 文件 | 类名 | 说明 |
+|-------|------|------|------|
+| 42 | test_42_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
+| 43 | test_43_training_service.py | TestTrainingService | 验证训练服务 |
+
+### 测试内容
+
+**TestModelConfigService**
+- test_create_config：创建配置
+- test_get_config：获取配置
+- test_list_configs：列出配置
+- test_update_config：更新配置
+- test_delete_config：删除配置（验证级联删除训练结果）
+- test_ensure_default_config：确保默认配置存在
+
+**TestTrainingService**
+- test_create_training：创建训练（单股票）
+- test_create_training_multi_stocks：创建训练（多股票）
+- test_list_trainings：列出训练结果
+- test_list_trainings_by_config：按配置过滤训练结果
+- test_delete_training：删除训练
+- test_predict：使用训练结果预测
+- test_ensure_default_training：确保默认训练存在
+
+### 默认记录
+
+| 默认记录 | 用途 |
+|---------|------|
+| test_model_config | 默认模型配置 |
+| test_training | 默认训练结果（供回测使用） |
+
+### 数据清理
+
+- 测试数据使用 `test_*_temp` 命名
+- 测试结束后自动清理
+- 保留默认记录供后续测试使用
 
 ## 文件结构
 
