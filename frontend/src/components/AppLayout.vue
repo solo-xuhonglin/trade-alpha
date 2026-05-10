@@ -5,7 +5,7 @@
       <v-app-bar-title>Trade-Alpha</v-app-bar-title>
     </v-app-bar>
 
-    <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp">
+    <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp" width="180">
       <v-list>
         <v-list-item
           v-for="item in menuItems"

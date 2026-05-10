@@ -41,7 +41,7 @@
         </v-chip>
       </template>
       <template v-slot:item.total_mv="{ item }">
-        {{ item.total_mv ? (item.total_mv.toLocaleString() + ' 万') : '-' }}
+        {{ formatMarketValue(item.total_mv) }}
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
@@ -148,6 +148,17 @@ import * as echarts from 'echarts'
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]
 
+const formatMarketValue = (value: number | undefined): string => {
+  if (!value) return '-'
+  if (value >= 100000000) {
+    return (value / 100000000).toFixed(2) + ' 万亿'
+  }
+  if (value >= 10000) {
+    return (value / 10000).toFixed(2) + ' 亿'
+  }
+  return value.toFixed(2) + ' 万'
+}
+
 const loadingList = ref(false)
 const loadingUpdate = ref(false)
 const loadingDownload = ref(false)
@@ -173,15 +184,15 @@ const deleteDialog = ref(false)
 const deletingStock = ref<Stock | null>(null)
 
 const headers = [
-  { title: '股票代码', key: 'ts_code', width: '120px' },
-  { title: '名称', key: 'name', width: '120px' },
-  { title: '行业', key: 'industry' },
-  { title: '市场', key: 'market', width: '100px' },
-  { title: '市值', key: 'total_mv', width: '150px' },
-  { title: '状态', key: 'is_downloaded', width: '100px' },
-  { title: '数据条数', key: 'data_count', width: '100px' },
-  { title: '最新日期', key: 'latest_date', width: '120px' },
-  { title: '操作', key: 'actions', sortable: false, width: '100px', align: 'end' },
+  { title: '代码', key: 'ts_code', width: '100px' },
+  { title: '名称', key: 'name', width: '80px' },
+  { title: '行业', key: 'industry', width: '80px' },
+  { title: '市场', key: 'market', width: '70px' },
+  { title: '市值', key: 'total_mv', width: '110px' },
+  { title: '状态', key: 'is_downloaded', width: '80px' },
+  { title: '条数', key: 'data_count', width: '60px' },
+  { title: '最新日期', key: 'latest_date', width: '100px' },
+  { title: '操作', key: 'actions', sortable: false, width: '80px', align: 'end' },
 ]
 
 const loadStocks = async () => {
