@@ -187,3 +187,31 @@ class TradeListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class ModelCreateRequest(BaseModel):
+    name: str
+    model_type: str
+    ts_code: str
+    targets: list[str] = ["open", "close", "high", "low"]
+    params: dict[str, Any] = {}
+    start_date: str
+    end_date: str
+
+
+class ModelResponse(BaseModel):
+    id: str
+    name: str
+    model_type: str
+    ts_code: str
+    targets: list[str]
+    params: dict[str, Any]
+    feature_cols: list[str]
+    train_date_range: dict[str, str]
+    metrics: dict[str, float]
+    created_at: datetime
+    updated_at: datetime
+
+
+class PredictWithModelRequest(BaseModel):
+    ts_code: Optional[str] = None

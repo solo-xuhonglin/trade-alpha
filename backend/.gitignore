@@ -67,3 +67,9 @@ dmypy.json
 
 # Ruff
 .ruff_cache/
+
+# Model files
+models/**/*.pkl
+models/**/*.pt
+models/**/*.pth
+!models/**/.gitkeep

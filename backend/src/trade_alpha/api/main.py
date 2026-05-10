@@ -8,6 +8,7 @@ from trade_alpha.api.routers import (
     strategy,
     portfolio,
     backtest,
+    models,
 )
 
 app = FastAPI(
@@ -22,6 +23,7 @@ app.include_router(predict.router, prefix="/api")
 app.include_router(strategy.router, prefix="/api")
 app.include_router(portfolio.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
+app.include_router(models.router, prefix="/api")
 
 
 @app.get("/")

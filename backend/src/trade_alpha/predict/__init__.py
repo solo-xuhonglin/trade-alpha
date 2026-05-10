@@ -1,7 +1,14 @@
-"""Stock prediction module."""
+"""Predict module."""
 
 from trade_alpha.predict.base import BasePredictor
 from trade_alpha.predict.linear import LinearPredictor
-from trade_alpha.predict.service import predict
+from trade_alpha.predict.xgboost import XGBoostPredictor
+from trade_alpha.predict.lstm import LSTMPredictor
 
-__all__ = ["BasePredictor", "LinearPredictor", "predict"]
+PREDICTORS = {
+    "linear": LinearPredictor,
+    "xgboost": XGBoostPredictor,
+    "lstm": LSTMPredictor,
+}
+
+__all__ = ["BasePredictor", "LinearPredictor", "XGBoostPredictor", "LSTMPredictor", "PREDICTORS"]

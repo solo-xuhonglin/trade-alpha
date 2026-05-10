@@ -10,6 +10,7 @@
 | 21 | test_21_dao_stock_list.py | TestDAOStockList | 验证 StockList DAO 业务方法 |
 | 30 | test_30_service_data.py | TestServiceData | 验证数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
+| 40 | test_40_model_service.py | TestModelService | 验证模型管理服务 |
 
 ## 依赖关系
 
@@ -35,6 +36,11 @@ Layer 3: 业务逻辑
 │  TestServiceData (30)   │     │ TestServiceStockList    │
 └─────────────────────────┘     │        (31)             │
                                 └─────────────────────────┘
+
+Layer 4: 高级服务
+┌─────────────────────────┐
+│  TestModelService (40)  │  ← 依赖 Daily DAO 获取数据
+└─────────────────────────┘
 ```
 
 ## 执行影响
@@ -47,6 +53,7 @@ Layer 3: 业务逻辑
 | TestDAOStockList | 是（stock_list 集合，002594.SZ/601398.SH） | 自动清理 |
 | TestServiceData | 是（daily 集合，002594.SZ） | 自动清理 |
 | TestServiceStockList | 是（stock_list 集合） | **不清理**（真实业务数据） |
+| TestModelService | 是（models 集合，模型文件） | 自动清理 |
 
 ## 运行命令
 
@@ -66,3 +73,4 @@ pytest tests/trade_alpha/integration/test_01_tushare_api.py -v
 - Order 跨度为 10，可在中间插入新测试（如 15、25）
 - 新增 DAO 测试放在 20-29
 - 新增 Service 测试放在 30-39
+- 新增 Model 测试放在 40-49

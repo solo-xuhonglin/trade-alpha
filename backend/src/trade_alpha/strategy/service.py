@@ -35,15 +35,6 @@ def create_strategy(
     return str(result.inserted_id)
 
 
-def get_strategy(name: str) -> Optional[Dict]:
-    """Get strategy by name."""
-    dao = MongoDB()
-    collection = dao._get_collection("strategies")
-    result = collection.find_one({"name": name})
-    dao.close()
-    return result
-
-
 def get_strategy_by_id(strategy_id: str) -> Optional[Dict]:
     """Get strategy by ID."""
     from bson import ObjectId
