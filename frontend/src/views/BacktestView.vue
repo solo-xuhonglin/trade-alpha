@@ -94,6 +94,7 @@
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
           <v-icon color="medium-emphasis" icon="mdi-eye" size="small" @click="viewResult(item)"></v-icon>
+          <v-icon color="primary" icon="mdi-format-list-bulleted" size="small" @click="viewTrades(item)"></v-icon>
           <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)"></v-icon>
         </div>
       </template>
@@ -116,26 +117,66 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <v-dialog v-model="tradesDialog" max-width="800px">
+    <v-card title="交易记录">
+      <v-card-text>
+        <v-data-table-server
+          :headers="tradesHeaders"
+          :items="trades"
+          :loading="loadingTrades"
+          :items-length="totalTrades"
+          :items-per-page="tradesPageSize"
+          :page="tradesPage"
+          @update:options="handleTradesOptionsChange"
+        >
+          <template v-slot:item.action="{ item }">
+            <v-chip :color="item.action === 'buy' ? 'success' : 'error'" size="small">
+              {{ item.action === 'buy' ? '买入' : '卖出' }}
+            </v-chip>
+          </template>
+          <template v-slot:item.price="{ item }">
+            {{ item.price.toFixed(2) }}
+          </template>
+          <template v-slot:item.fee="{ item }">
+            {{ item.fee.toFixed(2) }}
+          </template>
+        </v-data-table-server>
+      </v-card-text>
+      <v-divider></v-divider>
+      <v-card-actions class="bg-surface-light">
+        <v-spacer></v-spacer>
+        <v-btn text="关闭" variant="plain" @click="tradesDialog = false"></v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { strategyApi, type Strategy } from '@/api/strategy'
-import { backtestApi, type Backtest } from '@/api/backtest'
+import { backtestApi, type Backtest, type Trade } from '@/api/backtest'
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]
 
 const loading = ref(false)
 const loadingDelete = ref(false)
+const loadingTrades = ref(false)
 const running = ref(false)
 const deleteDialog = ref(false)
+const tradesDialog = ref(false)
 const deletingItem = ref<Backtest | null>(null)
+const viewingBacktest = ref<Backtest | null>(null)
 const strategies = ref<Strategy[]>([])
 const backtests = ref<Backtest[]>([])
+const trades = ref<Trade[]>([])
 const result = ref<Backtest | null>(null)
 const totalItems = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const totalTrades = ref(0)
+const tradesPage = ref(1)
+const tradesPageSize = ref(20)
 
 const form = ref({
   ts_code: '',
@@ -151,6 +192,16 @@ const historyHeaders = [
   { title: '总收益', key: 'total_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' },
+]
+
+const tradesHeaders = [
+  { title: '日期', key: 'trade_date' },
+  { title: '操作', key: 'action' },
+  { title: '价格', key: 'price' },
+  { title: '数量', key: 'shares' },
+  { title: '手续费', key: 'fee' },
+  { title: '现金', key: 'cash_after' },
+  { title: '持仓', key: 'position_after' },
 ]
 
 const loadStrategies = async () => {
@@ -175,6 +226,12 @@ const handleOptionsChange = (options: { page: number; itemsPerPage: number }) =>
   loadBacktests()
 }
 
+const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number }) => {
+  tradesPage.value = options.page
+  tradesPageSize.value = options.itemsPerPage
+  loadTrades()
+}
+
 const runBacktest = async () => {
   running.value = true
   try {
@@ -193,6 +250,25 @@ const runBacktest = async () => {
 
 const viewResult = (item: Backtest) => {
   result.value = item
+}
+
+const viewTrades = async (item: Backtest) => {
+  viewingBacktest.value = item
+  tradesPage.value = 1
+  tradesDialog.value = true
+  await loadTrades()
+}
+
+const loadTrades = async () => {
+  if (!viewingBacktest.value) return
+  loadingTrades.value = true
+  try {
+    const res = await backtestApi.getTrades(viewingBacktest.value.id, tradesPage.value, tradesPageSize.value)
+    trades.value = res.data.items
+    totalTrades.value = res.data.total
+  } finally {
+    loadingTrades.value = false
+  }
 }
 
 const confirmDelete = (item: Backtest) => {

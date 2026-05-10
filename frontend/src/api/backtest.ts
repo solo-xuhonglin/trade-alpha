@@ -57,5 +57,8 @@ export const backtestApi = {
   getTrades: (id: string, page: number = 1, pageSize: number = 20) =>
     api.get<TradeListResponse>(`/backtests/${id}/trades`, { params: { page, page_size: pageSize } }),
 
+  listTrades: (page: number = 1, pageSize: number = 20) =>
+    api.get<TradeListResponse>('/backtests/trades', { params: { page, page_size: pageSize } }),
+
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }

@@ -28,7 +28,7 @@ const routes = [
   {
     path: '/trades',
     name: 'Trades',
-    component: () => import('@/views/TradesView.vue')
+    component: () => import('@/views/TradeListView.vue')
   }
 ]
 
