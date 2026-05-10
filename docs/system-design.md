@@ -172,6 +172,8 @@ trade-alpha/
 | 数据管理 | `/data` | 股票列表、K线图表 |
 | 账户管理 | `/portfolios` | 账户 CRUD |
 | 策略管理 | `/strategies` | 策略 CRUD |
+| 模型管理 | `/models` | 模型配置 CRUD、训练入口 |
+| 训练记录 | `/trainings` | 训练结果列表、预测功能 |
 | 回测 | `/backtest` | 运行回测、查看历史 |
 | 交易记录 | `/trades` | 交易列表 |
 
