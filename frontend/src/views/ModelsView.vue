@@ -102,7 +102,7 @@ const deletingItem = ref<ModelConfig | null>(null)
 
 const form = ref({
   name: '',
-  model_type: 'linear',
+  model_type: 'linear' as 'linear' | 'xgboost' | 'lstm',
   targets: ['open', 'close'] as string[],
   params: {} as Record<string, any>,
 })
@@ -125,7 +125,7 @@ const headers = [
   { title: '模型类型', key: 'model_type' },
   { title: '预测目标', key: 'targets' },
   { title: '参数', key: 'params' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const loadModels = async () => {

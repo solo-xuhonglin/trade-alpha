@@ -101,7 +101,7 @@ const headers = [
   { title: '日期范围', key: 'date_range' },
   { title: '样本数', key: 'sample_count' },
   { title: '指标(MAE)', key: 'metrics' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
