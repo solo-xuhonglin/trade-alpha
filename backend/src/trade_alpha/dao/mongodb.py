@@ -90,7 +90,10 @@ class MongoDB:
             List of records
         """
         coll = self._get_collection(collection)
-        cursor = coll.find(filter_query, projection or {"_id": 0})
+        if projection is None:
+            cursor = coll.find(filter_query)
+        else:
+            cursor = coll.find(filter_query, projection)
         if sort_spec:
             cursor = cursor.sort(sort_spec)
         if skip > 0:

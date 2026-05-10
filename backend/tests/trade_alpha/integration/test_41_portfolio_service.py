@@ -43,7 +43,7 @@ class TestPortfolioService:
             initial_capital=50000,
         )
 
-        portfolio = portfolio_service.get_portfolio("test_get_temp")
+        portfolio = portfolio_service.get_portfolio_by_name("test_get_temp")
         assert portfolio is not None
         assert portfolio["initial_capital"] == 50000
 
@@ -90,7 +90,7 @@ class TestPortfolioService:
 
     def test_ensure_default_portfolio(self):
         """Ensure default portfolio exists for Layer 5 tests."""
-        existing = portfolio_service.get_portfolio(self.default_portfolio_name)
+        existing = portfolio_service.get_portfolio_by_name(self.default_portfolio_name)
         if existing:
             return
 

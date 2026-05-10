@@ -81,3 +81,18 @@ class StockDailyDAO:
             }}
         ]
         return self.db.aggregate_generic(pipeline, self.collection)
+
+    def update_many(self, records: list[dict[str, Any]]) -> int:
+        """Update multiple records with indicator values.
+
+        Args:
+            records: List of records with ts_code, trade_date and indicator fields
+
+        Returns:
+            Number of records updated
+        """
+        return self.db.insert_many_generic(
+            records,
+            self.collection,
+            lambda r: {"ts_code": r.get("ts_code"), "trade_date": r.get("trade_date")},
+        )

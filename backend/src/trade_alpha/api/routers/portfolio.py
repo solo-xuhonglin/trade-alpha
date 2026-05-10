@@ -50,7 +50,7 @@ def get_portfolio_endpoint(portfolio_id: str):
 @router.post("", response_model=PortfolioResponse)
 def create_portfolio_endpoint(request: PortfolioCreateRequest):
     """Create a new portfolio."""
-    existing = get_portfolio(request.name)
+    existing = get_portfolio_by_name(request.name)
     if existing:
         raise HTTPException(status_code=400, detail="Portfolio name already exists")
 

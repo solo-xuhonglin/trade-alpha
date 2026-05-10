@@ -13,7 +13,13 @@ from trade_alpha.api.schemas import (
     TradeListResponse,
 )
 from trade_alpha.backtest.service import run_backtest as do_run_backtest
-from trade_alpha.dao.mongodb import MongoDB
+from trade_alpha.dao import (
+    BacktestDAO,
+    BacktestTradeDAO,
+    PortfolioDAO,
+    StrategyDAO,
+    TrainingDAO,
+)
 
 router = APIRouter(prefix="/backtests", tags=["backtests"])
 
@@ -55,18 +61,8 @@ def get_backtests(
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ):
     """Get backtest history with pagination."""
-    dao = MongoDB()
-    coll = dao._get_collection("backtests")
-
-    total = coll.count_documents({})
-    skip = (page - 1) * page_size
-    records = list(
-        coll.find()
-        .sort("_id", -1)
-        .skip(skip)
-        .limit(page_size)
-    )
-    dao.close()
+    dao = BacktestDAO()
+    records, total = dao.find_all(page=page, page_size=page_size)
 
     total_pages = (total + page_size - 1) // page_size
     return BacktestListResponse(
@@ -75,6 +71,33 @@ def get_backtests(
         page=page,
         page_size=page_size,
         total_pages=total_pages,
+    )
+
+
+@router.get("/trades/options", response_model=TradeFilterOptions)
+def get_trade_filter_options():
+    """Get filter options for trades page."""
+    portfolio_dao = PortfolioDAO()
+    strategy_dao = StrategyDAO()
+    training_dao = TrainingDAO()
+    trade_dao = BacktestTradeDAO()
+
+    portfolios = portfolio_dao.find_all()
+    portfolio_list = [{"id": str(p["_id"]), "name": p.get("name", "未命名")} for p in portfolios]
+
+    strategies = strategy_dao.find_all()
+    strategy_list = [{"id": str(s["_id"]), "name": s.get("name", "未命名")} for s in strategies]
+
+    trainings = training_dao.find_all()
+    training_list = [{"id": str(t["_id"]), "name": t.get("name", "未命名")} for t in trainings]
+
+    ts_codes = trade_dao.get_distinct_ts_codes()
+
+    return TradeFilterOptions(
+        portfolios=portfolio_list,
+        strategies=strategy_list,
+        trainings=training_list,
+        ts_codes=sorted(ts_codes)
     )
 
 
@@ -88,45 +111,15 @@ def get_all_trades(
     ts_code: Optional[str] = Query(None, description="Filter by stock code"),
 ):
     """Get all trades with pagination and filtering."""
-    from bson import ObjectId
-
-    dao = MongoDB()
-    coll_trades = dao._get_collection("backtest_trades")
-
-    query_conditions = []
-
-    if portfolio_id:
-        try:
-            query_conditions.append({"portfolio_id": ObjectId(portfolio_id)})
-        except Exception:
-            pass
-
-    if strategy_id:
-        try:
-            query_conditions.append({"strategy_id": ObjectId(strategy_id)})
-        except Exception:
-            pass
-
-    if training_id:
-        try:
-            query_conditions.append({"training_id": ObjectId(training_id)})
-        except Exception:
-            pass
-
-    if ts_code:
-        query_conditions.append({"ts_code": ts_code})
-
-    final_query = {"$and": query_conditions} if query_conditions else {}
-
-    total = coll_trades.count_documents(final_query)
-    skip = (page - 1) * page_size
-    records = list(
-        coll_trades.find(final_query)
-        .sort("trade_date", -1)
-        .skip(skip)
-        .limit(page_size)
+    dao = BacktestTradeDAO()
+    records, total = dao.find_all(
+        portfolio_id=portfolio_id,
+        strategy_id=strategy_id,
+        training_id=training_id,
+        ts_code=ts_code,
+        page=page,
+        page_size=page_size,
     )
-    dao.close()
 
     total_pages = (total + page_size - 1) // page_size
     return TradeListResponse(
@@ -149,42 +142,11 @@ def get_all_trades(
     )
 
 
-@router.get("/trades/options", response_model=TradeFilterOptions)
-def get_trade_filter_options():
-    """Get filter options for trades page."""
-    from bson import ObjectId
-
-    dao = MongoDB()
-
-    portfolios = list(dao._get_collection("portfolios").find({}, {"name": 1}))
-    portfolio_list = [{"id": str(p["_id"]), "name": p.get("name", "未命名")} for p in portfolios]
-
-    strategies = list(dao._get_collection("strategies").find({}, {"name": 1}))
-    strategy_list = [{"id": str(s["_id"]), "name": s.get("name", "未命名")} for s in strategies]
-
-    trainings = list(dao._get_collection("trainings").find({}, {"name": 1}))
-    training_list = [{"id": str(t["_id"]), "name": t.get("name", "未命名")} for t in trainings]
-
-    ts_codes = dao._get_collection("backtest_trades").distinct("ts_code")
-
-    dao.close()
-
-    return TradeFilterOptions(
-        portfolios=portfolio_list,
-        strategies=strategy_list,
-        trainings=training_list,
-        ts_codes=sorted(ts_codes)
-    )
-
-
 @router.get("/{backtest_id}", response_model=BacktestResponse)
 def get_backtest(backtest_id: str):
     """Get backtest by ID."""
-    from bson import ObjectId
-
-    dao = MongoDB()
-    doc = dao._get_collection("backtests").find_one({"_id": ObjectId(backtest_id)})
-    dao.close()
+    dao = BacktestDAO()
+    doc = dao.find_by_id(backtest_id)
 
     if not doc:
         raise HTTPException(status_code=404, detail="Backtest not found")
@@ -198,26 +160,16 @@ def get_backtest_trades(
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ):
     """Get trades for a backtest with pagination."""
-    from bson import ObjectId
     from bson.errors import InvalidId
+    from bson import ObjectId
 
     try:
-        obj_id = ObjectId(backtest_id)
+        ObjectId(backtest_id)
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid backtest ID")
 
-    dao = MongoDB()
-    coll = dao._get_collection("backtest_trades")
-
-    total = coll.count_documents({"backtest_id": obj_id})
-    skip = (page - 1) * page_size
-    records = list(
-        coll.find({"backtest_id": obj_id})
-        .sort("trade_date", 1)
-        .skip(skip)
-        .limit(page_size)
-    )
-    dao.close()
+    dao = BacktestTradeDAO()
+    records, total = dao.find_by_backtest_id(backtest_id, page=page, page_size=page_size)
 
     total_pages = (total + page_size - 1) // page_size
     return TradeListResponse(
@@ -252,10 +204,8 @@ def run_backtest_endpoint(request: BacktestRunRequest):
         training_id=request.training_id,
     )
 
-    from bson import ObjectId
-    dao = MongoDB()
-    doc = dao._get_collection("backtests").find_one({"_id": ObjectId(result.backtest_id)})
-    dao.close()
+    dao = BacktestDAO()
+    doc = dao.find_by_id(result.backtest_id)
 
     return _backtest_to_response(doc)
 
@@ -263,14 +213,13 @@ def run_backtest_endpoint(request: BacktestRunRequest):
 @router.delete("/{backtest_id}")
 def delete_backtest(backtest_id: str):
     """Delete backtest and its trades."""
-    from bson import ObjectId
+    trade_dao = BacktestTradeDAO()
+    trade_dao.delete_by_backtest_id(backtest_id)
 
-    dao = MongoDB()
-    dao._get_collection("backtest_trades").delete_many({"backtest_id": ObjectId(backtest_id)})
-    result = dao._get_collection("backtests").delete_one({"_id": ObjectId(backtest_id)})
-    dao.close()
+    backtest_dao = BacktestDAO()
+    deleted = backtest_dao.delete(backtest_id)
 
-    if result.deleted_count == 0:
+    if not deleted:
         raise HTTPException(status_code=404, detail="Backtest not found")
 
     return {"message": "Backtest deleted"}

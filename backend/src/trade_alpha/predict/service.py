@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from trade_alpha.dao.mongodb import MongoDB
+from trade_alpha.dao import StockDailyDAO, PredictionDAO
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.logging import get_logger
 
@@ -53,11 +53,10 @@ def predict(
     if targets is None:
         targets = ["open", "close", "high", "low"]
 
-    storage = MongoDB()
-    records = storage.find_by_ts_code(ts_code)
+    stock_dao = StockDailyDAO()
+    records = stock_dao.find_by_ts_code(ts_code)
 
     if not records:
-        storage.close()
         return {}
 
     df = pd.DataFrame(records)
@@ -68,7 +67,6 @@ def predict(
         df = df[df["trade_date"] <= end_date]
 
     if len(df) < 10:
-        storage.close()
         return {}
 
     features_cols = ["open", "high", "low", "close", "vol"]
@@ -80,7 +78,6 @@ def predict(
     df = df.dropna(subset=all_feature_cols + targets)
 
     if len(df) < 10:
-        storage.close()
         return {}
 
     X = df[all_feature_cols].values[:-1]
@@ -103,7 +100,7 @@ def predict(
     for target in targets:
         result_record[f"target_{target}"] = predictions.get(target)
 
-    storage.insert_many([result_record], collection="predictions")
-    storage.close()
+    prediction_dao = PredictionDAO()
+    prediction_dao.insert(result_record)
 
     return predictions

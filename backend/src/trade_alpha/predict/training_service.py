@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
-from trade_alpha.dao import MongoDB, StockDailyDAO
+from trade_alpha.dao import MongoDB, StockDailyDAO, TrainingDAO
 from trade_alpha.logging import get_logger
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.predict.xgboost import XGBoostPredictor
@@ -13,7 +13,6 @@ from trade_alpha.predict.lstm import LSTMPredictor
 logger = get_logger("training_service")
 
 MODELS_DIR = "models"
-COLLECTION = "trainings"
 
 PREDICTORS = {
     "linear": LinearPredictor,
@@ -114,8 +113,7 @@ def create_training(
 
     logger.info(f"Training prepared with {len(combined_df)} samples")
 
-    storage = MongoDB()
-    collection = storage._get_collection(COLLECTION)
+    training_dao = TrainingDAO()
 
     training = {
         "config_id": ObjectId(config_id),
@@ -128,19 +126,14 @@ def create_training(
         "created_at": datetime.utcnow(),
     }
 
-    result = collection.insert_one(training)
-    training_id = str(result.inserted_id)
+    training_id = training_dao.insert(training)
 
     _ensure_model_dir(config_id)
     model_path = os.path.join(MODELS_DIR, config_id, f"{training_id}.pkl")
     predictor.save(model_path)
 
-    collection.update_one(
-        {"_id": ObjectId(training_id)},
-        {"$set": {"model_path": model_path}}
-    )
+    training_dao.update(training_id, {"model_path": model_path})
 
-    storage.close()
     dao.db.close()
     logger.info(f"Training '{name}' completed with ID {training_id}")
     return training_id
@@ -148,24 +141,20 @@ def create_training(
 
 def get_training_by_id(training_id: str) -> Optional[Dict]:
     """Get training by ID."""
-    dao = MongoDB()
-    collection = dao._get_collection(COLLECTION)
-    result = collection.find_one({"_id": ObjectId(training_id)})
-    dao.close()
-    return result
+    dao = TrainingDAO()
+    return dao.find_by_id(training_id)
+
+
+def get_training_by_name(name: str) -> Optional[Dict]:
+    """Get training by name."""
+    dao = TrainingDAO()
+    return dao.find_by_name(name)
 
 
 def list_trainings(config_id: str = None) -> List[Dict]:
     """List trainings with optional filter."""
-    dao = MongoDB()
-    collection = dao._get_collection(COLLECTION)
-
-    query = {}
-    if config_id:
-        query["config_id"] = ObjectId(config_id)
-
-    results = list(collection.find(query))
-    dao.close()
+    dao = TrainingDAO()
+    results = dao.find_all(config_id)
     logger.debug(f"Found {len(results)} trainings")
     return results
 
@@ -173,23 +162,20 @@ def list_trainings(config_id: str = None) -> List[Dict]:
 def delete_training(training_id: str) -> bool:
     """Delete training and model file."""
     logger.info(f"Deleting training {training_id}")
-    dao = MongoDB()
-    collection = dao._get_collection(COLLECTION)
+    dao = TrainingDAO()
 
-    training = collection.find_one({"_id": ObjectId(training_id)})
+    training = dao.find_by_id(training_id)
     if not training:
         logger.warning(f"Training {training_id} not found")
-        dao.close()
         return False
 
     if training.get("model_path") and os.path.exists(training["model_path"]):
         logger.debug(f"Deleting model file: {training['model_path']}")
         os.remove(training["model_path"])
 
-    result = collection.delete_one({"_id": ObjectId(training_id)})
-    dao.close()
+    success = dao.delete(training_id)
     logger.info(f"Training {training_id} deleted successfully")
-    return result.deleted_count > 0
+    return success
 
 
 def delete_trainings_by_config(config_id: str) -> int:

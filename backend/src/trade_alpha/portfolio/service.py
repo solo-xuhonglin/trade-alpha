@@ -1,7 +1,7 @@
 """Portfolio service module for persistence."""
 
 from typing import Optional, Dict
-from trade_alpha.dao import MongoDB
+from trade_alpha.dao import PortfolioDAO
 from trade_alpha.logging import get_logger
 from trade_alpha.portfolio.portfolio import Portfolio
 
@@ -18,8 +18,7 @@ def create_portfolio(
 ) -> str:
     """Create a new portfolio."""
     logger.info(f"Creating portfolio: name={name}, initial_capital={initial_capital}")
-    dao = MongoDB()
-    collection = dao._get_collection("portfolios")
+    dao = PortfolioDAO()
 
     portfolio_doc = {
         "name": name,
@@ -32,29 +31,21 @@ def create_portfolio(
         "position": 0,
     }
 
-    result = collection.insert_one(portfolio_doc)
-    dao.close()
-    logger.info(f"Portfolio created successfully: id={result.inserted_id}")
-    return str(result.inserted_id)
+    portfolio_id = dao.insert(portfolio_doc)
+    logger.info(f"Portfolio created successfully: id={portfolio_id}")
+    return portfolio_id
 
 
-def get_portfolio(name: str) -> Optional[Dict]:
+def get_portfolio_by_name(name: str) -> Optional[Dict]:
     """Get portfolio by name."""
-    dao = MongoDB()
-    collection = dao._get_collection("portfolios")
-    result = collection.find_one({"name": name})
-    dao.close()
-    return result
+    dao = PortfolioDAO()
+    return dao.find_by_name(name)
 
 
 def get_portfolio_by_id(portfolio_id: str) -> Optional[Dict]:
     """Get portfolio by ID."""
-    from bson import ObjectId
-    dao = MongoDB()
-    collection = dao._get_collection("portfolios")
-    result = collection.find_one({"_id": ObjectId(portfolio_id)})
-    dao.close()
-    return result
+    dao = PortfolioDAO()
+    return dao.find_by_id(portfolio_id)
 
 
 def portfolio_to_obj(portfolio_doc: Dict) -> Portfolio:
@@ -74,11 +65,11 @@ def get_or_create_portfolio(name: str, initial_capital: float) -> tuple[str, Por
     Returns:
         Tuple of (portfolio_id, Portfolio object)
     """
-    portfolio_doc = get_portfolio(name)
+    portfolio_doc = get_portfolio_by_name(name)
     if not portfolio_doc:
         logger.info(f"Creating new portfolio: name={name}")
         portfolio_id = create_portfolio(name, initial_capital)
-        portfolio_doc = get_portfolio(name)
+        portfolio_doc = get_portfolio_by_name(name)
     else:
         logger.debug(f"Using existing portfolio: name={name}")
         portfolio_id = str(portfolio_doc["_id"])
@@ -88,10 +79,8 @@ def get_or_create_portfolio(name: str, initial_capital: float) -> tuple[str, Por
 
 def list_portfolios() -> list[Dict]:
     """List all portfolios."""
-    dao = MongoDB()
-    collection = dao._get_collection("portfolios")
-    results = list(collection.find())
-    dao.close()
+    dao = PortfolioDAO()
+    results = dao.find_all()
     logger.debug(f"Listed {len(results)} portfolios")
     return results
 
@@ -104,10 +93,7 @@ def update_portfolio(
     min_fee: Optional[float] = None,
 ) -> bool:
     """Update portfolio fee settings."""
-    from bson import ObjectId
-
-    dao = MongoDB()
-    collection = dao._get_collection("portfolios")
+    dao = PortfolioDAO()
 
     update_doc = {}
     if buy_fee_rate is not None:
@@ -120,25 +106,16 @@ def update_portfolio(
         update_doc["min_fee"] = min_fee
 
     if not update_doc:
-        dao.close()
         return False
 
-    result = collection.update_one(
-        {"_id": ObjectId(portfolio_id)},
-        {"$set": update_doc}
-    )
-    dao.close()
+    success = dao.update(portfolio_id, update_doc)
     logger.info(f"Portfolio updated successfully: id={portfolio_id}")
-    return result.modified_count > 0
+    return success
 
 
 def delete_portfolio(portfolio_id: str) -> bool:
     """Delete portfolio."""
-    from bson import ObjectId
-
-    dao = MongoDB()
-    collection = dao._get_collection("portfolios")
-    result = collection.delete_one({"_id": ObjectId(portfolio_id)})
-    dao.close()
+    dao = PortfolioDAO()
+    success = dao.delete(portfolio_id)
     logger.info(f"Portfolio deleted: id={portfolio_id}")
-    return result.deleted_count > 0
+    return success

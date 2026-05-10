@@ -66,7 +66,7 @@ class TestPortfolioService:
         assert portfolio_obj.initial_capital == 100000
         mock_collection.insert_one.assert_not_called()
 
-    @patch("trade_alpha.portfolio.service.get_portfolio")
+    @patch("trade_alpha.portfolio.service.get_portfolio_by_name")
     @patch("trade_alpha.portfolio.service.create_portfolio")
     @patch("trade_alpha.portfolio.service.portfolio_to_obj")
     def test_get_or_create_portfolio_new(

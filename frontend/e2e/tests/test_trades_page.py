@@ -31,10 +31,10 @@ class TestTradesPage:
         """Test that filter dropdowns exist."""
         page = goto_page("/trades")
         page.wait_for_load_state("networkidle")
-        expect(page.get_by_label("账户")).to_be_visible()
-        expect(page.get_by_label("策略")).to_be_visible()
-        expect(page.get_by_label("训练")).to_be_visible()
-        expect(page.get_by_label("股票")).to_be_visible()
+        expect(page.get_by_role("combobox", name="账户")).to_be_visible()
+        expect(page.get_by_role("combobox", name="策略")).to_be_visible()
+        expect(page.get_by_role("combobox", name="训练")).to_be_visible()
+        expect(page.get_by_role("combobox", name="股票")).to_be_visible()
 
     def test_filter_refresh_button_works(self, goto_page):
         """Test that refresh button loads data."""

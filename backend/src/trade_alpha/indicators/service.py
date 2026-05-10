@@ -1,7 +1,7 @@
 """Indicators service module."""
 
 import pandas as pd
-from trade_alpha.dao.mongodb import MongoDB
+from trade_alpha.dao import StockDailyDAO
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
 from trade_alpha.logging import get_logger
@@ -23,8 +23,8 @@ def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> in
     if periods is None:
         periods = [5, 10, 20, 60]
 
-    storage = MongoDB()
-    records = storage.find_by_ts_code(ts_code)
+    dao = StockDailyDAO()
+    records = dao.find_by_ts_code(ts_code)
 
     if not records:
         logger.warning(f"No data found for {ts_code}")
@@ -36,8 +36,7 @@ def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None) -> in
     columns_to_update = ["ts_code", "trade_date"] + [f"ma_{p}" for p in periods]
     update_records = df[columns_to_update].to_dict("records")
 
-    result = storage.update_many(update_records)
-    storage.close()
+    result = dao.update_many(update_records)
     logger.info(f"Successfully calculated and stored MA for {ts_code}: {result} records updated")
     return result
 
@@ -52,8 +51,9 @@ def calculate_and_store_macd(ts_code: str) -> int:
         Number of records updated
     """
     logger.info(f"Calculating MACD for {ts_code}")
-    storage = MongoDB()
-    records = storage.find_by_ts_code(ts_code)
+
+    dao = StockDailyDAO()
+    records = dao.find_by_ts_code(ts_code)
 
     if not records:
         logger.warning(f"No data found for {ts_code}")
@@ -65,7 +65,6 @@ def calculate_and_store_macd(ts_code: str) -> int:
     columns_to_update = ["ts_code", "trade_date", "macd", "macd_signal", "macd_hist"]
     update_records = df[columns_to_update].to_dict("records")
 
-    result = storage.update_many(update_records)
-    storage.close()
+    result = dao.update_many(update_records)
     logger.info(f"Successfully calculated and stored MACD for {ts_code}: {result} records updated")
     return result

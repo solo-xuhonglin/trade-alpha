@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException
 from trade_alpha.api.schemas import PredictRequest, PredictResponse
 from trade_alpha.predict.service import predict as do_predict
-from trade_alpha.dao.mongodb import MongoDB
+from trade_alpha.dao import PredictionDAO
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 
@@ -11,19 +11,12 @@ router = APIRouter(prefix="/predict", tags=["predict"])
 @router.get("/{ts_code}", response_model=PredictResponse)
 def get_prediction(ts_code: str):
     """Get latest prediction for a stock."""
-    dao = MongoDB()
-    records = list(
-        dao._get_collection("predictions")
-        .find({"ts_code": ts_code})
-        .sort("trade_date", -1)
-        .limit(1)
-    )
-    dao.close()
+    dao = PredictionDAO()
+    r = dao.find_latest_by_ts_code(ts_code)
 
-    if not records:
+    if not r:
         raise HTTPException(status_code=404, detail="No prediction found")
 
-    r = records[0]
     return PredictResponse(
         ts_code=r["ts_code"],
         trade_date=r["trade_date"],
@@ -56,7 +49,6 @@ def create_prediction(request: PredictRequest):
 @router.delete("/{ts_code}")
 def delete_prediction(ts_code: str):
     """Delete predictions for a stock."""
-    dao = MongoDB()
-    result = dao._get_collection("predictions").delete_many({"ts_code": ts_code})
-    dao.close()
-    return {"deleted_count": result.deleted_count}
+    dao = PredictionDAO()
+    deleted_count = dao.delete_by_ts_code(ts_code)
+    return {"deleted_count": deleted_count}

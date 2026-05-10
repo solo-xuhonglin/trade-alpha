@@ -1,8 +1,14 @@
 """Backtest service module for persistence."""
 
 from typing import List
-from trade_alpha.dao import MongoDB
-from trade_alpha.dao.stock_daily_dao import StockDailyDAO
+from bson import ObjectId
+from trade_alpha.dao import (
+    BacktestDAO,
+    BacktestTradeDAO,
+    PortfolioDAO,
+    StrategyDAO,
+    StockDailyDAO,
+)
 from trade_alpha.logging import get_logger
 from trade_alpha.portfolio import Trade, Portfolio
 from trade_alpha.backtest.engine import BacktestResult
@@ -13,10 +19,8 @@ logger = get_logger("backtest_service")
 def save_backtest(result: BacktestResult) -> str:
     """Save backtest result."""
     logger.info("Saving backtest result")
-    from bson import ObjectId
 
-    dao = MongoDB()
-    collection = dao._get_collection("backtests")
+    dao = BacktestDAO()
 
     backtest_doc = {
         "portfolio_id": ObjectId(result.portfolio_id) if result.portfolio_id else None,
@@ -37,10 +41,8 @@ def save_backtest(result: BacktestResult) -> str:
         "total_fees": result.total_fees,
     }
 
-    result_obj = collection.insert_one(backtest_doc)
-    backtest_id = str(result_obj.inserted_id)
+    backtest_id = dao.insert(backtest_doc)
     result.backtest_id = backtest_id
-    dao.close()
     logger.info(f"Backtest result saved: {backtest_id}")
     return backtest_id
 
@@ -55,10 +57,8 @@ def save_trades(
 ) -> None:
     """Save trade records."""
     logger.info(f"Saving {len(trades)} trades for backtest: {backtest_id}")
-    from bson import ObjectId
 
-    dao = MongoDB()
-    collection = dao._get_collection("backtest_trades")
+    dao = BacktestTradeDAO()
 
     trade_docs = []
     for trade in trades:
@@ -79,30 +79,25 @@ def save_trades(
         trade_docs.append(trade_doc)
 
     if trade_docs:
-        collection.insert_many(trade_docs)
-
-    dao.close()
+        dao.insert_many(trade_docs)
 
 
 def get_portfolio_by_id(portfolio_id: str) -> Portfolio:
     """Get portfolio by ID."""
-    from bson import ObjectId
     from bson.errors import InvalidId
 
     try:
-        obj_id = ObjectId(portfolio_id)
+        ObjectId(portfolio_id)
     except InvalidId:
         raise ValueError(f"Invalid portfolio ID: {portfolio_id}")
 
-    dao = MongoDB()
-    doc = dao._get_collection("portfolios").find_one({"_id": obj_id})
-    dao.close()
+    dao = PortfolioDAO()
+    doc = dao.find_by_id(portfolio_id)
 
     if not doc:
         raise ValueError(f"Portfolio not found: {portfolio_id}")
 
     return Portfolio(
-        name=doc.get("name", "default"),
         initial_capital=doc.get("initial_capital", 100000),
         buy_fee_rate=doc.get("buy_fee_rate", 0.0003),
         sell_fee_rate=doc.get("sell_fee_rate", 0.0003),
@@ -113,17 +108,15 @@ def get_portfolio_by_id(portfolio_id: str) -> Portfolio:
 
 def get_strategy_by_id(strategy_id: str):
     """Get strategy class by ID."""
-    from bson import ObjectId
     from bson.errors import InvalidId
 
     try:
-        obj_id = ObjectId(strategy_id)
+        ObjectId(strategy_id)
     except InvalidId:
         raise ValueError(f"Invalid strategy ID: {strategy_id}")
 
-    dao = MongoDB()
-    doc = dao._get_collection("strategies").find_one({"_id": obj_id})
-    dao.close()
+    dao = StrategyDAO()
+    doc = dao.find_by_id(strategy_id)
 
     if not doc:
         raise ValueError(f"Strategy not found: {strategy_id}")
