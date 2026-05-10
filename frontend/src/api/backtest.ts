@@ -3,10 +3,11 @@ import api from './index'
 export interface Backtest {
   id: string
   portfolio_id?: string
+  strategy_id: string
+  training_id: string
   ts_code: string
   start_date: string
   end_date: string
-  strategy: string
   initial_capital: number
   final_value: number
   total_return: number
@@ -45,20 +46,48 @@ export interface TradeListResponse {
   total_pages: number
 }
 
+export interface TradeFilterOptions {
+  portfolios: Array<{ id: string; name: string }>
+  strategies: Array<{ id: string; name: string }>
+  trainings: Array<{ id: string; name: string }>
+  ts_codes: string[]
+}
+
+export interface TradeFilterParams {
+  portfolio_id?: string
+  strategy_id?: string
+  training_id?: string
+  ts_code?: string
+}
+
 export const backtestApi = {
   list: (page: number = 1, pageSize: number = 20) =>
     api.get<BacktestListResponse>('/backtests', { params: { page, page_size: pageSize } }),
 
   get: (id: string) => api.get<Backtest>(`/backtests/${id}`),
 
-  run: (data: { ts_code: string; start_date: string; end_date: string; strategy_id: string; portfolio_name?: string; initial_capital?: number }) =>
-    api.post<Backtest>('/backtests', data),
+  run: (data: {
+    ts_code: string
+    start_date: string
+    end_date: string
+    portfolio_id: string
+    strategy_id: string
+    training_id: string
+  }) => api.post<Backtest>('/backtests', data),
 
   getTrades: (id: string, page: number = 1, pageSize: number = 20) =>
     api.get<TradeListResponse>(`/backtests/${id}/trades`, { params: { page, page_size: pageSize } }),
 
-  listTrades: (page: number = 1, pageSize: number = 20) =>
-    api.get<TradeListResponse>('/backtests/trades', { params: { page, page_size: pageSize } }),
+  listTrades: (page: number = 1, pageSize: number = 20, filters?: TradeFilterParams) => {
+    const params: Record<string, any> = { page, page_size: pageSize }
+    if (filters?.portfolio_id) params.portfolio_id = filters.portfolio_id
+    if (filters?.strategy_id) params.strategy_id = filters.strategy_id
+    if (filters?.training_id) params.training_id = filters.training_id
+    if (filters?.ts_code) params.ts_code = filters.ts_code
+    return api.get<TradeListResponse>('/backtests/trades', { params })
+  },
+
+  getTradeOptions: () => api.get<TradeFilterOptions>('/backtests/trades/options'),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }
