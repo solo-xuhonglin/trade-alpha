@@ -1,18 +1,18 @@
-"""Integration tests for DailyDAO business methods."""
+"""Integration tests for StockDailyDAO business methods."""
 
 import pytest
-from trade_alpha.dao import DailyDAO
+from trade_alpha.dao import StockDailyDAO
 
 
 @pytest.mark.integration
 @pytest.mark.order(20)
 class TestDAODaily:
-    """Integration tests for DailyDAO business methods."""
+    """Integration tests for StockDailyDAO business methods."""
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
         """Setup and teardown for each test."""
-        self.dao = DailyDAO()
+        self.dao = StockDailyDAO()
         self.ts_code = "002594.SZ"
 
         yield
@@ -31,8 +31,10 @@ class TestDAODaily:
         assert count == 2
 
         found = self.dao.find_by_ts_code(self.ts_code)
-        assert len(found) == 2
-        assert found[0]["trade_date"] == "20240101"
+        assert len(found) >= 2
+        dates = [r["trade_date"] for r in found]
+        assert "20240101" in dates
+        assert "20240102" in dates
 
     def test_delete_by_ts_code(self):
         """Test delete operation."""

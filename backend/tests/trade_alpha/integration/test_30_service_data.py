@@ -1,7 +1,7 @@
 """Integration tests for data service."""
 
 import pytest
-from trade_alpha.data import fetch_and_store
+from trade_alpha.data import fetch_and_store_stock_daily
 from trade_alpha.dao import MongoDB
 
 
@@ -18,15 +18,15 @@ class TestServiceData:
 
         yield
 
-        self.dao._get_collection("daily").delete_many({"ts_code": self.ts_code})
+        self.dao._get_collection("stock_daily").delete_many({"ts_code": self.ts_code})
         self.dao.close()
 
-    def test_fetch_and_store(self):
+    def test_fetch_and_store_stock_daily(self):
         """Test complete flow: fetch -> store -> verify."""
-        coll = self.dao._get_collection("daily")
+        coll = self.dao._get_collection("stock_daily")
         coll.delete_many({"ts_code": self.ts_code})
 
-        count = fetch_and_store(self.ts_code, "20240101", "20240131")
+        count = fetch_and_store_stock_daily(self.ts_code, "20240101", "20240131")
 
         assert count > 0
         assert coll.count_documents({"ts_code": self.ts_code}) == count

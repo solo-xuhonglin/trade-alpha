@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 from bson import ObjectId
-from trade_alpha.dao import MongoDB, DailyDAO
+from trade_alpha.dao import MongoDB, StockDailyDAO
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.predict.xgboost import XGBoostPredictor
 from trade_alpha.predict.lstm import LSTMPredictor
@@ -43,7 +43,7 @@ def create_model(
     if model_type not in PREDICTORS:
         raise ValueError(f"Unknown model type: {model_type}")
 
-    dao = DailyDAO()
+    dao = StockDailyDAO()
     records = dao.find_by_ts_code(ts_code)
 
     if not records:
@@ -164,7 +164,7 @@ def predict_with_model(model_id: str, ts_code: str = None) -> Dict[str, float]:
 
     ts_code = ts_code or model["ts_code"]
 
-    dao = DailyDAO()
+    dao = StockDailyDAO()
     records = dao.find_by_ts_code(ts_code)
     dao.db.close()
 

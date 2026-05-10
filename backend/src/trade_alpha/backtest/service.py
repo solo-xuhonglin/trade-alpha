@@ -2,6 +2,7 @@
 
 from typing import List
 from trade_alpha.dao import MongoDB
+from trade_alpha.dao.stock_daily_dao import StockDailyDAO
 from trade_alpha.portfolio import Trade
 from trade_alpha.backtest.engine import BacktestResult
 
@@ -82,13 +83,12 @@ def run_backtest(
 
     portfolio_id, portfolio = get_or_create_portfolio(portfolio_name, initial_capital)
 
-    dao = MongoDB()
+    dao = StockDailyDAO()
     records = dao.find_by_ts_code(ts_code)
     filtered_records = [
         r for r in records
         if start_date <= r["trade_date"] <= end_date
     ]
-    dao.close()
 
     if not filtered_records:
         return BacktestResult(

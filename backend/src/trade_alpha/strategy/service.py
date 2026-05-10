@@ -3,6 +3,7 @@
 from typing import Optional, Dict, Any
 from datetime import datetime
 from trade_alpha.dao import MongoDB
+from trade_alpha.dao.stock_daily_dao import StockDailyDAO
 
 
 def create_strategy(
@@ -122,15 +123,15 @@ def generate_signal(
     from trade_alpha.strategy.base import StrategyContext
     from trade_alpha.strategy import STRATEGIES
 
-    storage = MongoDB()
-    records = storage.find_by_ts_code(ts_code)
+    dao = StockDailyDAO()
+    records = dao.find_by_ts_code(ts_code)
 
     if not records:
-        storage.close()
         return {}
 
     latest = records[-1]
 
+    storage = MongoDB()
     prediction = {}
     pred_records = list(storage._get_collection("predictions").find(
         {"ts_code": ts_code},
@@ -176,7 +177,7 @@ def generate_signal(
         "reason": f"{strategy} strategy",
     }
 
-    storage.insert_many([signal_record], collection="signals")
+    storage.insert_many_generic([signal_record], "signals", lambda r: {"ts_code": r.get("ts_code"), "trade_date": r.get("trade_date")})
     storage.close()
 
     return {

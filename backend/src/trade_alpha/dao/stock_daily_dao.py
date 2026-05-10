@@ -1,16 +1,16 @@
-"""Daily data DAO module."""
+"""Stock daily data DAO module."""
 
 from typing import Any
 from pymongo import ASCENDING
 from trade_alpha.dao.mongodb import MongoDB
 
 
-class DailyDAO:
-    """DAO for daily collection."""
+class StockDailyDAO:
+    """DAO for stock daily collection."""
 
     def __init__(self, db: MongoDB | None = None):
         self.db = db or MongoDB()
-        self.collection = "daily"
+        self.collection = "stock_daily"
         self._ensure_index()
 
     def _ensure_index(self) -> None:
@@ -21,10 +21,10 @@ class DailyDAO:
         )
 
     def insert_many(self, records: list[dict[str, Any]]) -> int:
-        """Insert daily data records.
+        """Insert stock daily data records.
 
         Args:
-            records: List of daily data records
+            records: List of stock daily data records
 
         Returns:
             Number of records upserted/modified
@@ -81,3 +81,6 @@ class DailyDAO:
             }}
         ]
         return self.db.aggregate_generic(pipeline, self.collection)
+
+
+DailyDAO = StockDailyDAO
