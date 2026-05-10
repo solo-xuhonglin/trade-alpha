@@ -37,6 +37,8 @@ const menuItems = [
   { path: '/data', title: '数据管理', icon: 'mdi-database' },
   { path: '/portfolios', title: '账户管理', icon: 'mdi-wallet' },
   { path: '/strategies', title: '策略管理', icon: 'mdi-strategy' },
+  { path: '/models', title: '模型管理', icon: 'mdi-brain' },
+  { path: '/trainings', title: '训练记录', icon: 'mdi-chart-scatter-plot' },
   { path: '/backtest', title: '回测', icon: 'mdi-chart-line' },
   { path: '/trades', title: '交易记录', icon: 'mdi-swap-horizontal' },
 ]
