@@ -5,7 +5,7 @@
 **Goal:** 为交易记录页面添加账户、策略、训练结果、股票代码四个筛选条件下拉选择器，同时调整后端数据结构和回测流程
 
 **Architecture:**
-- 后端：修改 backtests/trades 数据结构，strategy 改为 strategy_id，增加 training_id
+- 后端：统一使用 ID（portfolio_id, strategy_id, training_id），替代原有 strategy 字符串和 portfolio_name
 - 前端：使用 Vuetify v-select 组件，支持多条件筛选
 
 **Tech Stack:** Vue 3 + Vuetify + FastAPI + MongoDB
@@ -18,7 +18,7 @@
 backend/
 ├── src/trade_alpha/api/schemas.py          # 修改请求/响应模型
 ├── src/trade_alpha/backtest/engine.py      # 修改 BacktestResult
-├── src/trade_alpha/backtest/service.py     # 修改 save_backtest/save_trades
+├── src/trade_alpha/backtest/service.py     # 修改 run_backtest/save_backtest/save_trades
 ├── src/trade_alpha/api/routers/backtest.py  # 修改 API
 frontend/
 ├── src/api/backtest.ts                     # 扩展 API 客户端
@@ -34,29 +34,26 @@ frontend/
 
 - [ ] **Step 1: 修改 BacktestRunRequest**
 
-找到 `class BacktestRunRequest`，在 `strategy_id` 后添加 `training_id`：
+将 `portfolio_name` 改为 `portfolio_id`，添加 `training_id`：
 
 ```python
 class BacktestRunRequest(BaseModel):
     ts_code: str
     start_date: str
     end_date: str
-    strategy_id: str
-    training_id: str  # 新增，必填
-    portfolio_name: Optional[str] = "default"
-    initial_capital: Optional[float] = None
+    portfolio_id: str       # 改为 portfolio_id，必填
+    strategy_id: str        # 改为 strategy_id，必填
+    training_id: str       # 新增，必填
 ```
 
 - [ ] **Step 2: 修改 BacktestResponse**
-
-找到 `class BacktestResponse`，将 `strategy: str` 改为 `strategy_id: str`，添加 `training_id: str`：
 
 ```python
 class BacktestResponse(BaseModel):
     id: str
     portfolio_id: Optional[str]
-    strategy_id: str  # 原为 strategy: str
-    training_id: str  # 新增
+    strategy_id: str        # 改为 strategy_id
+    training_id: str       # 新增
     ts_code: str
     start_date: str
     end_date: str
@@ -76,7 +73,7 @@ class BacktestResponse(BaseModel):
 
 ```bash
 git add backend/src/trade_alpha/api/schemas.py
-git commit -m "feat: add training_id to backtest schema"
+git commit -m "feat: use portfolio_id and strategy_id, add training_id to backtest schema"
 ```
 
 ---
@@ -88,7 +85,7 @@ git commit -m "feat: add training_id to backtest schema"
 
 - [ ] **Step 1: 修改 BacktestResult dataclass**
 
-找到 `@dataclass class BacktestResult`，将 `strategy: str` 改为 `strategy_id: str`，添加 `training_id: str`：
+将 `strategy` 改为 `strategy_id`，添加 `training_id`：
 
 ```python
 @dataclass
@@ -96,8 +93,8 @@ class BacktestResult:
     """Backtest result container."""
     backtest_id: str = ""
     portfolio_id: str = ""
-    strategy_id: str = ""  # 原为 strategy: str
-    training_id: str = ""  # 新增
+    strategy_id: str = ""    # 原为 strategy: str
+    training_id: str = ""   # 新增
     ts_code: str = ""
     start_date: str = ""
     end_date: str = ""
@@ -129,48 +126,62 @@ git commit -m "feat: rename strategy to strategy_id and add training_id"
 
 - [ ] **Step 1: 修改 run_backtest 函数签名**
 
-将 `strategy` 改为 `strategy_id` 和 `training_id`：
-
 ```python
 def run_backtest(
     ts_code: str,
     start_date: str,
     end_date: str,
-    strategy_id: str,  # 原为 strategy: str
-    training_id: str,   # 新增
-    portfolio_name: str = "default",
-    initial_capital: float = 100000,
+    portfolio_id: str,      # 新增，必填
+    strategy_id: str,       # 改为 strategy_id
+    training_id: str,       # 新增，必填
 ) -> BacktestResult:
 ```
 
 - [ ] **Step 2: 修改函数内部使用**
 
-找到并修改：
+删除 `get_or_create_portfolio`，改为直接获取指定 portfolio：
+
 ```python
-strategy_cls = STRATEGIES.get(strategy_id)  # 原为 strategy
+    from trade_alpha.portfolio import get_portfolio_by_id
+
+    # 获取指定的 portfolio
+    portfolio = get_portfolio_by_id(portfolio_id)
+    if not portfolio:
+        raise ValueError(f"Portfolio not found: {portfolio_id}")
 ```
 
-和：
+- [ ] **Step 3: 修改赋值**
+
+找到：
 ```python
-result.strategy_id = strategy_id  # 原为 result.strategy = strategy
-result.training_id = training_id  # 新增
+result.portfolio_id = portfolio_id
+result.portfolio_name = portfolio_name
+result.strategy = strategy
 ```
 
-- [ ] **Step 3: 修改 save_backtest 函数**
+改为：
+```python
+result.portfolio_id = portfolio_id
+result.strategy_id = strategy_id    # 原为 result.strategy = strategy
+result.training_id = training_id      # 新增
+```
+
+- [ ] **Step 4: 修改 save_backtest 函数**
 
 更新 `backtest_doc`：
 ```python
 backtest_doc = {
     "portfolio_id": ObjectId(result.portfolio_id) if result.portfolio_id else None,
-    "portfolio_name": result.portfolio_name if hasattr(result, 'portfolio_name') else None,
-    "strategy_id": ObjectId(result.strategy_id) if result.strategy_id else None,  # 改为 strategy_id
-    "training_id": ObjectId(result.training_id) if result.training_id else None,  # 新增
+    "strategy_id": ObjectId(result.strategy_id) if result.strategy_id else None,
+    "training_id": ObjectId(result.training_id) if result.training_id else None,
     "ts_code": result.ts_code,
     # ... 其他字段保持不变
 }
 ```
 
-- [ ] **Step 4: 修改 save_trades 函数签名**
+**注意**：移除 `portfolio_name` 字段。
+
+- [ ] **Step 5: 修改 save_trades 函数签名**
 
 ```python
 def save_trades(
@@ -178,25 +189,25 @@ def save_trades(
     portfolio_id: str,
     trades: List[Trade],
     ts_code: str = "",
-    strategy_id: str = "",   # 新增
-    training_id: str = ""    # 新增
+    strategy_id: str = "",
+    training_id: str = ""
 ) -> None:
 ```
 
-- [ ] **Step 5: 修改 save_trades 中的 trade_doc**
+- [ ] **Step 6: 修改 save_trades 中的 trade_doc**
 
 ```python
 trade_doc = {
     "backtest_id": ObjectId(backtest_id),
     "portfolio_id": ObjectId(portfolio_id) if portfolio_id else None,
-    "strategy_id": ObjectId(strategy_id) if strategy_id else None,  # 新增
-    "training_id": ObjectId(training_id) if training_id else None,  # 新增
+    "strategy_id": ObjectId(strategy_id) if strategy_id else None,
+    "training_id": ObjectId(training_id) if training_id else None,
     "ts_code": ts_code,
     # ... 其他字段保持不变
 }
 ```
 
-- [ ] **Step 6: 修改调用 save_trades 的地方**
+- [ ] **Step 7: 修改调用 save_trades 的地方**
 
 在 `run_backtest` 函数末尾，找到：
 ```python
@@ -208,11 +219,11 @@ save_trades(backtest_id, portfolio_id, portfolio.trades, ts_code)
 save_trades(backtest_id, portfolio_id, portfolio.trades, ts_code, strategy_id, training_id)
 ```
 
-- [ ] **Step 7: 提交**
+- [ ] **Step 8: 提交**
 
 ```bash
 git add backend/src/trade_alpha/backtest/service.py
-git commit -m "feat: update backtest service to use strategy_id and training_id"
+git commit -m "feat: update backtest service to use portfolio_id, strategy_id and training_id"
 ```
 
 ---
@@ -224,8 +235,6 @@ git commit -m "feat: update backtest service to use strategy_id and training_id"
 
 - [ ] **Step 1: 修改 run_backtest_endpoint**
 
-找到 `run_backtest_endpoint` 函数，传递 `training_id`：
-
 ```python
 @router.post("", response_model=BacktestResponse)
 def run_backtest_endpoint(request: BacktestRunRequest):
@@ -234,17 +243,14 @@ def run_backtest_endpoint(request: BacktestRunRequest):
         ts_code=request.ts_code,
         start_date=request.start_date,
         end_date=request.end_date,
-        strategy_id=request.strategy_id,    # 原为 strategy=request.strategy_id
-        training_id=request.training_id,    # 新增
-        portfolio_name=request.portfolio_name,
-        initial_capital=request.initial_capital or 100000,
+        portfolio_id=request.portfolio_id,
+        strategy_id=request.strategy_id,
+        training_id=request.training_id,
     )
     # ...
 ```
 
 - [ ] **Step 2: 修改 _backtest_to_response 函数**
-
-更新返回的字段：
 
 ```python
 def _backtest_to_response(doc: dict) -> BacktestResponse:
@@ -261,8 +267,6 @@ def _backtest_to_response(doc: dict) -> BacktestResponse:
 
 - [ ] **Step 3: 修改 get_all_trades 增加筛选参数**
 
-在 `/trades` 端点添加筛选参数：
-
 ```python
 @router.get("/trades", response_model=TradeListResponse)
 def get_all_trades(
@@ -275,7 +279,7 @@ def get_all_trades(
 ):
 ```
 
-修改查询逻辑（直接用字段筛选，无需关联）：
+- [ ] **Step 4: 修改查询逻辑**
 
 ```python
     # Build query conditions
@@ -297,9 +301,7 @@ def get_all_trades(
     final_query = {"$and": query_conditions} if query_conditions else {}
 ```
 
-- [ ] **Step 4: 添加 TradeFilterOptions schema 和 options 端点**
-
-在文件末尾添加：
+- [ ] **Step 5: 添加 TradeFilterOptions schema 和 options 端点**
 
 ```python
 class TradeFilterOptions(BaseModel):
@@ -342,19 +344,18 @@ def get_trade_filter_options():
     )
 ```
 
-- [ ] **Step 5: 添加必要的导入**
+- [ ] **Step 6: 确保导入存在**
 
-确保文件顶部有：
 ```python
 from typing import List, Optional
 from pydantic import BaseModel
 ```
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 7: 提交**
 
 ```bash
 git add backend/src/trade_alpha/api/routers/backtest.py
-git commit -m "feat: update backtest API to use strategy_id and training_id, add filter options"
+git commit -m "feat: update backtest API to use portfolio_id, strategy_id, training_id"
 ```
 
 ---
@@ -370,8 +371,8 @@ git commit -m "feat: update backtest API to use strategy_id and training_id, add
 export interface Backtest {
   id: string
   portfolio_id?: string
-  strategy_id: string  // 改为 strategy_id
-  training_id: string   // 新增
+  strategy_id: string
+  training_id: string
   ts_code: string
   // ... 其他字段
 }
@@ -417,10 +418,9 @@ run: (data: {
   ts_code: string
   start_date: string
   end_date: string
+  portfolio_id: string
   strategy_id: string
-  training_id: string  // 新增
-  portfolio_name?: string
-  initial_capital?: number
+  training_id: string
 }) => api.post<Backtest>('/backtests', data),
 ```
 
@@ -428,7 +428,7 @@ run: (data: {
 
 ```bash
 git add frontend/src/api/backtest.ts
-git commit -m "feat: update backtest API client with filters and training_id"
+git commit -m "feat: update backtest API client with filters and ID fields"
 ```
 
 ---
@@ -439,8 +439,6 @@ git commit -m "feat: update backtest API client with filters and training_id"
 - Modify: `frontend/src/views/TradeListView.vue`
 
 - [ ] **Step 1: 添加筛选器状态和下拉数据**
-
-在 `<script setup>` 部分：
 
 ```typescript
 const filterOptions = ref<{
@@ -494,8 +492,6 @@ const loadTrades = async () => {
 ```
 
 - [ ] **Step 3: 添加筛选器和刷新按钮**
-
-在 `<v-toolbar>` 中替换现有按钮区域：
 
 ```vue
 <v-toolbar flat>
@@ -597,8 +593,6 @@ git commit -m "feat: add filter dropdowns to trades page"
 
 - [ ] **Step 1: 更新回测管理部分**
 
-找到 "### 运行回测" 部分，添加 training_id：
-
 ```markdown
 ### 运行回测
 
@@ -612,40 +606,21 @@ POST /api/backtests
   "ts_code": "000001.SZ",
   "start_date": "20240101",
   "end_date": "20241231",
+  "portfolio_id": "507f1f77bcf86cd799439010",
   "strategy_id": "507f1f77bcf86cd799439013",
-  "training_id": "507f1f77bcf86cd799439014",
-  "portfolio_name": "default",
-  "initial_capital": 100000.0
+  "training_id": "507f1f77bcf86cd799439014"
 }
 ```
 ```
 
 - [ ] **Step 2: 更新响应结构**
 
-在 "### 获取回测历史" 响应中添加 strategy_id 和 training_id：
-
-```markdown
-**响应**:
-```json
-{
-  "items": [
-    {
-      "id": "507f1f77bcf86cd799439011",
-      "portfolio_id": "507f1f77bcf86cd799439012",
-      "strategy_id": "507f1f77bcf86cd799439013",
-      "training_id": "507f1f77bcf86cd799439014",
-      "ts_code": "000001.SZ",
-      ...
-    }
-  ],
-  ...
-}
-```
-```
+在 "### 获取回测历史" 响应中：
+- 移除 `strategy`
+- 添加 `strategy_id` 和 `training_id`
+- 移除 `portfolio_name`
 
 - [ ] **Step 3: 添加筛选参数和 options 端点文档**
-
-在回测管理部分添加：
 
 ```markdown
 ### 获取回测交易记录
@@ -662,22 +637,10 @@ GET /api/backtests/trades
 - `training_id` (query, optional): 训练结果 ID
 - `ts_code` (query, optional): 股票代码
 
-筛选条件为空时，该条件不参与查询。多个条件同时存在时为 AND 关系。
-
 ### 获取交易筛选选项
 
 ```
 GET /api/backtests/trades/options
-```
-
-**响应**:
-```json
-{
-  "portfolios": [{ "id": "xxx", "name": "账户A" }],
-  "strategies": [{ "id": "xxx", "name": "MA20策略" }],
-  "trainings": [{ "id": "xxx", "name": "训练-2024" }],
-  "ts_codes": ["002594.SZ", "601398.SH"]
-}
 ```
 ```
 
@@ -729,8 +692,8 @@ git commit -m "test: add trades filter E2E tests"
 
 ## 自检清单
 
-- [ ] 回测 API 需要 training_id（必填）
+- [ ] 回测 API 使用 portfolio_id, strategy_id, training_id（均必填）
+- [ ] 移除 portfolio_name
 - [ ] 交易记录包含 strategy_id 和 training_id
 - [ ] 筛选可直接用字段查询，无需关联
-- [ ] 所有筛选器支持清空
 - [ ] API 文档已更新

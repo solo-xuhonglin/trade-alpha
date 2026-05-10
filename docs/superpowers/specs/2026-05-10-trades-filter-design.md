@@ -4,6 +4,12 @@
 
 为交易记录页面添加多维度筛选功能，支持按账户、策略、训练结果、股票代码进行组合查询。
 
+## 设计原则
+
+- **统一使用 ID**：所有关联字段使用 ObjectId（strategy_id, training_id, portfolio_id）
+- **避免名称歧义**：portfolio_name 可能重复，使用 portfolio_id 更精确
+- **必填字段**：training_id, strategy_id, portfolio_id 均为必填
+
 ## 数据结构调整
 
 ### backtest_trades 集合字段
@@ -39,9 +45,9 @@
 }
 ```
 
-## 回测流程调整
+## 回测请求调整
 
-### 1. 回测请求（必填 training_id）
+### 新请求结构
 
 ```json
 {
@@ -50,16 +56,14 @@
   "end_date": "20241231",
   "strategy_id": "xxx",
   "training_id": "yyy",
-  "portfolio_name": "default",
-  "initial_capital": 100000
+  "portfolio_id": "zzz"
 }
 ```
 
-### 2. 回测服务调整
-
-`service.py` 的 `run_backtest` 函数签名增加 `training_id` 参数：
-- 保存 backtest 时记录 strategy_id 和 training_id
-- 保存 trades 时同时记录 strategy_id 和 training_id
+**变化**：
+- `strategy_id`：必填（原为 strategy: str）
+- `training_id`：必填（新增）
+- `portfolio_id`：必填，替代 portfolio_name（原为 portfolio_name: Optional[str]）
 
 ## API 设计
 
@@ -101,48 +105,27 @@ GET /api/backtests/trades/options
 }
 ```
 
-## 前端设计
-
-### 页面布局
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ 交易记录                    [账户 ▼] [策略 ▼] [训练 ▼] [股票 ▼] [🔄] │
-├──────────────────────────────────────────────────────────────────┤
-│ 日期     │ 操作 │ 价格   │ 数量 │ 手续费 │ 现金     │ 持仓      │
-├──────────────────────────────────────────────────────────────────┤
-│ 20240105 │ 买入 │ 262.52 │ 380  │ 29.93  │ 212.47   │ 380      │
-│ ...                                                               │
-└──────────────────────────────────────────────────────────────────┘
-```
-
 ## 实现步骤
 
 ### 阶段一：后端数据结构调整
 
-1. **修改 BacktestRunRequest** - 增加 training_id 字段（必填）
-2. **修改 BacktestResult** - 增加 training_id 字段
-3. **修改 BacktestResponse** - 增加 strategy_id, training_id
-4. **修改 run_backtest 函数** - 传递 training_id
-5. **修改 save_backtest** - 保存 strategy_id, training_id
-6. **修改 save_trades** - 保存 strategy_id, training_id
+1. **修改 BacktestRunRequest** - 改为 portfolio_id, strategy_id, training_id（均必填）
+2. **修改 BacktestResponse** - 使用 portfolio_id, strategy_id, training_id
+3. **修改 BacktestResult** - 已有 portfolio_id，改为 strategy_id，增加 training_id
+4. **修改 service.py** - 使用 portfolio_id, strategy_id, training_id
+5. **修改 save_backtest/save_trades** - 保存三个 ID
 
 ### 阶段二：API 增强
 
-7. **修改 /api/backtests/trades** - 增加筛选参数
-8. **新增 /api/backtests/trades/options** - 获取下拉选项
+6. **修改 /api/backtests/trades** - 增加筛选参数
+7. **新增 /api/backtests/trades/options** - 获取下拉选项
 
 ### 阶段三：前端
 
-9. **扩展 API 客户端** - 增加筛选参数支持
-10. **更新 TradeListView** - 添加筛选器
+8. **扩展 API 客户端** - 增加筛选参数支持
+9. **更新 TradeListView** - 添加筛选器
 
 ### 阶段四：文档和测试
 
-11. **更新 api.md**
-12. **E2E 测试**
-
-## 风险与注意事项
-
-- 现有回测数据需要迁移（可选）
-- training_id 为 ObjectId 类型，需要验证格式
+10. **更新 api.md**
+11. **E2E 测试**
