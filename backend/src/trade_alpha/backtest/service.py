@@ -16,6 +16,7 @@ def save_backtest(result: BacktestResult) -> str:
 
     backtest_doc = {
         "portfolio_id": ObjectId(result.portfolio_id) if result.portfolio_id else None,
+        "portfolio_name": result.portfolio_name if hasattr(result, 'portfolio_name') else None,
         "ts_code": result.ts_code,
         "start_date": result.start_date,
         "end_date": result.end_date,
@@ -109,6 +110,7 @@ def run_backtest(
 
     result = engine.run(filtered_records)
     result.portfolio_id = portfolio_id
+    result.portfolio_name = portfolio_name
     result.strategy = strategy
 
     backtest_id = save_backtest(result)

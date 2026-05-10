@@ -2,8 +2,6 @@
 
 import pytest
 from trade_alpha.backtest import service as backtest_service
-from trade_alpha.portfolio import service as portfolio_service
-from trade_alpha.strategy import service as strategy_service
 from trade_alpha.data import fetch_and_store_stock_daily
 from trade_alpha.dao import MongoDB
 
@@ -19,8 +17,7 @@ class TestBacktest:
         self.ts_code = "002594.SZ"
         self.start_date = "20230101"
         self.end_date = "20231231"
-        self.default_portfolio_name = "test_portfolio"
-        self.default_strategy_name = "test_strategy"
+        self.default_backtest_name = "test_backtest"
 
         fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
 
@@ -29,8 +26,9 @@ class TestBacktest:
         dao = MongoDB()
         backtests = list(dao._get_collection("backtests").find({"ts_code": self.ts_code}))
         for bt in backtests:
-            dao._get_collection("backtest_trades").delete_many({"backtest_id": bt["_id"]})
-        dao._get_collection("backtests").delete_many({"ts_code": self.ts_code})
+            if bt.get("portfolio_name") != self.default_backtest_name:
+                dao._get_collection("backtest_trades").delete_many({"backtest_id": bt["_id"]})
+                dao._get_collection("backtests").delete_one({"_id": bt["_id"]})
         dao.close()
 
     def test_run_backtest(self):
@@ -115,3 +113,24 @@ class TestBacktest:
         assert result.total_return is not None
         assert result.max_drawdown is not None
         assert result.sharpe_ratio is not None
+
+    def test_ensure_default_backtest(self):
+        """Ensure default backtest exists."""
+        dao = MongoDB()
+        existing = list(dao._get_collection("backtests").find({
+            "ts_code": self.ts_code,
+            "portfolio_name": self.default_backtest_name,
+        }))
+        dao.close()
+
+        if existing:
+            return
+
+        backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            strategy="price",
+            portfolio_name=self.default_backtest_name,
+            initial_capital=100000,
+        )
