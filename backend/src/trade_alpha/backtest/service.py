@@ -40,7 +40,7 @@ def save_backtest(result: BacktestResult) -> str:
     return backtest_id
 
 
-def save_trades(backtest_id: str, portfolio_id: str, trades: List[Trade]) -> None:
+def save_trades(backtest_id: str, portfolio_id: str, trades: List[Trade], ts_code: str = "") -> None:
     """Save trade records."""
     from bson import ObjectId
 
@@ -52,7 +52,7 @@ def save_trades(backtest_id: str, portfolio_id: str, trades: List[Trade]) -> Non
         trade_doc = {
             "backtest_id": ObjectId(backtest_id),
             "portfolio_id": ObjectId(portfolio_id) if portfolio_id else None,
-            "ts_code": "",
+            "ts_code": ts_code,
             "trade_date": trade.date,
             "action": trade.action,
             "price": trade.price,
@@ -114,6 +114,6 @@ def run_backtest(
     result.strategy = strategy
 
     backtest_id = save_backtest(result)
-    save_trades(backtest_id, portfolio_id, portfolio.trades)
+    save_trades(backtest_id, portfolio_id, portfolio.trades, ts_code)
 
     return result
