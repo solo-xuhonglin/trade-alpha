@@ -79,18 +79,19 @@ class BacktestRunRequest(BaseModel):
     ts_code: str
     start_date: str
     end_date: str
+    portfolio_id: str
     strategy_id: str
-    portfolio_name: Optional[str] = "default"
-    initial_capital: Optional[float] = None
+    training_id: str
 
 
 class BacktestResponse(BaseModel):
     id: str
     portfolio_id: Optional[str]
+    strategy_id: str
+    training_id: str
     ts_code: str
     start_date: str
     end_date: str
-    strategy: str
     initial_capital: float
     final_value: float
     total_return: float
