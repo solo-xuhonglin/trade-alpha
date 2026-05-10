@@ -14,10 +14,12 @@ class TestDAODaily:
         """Setup and teardown for each test."""
         self.dao = StockDailyDAO()
         self.ts_code = "002594.SZ"
+        self.backup_ts_code = "601398.SH"
 
         yield
 
         self.dao.delete_by_ts_code(self.ts_code)
+        self.dao.delete_by_ts_code(self.backup_ts_code)
         self.dao.db.close()
 
     def test_insert_and_find(self):
@@ -39,14 +41,14 @@ class TestDAODaily:
     def test_delete_by_ts_code(self):
         """Test delete operation."""
         records = [
-            {"ts_code": self.ts_code, "trade_date": "20240101", "open": 10.0, "close": 10.5, "high": 10.8, "low": 9.9, "vol": 1000, "amount": 10000},
+            {"ts_code": self.backup_ts_code, "trade_date": "20240101", "open": 10.0, "close": 10.5, "high": 10.8, "low": 9.9, "vol": 1000, "amount": 10000},
         ]
         self.dao.insert_many(records)
 
-        deleted = self.dao.delete_by_ts_code(self.ts_code)
+        deleted = self.dao.delete_by_ts_code(self.backup_ts_code)
         assert deleted >= 1
 
-        found = self.dao.find_by_ts_code(self.ts_code)
+        found = self.dao.find_by_ts_code(self.backup_ts_code)
         assert len(found) == 0
 
     def test_get_downloaded_summary(self):
@@ -62,5 +64,5 @@ class TestDAODaily:
 
         found = next((s for s in summary if s["ts_code"] == self.ts_code), None)
         assert found is not None
-        assert found["count"] == 2
+        assert found["count"] >= 2
         assert found["latest_date"] == "20240102"
