@@ -26,3 +26,21 @@ class TestTradesPage:
         page.wait_for_selector("[class*='v-data-table'] tbody tr", timeout=10000)
         rows = page.locator("[class*='v-data-table'] tbody tr")
         expect(rows.first).to_be_visible()
+
+    def test_has_filter_dropdowns(self, goto_page):
+        """Test that filter dropdowns exist."""
+        page = goto_page("/trades")
+        page.wait_for_load_state("networkidle")
+        expect(page.get_by_label("账户")).to_be_visible()
+        expect(page.get_by_label("策略")).to_be_visible()
+        expect(page.get_by_label("训练")).to_be_visible()
+        expect(page.get_by_label("股票")).to_be_visible()
+
+    def test_filter_refresh_button_works(self, goto_page):
+        """Test that refresh button loads data."""
+        page = goto_page("/trades")
+        page.wait_for_selector("[class*='v-data-table'] tbody tr", timeout=10000)
+        page.get_by_role("button", name="刷新").click()
+        page.wait_for_load_state("networkidle")
+        rows = page.locator("[class*='v-data-table'] tbody tr")
+        expect(rows.first).to_be_visible()
