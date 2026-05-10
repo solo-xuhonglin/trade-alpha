@@ -21,6 +21,16 @@ const routes = [
     component: () => import('@/views/StrategyView.vue')
   },
   {
+    path: '/models',
+    name: 'Models',
+    component: () => import('@/views/ModelsView.vue')
+  },
+  {
+    path: '/trainings',
+    name: 'Trainings',
+    component: () => import('@/views/TrainingsView.vue')
+  },
+  {
     path: '/backtest',
     name: 'Backtest',
     component: () => import('@/views/BacktestView.vue')
