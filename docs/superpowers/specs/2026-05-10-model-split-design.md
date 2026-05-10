@@ -176,16 +176,19 @@ POST /trainings/{id}/predict
 
 ## 集成测试设计
 
-### 测试文件
+### 测试层级
 
-| Order | 文件 | 类名 | 说明 |
-|-------|------|------|------|
-| 42 | test_42_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
-| 43 | test_43_training_service.py | TestTrainingService | 验证训练服务 |
+| 层级 | Order | 文件 | 类名 | 说明 |
+|-------|------|------|------|------|
+| Layer 4 | 41 | test_41_portfolio_service.py | TestPortfolioService | 验证账户管理服务 |
+| Layer 4 | 42 | test_42_strategy_service.py | TestStrategyService | 验证策略管理服务 |
+| Layer 4 | 43 | test_43_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
+| Layer 5 | 51 | test_51_training_service.py | TestTrainingService | 验证训练服务 |
+| Layer 6 | 60 | test_60_backtest.py | TestBacktest | 验证回测服务 |
 
 ### 测试内容
 
-**TestModelConfigService**
+**TestModelConfigService (Layer 4)**
 - test_create_config：创建配置
 - test_get_config：获取配置
 - test_list_configs：列出配置
@@ -193,7 +196,7 @@ POST /trainings/{id}/predict
 - test_delete_config：删除配置（验证级联删除训练结果）
 - test_ensure_default_config：确保默认配置存在
 
-**TestTrainingService**
+**TestTrainingService (Layer 5)**
 - test_create_training：创建训练（单股票）
 - test_create_training_multi_stocks：创建训练（多股票）
 - test_list_trainings：列出训练结果
@@ -204,10 +207,10 @@ POST /trainings/{id}/predict
 
 ### 默认记录
 
-| 默认记录 | 用途 |
-|---------|------|
-| test_model_config | 默认模型配置 |
-| test_training | 默认训练结果（供回测使用） |
+| 默认记录 | 用途 | 创建位置 |
+|---------|------|---------|
+| test_model_config | 默认模型配置 | TestModelConfigService |
+| test_training | 默认训练结果 | TestTrainingService |
 
 ### 数据清理
 
