@@ -18,8 +18,10 @@
 | 1 | test_data_page.py | TestDataPage | 数据管理页面测试 |
 | 2 | test_portfolio_page.py | TestPortfolioPage | 账户管理页面测试 |
 | 3 | test_strategy_page.py | TestStrategyPage | 策略管理页面测试 |
-| 4 | test_backtest_page.py | TestBacktestPage | 回测页面测试 |
-| 5 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
+| 4 | test_models_page.py | TestModelsPage | 模型管理页面测试 |
+| 5 | test_trainings_page.py | TestTrainingsPage | 训练记录页面测试 |
+| 6 | test_backtest_page.py | TestBacktestPage | 回测页面测试 |
+| 7 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
 
 ## 测试覆盖
 
@@ -28,6 +30,8 @@
 | 数据管理 | `/data` | 导航、加载股票列表、验证表头、验证数据 |
 | 账户管理 | `/portfolios` | 导航、加载账户列表、验证表头、验证数据 |
 | 策略管理 | `/strategies` | 导航、加载策略列表、验证表头、验证数据 |
+| 模型管理 | `/models` | 导航、加载配置列表、验证表头、新建配置按钮 |
+| 训练记录 | `/trainings` | 导航、加载训练列表、验证表头、配置筛选 |
 | 回测 | `/backtest` | 导航、验证表头、验证运行按钮、验证数据 |
 | 交易记录 | `/trades` | 导航、加载交易列表、验证表头、验证数据 |
 
