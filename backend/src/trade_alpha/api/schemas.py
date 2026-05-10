@@ -144,3 +144,46 @@ class PredictResponse(BaseModel):
 class IndicatorResult(BaseModel):
     ts_code: str
     updated_count: int
+
+
+class StockResponse(BaseModel):
+    ts_code: str
+    name: str
+    industry: Optional[str] = None
+    list_date: Optional[str] = None
+    market: Optional[str] = None
+    total_mv: Optional[float] = None
+    pe: Optional[float] = None
+    pb: Optional[float] = None
+    updated_at: Optional[datetime] = None
+    is_downloaded: bool = False
+    data_count: Optional[int] = None
+    latest_date: Optional[str] = None
+
+
+class StockListUpdateResponse(BaseModel):
+    updated_count: int
+
+
+class StockListResponse(BaseModel):
+    items: list[StockResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class BacktestListResponse(BaseModel):
+    items: list[BacktestResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class TradeListResponse(BaseModel):
+    items: list[TradeResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

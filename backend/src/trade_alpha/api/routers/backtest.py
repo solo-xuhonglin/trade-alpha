@@ -1,10 +1,12 @@
 """Backtest API endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from trade_alpha.api.schemas import (
     BacktestRunRequest,
     BacktestResponse,
     TradeResponse,
+    BacktestListResponse,
+    TradeListResponse,
 )
 from trade_alpha.backtest.service import run_backtest as do_run_backtest
 from trade_alpha.dao.mongodb import MongoDB
@@ -34,18 +36,33 @@ def _backtest_to_response(doc: dict) -> BacktestResponse:
     )
 
 
-@router.get("", response_model=list[BacktestResponse])
-def get_backtests(limit: int = 100):
-    """Get backtest history."""
+@router.get("", response_model=BacktestListResponse)
+def get_backtests(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+):
+    """Get backtest history with pagination."""
     dao = MongoDB()
+    coll = dao._get_collection("backtests")
+
+    total = coll.count_documents({})
+    skip = (page - 1) * page_size
     records = list(
-        dao._get_collection("backtests")
-        .find()
+        coll.find()
         .sort("_id", -1)
-        .limit(limit)
+        .skip(skip)
+        .limit(page_size)
     )
     dao.close()
-    return [_backtest_to_response(r) for r in records]
+
+    total_pages = (total + page_size - 1) // page_size
+    return BacktestListResponse(
+        items=[_backtest_to_response(r) for r in records],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.get("/{backtest_id}", response_model=BacktestResponse)
@@ -62,31 +79,48 @@ def get_backtest(backtest_id: str):
     return _backtest_to_response(doc)
 
 
-@router.get("/{backtest_id}/trades", response_model=list[TradeResponse])
-def get_backtest_trades(backtest_id: str):
-    """Get trades for a backtest."""
+@router.get("/{backtest_id}/trades", response_model=TradeListResponse)
+def get_backtest_trades(
+    backtest_id: str,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+):
+    """Get trades for a backtest with pagination."""
     from bson import ObjectId
 
     dao = MongoDB()
+    coll = dao._get_collection("backtest_trades")
+    obj_id = ObjectId(backtest_id)
+
+    total = coll.count_documents({"backtest_id": obj_id})
+    skip = (page - 1) * page_size
     records = list(
-        dao._get_collection("backtest_trades")
-        .find({"backtest_id": ObjectId(backtest_id)})
+        coll.find({"backtest_id": obj_id})
         .sort("trade_date", 1)
+        .skip(skip)
+        .limit(page_size)
     )
     dao.close()
 
-    return [
-        TradeResponse(
-            trade_date=r["trade_date"],
-            action=r["action"],
-            price=r["price"],
-            shares=r["shares"],
-            fee=r["fee"],
-            cash_after=r["cash_after"],
-            position_after=r["position_after"],
-        )
-        for r in records
-    ]
+    total_pages = (total + page_size - 1) // page_size
+    return TradeListResponse(
+        items=[
+            TradeResponse(
+                trade_date=r["trade_date"],
+                action=r["action"],
+                price=r["price"],
+                shares=r["shares"],
+                fee=r["fee"],
+                cash_after=r["cash_after"],
+                position_after=r["position_after"],
+            )
+            for r in records
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.post("", response_model=BacktestResponse)

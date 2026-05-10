@@ -71,19 +71,36 @@ trade-alpha/
 
 ### 2. DAO 模块 (dao)
 
-`MongoDB` 类提供 MongoDB 操作：
-- `insert_many()`: 批量插入/更新（Upsert）
+数据访问层，提供 MongoDB 操作封装。
+
+**mongodb.py** - 基础 MongoDB 操作类：
+- `insert_many_generic()`: 通用批量插入/更新（Upsert）
+- `find_generic()`: 通用查询方法，支持分页
+- `delete_generic()`: 通用删除方法
+- `aggregate_generic()`: 通用聚合方法
+- `create_index()`: 创建索引
+
+**daily_dao.py** - daily 集合业务方法：
+- `insert_many()`: 批量插入/更新行情数据
 - `find_by_ts_code()`: 按股票代码查询
-- `update_many()`: 批量更新
-- 索引自动创建，无需手动调用
+- `delete_by_ts_code()`: 删除股票数据
+- `get_downloaded_summary()`: 获取已下载股票摘要
+
+**stock_list_dao.py** - stock_list 集合业务方法：
+- `insert_stock_list()`: 批量插入/更新股票列表
+- `list_stocks()`: 按市值降序查询股票列表（支持分页）
+- `count_stocks()`: 统计股票总数
 
 ### 3. 数据模块 (data)
 
 **fetcher.py** - Tushare 数据获取：
 - `fetch_stock_data()`: 获取指定股票和时间范围的数据
+- `fetch_stock_list()`: 获取 A 股股票基本信息
+- `fetch_daily_basic()`: 获取每日基本面数据（市值、PE、PB）
 
 **service.py** - 数据流编排：
 - `fetch_and_store()`: 获取数据并存储到数据库
+- `update_stock_list()`: 更新股票列表（基本信息 + 基本面数据）
 
 ### 4. 指标模块 (indicators)
 

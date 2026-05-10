@@ -1,6 +1,5 @@
 <template>
-  <v-card class="mb-4">
-    <v-card-title>运行回测</v-card-title>
+  <v-card border rounded class="mb-4">
     <v-card-text>
       <v-row>
         <v-col cols="12" sm="3" md="2">
@@ -22,7 +21,7 @@
     </v-card-text>
   </v-card>
 
-  <v-card v-if="result" class="mb-4">
+  <v-card v-if="result" border rounded class="mb-4">
     <v-card-title>回测结果</v-card-title>
     <v-card-text>
       <v-row>
@@ -60,21 +59,63 @@
     </v-card-text>
   </v-card>
 
-  <v-card>
-    <v-card-title>回测历史</v-card-title>
-    <v-divider />
-    <v-data-table :headers="historyHeaders" :items="backtests" :loading="loading">
+  <v-card border rounded>
+    <v-data-table-server
+      :headers="historyHeaders"
+      :items="backtests"
+      :loading="loading"
+      :items-length="totalItems"
+      :items-per-page="pageSize"
+      :page="page"
+      @update:options="handleOptionsChange"
+    >
+      <template v-slot:top>
+        <v-toolbar flat>
+          <v-toolbar-title>
+            <v-icon color="medium-emphasis" icon="mdi-chart-line" size="x-small" start></v-icon>
+            回测历史
+          </v-toolbar-title>
+          <v-btn
+            prepend-icon="mdi-refresh"
+            rounded="lg"
+            text="刷新"
+            border
+            @click="loadBacktests"
+            :loading="loading"
+          ></v-btn>
+        </v-toolbar>
+      </template>
+
       <template v-slot:item.total_return="{ item }">
         <span :class="item.total_return >= 0 ? 'text-success' : 'text-error'">
           {{ (item.total_return * 100).toFixed(2) }}%
         </span>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn variant="text" @click="viewResult(item)">查看</v-btn>
-        <v-btn color="error" variant="text" @click="deleteBacktest(item)">删除</v-btn>
+        <div class="d-flex ga-2 justify-end">
+          <v-icon color="medium-emphasis" icon="mdi-eye" size="small" @click="viewResult(item)"></v-icon>
+          <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)"></v-icon>
+        </div>
       </template>
-    </v-data-table>
+    </v-data-table-server>
   </v-card>
+
+  <v-dialog v-model="deleteDialog" max-width="400px">
+    <v-card
+      subtitle="此操作不可撤销"
+      title="确认删除"
+    >
+      <template v-slot:text>
+        确定要删除回测记录「{{ deletingItem?.id }}」吗？
+      </template>
+      <v-divider></v-divider>
+      <v-card-actions class="bg-surface-light">
+        <v-btn text="取消" variant="plain" @click="deleteDialog = false"></v-btn>
+        <v-spacer></v-spacer>
+        <v-btn text="删除" color="error" @click="deleteBacktest" :loading="loadingDelete"></v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -85,10 +126,16 @@ import { backtestApi, type Backtest } from '@/api/backtest'
 const formatDate = (date: Date) => date.toISOString().split('T')[0]
 
 const loading = ref(false)
+const loadingDelete = ref(false)
 const running = ref(false)
+const deleteDialog = ref(false)
+const deletingItem = ref<Backtest | null>(null)
 const strategies = ref<Strategy[]>([])
 const backtests = ref<Backtest[]>([])
 const result = ref<Backtest | null>(null)
+const totalItems = ref(0)
+const page = ref(1)
+const pageSize = ref(20)
 
 const form = ref({
   ts_code: '',
@@ -103,21 +150,29 @@ const historyHeaders = [
   { title: '策略', key: 'strategy' },
   { title: '总收益', key: 'total_return' },
   { title: '最大回撤', key: 'max_drawdown' },
-  { title: '操作', key: 'actions', sortable: false },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' },
 ]
 
-const loadData = async () => {
+const loadStrategies = async () => {
+  const res = await strategyApi.list()
+  strategies.value = res.data
+}
+
+const loadBacktests = async () => {
   loading.value = true
   try {
-    const [sRes, bRes] = await Promise.all([
-      strategyApi.list(),
-      backtestApi.list(),
-    ])
-    strategies.value = sRes.data
-    backtests.value = bRes.data
+    const res = await backtestApi.list(page.value, pageSize.value)
+    backtests.value = res.data.items
+    totalItems.value = res.data.total
   } finally {
     loading.value = false
   }
+}
+
+const handleOptionsChange = (options: { page: number; itemsPerPage: number }) => {
+  page.value = options.page
+  pageSize.value = options.itemsPerPage
+  loadBacktests()
 }
 
 const runBacktest = async () => {
@@ -130,7 +185,7 @@ const runBacktest = async () => {
     }
     const res = await backtestApi.run(payload)
     result.value = res.data
-    await loadData()
+    await loadBacktests()
   } finally {
     running.value = false
   }
@@ -140,12 +195,26 @@ const viewResult = (item: Backtest) => {
   result.value = item
 }
 
-const deleteBacktest = async (item: Backtest) => {
-  await backtestApi.delete(item.id)
-  await loadData()
+const confirmDelete = (item: Backtest) => {
+  deletingItem.value = item
+  deleteDialog.value = true
+}
+
+const deleteBacktest = async () => {
+  if (!deletingItem.value) return
+  loadingDelete.value = true
+  try {
+    await backtestApi.delete(deletingItem.value.id)
+    deleteDialog.value = false
+    deletingItem.value = null
+    await loadBacktests()
+  } finally {
+    loadingDelete.value = false
+  }
 }
 
 onMounted(() => {
-  loadData()
+  loadStrategies()
+  loadBacktests()
 })
 </script>

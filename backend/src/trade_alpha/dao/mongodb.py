@@ -1,7 +1,7 @@
 """MongoDB DAO module."""
 
-from typing import Any
-from pymongo import MongoClient, ASCENDING
+from typing import Any, Callable
+from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.operations import UpdateOne
 from pymongo.errors import BulkWriteError
 from trade_alpha.config import load_config
@@ -16,25 +16,38 @@ class MongoDB:
         self.db_name = db_name or config.mongodb_db
         self._client: MongoClient | None = None
 
-    def _get_collection(self, name: str = "daily"):
+    def _get_collection(self, name: str):
         if self._client is None:
             self._client = MongoClient(self.uri)
         return self._client[self.db_name][name]
 
-    def insert_many(self, records: list[dict[str, Any]], collection: str = "daily") -> int:
+    def insert_many_generic(
+        self,
+        records: list[dict[str, Any]],
+        collection: str,
+        filter_builder: Callable[[dict[str, Any]], dict[str, Any]],
+        index_spec: list[tuple[str, int]] | None = None,
+    ) -> int:
+        """Generic bulk insert/update method.
+
+        Args:
+            records: List of records to insert/update
+            collection: Collection name
+            filter_builder: Function to build filter for each record
+            index_spec: Index specification to create
+
+        Returns:
+            Number of records upserted/modified
+        """
         coll = self._get_collection(collection)
-        self._ensure_index(collection)
+        if index_spec:
+            coll.create_index(index_spec, unique=True)
         operations = []
         for record in records:
-            ts_code = record.get("ts_code")
-            trade_date = record.get("trade_date")
-            if ts_code and trade_date:
+            filter_query = filter_builder(record)
+            if filter_query:
                 operations.append(
-                    UpdateOne(
-                        {"ts_code": ts_code, "trade_date": trade_date},
-                        {"$set": record},
-                        upsert=True
-                    )
+                    UpdateOne(filter_query, {"$set": record}, upsert=True)
                 )
 
         if not operations:
@@ -46,35 +59,79 @@ class MongoDB:
         except BulkWriteError as e:
             return e.details.get("nUpserted", 0) + e.details.get("nModified", 0)
 
-    def find_by_ts_code(self, ts_code: str, collection: str = "daily") -> list[dict[str, Any]]:
-        """Find all records for a stock code.
+    def find_generic(
+        self,
+        filter_query: dict[str, Any],
+        collection: str,
+        sort_spec: list[tuple[str, int]] | None = None,
+        projection: dict[str, Any] | None = None,
+        skip: int = 0,
+        limit: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Generic find method.
 
         Args:
-            ts_code: Stock code
+            filter_query: Filter query
             collection: Collection name
+            sort_spec: Sort specification
+            projection: Projection
+            skip: Number of records to skip
+            limit: Maximum number of records to return (0 = no limit)
 
         Returns:
-            List of records sorted by trade_date
+            List of records
         """
         coll = self._get_collection(collection)
-        cursor = coll.find({"ts_code": ts_code}, {"_id": 0}).sort("trade_date", ASCENDING)
+        cursor = coll.find(filter_query, projection or {"_id": 0})
+        if sort_spec:
+            cursor = cursor.sort(sort_spec)
+        if skip > 0:
+            cursor = cursor.skip(skip)
+        if limit > 0:
+            cursor = cursor.limit(limit)
         return list(cursor)
 
-    def update_many(self, records: list[dict[str, Any]], collection: str = "daily") -> int:
-        """Update records by ts_code and trade_date.
+    def delete_generic(self, filter_query: dict[str, Any], collection: str) -> int:
+        """Generic delete method.
 
         Args:
-            records: List of records to update
+            filter_query: Filter query
             collection: Collection name
 
         Returns:
-            Number of records updated
+            Number of records deleted
         """
-        return self.insert_many(records, collection)
-
-    def _ensure_index(self, collection: str = "daily") -> None:
         coll = self._get_collection(collection)
-        coll.create_index([("ts_code", ASCENDING), ("trade_date", ASCENDING)], unique=True)
+        result = coll.delete_many(filter_query)
+        return result.deleted_count
+
+    def aggregate_generic(
+        self,
+        pipeline: list[dict[str, Any]],
+        collection: str,
+    ) -> list[dict[str, Any]]:
+        """Generic aggregate method.
+
+        Args:
+            pipeline: Aggregation pipeline
+            collection: Collection name
+
+        Returns:
+            List of aggregation results
+        """
+        coll = self._get_collection(collection)
+        return list(coll.aggregate(pipeline))
+
+    def create_index(self, collection: str, index_spec: list[tuple[str, int]], unique: bool = False) -> None:
+        """Create an index.
+
+        Args:
+            collection: Collection name
+            index_spec: Index specification
+            unique: Whether index is unique
+        """
+        coll = self._get_collection(collection)
+        coll.create_index(index_spec, unique=unique)
 
     def close(self) -> None:
         if self._client:

@@ -73,14 +73,17 @@ frontend/
 ### 1. 数据管理 `/data`
 
 **功能**:
+- 查看 A 股股票列表（按市值降序）
+- 更新股票列表
 - 下载股票数据
-- 查看股票列表
 - 查看 K 线图
+- 删除股票数据
 
 **组件**:
-- 输入表单：股票代码、日期范围
-- 数据表格：股票列表
+- 服务端分页表格：股票列表（v-data-table-server）
+- 下载对话框：选择日期范围
 - 弹窗：ECharts K 线图
+- 删除确认对话框
 
 ### 2. 账户管理 `/portfolios`
 
@@ -140,6 +143,42 @@ const api = axios.create({
 })
 
 export default api
+```
+
+### 数据 API
+
+```typescript
+// src/api/data.ts
+export interface Stock {
+  ts_code: string
+  name: string
+  industry?: string
+  market?: string
+  total_mv?: number
+  pe?: number
+  pb?: number
+  is_downloaded: boolean
+  data_count?: number
+  latest_date?: string
+}
+
+export interface StockListResponse {
+  items: Stock[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export const dataApi = {
+  listStocks: (page = 1, pageSize = 20) =>
+    api.get<StockListResponse>('/data/stocks', { params: { page, page_size: pageSize } }),
+  updateStocks: () => api.post('/data/stocks/update'),
+  getData: (tsCode: string) => api.get(`/data/${tsCode}`),
+  fetchData: (tsCode: string, startDate: string, endDate: string) =>
+    api.post('/data', { ts_code: tsCode, start_date: startDate, end_date: endDate }),
+  deleteData: (tsCode: string) => api.delete(`/data/${tsCode}`),
+}
 ```
 
 ### 使用示例

@@ -18,13 +18,42 @@ export interface DataRecord {
   macd_hist?: number
 }
 
+export interface Stock {
+  ts_code: string
+  name: string
+  industry?: string
+  list_date?: string
+  market?: string
+  total_mv?: number
+  pe?: number
+  pb?: number
+  updated_at?: string
+  is_downloaded: boolean
+  data_count?: number
+  latest_date?: string
+}
+
+export interface StockListResponse {
+  items: Stock[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const dataApi = {
+  listStocks: (page: number = 1, pageSize: number = 20) =>
+    api.get<StockListResponse>('/data/stocks', { params: { page, page_size: pageSize } }),
+
+  updateStocks: () =>
+    api.post('/data/stocks/update'),
+
   getData: (tsCode: string, startDate?: string, endDate?: string) =>
     api.get<DataRecord[]>(`/data/${tsCode}`, { params: { start_date: startDate, end_date: endDate } }),
-  
+
   fetchData: (tsCode: string, startDate: string, endDate: string) =>
     api.post('/data', { ts_code: tsCode, start_date: startDate, end_date: endDate }),
-  
+
   deleteData: (tsCode: string) =>
     api.delete(`/data/${tsCode}`),
 }

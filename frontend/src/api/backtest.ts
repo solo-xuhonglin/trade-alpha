@@ -29,11 +29,33 @@ export interface Trade {
   position_after: number
 }
 
+export interface BacktestListResponse {
+  items: Backtest[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface TradeListResponse {
+  items: Trade[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const backtestApi = {
-  list: (limit?: number) => api.get<Backtest[]>('/backtests', { params: { limit } }),
+  list: (page: number = 1, pageSize: number = 20) =>
+    api.get<BacktestListResponse>('/backtests', { params: { page, page_size: pageSize } }),
+
   get: (id: string) => api.get<Backtest>(`/backtests/${id}`),
+
   run: (data: { ts_code: string; start_date: string; end_date: string; strategy_id: string; portfolio_name?: string; initial_capital?: number }) =>
     api.post<Backtest>('/backtests', data),
-  getTrades: (id: string) => api.get<Trade[]>(`/backtests/${id}/trades`),
+
+  getTrades: (id: string, page: number = 1, pageSize: number = 20) =>
+    api.get<TradeListResponse>(`/backtests/${id}/trades`, { params: { page, page_size: pageSize } }),
+
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }

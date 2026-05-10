@@ -75,6 +75,47 @@ MongoDB 存储股票行情数据、技术指标、策略配置和回测结果。
 }
 ```
 
+### stock_list
+
+股票列表集合，存储 A 股基本信息和市值数据。
+
+#### 索引
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `ts_code` | string | 股票代码 (唯一索引) |
+| `total_mv` | float | 总市值 (降序索引) |
+
+#### 字段说明
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `ts_code` | string | 股票代码 |
+| `name` | string | 股票名称 |
+| `industry` | string | 行业 |
+| `list_date` | string | 上市日期 (YYYYMMDD) |
+| `market` | string | 市场 ("主板"/"创业板"/"科创板"/"北交所") |
+| `total_mv` | float | 总市值 (万元) |
+| `pe` | float | 市盈率 |
+| `pb` | float | 市净率 |
+| `updated_at` | datetime | 更新时间 |
+
+#### 示例文档
+
+```json
+{
+  "ts_code": "000001.SZ",
+  "name": "平安银行",
+  "industry": "银行",
+  "list_date": "19910403",
+  "market": "主板",
+  "total_mv": 25000000.0,
+  "pe": 5.5,
+  "pb": 0.6,
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
 ### predictions
 
 存储预测结果。

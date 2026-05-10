@@ -10,6 +10,55 @@ Trade-Alpha 提供 RESTful API，基于 FastAPI 实现。
 
 ## 数据管理
 
+### 获取股票列表
+
+```
+GET /api/data/stocks
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20，最大 100
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "ts_code": "000001.SZ",
+      "name": "平安银行",
+      "industry": "银行",
+      "market": "主板",
+      "total_mv": 25000000.0,
+      "pe": 5.5,
+      "pb": 0.6,
+      "is_downloaded": true,
+      "data_count": 500,
+      "latest_date": "20241231"
+    }
+  ],
+  "total": 5000,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 250
+}
+```
+
+### 更新股票列表
+
+```
+POST /api/data/stocks/update
+```
+
+从 Tushare 获取 A 股股票列表并更新数据库。
+
+**响应**:
+```json
+{
+  "updated_count": 5000
+}
+```
+
 ### 获取股票数据
 
 ```
@@ -309,7 +358,7 @@ PUT /api/portfolios/{id}
 DELETE /api/portfolios/{id}
 ```
 
-## 回测
+## 回测管理
 
 ### 获取回测历史
 
@@ -318,30 +367,37 @@ GET /api/backtests
 ```
 
 **参数**:
-- `limit` (query, optional): 返回数量限制，默认 100
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20，最大 100
 
 **响应**:
 ```json
-[
-  {
-    "id": "507f1f77bcf86cd799439011",
-    "portfolio_id": "507f1f77bcf86cd799439012",
-    "ts_code": "000001.SZ",
-    "start_date": "20240101",
-    "end_date": "20241231",
-    "strategy": "507f1f77bcf86cd799439013",
-    "initial_capital": 100000.0,
-    "final_value": 120000.0,
-    "total_return": 0.20,
-    "annual_return": 0.25,
-    "benchmark_return": 0.10,
-    "max_drawdown": 0.08,
-    "sharpe_ratio": 1.5,
-    "win_rate": 0.65,
-    "total_trades": 20,
-    "total_fees": 500.0
-  }
-]
+{
+  "items": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "portfolio_id": "507f1f77bcf86cd799439012",
+      "ts_code": "000001.SZ",
+      "start_date": "20240101",
+      "end_date": "20241231",
+      "strategy": "507f1f77bcf86cd799439013",
+      "initial_capital": 100000.0,
+      "final_value": 120000.0,
+      "total_return": 0.20,
+      "annual_return": 0.25,
+      "benchmark_return": 0.10,
+      "max_drawdown": 0.08,
+      "sharpe_ratio": 1.5,
+      "win_rate": 0.65,
+      "total_trades": 20,
+      "total_fees": 500.0
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 5
+}
 ```
 
 ### 获取回测详情
@@ -356,19 +412,29 @@ GET /api/backtests/{id}
 GET /api/backtests/{id}/trades
 ```
 
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20，最大 100
+
 **响应**:
 ```json
-[
-  {
-    "trade_date": "20240105",
-    "action": "buy",
-    "price": 10.50,
-    "shares": 1000,
-    "fee": 5.0,
-    "cash_after": 89495.0,
-    "position_after": 1000
-  }
-]
+{
+  "items": [
+    {
+      "trade_date": "20240105",
+      "action": "buy",
+      "price": 10.50,
+      "shares": 1000,
+      "fee": 5.0,
+      "cash_after": 89495.0,
+      "position_after": 1000
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 3
+}
 ```
 
 ### 运行回测
