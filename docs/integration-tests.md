@@ -24,9 +24,10 @@
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
 | 41 | test_41_portfolio_service.py | TestPortfolioService | 验证账户管理服务 |
-| 42 | test_42_model_service.py | TestModelService | 验证模型管理服务 |
-| 43 | test_43_strategy_service.py | TestStrategyService | 验证策略管理服务 |
-| 50 | test_50_backtest.py | TestBacktest | 验证回测服务 |
+| 42 | test_42_strategy_service.py | TestStrategyService | 验证策略管理服务 |
+| 43 | test_43_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
+| 51 | test_51_training_service.py | TestTrainingService | 验证训练服务 |
+| 60 | test_60_backtest.py | TestBacktest | 验证回测服务 |
 
 ## 依赖关系
 
@@ -56,17 +57,19 @@ Layer 3: 业务逻辑
 └─────────────────────────┘     │  stock_list)            │
                                 └─────────────────────────┘
 
-Layer 4: 高级服务 (账户/模型/策略)
+Layer 4: 基础配置 (账户/策略/模型配置)
 ┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
-│ TestPortfolioService(41)│     │  TestModelService (42)  │     │TestStrategyService (43) │
+│ TestPortfolioService(41)│     │TestStrategyService (42) │     │TestModelConfigService(43)│
 └─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
-              │                               │                               │
-              └───────────────────────────────┴───────────────────────────────┘
-                                                  │
-                                                  ▼
-Layer 5: 回归测试
+
+Layer 5: 训练
                                     ┌─────────────────────────┐
-                                    │  TestBacktest (50)      │
+                                    │ TestTrainingService(51) │  ← 依赖 ModelConfig
+                                    └─────────────────────────┘
+
+Layer 6: 回归测试
+                                    ┌─────────────────────────┐
+                                    │  TestBacktest (60)      │  ← 依赖 Portfolio, Strategy, Training
                                     └─────────────────────────┘
 ```
 
@@ -81,18 +84,20 @@ Layer 5: 回归测试
 | TestServiceData | 601398.SH | 自动清理 | 002594.SZ |
 | TestServiceStockList | 真实股票数据 | **不清理** | 真实业务数据 |
 | TestPortfolioService | test_*_temp | 自动清理 | test_portfolio |
-| TestModelService | test_*_temp | 自动清理 | test_model |
 | TestStrategyService | test_*_temp | 自动清理 | test_strategy |
+| TestModelConfigService | test_*_temp | 自动清理 | test_model_config |
+| TestTrainingService | test_*_temp | 自动清理 | test_training |
 | TestBacktest | test_backtest_*_temp | 自动清理 | - |
 
 ## 默认记录说明
 
 | 默认记录 | 用途 | 创建位置 |
 |---------|------|---------|
-| 002594.SZ (stock_daily) | Layer 4/5 测试数据 | TestServiceData.test_ensure_default_data |
-| test_portfolio | Layer 5 回测账户 | TestPortfolioService.test_ensure_default_portfolio |
-| test_model | Layer 5 回测模型 | TestModelService.test_ensure_default_model |
-| test_strategy | Layer 5 回测策略 | TestStrategyService.test_ensure_default_strategy |
+| 002594.SZ (stock_daily) | Layer 4/5/6 测试数据 | TestServiceData.test_ensure_default_data |
+| test_portfolio | Layer 6 回测账户 | TestPortfolioService.test_ensure_default_portfolio |
+| test_strategy | Layer 6 回测策略 | TestStrategyService.test_ensure_default_strategy |
+| test_model_config | Layer 5 训练配置 | TestModelConfigService.test_ensure_default_config |
+| test_training | Layer 6 回测训练结果 | TestTrainingService.test_ensure_default_training |
 
 ## 运行命令
 
@@ -111,6 +116,7 @@ pytest tests/trade_alpha/integration/ -v -k "test_0"  # Layer 1-2
 pytest tests/trade_alpha/integration/ -v -k "test_2 or test_3"  # Layer 3
 pytest tests/trade_alpha/integration/ -v -k "test_4"  # Layer 4
 pytest tests/trade_alpha/integration/ -v -k "test_5"  # Layer 5
+pytest tests/trade_alpha/integration/ -v -k "test_6"  # Layer 6
 ```
 
 ## 扩展指南
@@ -118,5 +124,6 @@ pytest tests/trade_alpha/integration/ -v -k "test_5"  # Layer 5
 - Order 跨度为 10，可在中间插入新测试（如 15、25）
 - 新增 DAO 测试放在 20-29
 - 新增 Service 测试放在 30-39
-- 新增 Portfolio/Model/Strategy 测试放在 41-49
-- 新增 Backtest 测试放在 50-59
+- 新增 Portfolio/Strategy/ModelConfig 测试放在 41-49
+- 新增 Training 测试放在 51-59
+- 新增 Backtest 测试放在 60-69

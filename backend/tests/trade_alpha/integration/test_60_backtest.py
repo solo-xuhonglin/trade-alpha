@@ -9,7 +9,7 @@ from trade_alpha.dao import MongoDB
 
 
 @pytest.mark.integration
-@pytest.mark.order(50)
+@pytest.mark.order(60)
 class TestBacktest:
     """Integration tests for backtest service."""
 
