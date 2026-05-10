@@ -2,7 +2,7 @@
 
 ## 概述
 
-Trade-Alpha 前端基于 Vue 3 + Vuetify 4 实现，提供数据管理、账户管理、策略管理、回测、交易记录等功能。
+Trade-Alpha 前端基于 Vue 3 + Vuetify 4 实现，提供数据管理、账户管理、策略管理、模型管理、训练记录、回测、交易记录等功能。
 
 ## 技术栈
 
@@ -26,15 +26,19 @@ frontend/
 │   │   ├── data.ts            # 数据 API
 │   │   ├── portfolio.ts       # 账户 API
 │   │   ├── strategy.ts        # 策略 API
-│   │   └── backtest.ts        # 回测 API
+│   │   ├── backtest.ts        # 回测 API
+│   │   ├── models.ts          # 模型配置 API
+│   │   └── trainings.ts       # 训练 API
 │   ├── components/             # 公共组件
 │   │   └── AppLayout.vue      # 应用布局
 │   ├── views/                  # 页面视图
 │   │   ├── DataView.vue       # 数据管理
 │   │   ├── PortfolioView.vue  # 账户管理
 │   │   ├── StrategyView.vue   # 策略管理
+│   │   ├── ModelsView.vue     # 模型管理
+│   │   ├── TrainingsView.vue  # 训练记录
 │   │   ├── BacktestView.vue   # 回测
-│   │   └── TradesView.vue     # 交易记录
+│   │   └── TradeListView.vue  # 交易记录
 │   ├── router/
 │   │   └── index.ts           # 路由配置
 │   ├── plugins/
@@ -58,8 +62,10 @@ frontend/
 ├────────────┬─────────────────────────────────┤
 │            │                                 │
 │  数据管理   │                                 │
-│  账户管理   │        主内容区                  │  ← router-view
-│  策略管理   │                                 │
+│  账户管理   │                                 │
+│  策略管理   │        主内容区                  │  ← router-view
+│  模型管理   │                                 │
+│  训练记录   │                                 │
 │  回测      │                                 │
 │  交易记录   │                                 │
 │            │                                 │
@@ -107,7 +113,34 @@ frontend/
 - 弹窗表单：策略编辑
 - 动态表单字段
 
-### 4. 回测 `/backtest`
+### 4. 模型管理 `/models`
+
+**功能**:
+- 查看模型配置列表
+- 创建/编辑/删除模型配置
+- 支持 linear、xgboost、lstm 三种模型类型
+- 动态参数表单（根据模型类型显示不同参数）
+- 训练按钮：创建训练
+
+**组件**:
+- 数据表格：配置列表
+- 弹窗表单：配置编辑
+- 训练弹窗：选择股票和时间段
+
+### 5. 训练记录 `/trainings`
+
+**功能**:
+- 查看训练记录列表
+- 按模型配置筛选
+- 查看训练指标（MSE、MAE）
+- 预测按钮：使用训练模型预测
+
+**组件**:
+- 数据表格：训练记录
+- 筛选下拉：按配置筛选
+- 预测弹窗：选择股票并显示预测结果
+
+### 6. 回测 `/backtest`
 
 **功能**:
 - 运行回测
@@ -119,7 +152,7 @@ frontend/
 - 结果卡片：收益率、回撤、夏普比率等
 - 数据表格：回测历史
 
-### 5. 交易记录 `/trades`
+### 7. 交易记录 `/trades`
 
 **功能**:
 - 选择回测
