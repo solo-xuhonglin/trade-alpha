@@ -65,6 +65,46 @@ def get_backtests(
     )
 
 
+@router.get("/trades", response_model=TradeListResponse)
+def get_all_trades(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+):
+    """Get all trades with pagination."""
+    dao = MongoDB()
+    coll = dao._get_collection("backtest_trades")
+
+    total = coll.count_documents({})
+    skip = (page - 1) * page_size
+    records = list(
+        coll.find()
+        .sort("trade_date", -1)
+        .skip(skip)
+        .limit(page_size)
+    )
+    dao.close()
+
+    total_pages = (total + page_size - 1) // page_size
+    return TradeListResponse(
+        items=[
+            TradeResponse(
+                trade_date=r["trade_date"],
+                action=r["action"],
+                price=r["price"],
+                shares=r["shares"],
+                fee=r["fee"],
+                cash_after=r["cash_after"],
+                position_after=r["position_after"],
+            )
+            for r in records
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
 @router.get("/{backtest_id}", response_model=BacktestResponse)
 def get_backtest(backtest_id: str):
     """Get backtest by ID."""
@@ -102,46 +142,6 @@ def get_backtest_trades(
     records = list(
         coll.find({"backtest_id": obj_id})
         .sort("trade_date", 1)
-        .skip(skip)
-        .limit(page_size)
-    )
-    dao.close()
-
-    total_pages = (total + page_size - 1) // page_size
-    return TradeListResponse(
-        items=[
-            TradeResponse(
-                trade_date=r["trade_date"],
-                action=r["action"],
-                price=r["price"],
-                shares=r["shares"],
-                fee=r["fee"],
-                cash_after=r["cash_after"],
-                position_after=r["position_after"],
-            )
-            for r in records
-        ],
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=total_pages,
-    )
-
-
-@router.get("/trades", response_model=TradeListResponse)
-def get_all_trades(
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-):
-    """Get all trades with pagination."""
-    dao = MongoDB()
-    coll = dao._get_collection("backtest_trades")
-
-    total = coll.count_documents({})
-    skip = (page - 1) * page_size
-    records = list(
-        coll.find()
-        .sort("trade_date", -1)
         .skip(skip)
         .limit(page_size)
     )
