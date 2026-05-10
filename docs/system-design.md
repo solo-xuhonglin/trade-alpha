@@ -152,6 +152,10 @@ trade-alpha/
 - `BacktestResult`: 回测结果
 - `service.py`: 回测服务
 
+**回测必填参数**: portfolio_id, strategy_id, training_id
+
+**交易记录**: 每笔交易记录包含 strategy_id 和 training_id，支持多维度筛选
+
 ### 10. API 路由
 
 | 路由 | 说明 |

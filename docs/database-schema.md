@@ -215,13 +215,15 @@ MACDStrategy:
 
 存储回测汇总结果。
 
-**索引**: `{ts_code: 1, start_date: 1, end_date: 1, strategy: 1}` 联合唯一索引
+**索引**: `{ts_code: 1, start_date: 1, end_date: 1}` 联合唯一索引
 
 **字段**:
 
 | 字段 | 类型 | 说明 |
-|-----|------|------|
-| `portfolio_id` | ObjectId | 关联的账户ID |
+|------|------|------|
+| `portfolio_id` | ObjectId | 关联的账户ID（必填） |
+| `strategy_id` | ObjectId | 关联的策略ID（必填） |
+| `training_id` | ObjectId | 关联的训练结果ID（必填） |
 | `ts_code` | string | 股票代码 |
 | `start_date` | string | 回测开始日期 |
 | `end_date` | string | 回测结束日期 |
@@ -246,9 +248,11 @@ MACDStrategy:
 **字段**:
 
 | 字段 | 类型 | 说明 |
-|-----|------|------|
+|------|------|------|
 | `backtest_id` | ObjectId | 关联的回测ID |
 | `portfolio_id` | ObjectId | 关联的账户ID |
+| `strategy_id` | ObjectId | 关联的策略ID |
+| `training_id` | ObjectId | 关联的训练结果ID |
 | `ts_code` | string | 股票代码 |
 | `trade_date` | string | 交易日期 |
 | `action` | string | "buy" / "sell" |
