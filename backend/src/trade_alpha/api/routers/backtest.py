@@ -130,9 +130,9 @@ def run_backtest_endpoint(request: BacktestRunRequest):
         ts_code=request.ts_code,
         start_date=request.start_date,
         end_date=request.end_date,
-        strategy_id=request.strategy_id,
+        strategy=request.strategy_id,
         portfolio_name=request.portfolio_name,
-        initial_capital=request.initial_capital,
+        initial_capital=request.initial_capital or 100000,
     )
 
     from bson import ObjectId
