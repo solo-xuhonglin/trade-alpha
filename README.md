@@ -26,6 +26,7 @@ trade-alpha/
 │   │   ├── strategy/         # 交易策略模块
 │   │   ├── portfolio/        # 账户管理模块
 │   │   ├── backtest/         # 回测模块
+│   │   ├── logging.py        # 结构化日志
 │   │   └── api/              # FastAPI 接口
 │   ├── tests/                # 测试
 │   ├── main.py

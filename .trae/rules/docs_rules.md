@@ -10,12 +10,14 @@
 
 | 代码变更 | 需更新的文档 |
 |---------|-------------|
-| 新增/删除模块 | `docs/system-design.md` 模块说明 |
+| 新增/删除模块 | `docs/system-design.md` 模块说明 + `README.md` |
 | 新增/删除公共方法/类 | `docs/system-design.md` 接口设计 |
-| 数据库字段变更 | `docs/database-schema.md` |
+| 数据库字段变更 | `docs/database-schema.md` + `README.md` |
 | 新增/修改 API 接口 | `docs/api.md` |
 | 前端页面/组件变更 | `docs/frontend.md` |
 | 配置文件变更 | `docs/system-design.md` 配置说明 |
+
+> ⚠️ **提示**：任何代码变更后，请立即检查并更新相关文档，不要等到最后才更新。
 
 ## 文档目录结构
 
@@ -34,6 +36,8 @@ docs/
 修改代码时，在同一 commit 中更新文档：
 - ✅ `feat: add RSI indicator and update docs`
 - ❌ `feat: add RSI indicator` (忘记更新文档)
+
+**重要**：先改代码后改文档，保持文档与代码同步。
 
 ## 文档质量
 
