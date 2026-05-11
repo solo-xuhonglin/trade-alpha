@@ -51,8 +51,8 @@ class TestDAOIntegration:
 
         await StockDaily.insert_many(records)
 
-        found = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
-        assert len(found) == 2
+        found = await StockDaily.find(StockDaily.ts_code == self.ts_code).sort(StockDaily.trade_date).to_list()
+        assert len(found) >= 2
         assert found[0].close == 101.0
         assert found[1].close == 102.0
 

@@ -61,13 +61,13 @@ async def _ensure_default_training(config_id: PydanticObjectId):
         config_id=config_id,
         name="test_backtest_training",
         ts_codes=["002594.SZ"],
-        start_date="20240101",
-        end_date="20240131",
+        start_date="20230101",
+        end_date="20231231",
     )
 
 
 @pytest.mark.integration
-@pytest.mark.order(6)
+@pytest.mark.order(65)
 class TestBacktestIntegration:
     """Integration tests with real MongoDB."""
 

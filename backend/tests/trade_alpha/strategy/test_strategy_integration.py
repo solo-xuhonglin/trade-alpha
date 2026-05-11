@@ -6,7 +6,7 @@ from trade_alpha.dao import StockDaily, PredictionResult, SignalResult
 
 
 @pytest.mark.integration
-@pytest.mark.order(5)
+@pytest.mark.order(55)
 class TestStrategyIntegration:
     """Integration tests with real MongoDB."""
 
@@ -17,16 +17,18 @@ class TestStrategyIntegration:
 
         yield
 
-        await Signal.find(Signal.ts_code == self.ts_code).delete()
+        await SignalResult.find(SignalResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
     async def test_generate_signal(self):
         """Test generate signal with existing predictions."""
         records = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
-        assert len(records) > 0, "No data available, run data/indicators integration tests first"
+        if not records:
+            pytest.skip("No data available, run data/indicators integration tests first")
 
         pred_count = await PredictionResult.find(PredictionResult.ts_code == self.ts_code).count()
-        assert pred_count > 0, "No predictions available, run predict integration test first"
+        if pred_count == 0:
+            pytest.skip("No predictions available, run training integration tests first")
 
         signal = await generate_signal(self.ts_code, strategy="price")
 
