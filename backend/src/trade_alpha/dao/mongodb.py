@@ -19,7 +19,7 @@ async def init_db():
     _db_client = AsyncIOMotorClient(config.mongodb_uri)
     database = _db_client[config.mongodb_db]
 
-    from trade_alpha.dao.portfolio import AccountConfig
+    from trade_alpha.dao.account_config import AccountConfig
     from trade_alpha.dao.strategy import StrategyConfig
     from trade_alpha.dao.model_config import ModelConfig
     from trade_alpha.dao.training import TrainingResult
