@@ -453,7 +453,7 @@ DELETE /api/strategies/{id}
 ### 获取账户列表
 
 ```
-GET /api/portfolios
+GET /api/account-configs
 ```
 
 **响应**:
@@ -476,13 +476,13 @@ GET /api/portfolios
 ### 获取账户详情
 
 ```
-GET /api/portfolios/{id}
+GET /api/account-configs/{account_config_id}
 ```
 
 ### 创建账户
 
 ```
-POST /api/portfolios
+POST /api/account-configs
 ```
 
 **请求体**:
@@ -502,13 +502,13 @@ POST /api/portfolios
 ### 更新账户
 
 ```
-PUT /api/portfolios/{id}
+PUT /api/account-configs/{account_config_id}
 ```
 
 ### 删除账户
 
 ```
-DELETE /api/portfolios/{id}
+DELETE /api/account-configs/{account_config_id}
 ```
 
 ## 回测管理

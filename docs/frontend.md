@@ -24,7 +24,7 @@ frontend/
 │   ├── api/                    # API 调用封装
 │   │   ├── index.ts           # Axios 实例配置
 │   │   ├── data.ts            # 数据 API
-│   │   ├── portfolio.ts       # 账户 API
+│   │   ├── account.ts         # 账户 API
 │   │   ├── strategy.ts        # 策略 API
 │   │   ├── backtest.ts        # 回测 API
 │   │   ├── models.ts          # 模型配置 API
@@ -33,7 +33,7 @@ frontend/
 │   │   └── AppLayout.vue      # 应用布局
 │   ├── views/                  # 页面视图
 │   │   ├── DataView.vue       # 数据管理
-│   │   ├── PortfolioView.vue  # 账户管理
+│   │   ├── AccountsPage.vue   # 账户管理
 │   │   ├── StrategyView.vue   # 策略管理
 │   │   ├── ModelsView.vue     # 模型管理
 │   │   ├── TrainingsView.vue  # 训练记录
@@ -91,7 +91,7 @@ frontend/
 - 弹窗：ECharts K 线图
 - 删除确认对话框
 
-### 2. 账户管理 `/portfolios`
+### 2. 账户管理 `/account-configs`
 
 **功能**:
 - 查看账户列表

@@ -20,6 +20,12 @@
 | `002594.SZ` | 比亚迪 | 默认数据，测试后保留 |
 | `601398.SH` | 工商银行 | 临时数据，测试后清理 |
 
+### 测试数据创建位置
+- 默认记录 `test_portfolio`：TestAccountConfigService.test_ensure_default_account_config
+- 默认记录 `test_strategy`：TestStrategyService.test_ensure_default_strategy
+- 默认记录 `test_model_config`：TestModelConfigService.test_ensure_default_config
+- 默认记录 `002594.SZ` 股票数据：TestServiceData.test_ensure_default_data
+
 ## 运行命令
 
 ```bash

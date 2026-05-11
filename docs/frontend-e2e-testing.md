@@ -16,7 +16,7 @@
 | Order | 文件 | 类名 | 说明 |
 |-------|------|------|------|
 | 1 | test_data_page.py | TestDataPage | 数据管理页面测试 |
-| 2 | test_portfolio_page.py | TestPortfolioPage | 账户管理页面测试 |
+| 2 | test_account_page.py | TestAccountPage | 账户管理页面测试 |
 | 3 | test_strategy_page.py | TestStrategyPage | 策略管理页面测试 |
 | 4 | test_models_page.py | TestModelsPage | 模型管理页面测试 |
 | 5 | test_trainings_page.py | TestTrainingsPage | 训练记录页面测试 |
@@ -28,7 +28,7 @@
 | 页面 | URL | 测试内容 |
 |------|-----|---------|
 | 数据管理 | `/data` | 导航、加载股票列表、验证表头、验证数据 |
-| 账户管理 | `/portfolios` | 导航、加载账户列表、验证表头、验证数据 |
+| 账户管理 | `/account-configs` | 导航、加载账户列表、验证表头、验证数据 |
 | 策略管理 | `/strategies` | 导航、加载策略列表、验证表头、验证数据 |
 | 模型管理 | `/models` | 导航、加载配置列表、验证表头、新建配置按钮 |
 | 训练记录 | `/trainings` | 导航、加载训练列表、验证表头、配置筛选 |
@@ -46,7 +46,7 @@
 ┌─────────────────────────────────────────────────────────┐
 │                   前端 E2E 测试                            │
 ├──────────┬──────────┬──────────┬──────────┬──────────┤
-│ DataPage  │Portfolio │Strategy  │Backtest  │ Trades   │
+│ DataPage  │AccountConfig │Strategy  │Backtest  │ Trades   │
 │           │  Page    │  Page    │  Page    │  Page    │
 └──────────┴──────────┴──────────┴──────────┴──────────┘
 ```

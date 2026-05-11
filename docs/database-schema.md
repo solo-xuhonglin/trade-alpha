@@ -215,13 +215,13 @@ MACDStrategy:
 
 存储回测结果。
 
-**索引**: `{ts_code: 1}` 索引
+**索引**: `{ts_code: 1}`, `{account_config_id: 1}`, `{strategy_id: 1}` 索引
 
 **字段**:
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `portfolio_id` | ObjectId | 关联的账户ID（必填） |
+| `account_config_id` | ObjectId | 关联的账户配置ID |
 | `strategy_id` | ObjectId | 关联的策略ID（必填） |
 | `training_id` | ObjectId | 关联的训练结果ID（必填） |
 | `ts_code` | string | 股票代码 |
@@ -237,11 +237,11 @@ MACDStrategy:
 | `win_rate` | float | 胜率 |
 | `total_trades` | int | 总交易次数 |
 | `total_fees` | float | 总手续费 |
-| `portfolio_snapshot` | object | 账户配置快照（嵌入） |
+| `account_snapshot` | object | 账户配置快照（嵌入） |
 | `strategy_snapshot` | object | 策略配置快照（嵌入） |
 | `created_at` | datetime | 创建时间 |
 
-**portfolio_snapshot（嵌入字段）**:
+**account_snapshot（嵌入字段）**:
 
 | 字段 | 类型 | 说明 |
 |------|------|------|

@@ -23,7 +23,7 @@
 | 21 | test_21_dao_stock_list.py | TestDAOStockList | 验证 StockList DAO 业务方法 |
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
-| 41 | test_41_portfolio_service.py | TestPortfolioService | 验证账户管理服务 |
+| 41 | test_41_account_config_service.py | TestAccountConfigService | 验证账户管理服务 |
 | 42 | test_42_strategy_service.py | TestStrategyService | 验证策略管理服务 |
 | 43 | test_43_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
 | 51 | test_51_training_service.py | TestTrainingService | 验证训练服务 |
@@ -59,7 +59,7 @@ Layer 3: 业务逻辑
 
 Layer 4: 基础配置 (账户/策略/模型配置)
 ┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
-│ TestPortfolioService(41)│     │TestStrategyService (42) │     │TestModelConfigService(43)│
+│ TestAccountConfigService(41)│     │TestStrategyService (42) │     │TestModelConfigService(43)│
 └─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
 
 Layer 5: 训练
@@ -83,7 +83,7 @@ Layer 6: 回归测试
 | TestDAOStockList | 002594.SZ / 601398.SH | 自动清理 | - |
 | TestServiceData | 601398.SH | 自动清理 | 002594.SZ |
 | TestServiceStockList | 真实股票数据 | **不清理** | 真实业务数据 |
-| TestPortfolioService | test_*_temp | 自动清理 | test_portfolio |
+| TestAccountConfigService | test_*_temp | 自动清理 | test_portfolio |
 | TestStrategyService | test_*_temp | 自动清理 | test_strategy |
 | TestModelConfigService | test_*_temp | 自动清理 | test_model_config |
 | TestTrainingService | test_*_temp | 自动清理 | test_training |
@@ -94,7 +94,7 @@ Layer 6: 回归测试
 | 默认记录 | 用途 | 创建位置 |
 |---------|------|---------|
 | 002594.SZ (stock_daily) | Layer 4/5/6 测试数据 | TestServiceData.test_ensure_default_data |
-| test_portfolio | Layer 6 回测账户 | TestPortfolioService.test_ensure_default_portfolio |
+| test_portfolio | Layer 6 回测账户 | TestAccountConfigService.test_ensure_default_account_config |
 | test_strategy | Layer 6 回测策略 | TestStrategyService.test_ensure_default_strategy |
 | test_model_config | Layer 5 训练配置 | TestModelConfigService.test_ensure_default_config |
 | test_training | Layer 6 回测训练结果 | TestTrainingService.test_ensure_default_training |
