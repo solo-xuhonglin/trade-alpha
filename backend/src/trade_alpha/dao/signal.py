@@ -1,4 +1,4 @@
-"""Signal Document model."""
+"""SignalResult Document model."""
 
 from datetime import datetime
 from typing import Optional
@@ -6,9 +6,9 @@ from pydantic import Field
 from beanie import Document
 
 
-class Signal(Document):
-    """Signal document for MongoDB."""
-    
+class SignalResult(Document):
+    """Signal result document for MongoDB."""
+
     ts_code: str
     trade_date: str
     strategy: str
@@ -17,9 +17,9 @@ class Signal(Document):
     target_price: Optional[float] = None
     reason: str
     created_at: Optional[datetime] = None
-    
+
     class Settings:
-        collection = "signals"
+        collection = "signal_results"
         indexes = [
             "ts_code",
             "trade_date",

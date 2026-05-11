@@ -1,7 +1,7 @@
 """Backtest module."""
 
-from trade_alpha.dao import Backtest, BacktestTrade
-from trade_alpha.backtest.engine import BacktestEngine, BacktestResult
+from trade_alpha.dao import BacktestResult, BacktestTrade
+from trade_alpha.backtest.engine import BacktestEngine, BacktestResult as EngineBacktestResult
 from trade_alpha.backtest.service import (
     run_backtest,
     get_backtest_by_id,
@@ -10,10 +10,10 @@ from trade_alpha.backtest.service import (
 )
 
 __all__ = [
-    "Backtest",
+    "BacktestResult",
     "BacktestTrade",
     "BacktestEngine",
-    "BacktestResult",
+    "EngineBacktestResult",
     "run_backtest",
     "get_backtest_by_id",
     "list_backtests",

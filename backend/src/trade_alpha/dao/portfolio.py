@@ -1,4 +1,4 @@
-"""Portfolio Document model."""
+"""AccountConfig Document model."""
 
 from datetime import datetime
 from typing import Optional
@@ -6,9 +6,9 @@ from pydantic import Field
 from beanie import Document, PydanticObjectId
 
 
-class Portfolio(Document):
-    """Portfolio document for MongoDB."""
-    
+class AccountConfig(Document):
+    """Account config document for MongoDB."""
+
     name: str
     initial_capital: float
     buy_fee_rate: float = Field(default=0.0003)
@@ -19,13 +19,13 @@ class Portfolio(Document):
     position: int = Field(default=0)
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
+
     class Settings:
-        collection = "portfolios"
+        collection = "account_configs"
         indexes = [
             "name",
         ]
-    
+
     def __init__(self, **data):
         super().__init__(**data)
         if self.cash == 0.0:

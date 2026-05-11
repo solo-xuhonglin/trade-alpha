@@ -3,7 +3,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
-from trade_alpha.dao import StockDaily, Prediction
+from trade_alpha.dao import StockDaily, PredictionResult
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.logging import get_logger
 
@@ -81,7 +81,7 @@ async def predict(
     last_date = df["trade_date"].iloc[-1]
     next_date = (datetime.strptime(last_date, "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d")
 
-    prediction = Prediction(
+    prediction = PredictionResult(
         ts_code=ts_code,
         trade_date=next_date,
         model=model,
@@ -96,14 +96,14 @@ async def predict(
     return predictions
 
 
-async def get_prediction_by_ts_code(ts_code: str) -> Prediction | None:
+async def get_prediction_by_ts_code(ts_code: str) -> PredictionResult | None:
     """Get latest prediction for a stock."""
-    return await Prediction.find(
-        Prediction.ts_code == ts_code
-    ).sort(-Prediction.trade_date).first_or_none()
+    return await PredictionResult.find(
+        PredictionResult.ts_code == ts_code
+    ).sort(-PredictionResult.trade_date).first_or_none()
 
 
 async def delete_predictions_by_ts_code(ts_code: str) -> int:
     """Delete predictions for a stock."""
-    result = await Prediction.find(Prediction.ts_code == ts_code).delete()
+    result = await PredictionResult.find(PredictionResult.ts_code == ts_code).delete()
     return result.deleted_count

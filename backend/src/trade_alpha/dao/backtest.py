@@ -1,4 +1,4 @@
-"""Backtest Document model."""
+"""BacktestResult Document model."""
 
 from datetime import datetime
 from typing import Optional
@@ -6,9 +6,9 @@ from pydantic import Field
 from beanie import Document, PydanticObjectId
 
 
-class Backtest(Document):
-    """Backtest document for MongoDB."""
-    
+class BacktestResult(Document):
+    """Backtest result document for MongoDB."""
+
     portfolio_id: Optional[PydanticObjectId] = None
     strategy_id: Optional[PydanticObjectId] = None
     training_id: Optional[PydanticObjectId] = None
@@ -26,9 +26,9 @@ class Backtest(Document):
     total_trades: int
     total_fees: float
     created_at: Optional[datetime] = None
-    
+
     class Settings:
-        collection = "backtests"
+        collection = "backtest_results"
         indexes = [
             "ts_code",
             "portfolio_id",

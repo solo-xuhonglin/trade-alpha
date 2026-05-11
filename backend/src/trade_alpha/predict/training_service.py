@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Optional, List
 from beanie import PydanticObjectId
-from trade_alpha.dao import StockDaily, Training
+from trade_alpha.dao import StockDaily, TrainingResult
 from trade_alpha.logging import get_logger
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.predict.xgboost import XGBoostPredictor
@@ -32,7 +32,7 @@ async def create_training(
     ts_codes: List[str],
     start_date: str,
     end_date: str,
-) -> Training:
+) -> TrainingResult:
     """Create training with sample mixing strategy."""
     import pandas as pd
     import numpy as np
@@ -56,11 +56,11 @@ async def create_training(
             StockDaily.trade_date >= start_date,
             StockDaily.trade_date <= end_date,
         ).sort(StockDaily.trade_date).to_list()
-        
+
         if not records:
             logger.warning(f"No data found for stock {ts_code}")
             continue
-        
+
         df = pd.DataFrame([r.model_dump() for r in records])
         df["ts_code"] = ts_code
         all_dfs.append(df)
@@ -100,7 +100,7 @@ async def create_training(
 
     logger.info(f"Training prepared with {len(combined_df)} samples")
 
-    training = Training(
+    training = TrainingResult(
         config_id=config_id,
         name=name,
         ts_codes=ts_codes,
@@ -124,30 +124,30 @@ async def create_training(
     return training
 
 
-async def get_training_by_id(training_id: PydanticObjectId) -> Optional[Training]:
+async def get_training_by_id(training_id: PydanticObjectId) -> Optional[TrainingResult]:
     """Get training by ID."""
-    return await Training.get(training_id)
+    return await TrainingResult.get(training_id)
 
 
-async def get_training_by_name(name: str) -> Optional[Training]:
+async def get_training_by_name(name: str) -> Optional[TrainingResult]:
     """Get training by name."""
-    return await Training.find_one(Training.name == name)
+    return await TrainingResult.find_one(TrainingResult.name == name)
 
 
-async def list_trainings(config_id: PydanticObjectId = None) -> List[Training]:
+async def list_trainings(config_id: PydanticObjectId = None) -> List[TrainingResult]:
     """List trainings with optional filter."""
     if config_id:
-        return await Training.find(
-            Training.config_id == config_id
+        return await TrainingResult.find(
+            TrainingResult.config_id == config_id
         ).to_list()
-    return await Training.find_all().to_list()
+    return await TrainingResult.find_all().to_list()
 
 
 async def delete_training(training_id: PydanticObjectId) -> bool:
     """Delete training and model file."""
     logger.info(f"Deleting training {training_id}")
 
-    training = await Training.get(training_id)
+    training = await TrainingResult.get(training_id)
     if not training:
         logger.warning(f"Training {training_id} not found")
         return False

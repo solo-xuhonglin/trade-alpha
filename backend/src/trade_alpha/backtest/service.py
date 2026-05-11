@@ -3,45 +3,45 @@
 from datetime import datetime
 from typing import List, Optional
 from beanie import PydanticObjectId
-from trade_alpha.dao import Backtest, BacktestTrade, StockDaily
+from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
 from trade_alpha.logging import get_logger
 from trade_alpha.portfolio import get_portfolio_by_id, PortfolioManager
 from trade_alpha.strategy import get_strategy_instance
-from trade_alpha.backtest.engine import BacktestEngine, BacktestResult
+from trade_alpha.backtest.engine import BacktestEngine, BacktestResult as EngineBacktestResult
 
 logger = get_logger("backtest_service")
 
 
-async def get_backtest_by_id(backtest_id: PydanticObjectId) -> Optional[Backtest]:
+async def get_backtest_by_id(backtest_id: PydanticObjectId) -> Optional[BacktestResult]:
     """Get backtest by ID."""
-    return await Backtest.get(backtest_id)
+    return await BacktestResult.get(backtest_id)
 
 
-async def list_backtests(page: int = 1, page_size: int = 20) -> tuple[List[Backtest], int]:
+async def list_backtests(page: int = 1, page_size: int = 20) -> tuple[List[BacktestResult], int]:
     """List backtests with pagination."""
-    total = await Backtest.count()
+    total = await BacktestResult.count()
     skip = (page - 1) * page_size
-    results = await Backtest.find_all().sort(-Backtest.id).skip(skip).limit(page_size).to_list()
+    results = await BacktestResult.find_all().sort(-BacktestResult.id).skip(skip).limit(page_size).to_list()
     return results, total
 
 
 async def delete_backtest(backtest_id: PydanticObjectId) -> bool:
     """Delete backtest and its trades."""
-    backtest = await Backtest.get(backtest_id)
+    backtest = await BacktestResult.get(backtest_id)
     if not backtest:
         return False
-    
+
     await BacktestTrade.find(BacktestTrade.backtest_id == backtest_id).delete()
     await backtest.delete()
     logger.info(f"Backtest deleted: id={backtest_id}")
     return True
 
 
-async def save_backtest(result: BacktestResult) -> Backtest:
+async def save_backtest(result: EngineBacktestResult) -> BacktestResult:
     """Save backtest result."""
     logger.info("Saving backtest result")
 
-    backtest = Backtest(
+    backtest = BacktestResult(
         portfolio_id=PydanticObjectId(result.portfolio_id) if result.portfolio_id else None,
         strategy_id=PydanticObjectId(result.strategy_id) if result.strategy_id else None,
         training_id=PydanticObjectId(result.training_id) if result.training_id else None,
@@ -109,7 +109,7 @@ async def run_backtest(
     portfolio_id: PydanticObjectId,
     strategy_id: PydanticObjectId,
     training_id: PydanticObjectId,
-) -> BacktestResult:
+) -> EngineBacktestResult:
     """Run backtest with the given parameters."""
     logger.info(f"Starting backtest for {ts_code} from {start_date} to {end_date}")
 
@@ -125,7 +125,7 @@ async def run_backtest(
 
     if not records:
         logger.warning(f"No data available for backtest: {ts_code} from {start_date} to {end_date}")
-        return BacktestResult(
+        return EngineBacktestResult(
             ts_code=ts_code,
             start_date=start_date,
             end_date=end_date,
@@ -138,7 +138,7 @@ async def run_backtest(
     strategy_obj = await get_strategy_instance(strategy_id)
 
     logger.debug(f"Using strategy: {strategy_id}")
-    
+
     portfolio_obj = PortfolioManager(
         initial_capital=portfolio.initial_capital,
         buy_fee_rate=portfolio.buy_fee_rate,
@@ -146,7 +146,7 @@ async def run_backtest(
         stamp_tax_rate=portfolio.stamp_tax_rate,
         min_fee=portfolio.min_fee,
     )
-    
+
     engine = BacktestEngine(ts_code, start_date, end_date, strategy_obj, portfolio_obj)
 
     result = engine.run([r.model_dump() for r in records])
@@ -205,7 +205,7 @@ async def list_trades(
 ) -> tuple[List[BacktestTrade], int]:
     """List trades with pagination and filtering."""
     query = BacktestTrade.find_all()
-    
+
     if portfolio_id:
         query = query.filter(BacktestTrade.portfolio_id == portfolio_id)
     if strategy_id:
@@ -214,7 +214,7 @@ async def list_trades(
         query = query.filter(BacktestTrade.training_id == training_id)
     if ts_code:
         query = query.filter(BacktestTrade.ts_code == ts_code)
-    
+
     total = await query.count()
     skip = (page - 1) * page_size
     results = await query.sort(-BacktestTrade.trade_date).skip(skip).limit(page_size).to_list()

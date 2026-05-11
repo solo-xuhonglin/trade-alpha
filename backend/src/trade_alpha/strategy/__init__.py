@@ -1,6 +1,6 @@
 """Strategy module."""
 
-from trade_alpha.dao import Strategy
+from trade_alpha.dao import StrategyConfig
 from trade_alpha.strategy.base import BaseStrategy, StrategyContext
 from trade_alpha.strategy.price import PriceStrategy
 from trade_alpha.strategy.ma import MAStrategy
@@ -28,7 +28,7 @@ __all__ = [
     "PriceStrategy",
     "MAStrategy",
     "MACDStrategy",
-    "Strategy",
+    "StrategyConfig",
     "create_strategy",
     "get_strategy_by_id",
     "get_strategy_by_name",

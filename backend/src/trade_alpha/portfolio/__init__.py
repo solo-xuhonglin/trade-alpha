@@ -1,6 +1,6 @@
 """Portfolio module."""
 
-from trade_alpha.dao import Portfolio
+from trade_alpha.dao import AccountConfig
 from trade_alpha.portfolio.service import (
     create_portfolio,
     get_portfolio_by_id,
@@ -13,7 +13,7 @@ from trade_alpha.portfolio.service import (
 from trade_alpha.portfolio.portfolio import Portfolio as PortfolioManager, Trade
 
 __all__ = [
-    "Portfolio",
+    "AccountConfig",
     "create_portfolio",
     "get_portfolio_by_id",
     "get_portfolio_by_name",
