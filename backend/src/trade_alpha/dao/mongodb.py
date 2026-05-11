@@ -25,6 +25,7 @@ async def init_db():
     from trade_alpha.dao.training import TrainingResult
     from trade_alpha.dao.backtest import BacktestResult
     from trade_alpha.dao.backtest_trade import BacktestTrade
+    from trade_alpha.dao.backtest_portfolio_daily import BacktestPortfolioDaily
     from trade_alpha.dao.prediction import PredictionResult
     from trade_alpha.dao.signal import SignalResult
     from trade_alpha.dao.stock_daily import StockDaily
@@ -39,6 +40,7 @@ async def init_db():
             TrainingResult,
             BacktestResult,
             BacktestTrade,
+            BacktestPortfolioDaily,
             PredictionResult,
             SignalResult,
             StockDaily,

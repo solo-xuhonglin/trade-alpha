@@ -463,12 +463,12 @@ GET /api/portfolios
     "id": "507f1f77bcf86cd799439011",
     "name": "default",
     "initial_capital": 100000.0,
-    "cash": 95000.0,
-    "position": 100,
     "buy_fee_rate": 0.0003,
     "sell_fee_rate": 0.0003,
     "stamp_tax_rate": 0.001,
-    "min_fee": 5.0
+    "min_fee": 5.0,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 ]
 ```
@@ -496,6 +496,8 @@ POST /api/portfolios
   "min_fee": 5.0
 }
 ```
+
+**响应**: 返回创建的账户对象
 
 ### 更新账户
 
@@ -576,21 +578,55 @@ POST /api/backtests
 GET /api/backtests/{id}
 ```
 
+**响应**:
+```json
+{
+  "id": "507f1f77bcf86cd799439011",
+  "portfolio_id": "507f1f77bcf86cd799439012",
+  "strategy_id": "507f1f77bcf86cd799439013",
+  "training_id": "507f1f77bcf86cd799439014",
+  "ts_code": "000001.SZ",
+  "start_date": "20240101",
+  "end_date": "20241231",
+  "initial_capital": 100000.0,
+  "final_value": 120000.0,
+  "total_return": 0.20,
+  "annual_return": 0.25,
+  "benchmark_return": 0.10,
+  "max_drawdown": 0.08,
+  "sharpe_ratio": 1.5,
+  "win_rate": 0.65,
+  "total_trades": 20,
+  "total_fees": 500.0,
+  "portfolio_snapshot": {
+    "name": "default",
+    "initial_capital": 100000.0,
+    "buy_fee_rate": 0.0003,
+    "sell_fee_rate": 0.0003,
+    "stamp_tax_rate": 0.001,
+    "min_fee": 5.0
+  },
+  "strategy_snapshot": {
+    "name": "MA20策略",
+    "type": "ma",
+    "config": { "ma_period": 20, "threshold": 0.01 }
+  },
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
 ### 获取回测交易记录
 
 ```
 GET /api/backtests/{id}/trades
 ```
 
-**参数**:
-- `page` (query, optional): 页码，默认 1
-- `page_size` (query, optional): 每页数量，默认 20，最大 100
-
 **响应**:
 ```json
 {
   "items": [
     {
+      "ts_code": "000001.SZ",
       "trade_date": "20240105",
       "action": "buy",
       "price": 10.50,
@@ -607,41 +643,29 @@ GET /api/backtests/{id}/trades
 }
 ```
 
-### 获取交易列表（支持筛选）
+### 获取回测每日账户快照
 
 ```
-GET /api/backtests/trades
-```
-
-**参数**:
-- `page` (query, optional): 页码，默认 1
-- `page_size` (query, optional): 每页数量，默认 20，最大 100
-- `portfolio_id` (query, optional): 账户 ID
-- `strategy_id` (query, optional): 策略 ID
-- `training_id` (query, optional): 训练结果 ID
-- `ts_code` (query, optional): 股票代码
-
-筛选条件为空时，该条件不参与查询。多个条件同时存在时为 AND 关系。
-
-### 获取交易筛选选项
-
-```
-GET /api/backtests/trades/options
+GET /api/backtests/{id}/daily
 ```
 
 **响应**:
 ```json
 {
-  "portfolios": [
-    { "id": "507f1f77bcf86cd799439010", "name": "账户A" }
+  "items": [
+    {
+      "date": "20240102",
+      "cash": 100000.0,
+      "positions": [{ "ts_code": "000001.SZ", "shares": 0 }],
+      "market_value": 0,
+      "total_value": 100000.0,
+      "position_ratio": 0
+    }
   ],
-  "strategies": [
-    { "id": "507f1f77bcf86cd799439011", "name": "MA20策略" }
-  ],
-  "trainings": [
-    { "id": "507f1f77bcf86cd799439012", "name": "训练-2024" }
-  ],
-  "ts_codes": ["000001.SZ", "600000.SH"]
+  "total": 242,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 13
 }
 ```
 

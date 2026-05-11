@@ -15,8 +15,6 @@ class AccountConfig(Document):
     sell_fee_rate: float = Field(default=0.0003)
     stamp_tax_rate: float = Field(default=0.001)
     min_fee: float = Field(default=5.0)
-    cash: float = Field(default=0.0)
-    position: int = Field(default=0)
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -25,8 +23,3 @@ class AccountConfig(Document):
         indexes = [
             "name",
         ]
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        if self.cash == 0.0:
-            self.cash = self.initial_capital

@@ -1,14 +1,35 @@
 """Backtest engine module."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict
 from unittest.mock import MagicMock
 from trade_alpha.portfolio import PortfolioManager, Trade
 
 
 @dataclass
+class PositionSnapshot:
+    """Position snapshot for daily record."""
+
+    ts_code: str
+    shares: int
+
+
+@dataclass
+class DailySnapshot:
+    """Daily account snapshot."""
+
+    date: str
+    cash: float
+    positions: List[PositionSnapshot]
+    market_value: float
+    total_value: float
+    position_ratio: float
+
+
+@dataclass
 class BacktestResult:
     """Backtest result container."""
+
     backtest_id: str = ""
     portfolio_id: str = ""
     strategy_id: str = ""
@@ -26,6 +47,7 @@ class BacktestResult:
     win_rate: float = 0.0
     total_trades: int = 0
     total_fees: float = 0.0
+    daily_snapshots: List[DailySnapshot] = field(default_factory=list)
 
 
 class BacktestEngine:
@@ -45,6 +67,7 @@ class BacktestEngine:
         self.strategy = strategy
         self.portfolio = portfolio
         self.daily_values = []
+        self.daily_snapshots: List[DailySnapshot] = []
 
     def _calculate_max_shares(self, price: float) -> int:
         """Calculate maximum shares that can be bought with current cash."""
@@ -57,8 +80,25 @@ class BacktestEngine:
             shares -= 1
         return shares
 
+    def _create_daily_snapshot(self, date: str) -> DailySnapshot:
+        """Create daily snapshot from current portfolio state."""
+        position_value = self.portfolio.position * self._last_close
+        total_value = self.portfolio.cash + position_value
+        position_ratio = position_value / total_value if total_value > 0 else 0.0
+
+        return DailySnapshot(
+            date=date,
+            cash=self.portfolio.cash,
+            positions=[PositionSnapshot(ts_code=self.ts_code, shares=self.portfolio.position)],
+            market_value=position_value,
+            total_value=total_value,
+            position_ratio=position_ratio,
+        )
+
     def run(self, records: List[Dict]) -> BacktestResult:
         """Run backtest on historical data."""
+        self._last_close = 0.0
+
         if not records:
             return BacktestResult(
                 ts_code=self.ts_code,
@@ -69,10 +109,14 @@ class BacktestEngine:
             )
 
         initial_capital = self.portfolio.cash
-        
+
         for i, record in enumerate(records[:-1]):
             next_record = records[i + 1]
-            
+
+            self._last_close = float(record["close"])
+
+            self.daily_snapshots.append(self._create_daily_snapshot(record["trade_date"]))
+
             context = MagicMock()
             context.ts_code = self.ts_code
             context.trade_date = record["trade_date"]
@@ -80,15 +124,15 @@ class BacktestEngine:
             context.prediction = {"close": float(next_record["open"])}
             context.indicators = {}
             context.position = self.portfolio.position
-            
+
             action = self.strategy.decide(context)
-            
+
             if action == "buy" and self.portfolio.cash > 0:
                 price = float(next_record["open"])
                 max_shares = self._calculate_max_shares(price)
                 if max_shares > 0:
                     self.portfolio.buy(next_record["trade_date"], price, max_shares)
-            
+
             elif action == "sell" and self.portfolio.position > 0:
                 price = float(next_record["open"])
                 self.portfolio.sell(next_record["trade_date"], price, self.portfolio.position)
@@ -96,11 +140,13 @@ class BacktestEngine:
             daily_value = self.portfolio.cash + self.portfolio.position * float(record["close"])
             self.daily_values.append((record["trade_date"], daily_value))
 
-        final_value = self.portfolio.cash + self.portfolio.position * float(records[-1]["close"])
+        self._last_close = float(records[-1]["close"])
+        final_value = self.portfolio.cash + self.portfolio.position * self._last_close
         self.daily_values.append((records[-1]["trade_date"], final_value))
-        
+        self.daily_snapshots.append(self._create_daily_snapshot(records[-1]["trade_date"]))
+
         total_return = (final_value - initial_capital) / initial_capital if initial_capital > 0 else 0
-        
+
         return BacktestResult(
             ts_code=self.ts_code,
             start_date=self.start_date,
@@ -111,4 +157,5 @@ class BacktestEngine:
             total_return=total_return,
             total_trades=len(self.portfolio.trades),
             total_fees=sum(t.fee for t in self.portfolio.trades),
+            daily_snapshots=self.daily_snapshots,
         )

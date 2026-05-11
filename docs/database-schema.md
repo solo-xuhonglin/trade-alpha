@@ -194,7 +194,7 @@ MACDStrategy:
 
 ### account_configs
 
-存储账户信息，包括手续费配置。
+存储账户配置信息。
 
 **索引**: `{name: 1}` 唯一索引
 
@@ -208,14 +208,14 @@ MACDStrategy:
 | `sell_fee_rate` | float | 卖出手续费率 | 0.0003 |
 | `stamp_tax_rate` | float | 印花税率 | 0.001 |
 | `min_fee` | float | 最低手续费 | 5.0 |
-| `cash` | float | 当前现金 | initial_capital |
-| `position` | int | 当前持仓 | 0 |
+| `created_at` | datetime | 创建时间 | - |
+| `updated_at` | datetime | 更新时间 | - |
 
 ### backtest_results
 
-存储回测汇总结果。
+存储回测结果。
 
-**索引**: `{ts_code: 1, start_date: 1, end_date: 1}` 联合唯一索引
+**索引**: `{ts_code: 1}` 索引
 
 **字段**:
 
@@ -227,7 +227,6 @@ MACDStrategy:
 | `ts_code` | string | 股票代码 |
 | `start_date` | string | 回测开始日期 |
 | `end_date` | string | 回测结束日期 |
-| `strategy` | string | 策略名称或ID |
 | `initial_capital` | float | 初始资金 |
 | `final_value` | float | 最终资产 |
 | `total_return` | float | 总收益率 |
@@ -238,10 +237,50 @@ MACDStrategy:
 | `win_rate` | float | 胜率 |
 | `total_trades` | int | 总交易次数 |
 | `total_fees` | float | 总手续费 |
+| `portfolio_snapshot` | object | 账户配置快照（嵌入） |
+| `strategy_snapshot` | object | 策略配置快照（嵌入） |
+| `created_at` | datetime | 创建时间 |
+
+**portfolio_snapshot（嵌入字段）**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 账户名称 |
+| `initial_capital` | float | 初始资金 |
+| `buy_fee_rate` | float | 买入手续费率 |
+| `sell_fee_rate` | float | 卖出手续费率 |
+| `stamp_tax_rate` | float | 印花税率 |
+| `min_fee` | float | 最低手续费 |
+
+**strategy_snapshot（嵌入字段）**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 策略名称 |
+| `type` | string | 策略类型 |
+| `config` | object | 策略配置参数 |
+
+### backtest_portfolio_daily
+
+存储每日账户快照。
+
+**索引**: `{backtest_id: 1, date: 1}` 索引
+
+**字段**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| backtest_id | ObjectId | 关联的回测ID |
+| date | string | 日期 |
+| cash | float | 当日现金 |
+| positions | array | 持仓列表 [{ts_code, shares}] |
+| market_value | float | 持仓市值 |
+| total_value | float | 总资产 |
+| position_ratio | float | 仓位比例 |
 
 ### backtest_trades
 
-存储每笔交易记录（买入/卖出分开）。
+存储交易记录。
 
 **索引**: `{backtest_id: 1}` 索引
 
@@ -249,18 +288,15 @@ MACDStrategy:
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `backtest_id` | ObjectId | 关联的回测ID |
-| `portfolio_id` | ObjectId | 关联的账户ID |
-| `strategy_id` | ObjectId | 关联的策略ID |
-| `training_id` | ObjectId | 关联的训练结果ID |
-| `ts_code` | string | 股票代码 |
-| `trade_date` | string | 交易日期 |
-| `action` | string | "buy" / "sell" |
-| `price` | float | 成交价格 |
-| `shares` | int | 成交股数 |
-| `fee` | float | 手续费 |
-| `cash_after` | float | 交易后现金 |
-| `position_after` | int | 交易后持仓 |
+| backtest_id | ObjectId | 关联的回测ID |
+| ts_code | string | 股票代码 |
+| trade_date | string | 交易日期 |
+| action | string | "buy" / "sell" |
+| price | float | 成交价格 |
+| shares | int | 成交股数 |
+| fee | float | 手续费 |
+| cash_after | float | 交易后现金 |
+| position_after | int | 交易后持仓 |
 
 ### model_configs
 

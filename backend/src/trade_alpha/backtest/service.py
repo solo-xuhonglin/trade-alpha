@@ -3,7 +3,9 @@
 from datetime import datetime, timezone
 from typing import List, Optional, Any
 from beanie import PydanticObjectId
-from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
+from trade_alpha.dao import BacktestResult, BacktestTrade, BacktestPortfolioDaily, StockDaily
+from trade_alpha.dao.backtest import AccountSnapshotEmbed, StrategySnapshotEmbed
+from trade_alpha.dao.backtest_portfolio_daily import Position
 from trade_alpha.logging import get_logger
 from trade_alpha.portfolio import get_portfolio_by_id, PortfolioManager
 from trade_alpha.strategy import get_strategy_instance
@@ -26,19 +28,24 @@ async def list_backtests(page: int = 1, page_size: int = 20) -> tuple[List[Backt
 
 
 async def delete_backtest(backtest_id: PydanticObjectId) -> bool:
-    """Delete backtest and its trades."""
+    """Delete backtest, trades, and daily snapshots."""
     backtest = await BacktestResult.get(backtest_id)
     if not backtest:
         return False
 
     await BacktestTrade.find(BacktestTrade.backtest_id == backtest_id).delete()
+    await BacktestPortfolioDaily.find(BacktestPortfolioDaily.backtest_id == backtest_id).delete()
     await backtest.delete()
     logger.info(f"Backtest deleted: id={backtest_id}")
     return True
 
 
-async def save_backtest(result: EngineBacktestResult) -> BacktestResult:
-    """Save backtest result."""
+async def save_backtest(
+    result: EngineBacktestResult,
+    portfolio: Any,
+    strategy: Any,
+) -> BacktestResult:
+    """Save backtest result with configuration snapshots."""
     logger.info("Saving backtest result")
 
     backtest = BacktestResult(
@@ -58,6 +65,19 @@ async def save_backtest(result: EngineBacktestResult) -> BacktestResult:
         win_rate=result.win_rate,
         total_trades=result.total_trades,
         total_fees=result.total_fees,
+        account_snapshot=AccountSnapshotEmbed(
+            name=portfolio.name,
+            initial_capital=portfolio.initial_capital,
+            buy_fee_rate=portfolio.buy_fee_rate,
+            sell_fee_rate=portfolio.sell_fee_rate,
+            stamp_tax_rate=portfolio.stamp_tax_rate,
+            min_fee=portfolio.min_fee,
+        ),
+        strategy_snapshot=StrategySnapshotEmbed(
+            name=strategy.name,
+            type=strategy.type,
+            config=strategy.config,
+        ),
         created_at=datetime.now(timezone.utc),
     )
 
@@ -65,6 +85,36 @@ async def save_backtest(result: EngineBacktestResult) -> BacktestResult:
     result.backtest_id = str(backtest.id)
     logger.info(f"Backtest result saved: id={backtest.id}")
     return backtest
+
+
+async def save_daily_snapshots(
+    backtest_id: PydanticObjectId,
+    daily_snapshots: List[Any],
+) -> int:
+    """Save daily portfolio snapshots."""
+    if not daily_snapshots:
+        return 0
+
+    snapshot_docs = []
+    for snapshot in daily_snapshots:
+        positions = [
+            Position(ts_code=p.ts_code, shares=p.shares)
+            for p in snapshot.positions
+        ]
+        doc = BacktestPortfolioDaily(
+            backtest_id=backtest_id,
+            date=snapshot.date,
+            cash=snapshot.cash,
+            positions=positions,
+            market_value=snapshot.market_value,
+            total_value=snapshot.total_value,
+            position_ratio=snapshot.position_ratio,
+        )
+        snapshot_docs.append(doc)
+
+    await BacktestPortfolioDaily.insert_many(snapshot_docs)
+    logger.info(f"Saved {len(snapshot_docs)} daily snapshots for backtest: {backtest_id}")
+    return len(snapshot_docs)
 
 
 async def save_trades(
@@ -135,6 +185,11 @@ async def run_backtest(
             final_value=portfolio.initial_capital,
         )
 
+    from trade_alpha.strategy.service import get_strategy_by_id
+    strategy_config = await get_strategy_by_id(strategy_id)
+    if not strategy_config:
+        raise ValueError(f"Strategy config not found: {strategy_id}")
+
     strategy_obj = await get_strategy_instance(strategy_id)
 
     logger.debug(f"Using strategy: {strategy_id}")
@@ -154,7 +209,8 @@ async def run_backtest(
     result.strategy_id = str(strategy_id)
     result.training_id = str(training_id)
 
-    backtest = await save_backtest(result)
+    backtest = await save_backtest(result, portfolio, strategy_config)
+
     await save_trades(
         backtest.id,
         portfolio_id,
@@ -163,6 +219,8 @@ async def run_backtest(
         strategy_id,
         training_id
     )
+
+    await save_daily_snapshots(backtest.id, result.daily_snapshots)
 
     logger.info(f"Backtest completed: {ts_code}, return rate: {result.total_return:.2%}")
     return result
@@ -231,4 +289,17 @@ async def list_trades_by_backtest_id(
     total = await query.count()
     skip = (page - 1) * page_size
     results = await query.sort(-BacktestTrade.trade_date).skip(skip).limit(page_size).to_list()
+    return results, total
+
+
+async def list_daily_snapshots(
+    backtest_id: PydanticObjectId,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[List[BacktestPortfolioDaily], int]:
+    """List daily snapshots for a backtest."""
+    query = BacktestPortfolioDaily.find(BacktestPortfolioDaily.backtest_id == backtest_id)
+    total = await query.count()
+    skip = (page - 1) * page_size
+    results = await query.sort(BacktestPortfolioDaily.date).skip(skip).limit(page_size).to_list()
     return results, total

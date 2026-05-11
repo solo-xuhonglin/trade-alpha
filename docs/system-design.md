@@ -103,6 +103,8 @@ trade-alpha/
 - `training_result.py`: 训练结果 Document
 - `backtest_result.py`: 回测结果 Document
 - `backtest_trade.py`: 回测交易 Document
+- `backtest_portfolio_daily.py`: 每日账户快照 Document
+- `position.py`: 持仓嵌入模型
 - `prediction_result.py`: 预测结果 Document
 - `signal_result.py`: 交易信号 Document
 
@@ -159,12 +161,17 @@ trade-alpha/
 ### 9. 回测模块 (backtest)
 
 - `BacktestEngine`: 回测引擎
-- `BacktestResult`: 回测结果
+- `BacktestResult`: 回测结果（含配置快照）
+- `BacktestTrade`: 交易记录
+- `BacktestPortfolioDaily`: 每日账户快照
 - `service.py`: 回测服务
 
 **回测必填参数**: portfolio_id, strategy_id, training_id
 
-**交易记录**: 每笔交易记录包含 strategy_id 和 training_id，支持多维度筛选
+**数据结构**:
+- 回测记录内嵌配置快照（账户、策略），确保历史数据一致性
+- 交易记录独立存储
+- 每日账户快照独立存储
 
 ### 10. API 路由
 

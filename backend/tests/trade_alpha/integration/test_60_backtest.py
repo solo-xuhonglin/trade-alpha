@@ -7,7 +7,7 @@ from trade_alpha.data.service import fetch_and_store_stock_daily
 from trade_alpha.portfolio import service as portfolio_service
 from trade_alpha.strategy import service as strategy_service
 from trade_alpha.predict import training_service, config_service
-from trade_alpha.dao import BacktestResult, BacktestTrade
+from trade_alpha.dao import BacktestResult, BacktestTrade, BacktestPortfolioDaily
 
 
 async def _ensure_default_portfolio():
@@ -94,6 +94,7 @@ class TestBacktest:
         backtests = await BacktestResult.find(BacktestResult.ts_code == self.ts_code).to_list()
         for bt in backtests:
             await BacktestTrade.find(BacktestTrade.backtest_id == bt.id).delete()
+            await BacktestPortfolioDaily.find(BacktestPortfolioDaily.backtest_id == bt.id).delete()
         await BacktestResult.find(BacktestResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
@@ -177,3 +178,45 @@ class TestBacktest:
         assert result.total_return is not None
         assert result.max_drawdown is not None
         assert result.sharpe_ratio is not None
+
+    @pytest.mark.asyncio
+    async def test_backtest_snapshots_saved(self, setup_db):
+        """Test account and strategy snapshots are saved."""
+        result = await backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
+        )
+
+        backtest = await BacktestResult.get(PydanticObjectId(result.backtest_id))
+        assert backtest is not None
+        assert backtest.account_snapshot is not None
+        assert backtest.strategy_snapshot is not None
+        assert backtest.account_snapshot.name is not None
+        assert backtest.strategy_snapshot.name is not None
+
+    @pytest.mark.asyncio
+    async def test_backtest_daily_snapshots_saved(self, setup_db):
+        """Test daily snapshots are saved."""
+        result = await backtest_service.run_backtest(
+            ts_code=self.ts_code,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
+        )
+
+        snapshots = await BacktestPortfolioDaily.find(
+            BacktestPortfolioDaily.backtest_id == PydanticObjectId(result.backtest_id)
+        ).to_list()
+
+        assert len(snapshots) > 0
+        for snapshot in snapshots:
+            assert snapshot.date is not None
+            assert snapshot.cash is not None
+            assert snapshot.total_value is not None
+            assert snapshot.position_ratio is not None

@@ -1,9 +1,28 @@
 """BacktestResult Document model."""
 
 from datetime import datetime
-from typing import Optional
-from pydantic import Field
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
 from beanie import Document, PydanticObjectId
+
+
+class AccountSnapshotEmbed(BaseModel):
+    """Embedded account snapshot."""
+
+    name: str
+    initial_capital: float
+    buy_fee_rate: float
+    sell_fee_rate: float
+    stamp_tax_rate: float
+    min_fee: float
+
+
+class StrategySnapshotEmbed(BaseModel):
+    """Embedded strategy snapshot."""
+
+    name: str
+    type: str
+    config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class BacktestResult(Document):
@@ -25,6 +44,8 @@ class BacktestResult(Document):
     win_rate: float
     total_trades: int
     total_fees: float
+    account_snapshot: Optional[AccountSnapshotEmbed] = None
+    strategy_snapshot: Optional[StrategySnapshotEmbed] = None
     created_at: Optional[datetime] = None
 
     class Settings:

@@ -12,12 +12,12 @@ from trade_alpha.backtest.service import (
     delete_backtest,
     list_trades,
     list_trades_by_backtest_id,
+    list_daily_snapshots,
     list_portfolios_for_filter,
     list_strategies_for_filter,
     list_trainings_for_filter,
     get_distinct_ts_codes,
 )
-from trade_alpha.dao import BacktestTrade
 
 router = APIRouter(prefix="/backtests", tags=["backtests"])
 
@@ -45,6 +45,14 @@ class TradeListResponse(BaseModel):
     total_pages: int
 
 
+class DailySnapshotListResponse(BaseModel):
+    items: list
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 @router.get("", response_model=BacktestListResponse)
 async def get_backtests(
     page: int = Query(1, ge=1, description="Page number"),
@@ -52,7 +60,7 @@ async def get_backtests(
 ):
     """Get backtest history with pagination."""
     results, total = await list_backtests(page=page, page_size=page_size)
-    
+
     total_pages = (total + page_size - 1) // page_size
     return BacktestListResponse(
         items=results,
@@ -70,7 +78,7 @@ async def get_trade_filter_options():
     strategies = await list_strategies_for_filter()
     trainings = await list_trainings_for_filter()
     ts_codes = await get_distinct_ts_codes()
-    
+
     return TradeFilterOptions(
         portfolios=portfolios,
         strategies=strategies,
@@ -92,7 +100,7 @@ async def get_all_trades(
     p_id = PydanticObjectId(portfolio_id) if portfolio_id else None
     s_id = PydanticObjectId(strategy_id) if strategy_id else None
     t_id = PydanticObjectId(training_id) if training_id else None
-    
+
     results, total = await list_trades(
         page=page,
         page_size=page_size,
@@ -101,7 +109,7 @@ async def get_all_trades(
         training_id=t_id,
         ts_code=ts_code,
     )
-    
+
     total_pages = (total + page_size - 1) // page_size
     return TradeListResponse(
         items=results,
@@ -119,7 +127,7 @@ async def get_backtest(backtest_id: str):
         obj_id = PydanticObjectId(backtest_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid backtest ID")
-    
+
     backtest = await get_backtest_by_id(obj_id)
     if not backtest:
         raise HTTPException(status_code=404, detail="Backtest not found")
@@ -137,11 +145,35 @@ async def get_backtest_trades(
         obj_id = PydanticObjectId(backtest_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid backtest ID")
-    
+
     results, total = await list_trades_by_backtest_id(obj_id, page=page, page_size=page_size)
-    
+
     total_pages = (total + page_size - 1) // page_size
     return TradeListResponse(
+        items=results,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/{backtest_id}/daily", response_model=DailySnapshotListResponse)
+async def get_backtest_daily(
+    backtest_id: str,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+):
+    """Get daily account snapshots for a backtest."""
+    try:
+        obj_id = PydanticObjectId(backtest_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid backtest ID")
+
+    results, total = await list_daily_snapshots(obj_id, page=page, page_size=page_size)
+
+    total_pages = (total + page_size - 1) // page_size
+    return DailySnapshotListResponse(
         items=results,
         total=total,
         page=page,
@@ -159,7 +191,7 @@ async def run_backtest_endpoint(request: BacktestRunRequest):
         t_id = PydanticObjectId(request.training_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid ID format")
-    
+
     result = await do_run_backtest(
         ts_code=request.ts_code,
         start_date=request.start_date,
@@ -168,7 +200,7 @@ async def run_backtest_endpoint(request: BacktestRunRequest):
         strategy_id=s_id,
         training_id=t_id,
     )
-    
+
     from trade_alpha.backtest.service import get_backtest_by_id
     backtest = await get_backtest_by_id(PydanticObjectId(result.backtest_id))
     return backtest
@@ -181,7 +213,7 @@ async def delete_backtest_endpoint(backtest_id: str):
         obj_id = PydanticObjectId(backtest_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid backtest ID")
-    
+
     deleted = await delete_backtest(obj_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Backtest not found")
