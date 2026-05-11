@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict
 from unittest.mock import MagicMock
-from trade_alpha.portfolio import PortfolioManager, Trade
+from trade_alpha.account import AccountManager, TradeRecord
 
 
 @dataclass
@@ -31,7 +31,7 @@ class BacktestResult:
     """Backtest result container."""
 
     backtest_id: str = ""
-    portfolio_id: str = ""
+    account_config_id: str = ""
     strategy_id: str = ""
     training_id: str = ""
     ts_code: str = ""
@@ -59,22 +59,22 @@ class BacktestEngine:
         start_date: str,
         end_date: str,
         strategy,
-        portfolio: PortfolioManager,
+        ptttfoliofoPMrafolioger,
     ):
         self.ts_code = ts_code
         self.start_date = start_date
         self.end_date = end_date
         self.strategy = strategy
-        self.portfolio = portfolio
+        self.account_manager = account_manager
         self.daily_values = []
         self.daily_snapshots: List[DailySnapshot] = []
 
     def _calculate_max_shares(self, price: float) -> int:
         """Calculate maximum shares that can be bought with current cash."""
-        cash = self.portfolio.cash
+        cash = self.account_manager.cash
         shares = int(cash / price)
         while shares > 0:
-            fee = self.portfolio._calculate_buy_fee(price, shares)
+            fee = self.account_manager._calculate_buy_fee(price, shares)
             if shares * price + fee <= cash:
                 break
             shares -= 1
@@ -82,14 +82,14 @@ class BacktestEngine:
 
     def _create_daily_snapshot(self, date: str) -> DailySnapshot:
         """Create daily snapshot from current portfolio state."""
-        position_value = self.portfolio.position * self._last_close
-        total_value = self.portfolio.cash + position_value
+        position_value = self.account_manager.position * self._last_close
+        total_value = self.account_manager.cash + position_value
         position_ratio = position_value / total_value if total_value > 0 else 0.0
 
         return DailySnapshot(
             date=date,
-            cash=self.portfolio.cash,
-            positions=[PositionSnapshot(ts_code=self.ts_code, shares=self.portfolio.position)],
+            cash=self.account_manager.cash,
+            positions=[PositionSnapshot(ts_code=self.ts_code, shares=self.account_manager.position)],
             market_value=position_value,
             total_value=total_value,
             position_ratio=position_ratio,
@@ -104,11 +104,11 @@ class BacktestEngine:
                 ts_code=self.ts_code,
                 start_date=self.start_date,
                 end_date=self.end_date,
-                initial_capital=self.portfolio.cash,
-                final_value=self.portfolio.cash,
+                initial_capital=self.account_manager.cash,
+                final_value=self.account_manager.cash,
             )
 
-        initial_capital = self.portfolio.cash
+        initial_capital = self.account_manager.cash
 
         for i, record in enumerate(records[:-1]):
             next_record = records[i + 1]
@@ -123,25 +123,25 @@ class BacktestEngine:
             context.current_price = float(record["close"])
             context.prediction = {"close": float(next_record["open"])}
             context.indicators = {}
-            context.position = self.portfolio.position
+            context.position = self.account_manager.position
 
             action = self.strategy.decide(context)
 
-            if action == "buy" and self.portfolio.cash > 0:
+            if action == "buy" and self.account_manager.cash > 0:
                 price = float(next_record["open"])
                 max_shares = self._calculate_max_shares(price)
                 if max_shares > 0:
-                    self.portfolio.buy(next_record["trade_date"], price, max_shares)
+                    self.account_manager.buy(next_record["trade_date"], price, max_shares)
 
-            elif action == "sell" and self.portfolio.position > 0:
+            elif action == "sell" and self.account_manager.position > 0:
                 price = float(next_record["open"])
-                self.portfolio.sell(next_record["trade_date"], price, self.portfolio.position)
+                self.account_manager.sell(next_record["trade_date"], price, self.account_manager.position)
 
-            daily_value = self.portfolio.cash + self.portfolio.position * float(record["close"])
+            daily_value = self.account_manager.cash + self.account_manager.position * float(record["close"])
             self.daily_values.append((record["trade_date"], daily_value))
 
         self._last_close = float(records[-1]["close"])
-        final_value = self.portfolio.cash + self.portfolio.position * self._last_close
+        final_value = self.account_manager.cash + self.account_manager.position * self._last_close
         self.daily_values.append((records[-1]["trade_date"], final_value))
         self.daily_snapshots.append(self._create_daily_snapshot(records[-1]["trade_date"]))
 
@@ -155,7 +155,7 @@ class BacktestEngine:
             initial_capital=initial_capital,
             final_value=final_value,
             total_return=total_return,
-            total_trades=len(self.portfolio.trades),
-            total_fees=sum(t.fee for t in self.portfolio.trades),
+            total_trades=len(self.account_manager.trades),
+            total_fees=sum(t.fee for t in self.account_manager.trades),
             daily_snapshots=self.daily_snapshots,
         )

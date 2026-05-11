@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from typing import List, Tuple
-from trade_alpha.portfolio import Trade
+from trade_alpha.account import TradeRecord
 
 
 @dataclass
@@ -21,7 +21,7 @@ class Metrics:
 
 
 def calculate_metrics(
-    trades: List[Trade],
+    trades: List[TradeRecord],
     daily_values: List[Tuple[str, float]],
     initial_capital: float,
     benchmark_return: float,
@@ -92,7 +92,7 @@ def calculate_sharpe_ratio(returns: List[float]) -> float:
     return mean_return / std_return * np.sqrt(252)
 
 
-def calculate_trade_metrics(trades: List[Trade], dates: List[str]) -> Tuple[float, float, float]:
+def calculate_trade_metrics(trades: List[TradeRecord], dates: List[str]) -> Tuple[float, float, float]:
     """Calculate trade-related metrics."""
     if not trades:
         return 0.0, 0.0, 0.0

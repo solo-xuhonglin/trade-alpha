@@ -7,7 +7,7 @@ from trade_alpha.dao import BacktestResult, BacktestTrade, BacktestPortfolioDail
 from trade_alpha.dao.backtest import AccountSnapshotEmbed, StrategySnapshotEmbed
 from trade_alpha.dao.backtest_portfolio_daily import Position
 from trade_alpha.logging import get_logger
-from trade_alpha.portfolio import get_portfolio_by_id, PortfolioManager
+from trade_alpha.account import get_account_config_by_id, AccountManager
 from trade_alpha.strategy import get_strategy_instance
 from trade_alpha.backtest.engine import BacktestEngine, BacktestResult as EngineBacktestResult
 
@@ -42,7 +42,7 @@ async def delete_backtest(backtest_id: PydanticObjectId) -> bool:
 
 async def save_backtest(
     result: EngineBacktestResult,
-    portfolio: Any,
+    account_config: Any,
     strategy: Any,
 ) -> BacktestResult:
     """Save backtest result with configuration snapshots."""
@@ -66,12 +66,12 @@ async def save_backtest(
         total_trades=result.total_trades,
         total_fees=result.total_fees,
         account_snapshot=AccountSnapshotEmbed(
-            name=portfolio.name,
-            initial_capital=portfolio.initial_capital,
-            buy_fee_rate=portfolio.buy_fee_rate,
-            sell_fee_rate=portfolio.sell_fee_rate,
-            stamp_tax_rate=portfolio.stamp_tax_rate,
-            min_fee=portfolio.min_fee,
+            name=account_config.name,
+            initial_capital=account_config.initial_capital,
+            buy_fee_rate=account_config.buy_fee_rate,
+            sell_fee_rate=account_config.sell_fee_rate,
+            stamp_tax_rate=account_config.stamp_tax_rate,
+            min_fee=account_config.min_fee,
         ),
         strategy_snapshot=StrategySnapshotEmbed(
             name=strategy.name,
@@ -119,7 +119,7 @@ async def save_daily_snapshots(
 
 async def save_trades(
     backtest_id: PydanticObjectId,
-    portfolio_id: PydanticObjectId,
+    account_config_id: PydanticObjectId,
     trades: List[Any],
     ts_code: str = "",
     strategy_id: Optional[PydanticObjectId] = None,
@@ -129,20 +129,20 @@ async def save_trades(
     logger.info(f"Saving {len(trades)} trades for backtest: {backtest_id}")
 
     trade_docs = []
-    for trade in trades:
+    for trade_record in trades:
         trade_doc = BacktestTrade(
             backtest_id=backtest_id,
-            portfolio_id=portfolio_id,
+            portfolio_id=account_config_id,
             strategy_id=strategy_id,
             training_id=training_id,
             ts_code=ts_code,
-            trade_date=trade.date,
-            action=trade.action,
-            price=trade.price,
-            shares=trade.shares,
-            fee=trade.fee,
-            cash_after=trade.cash_after,
-            position_after=trade.position_after,
+            trade_date=trade_record.date,
+            action=trade_record.action,
+            price=trade_record.price,
+            shares=trade_record.shares,
+            fee=trade_record.fee,
+            cash_after=trade_record.cash_after,
+            position_after=trade_record.position_after,
         )
         trade_docs.append(trade_doc)
 
@@ -156,16 +156,16 @@ async def run_backtest(
     ts_code: str,
     start_date: str,
     end_date: str,
-    portfolio_id: PydanticObjectId,
+    account_config_id: PydanticObjectId,
     strategy_id: PydanticObjectId,
     training_id: PydanticObjectId,
 ) -> EngineBacktestResult:
     """Run backtest with the given parameters."""
     logger.info(f"Starting backtest for {ts_code} from {start_date} to {end_date}")
 
-    portfolio = await get_portfolio_by_id(portfolio_id)
-    if not portfolio:
-        raise ValueError(f"Portfolio not found: {portfolio_id}")
+    account_config = await get_account_config_by_id(account_config_id)
+    if not account_config:
+        raise ValueError(f"Account config not found: {account_config_id}")
 
     records = await StockDaily.find(
         StockDaily.ts_code == ts_code,
@@ -181,8 +181,8 @@ async def run_backtest(
             end_date=end_date,
             strategy_id=str(strategy_id),
             training_id=str(training_id),
-            initial_capital=portfolio.initial_capital,
-            final_value=portfolio.initial_capital,
+            initial_capital=account_config.initial_capital,
+            final_value=account_config.initial_capital,
         )
 
     from trade_alpha.strategy.service import get_strategy_by_id
@@ -194,26 +194,26 @@ async def run_backtest(
 
     logger.debug(f"Using strategy: {strategy_id}")
 
-    portfolio_obj = PortfolioManager(
-        initial_capital=portfolio.initial_capital,
-        buy_fee_rate=portfolio.buy_fee_rate,
-        sell_fee_rate=portfolio.sell_fee_rate,
-        stamp_tax_rate=portfolio.stamp_tax_rate,
-        min_fee=portfolio.min_fee,
+    portfolio_obj = AccountManager(
+        initial_capital=account_config.initial_capital,
+        buy_fee_rate=account_config.buy_fee_rate,
+        sell_fee_rate=account_config.sell_fee_rate,
+        stamp_tax_rate=account_config.stamp_tax_rate,
+        min_fee=account_config.min_fee,
     )
 
     engine = BacktestEngine(ts_code, start_date, end_date, strategy_obj, portfolio_obj)
 
     result = engine.run([r.model_dump() for r in records])
-    result.portfolio_id = str(portfolio_id)
+    result.portfolio_id = str(account_config_id)
     result.strategy_id = str(strategy_id)
     result.training_id = str(training_id)
 
-    backtest = await save_backtest(result, portfolio, strategy_config)
+    backtest = await save_backtest(result, account_config, strategy_config)
 
     await save_trades(
         backtest.id,
-        portfolio_id,
+        account_config_id,
         portfolio_obj.trades,
         ts_code,
         strategy_id,
@@ -226,11 +226,11 @@ async def run_backtest(
     return result
 
 
-async def list_portfolios_for_filter() -> List[dict]:
-    """List portfolios for filter options."""
-    from trade_alpha.portfolio.service import list_portfolios
-    portfolios = await list_portfolios()
-    return [{"id": str(p.id), "name": p.name} for p in portfolios]
+async def list_account_configs_for_filter() -> List[dict]:
+    """List account configs for filter options."""
+    from trade_alpha.account.service import list_account_configs
+    account_configs = await list_account_configs()
+    return [{"id": str(a.id), "name": a.name} for a in account_configs]
 
 
 async def list_strategies_for_filter() -> List[dict]:
@@ -256,7 +256,7 @@ async def get_distinct_ts_codes() -> List[str]:
 async def list_trades(
     page: int = 1,
     page_size: int = 20,
-    portfolio_id: PydanticObjectId = None,
+    account_config_id: PydanticObjectId = None,
     strategy_id: PydanticObjectId = None,
     training_id: PydanticObjectId = None,
     ts_code: str = None,
@@ -264,8 +264,8 @@ async def list_trades(
     """List trades with pagination and filtering."""
     query = BacktestTrade.find_all()
 
-    if portfolio_id:
-        query = query.filter(BacktestTrade.portfolio_id == portfolio_id)
+    if account_config_id:
+        query = query.filter(BacktestTrade.portfolio_id == account_config_id)
     if strategy_id:
         query = query.filter(BacktestTrade.strategy_id == strategy_id)
     if training_id:

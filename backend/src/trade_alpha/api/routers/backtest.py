@@ -23,7 +23,7 @@ router = APIRouter(prefix="/backtests", tags=["backtests"])
 
 
 class TradeFilterOptions(BaseModel):
-    portfolios: list = []
+    account_configs: list = []
     strategies: list = []
     trainings: list = []
     ts_codes: list[str] = []
@@ -91,20 +91,20 @@ async def get_trade_filter_options():
 async def get_all_trades(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    portfolio_id: Optional[str] = Query(None, description="Filter by portfolio ID"),
+    account_config_id: Optional[str] = Query(None, description="Filter by account config ID"),
     strategy_id: Optional[str] = Query(None, description="Filter by strategy ID"),
     training_id: Optional[str] = Query(None, description="Filter by training ID"),
     ts_code: Optional[str] = Query(None, description="Filter by stock code"),
 ):
     """Get all trades with pagination and filtering."""
-    p_id = PydanticObjectId(portfolio_id) if portfolio_id else None
+    ac_id = PydanticObjectId(account_config_id) if account_config_id else None
     s_id = PydanticObjectId(strategy_id) if strategy_id else None
     t_id = PydanticObjectId(training_id) if training_id else None
 
     results, total = await list_trades(
         page=page,
         page_size=page_size,
-        portfolio_id=p_id,
+        account_config_id=ac_id,
         strategy_id=s_id,
         training_id=t_id,
         ts_code=ts_code,
@@ -196,7 +196,7 @@ async def run_backtest_endpoint(request: BacktestRunRequest):
         ts_code=request.ts_code,
         start_date=request.start_date,
         end_date=request.end_date,
-        portfolio_id=p_id,
+        account_config_id=p_id,
         strategy_id=s_id,
         training_id=t_id,
     )
