@@ -1,29 +1,27 @@
 """Unit tests for backtest service."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
+from beanie import PydanticObjectId
 from trade_alpha.backtest.service import save_backtest, save_trades
-from trade_alpha.backtest.engine import BacktestResult
+from trade_alpha.backtest.engine import BacktestResult as EngineBacktestResult
 from trade_alpha.account import TradeRecord
 
 
 class TestBacktestServicePersistence:
     """Test cases for backtest persistence functions."""
 
-    @patch("trade_alpha.backtest.service.MongoDB")
-    def test_save_backtest(self, mock_mongo):
+    @pytest.mark.asyncio
+    async def test_save_backtest(self):
         """Test saving backtest result."""
-        mock_collection = MagicMock()
-        mock_mongo.return_value._get_collection.return_value = mock_collection
-        mock_collection.insert_one.return_value.inserted_id = "507f1f77bcf86cd799439011"
-
-        result = BacktestResult(
+        engine_result = EngineBacktestResult(
             backtest_id="",
             account_config_id="507f1f77bcf86cd799439012",
+            strategy_id="507f1f77bcf86cd799439013",
+            training_id="507f1f77bcf86cd799439014",
             ts_code="000001.SZ",
             start_date="20240101",
             end_date="20240131",
-            strategy="price",
             initial_capital=100000,
             final_value=105000,
             total_return=0.05,
@@ -36,16 +34,37 @@ class TestBacktestServicePersistence:
             total_fees=100,
         )
 
-        backtest_id = save_backtest(result)
+        mock_account_config = MagicMock()
+        mock_account_config.name = "test"
+        mock_account_config.initial_capital = 100000
+        mock_account_config.buy_fee_rate = 0.0003
+        mock_account_config.sell_fee_rate = 0.0003
+        mock_account_config.stamp_tax_rate = 0.001
+        mock_account_config.min_fee = 5.0
 
-        assert backtest_id == "507f1f77bcf86cd799439011"
-        mock_collection.insert_one.assert_called_once()
+        mock_strategy = MagicMock()
+        mock_strategy.name = "test_strategy"
+        mock_strategy.type = "price"
+        mock_strategy.config = {}
 
-    @patch("trade_alpha.backtest.service.MongoDB")
-    def test_save_trades(self, mock_mongo):
+        with patch("trade_alpha.backtest.service.BacktestResult") as MockBacktestResult:
+            mock_backtest = MagicMock()
+            mock_backtest.id = PydanticObjectId()
+            mock_backtest.insert = AsyncMock()
+            MockBacktestResult.return_value = mock_backtest
+
+            result = await save_backtest(engine_result, mock_account_config, mock_strategy)
+
+            assert result is not None
+            mock_backtest.insert.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_save_trades(self):
         """Test saving trade records."""
-        mock_collection = MagicMock()
-        mock_mongo.return_value._get_collection.return_value = mock_collection
+        mock_backtest_id = PydanticObjectId()
+        mock_account_config_id = PydanticObjectId()
+        mock_strategy_id = PydanticObjectId()
+        mock_training_id = PydanticObjectId()
 
         trades = [
             TradeRecord(
@@ -68,6 +87,17 @@ class TestBacktestServicePersistence:
             ),
         ]
 
-        save_trades("507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012", trades)
+        with patch("trade_alpha.backtest.service.BacktestTrade") as MockBacktestTrade:
+            MockBacktestTrade.insert_many = AsyncMock()
 
-        assert mock_collection.insert_many.call_count == 1
+            result = await save_trades(
+                mock_backtest_id,
+                mock_account_config_id,
+                trades,
+                ts_code="000001.SZ",
+                strategy_id=mock_strategy_id,
+                training_id=mock_training_id,
+            )
+
+            assert result == len(trades)
+            MockBacktestTrade.insert_many.assert_called_once()

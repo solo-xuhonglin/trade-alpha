@@ -28,7 +28,7 @@ class StrategySnapshotEmbed(BaseModel):
 class BacktestResult(Document):
     """Backtest result document for MongoDB."""
 
-    portfolio_id: Optional[PydanticObjectId] = None
+    account_config_id: Optional[PydanticObjectId] = None
     strategy_id: Optional[PydanticObjectId] = None
     training_id: Optional[PydanticObjectId] = None
     ts_code: str
@@ -52,6 +52,6 @@ class BacktestResult(Document):
         collection = "backtest_results"
         indexes = [
             "ts_code",
-            "portfolio_id",
+            "account_config_id",
             "strategy_id",
         ]

@@ -10,7 +10,7 @@ class BacktestTrade(Document):
     """Backtest trade document for MongoDB."""
     
     backtest_id: PydanticObjectId
-    portfolio_id: Optional[PydanticObjectId] = None
+    account_config_id: Optional[PydanticObjectId] = None
     strategy_id: Optional[PydanticObjectId] = None
     training_id: Optional[PydanticObjectId] = None
     ts_code: str

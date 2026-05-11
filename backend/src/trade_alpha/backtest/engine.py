@@ -59,7 +59,7 @@ class BacktestEngine:
         start_date: str,
         end_date: str,
         strategy,
-        ptttfoliofoPMrafolioger,
+        account_manager: AccountManager,
     ):
         self.ts_code = ts_code
         self.start_date = start_date

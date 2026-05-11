@@ -49,7 +49,7 @@ async def save_backtest(
     logger.info("Saving backtest result")
 
     backtest = BacktestResult(
-        portfolio_id=PydanticObjectId(result.portfolio_id) if result.portfolio_id else None,
+        account_config_id=PydanticObjectId(result.account_config_id) if result.account_config_id else None,
         strategy_id=PydanticObjectId(result.strategy_id) if result.strategy_id else None,
         training_id=PydanticObjectId(result.training_id) if result.training_id else None,
         ts_code=result.ts_code,
@@ -205,7 +205,7 @@ async def run_backtest(
     engine = BacktestEngine(ts_code, start_date, end_date, strategy_obj, portfolio_obj)
 
     result = engine.run([r.model_dump() for r in records])
-    result.portfolio_id = str(account_config_id)
+    result.account_config_id = str(account_config_id)
     result.strategy_id = str(strategy_id)
     result.training_id = str(training_id)
 
@@ -265,7 +265,7 @@ async def list_trades(
     query = BacktestTrade.find_all()
 
     if account_config_id:
-        query = query.filter(BacktestTrade.portfolio_id == account_config_id)
+        query = query.filter(BacktestTrade.account_config_id == account_config_id)
     if strategy_id:
         query = query.filter(BacktestTrade.strategy_id == strategy_id)
     if training_id:
