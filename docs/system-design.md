@@ -97,14 +97,14 @@ trade-alpha/
 - `mongodb.py`: MongoDB 连接管理和 Beanie 初始化
 - `stock_daily.py`: 股票日线数据 Document
 - `stock_list.py`: 股票列表 Document
-- `portfolio.py`: 账户 Document
-- `strategy.py`: 策略 Document
+- `account_config.py`: 账户配置 Document
+- `strategy_config.py`: 策略配置 Document
 - `model_config.py`: 模型配置 Document
-- `training.py`: 训练记录 Document
-- `backtest.py`: 回测记录 Document
+- `training_result.py`: 训练结果 Document
+- `backtest_result.py`: 回测结果 Document
 - `backtest_trade.py`: 回测交易 Document
-- `prediction.py`: 预测结果 Document
-- `signal.py`: 交易信号 Document
+- `prediction_result.py`: 预测结果 Document
+- `signal_result.py`: 交易信号 Document
 
 ### 4. 数据模块 (data)
 

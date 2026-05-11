@@ -116,7 +116,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和回测结果。
 }
 ```
 
-### predictions
+### prediction_results
 
 存储预测结果。
 
@@ -134,7 +134,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和回测结果。
 | `target_high` | float | 预测最高价 |
 | `target_low` | float | 预测最低价 |
 
-### signals
+### signal_results
 
 存储交易信号。
 
@@ -152,7 +152,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和回测结果。
 | `target_price` | float | 目标价格 |
 | `reason` | string | 决策原因 |
 
-### strategies
+### strategy_configs
 
 存储策略配置实例。
 
@@ -192,7 +192,7 @@ MACDStrategy:
 }
 ```
 
-### portfolios
+### account_configs
 
 存储账户信息，包括手续费配置。
 
@@ -211,7 +211,7 @@ MACDStrategy:
 | `cash` | float | 当前现金 | initial_capital |
 | `position` | int | 当前持仓 | 0 |
 
-### backtests
+### backtest_results
 
 存储回测汇总结果。
 
@@ -306,7 +306,7 @@ lstm:
 }
 ```
 
-### trainings
+### training_results
 
 存储训练记录和指标。
 
