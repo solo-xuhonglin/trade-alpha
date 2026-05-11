@@ -2,7 +2,7 @@ import api from './index'
 
 export interface Backtest {
   id: string
-  portfolio_id?: string
+  ptrldol?o string
   strategy_id: string
   training_id: string
   ts_code: string
@@ -47,14 +47,14 @@ export interface TradeListResponse {
 }
 
 export interface TradeFilterOptions {
-  portfolios: Array<{ id: string; name: string }>
+  account_configs: Array<{ id: string; name: string }>
   strategies: Array<{ id: string; name: string }>
   trainings: Array<{ id: string; name: string }>
   ts_codes: string[]
 }
 
 export interface TradeFilterParams {
-  portfolio_id?: string
+  account_config_id?: string
   strategy_id?: string
   training_id?: string
   ts_code?: string
@@ -80,7 +80,7 @@ export const backtestApi = {
 
   listTrades: (page: number = 1, pageSize: number = 20, filters?: TradeFilterParams) => {
     const params: Record<string, any> = { page, page_size: pageSize }
-    if (filters?.portfolio_id) params.portfolio_id = filters.portfolio_id
+    if (filters?.account_config_id) params.account_config_id = filters.account_config_id
     if (filters?.strategy_id) params.strategy_id = filters.strategy_id
     if (filters?.training_id) params.training_id = filters.training_id
     if (filters?.ts_code) params.ts_code = filters.ts_code

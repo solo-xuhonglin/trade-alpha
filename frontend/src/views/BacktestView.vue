@@ -183,7 +183,7 @@ const form = ref({
   start_date: formatDate(new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)),
   end_date: formatDate(new Date()),
   strategy_id: '',
-  portfolio_name: 'default',
+  account_config_name: 'default_account_config',
 })
 
 const historyHeaders = [
@@ -236,9 +236,12 @@ const runBacktest = async () => {
   running.value = true
   try {
     const payload = {
-      ...form.value,
+      ts_code: form.value.ts_code,
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
+      account_config_id: form.value.account_config_name,
+      strategy_id: form.value.strategy_id,
+      training_id: '',
     }
     const res = await backtestApi.run(payload)
     result.value = res.data

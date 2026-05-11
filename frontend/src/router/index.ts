@@ -11,9 +11,9 @@ const routes = [
     component: () => import('@/views/DataView.vue')
   },
   {
-    path: '/portfolios',
-    name: 'Portfolios',
-    component: () => import('@/views/PortfolioView.vue')
+    path: '/account-configs',
+    name: 'AccountConfigs',
+    component: () => import('@/views/AccountsPage.vue')
   },
   {
     path: '/strategies',

@@ -35,7 +35,7 @@ const drawer = ref(true)
 
 const menuItems = [
   { path: '/data', title: '数据管理', icon: 'mdi-database' },
-  { path: '/portfolios', title: '账户管理', icon: 'mdi-wallet' },
+  { path: '/account-configs', title: '账户管理', icon: 'mdi-wallet' },
   { path: '/strategies', title: '策略管理', icon: 'mdi-strategy' },
   { path: '/models', title: '模型管理', icon: 'mdi-brain' },
   { path: '/trainings', title: '训练记录', icon: 'mdi-chart-scatter-plot' },

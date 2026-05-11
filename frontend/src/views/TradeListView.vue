@@ -8,8 +8,8 @@
       <v-spacer></v-spacer>
 
       <v-select
-        v-model="filters.portfolio_id"
-        :items="filterOptions.portfolios"
+        v-model="filters.account_config_id"
+        :items="filterOptions.account_configs"
         item-title="name"
         item-value="id"
         label="账户"
@@ -110,19 +110,19 @@ const page = ref(1)
 const pageSize = ref(20)
 
 const filterOptions = ref<{
-  portfolios: Array<{ id: string; name: string }>
+  account_configs: Array<{ id: string; name: string }>
   strategies: Array<{ id: string; name: string }>
   trainings: Array<{ id: string; name: string }>
   ts_codes: string[]
 }>({
-  portfolios: [],
+  account_configs: [],
   strategies: [],
   trainings: [],
   ts_codes: []
 })
 
 const filters = ref({
-  portfolio_id: null as string | null,
+  account_config_id: null as string | null,
   strategy_id: null as string | null,
   training_id: null as string | null,
   ts_code: null as string | null
@@ -151,7 +151,7 @@ const loadTrades = async () => {
   loading.value = true
   try {
     const filterParams = {
-      portfolio_id: filters.value.portfolio_id || undefined,
+      account_config_id: filters.value.account_config_id || undefined,
       strategy_id: filters.value.strategy_id || undefined,
       training_id: filters.value.training_id || undefined,
       ts_code: filters.value.ts_code || undefined
