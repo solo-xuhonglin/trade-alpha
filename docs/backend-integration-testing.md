@@ -24,10 +24,11 @@
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
 | 41 | test_41_account_config_service.py | TestAccountConfigService | 验证账户管理服务 |
-| 42 | test_42_strategy_service.py | TestStrategyService | 验证策略管理服务 |
+| 42 | test_43_strategy_service.py | TestStrategyService | 验证策略管理服务 |
 | 43 | test_43_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
 | 51 | test_51_training_service.py | TestTrainingService | 验证训练服务 |
 | 60 | test_60_backtest.py | TestBacktest | 验证回测服务 |
+| 65 | test_65_backtest_integration.py | TestBacktestIntegration | 验证回测集成（依赖前置默认数据） |
 
 ## 依赖关系
 
@@ -68,9 +69,11 @@ Layer 5: 训练
                                     └─────────────────────────┘
 
 Layer 6: 回归测试
-                                    ┌─────────────────────────┐
-                                    │  TestBacktest (60)      │  ← 依赖 Portfolio, Strategy, Training
-                                    └─────────────────────────┘
+┌─────────────────────────┐     ┌─────────────────────────────┐
+│  TestBacktest (60)      │     │ TestBacktestIntegration (65)│
+│                          │     │  依赖 Portfolio, Strategy,  │
+│                          │     │  Training 默认记录          │
+└─────────────────────────┘     └─────────────────────────────┘
 ```
 
 ## 执行影响
@@ -88,6 +91,7 @@ Layer 6: 回归测试
 | TestModelConfigService | test_*_temp | 自动清理 | test_model_config |
 | TestTrainingService | test_*_temp | 自动清理 | test_training |
 | TestBacktest | test_backtest_*_temp | 自动清理 | - |
+| TestBacktestIntegration | 依赖前置默认数据 | 清理回测数据 | 无 |
 
 ## 默认记录说明
 
