@@ -1,11 +1,11 @@
-"""Portfolio management module."""
+"""Account management module for runtime portfolio engine."""
 
 from dataclasses import dataclass
 
 
 @dataclass
-class Trade:
-    """Trade record."""
+class TradeRecord:
+    """Trade record for a single transaction."""
     date: str
     action: str
     price: float
@@ -15,8 +15,8 @@ class Trade:
     position_after: int
 
 
-class Portfolio:
-    """Account portfolio management."""
+class AccountManager:
+    """Account portfolio management for runtime trading simulation."""
 
     def __init__(
         self,
@@ -33,22 +33,19 @@ class Portfolio:
         self.sell_fee_rate = sell_fee_rate
         self.stamp_tax_rate = stamp_tax_rate
         self.min_fee = min_fee
-        self.trades: list[Trade] = []
+        self.trades: list[TradeRecord] = []
 
     def _calculate_buy_fee(self, price: float, shares: int) -> float:
-        """Calculate buy fee."""
         amount = price * shares
         fee = amount * self.buy_fee_rate
         return max(fee, self.min_fee)
 
     def _calculate_sell_fee(self, price: float, shares: int) -> float:
-        """Calculate sell fee including stamp tax."""
         amount = price * shares
         fee = amount * self.sell_fee_rate + amount * self.stamp_tax_rate
         return max(fee, self.min_fee)
 
-    def buy(self, date: str, price: float, shares: int) -> Trade:
-        """Buy shares."""
+    def buy(self, date: str, price: float, shares: int) -> TradeRecord:
         fee = self._calculate_buy_fee(price, shares)
         total_cost = price * shares + fee
 
@@ -58,7 +55,7 @@ class Portfolio:
         self.cash -= total_cost
         self.position += shares
 
-        trade = Trade(
+        trade = TradeRecord(
             date=date,
             action="buy",
             price=price,
@@ -70,8 +67,7 @@ class Portfolio:
         self.trades.append(trade)
         return trade
 
-    def sell(self, date: str, price: float, shares: int) -> Trade:
-        """Sell shares."""
+    def sell(self, date: str, price: float, shares: int) -> TradeRecord:
         if shares > self.position:
             raise ValueError("Insufficient position")
 
@@ -81,7 +77,7 @@ class Portfolio:
         self.cash += total_revenue
         self.position -= shares
 
-        trade = Trade(
+        trade = TradeRecord(
             date=date,
             action="sell",
             price=price,
