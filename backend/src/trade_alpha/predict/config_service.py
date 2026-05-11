@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional, List
 from beanie import PydanticObjectId
-from trade_alpha.dao import ModelConfig, Training
+from trade_alpha.dao import ModelConfig, TrainingResult
 from trade_alpha.logging import get_logger
 
 logger = get_logger("config_service")
@@ -86,7 +86,7 @@ async def delete_config(config_id: PydanticObjectId) -> bool:
     if not config:
         return False
     
-    await Training.find(Training.config_id == config_id).delete()
+    await TrainingResult.find(TrainingResult.config_id == config_id).delete()
     
     await config.delete()
     logger.info(f"Config deleted: id={config_id}")

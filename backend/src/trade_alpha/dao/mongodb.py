@@ -14,33 +14,33 @@ _db_client: Optional[AsyncIOMotorClient] = None
 async def init_db():
     """Initialize Beanie ODM."""
     global _db_client
-    
+
     config = load_config()
     _db_client = AsyncIOMotorClient(config.mongodb_uri)
     database = _db_client[config.mongodb_db]
-    
-    from trade_alpha.dao.portfolio import Portfolio
-    from trade_alpha.dao.strategy import Strategy
+
+    from trade_alpha.dao.portfolio import AccountConfig
+    from trade_alpha.dao.strategy import StrategyConfig
     from trade_alpha.dao.model_config import ModelConfig
-    from trade_alpha.dao.training import Training
-    from trade_alpha.dao.backtest import Backtest
+    from trade_alpha.dao.training import TrainingResult
+    from trade_alpha.dao.backtest import BacktestResult
     from trade_alpha.dao.backtest_trade import BacktestTrade
-    from trade_alpha.dao.prediction import Prediction
-    from trade_alpha.dao.signal import Signal
+    from trade_alpha.dao.prediction import PredictionResult
+    from trade_alpha.dao.signal import SignalResult
     from trade_alpha.dao.stock_daily import StockDaily
     from trade_alpha.dao.stock_list import StockList
-    
+
     await init_beanie(
         database=database,
         document_models=[
-            Portfolio,
-            Strategy,
+            AccountConfig,
+            StrategyConfig,
             ModelConfig,
-            Training,
-            Backtest,
+            TrainingResult,
+            BacktestResult,
             BacktestTrade,
-            Prediction,
-            Signal,
+            PredictionResult,
+            SignalResult,
             StockDaily,
             StockList,
         ]
