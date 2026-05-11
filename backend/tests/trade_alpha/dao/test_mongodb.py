@@ -1,71 +1,95 @@
 """Unit tests for dao.mongodb module."""
 
 import pytest
-from unittest.mock import MagicMock, patch
-from trade_alpha.dao.mongodb import MongoDB
+from unittest.mock import MagicMock, patch, AsyncMock
 
 
-class TestMongoDB:
-    """Test cases for MongoDB class."""
+class TestMongoDBInit:
+    """Test cases for MongoDB initialization."""
 
-    @patch("trade_alpha.dao.mongodb.MongoClient")
-    def test_insert_many_with_upsert(self, mock_client):
-        mock_db = MagicMock()
-        mock_client.return_value.__getitem__.return_value = mock_db
-        mock_collection = MagicMock()
-        mock_db.__getitem__.return_value = mock_collection
-        mock_result = MagicMock()
-        mock_result.upserted_count = 1
-        mock_result.modified_count = 0
-        mock_collection.bulk_write.return_value = mock_result
+    @pytest.mark.asyncio
+    async def test_init_db_success(self):
+        """Test successful database initialization."""
+        with patch("trade_alpha.dao.mongodb.AsyncIOMotorClient") as mock_client, \
+             patch("trade_alpha.dao.mongodb.init_beanie", new_callable=AsyncMock) as mock_init_beanie, \
+             patch("trade_alpha.dao.mongodb.load_config") as mock_config:
+            
+            mock_config.return_value = MagicMock(
+                mongodb_uri="mongodb://localhost:27017",
+                mongodb_db="test_db"
+            )
+            mock_client.return_value = MagicMock()
+            
+            from trade_alpha.dao.mongodb import init_db
+            
+            await init_db()
+            
+            mock_client.assert_called_once_with("mongodb://localhost:27017")
+            mock_init_beanie.assert_called_once()
 
-        storage = MongoDB()
-        result = storage.insert_many([{"ts_code": "000001.SZ", "trade_date": "20240101"}])
+    @pytest.mark.asyncio
+    async def test_close_db(self):
+        """Test closing database connection."""
+        with patch("trade_alpha.dao.mongodb._db_client") as mock_client:
+            from trade_alpha.dao.mongodb import close_db
+            
+            import trade_alpha.dao.mongodb as db_module
+            db_module._db_client = MagicMock()
+            
+            await close_db()
+            
+            assert db_module._db_client is None
 
-        assert result == 1
-        mock_collection.bulk_write.assert_called_once()
+    def test_get_db_returns_client(self):
+        """Test get_db returns the client."""
+        import trade_alpha.dao.mongodb as db_module
+        from trade_alpha.dao.mongodb import get_db
+        
+        mock_client = MagicMock()
+        db_module._db_client = mock_client
+        
+        result = get_db()
+        
+        assert result == mock_client
 
-    @patch("trade_alpha.dao.mongodb.MongoClient")
-    def test_insert_many_with_modified(self, mock_client):
-        mock_db = MagicMock()
-        mock_client.return_value.__getitem__.return_value = mock_db
-        mock_collection = MagicMock()
-        mock_db.__getitem__.return_value = mock_collection
-        mock_result = MagicMock()
-        mock_result.upserted_count = 0
-        mock_result.modified_count = 2
-        mock_collection.bulk_write.return_value = mock_result
+    def test_get_db_returns_none_when_not_initialized(self):
+        """Test get_db returns None when not initialized."""
+        import trade_alpha.dao.mongodb as db_module
+        from trade_alpha.dao.mongodb import get_db
+        
+        db_module._db_client = None
+        
+        result = get_db()
+        
+        assert result is None
 
-        storage = MongoDB()
-        result = storage.insert_many([
-            {"ts_code": "000001.SZ", "trade_date": "20240101"},
-            {"ts_code": "000001.SZ", "trade_date": "20240102"},
-        ])
+    @pytest.mark.asyncio
+    async def test_get_database_returns_db_instance(self):
+        """Test get_database returns database instance."""
+        with patch("trade_alpha.dao.mongodb._db_client") as mock_client, \
+             patch("trade_alpha.dao.mongodb.load_config") as mock_config:
+            
+            mock_config.return_value = MagicMock(mongodb_db="test_db")
+            mock_db = MagicMock()
+            mock_client.__getitem__ = MagicMock(return_value=mock_db)
+            
+            import trade_alpha.dao.mongodb as db_module
+            db_module._db_client = mock_client
+            
+            from trade_alpha.dao.mongodb import get_database
+            
+            result = await get_database()
+            
+            assert result is not None
 
-        assert result == 2
-
-    def test_insert_many_empty_list(self):
-        with patch("trade_alpha.dao.mongodb.MongoClient") as mock_client:
-            storage = MongoDB()
-            result = storage.insert_many([])
-
-            assert result == 0
-
-    @patch("trade_alpha.dao.mongodb.MongoClient")
-    def test_find_by_ts_code(self, mock_client):
-        mock_db = MagicMock()
-        mock_client.return_value.__getitem__.return_value = mock_db
-        mock_collection = MagicMock()
-        mock_db.__getitem__.return_value = mock_collection
-        mock_cursor = MagicMock()
-        mock_cursor.__iter__ = lambda self: iter([
-            {"ts_code": "000001.SZ", "trade_date": "20240101", "close": 10.0},
-            {"ts_code": "000001.SZ", "trade_date": "20240102", "close": 11.0},
-        ])
-        mock_collection.find.return_value.sort.return_value = mock_cursor
-
-        storage = MongoDB()
-        result = storage.find_by_ts_code("000001.SZ")
-
-        assert len(result) == 2
-        assert result[0]["trade_date"] == "20240101"
+    @pytest.mark.asyncio
+    async def test_get_database_returns_none_when_not_initialized(self):
+        """Test get_database returns None when not initialized."""
+        import trade_alpha.dao.mongodb as db_module
+        db_module._db_client = None
+        
+        from trade_alpha.dao.mongodb import get_database
+        
+        result = await get_database()
+        
+        assert result is None

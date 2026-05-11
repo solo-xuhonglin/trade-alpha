@@ -7,7 +7,7 @@ from trade_alpha.data.service import fetch_and_store_stock_daily
 from trade_alpha.portfolio import service as portfolio_service
 from trade_alpha.strategy import service as strategy_service
 from trade_alpha.predict import training_service, config_service
-from trade_alpha.dao import Backtest, BacktestTrade
+from trade_alpha.dao import BacktestResult, BacktestTrade
 
 
 async def _ensure_default_portfolio():
@@ -91,10 +91,10 @@ class TestBacktest:
 
         yield
 
-        backtests = await Backtest.find(Backtest.ts_code == self.ts_code).to_list()
+        backtests = await BacktestResult.find(BacktestResult.ts_code == self.ts_code).to_list()
         for bt in backtests:
             await BacktestTrade.find(BacktestTrade.backtest_id == bt.id).delete()
-        await Backtest.find(Backtest.ts_code == self.ts_code).delete()
+        await BacktestResult.find(BacktestResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
     async def test_run_backtest(self, setup_db):
@@ -141,7 +141,7 @@ class TestBacktest:
 
         assert result.backtest_id is not None
 
-        saved = await Backtest.get(PydanticObjectId(result.backtest_id))
+        saved = await BacktestResult.get(PydanticObjectId(result.backtest_id))
         assert saved is not None
 
     @pytest.mark.asyncio

@@ -1,47 +1,114 @@
 """Integration tests for backtest module."""
 
 import pytest
-from trade_alpha.backtest import run_backtest
-from trade_alpha.dao import MongoDB
+from beanie import PydanticObjectId
+from trade_alpha.backtest import service as backtest_service
+from trade_alpha.data.service import fetch_and_store_stock_daily
+from trade_alpha.portfolio import service as portfolio_service
+from trade_alpha.strategy import service as strategy_service
+from trade_alpha.predict import training_service, config_service
+from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
 
 
+async def _ensure_default_portfolio():
+    """Ensure default portfolio exists."""
+    portfolios = await portfolio_service.list_portfolios()
+    for p in portfolios:
+        if p.name == "test_backtest_integration":
+            return p
+    return await portfolio_service.create_portfolio(
+        name="test_backtest_integration",
+        initial_capital=100000,
+        buy_fee_rate=0.0003,
+        sell_fee_rate=0.0003,
+    )
+
+
+async def _ensure_default_strategy():
+    """Ensure default strategy exists."""
+    strategies = await strategy_service.list_strategies()
+    for s in strategies:
+        if s.name == "test_backtest_strategy":
+            return s
+    return await strategy_service.create_strategy(
+        name="test_backtest_strategy",
+        strategy_type="price",
+        config={"buy_threshold": 0.02, "sell_threshold": -0.02},
+    )
+
+
+async def _ensure_default_config():
+    """Ensure default config exists."""
+    configs = await config_service.list_configs()
+    for c in configs:
+        if c.name == "test_backtest_config":
+            return c
+    return await config_service.create_config(
+        name="test_backtest_config",
+        model_type="linear",
+        params={},
+        targets=["open", "close", "high", "low"],
+    )
+
+
+async def _ensure_default_training(config_id: PydanticObjectId):
+    """Ensure default training exists."""
+    trainings = await training_service.list_trainings(config_id=config_id)
+    for t in trainings:
+        if t.name == "test_backtest_training":
+            return t
+    return await training_service.create_training(
+        config_id=config_id,
+        name="test_backtest_training",
+        ts_codes=["002594.SZ"],
+        start_date="20240101",
+        end_date="20240131",
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.order(6)
 class TestBacktestIntegration:
     """Integration tests with real MongoDB."""
 
     @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        self.storage = MongoDB()
+    async def setup_teardown(self):
+        """Setup and teardown for each test."""
         self.ts_code = "002594.SZ"
-        self.portfolio_name = "test_backtest_integration"
+        self.start_date = "20240101"
+        self.end_date = "20240131"
+
+        await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
+
+        portfolio = await _ensure_default_portfolio()
+        strategy = await _ensure_default_strategy()
+        config = await _ensure_default_config()
+        training = await _ensure_default_training(config.id)
+
+        self.portfolio_id = portfolio.id
+        self.strategy_id = strategy.id
+        self.training_id = training.id
 
         yield
 
-        self.storage.close()
+        backtests = await BacktestResult.find(BacktestResult.ts_code == self.ts_code).to_list()
+        for bt in backtests:
+            await BacktestTrade.find(BacktestTrade.backtest_id == bt.id).delete()
+        await BacktestResult.find(BacktestResult.ts_code == self.ts_code).delete()
 
-    def cleanup(self):
-        coll = self.storage._get_collection("backtests")
-        coll.delete_many({"ts_code": self.ts_code})
-        coll = self.storage._get_collection("backtest_trades")
-        coll.delete_many({"ts_code": self.ts_code})
-        coll = self.storage._get_collection("portfolios")
-        coll.delete_many({"name": self.portfolio_name})
-
-    @pytest.mark.order(6)
-    @pytest.mark.integration
-    def test_run_backtest(self):
+    @pytest.mark.asyncio
+    async def test_run_backtest(self, setup_db):
         """Test running backtest with real data from MongoDB."""
-        records = self.storage.find_by_ts_code(self.ts_code)
+        records = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
         assert len(records) > 0, "No data available, run data/indicators integration tests first"
 
-        self.cleanup()
-
-        result = run_backtest(
+        result = await backtest_service.run_backtest(
             ts_code=self.ts_code,
-            start_date="20240101",
-            end_date="20240131",
-            strategy="price",
-            portfolio_name=self.portfolio_name,
-            initial_capital=100000,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            portfolio_id=self.portfolio_id,
+            strategy_id=self.strategy_id,
+            training_id=self.training_id,
         )
 
         assert result.backtest_id is not None
@@ -51,12 +118,10 @@ class TestBacktestIntegration:
         assert result.final_value > 0
         assert isinstance(result.total_return, float)
 
-        backtests = self.storage._get_collection("backtests")
-        saved_backtest = backtests.find_one({"_id": __import__("bson").ObjectId(result.backtest_id)})
+        saved_backtest = await BacktestResult.get(PydanticObjectId(result.backtest_id))
         assert saved_backtest is not None
-        assert saved_backtest["portfolio_id"] is not None
+        assert saved_backtest.portfolio_id is not None
 
-        portfolios = self.storage._get_collection("portfolios")
-        saved_portfolio = portfolios.find_one({"_id": __import__("bson").ObjectId(result.portfolio_id)})
+        saved_portfolio = await portfolio_service.get_portfolio_by_id(PydanticObjectId(result.portfolio_id))
         assert saved_portfolio is not None
-        assert saved_portfolio["name"] == self.portfolio_name
+        assert saved_portfolio.name == "test_backtest_integration"

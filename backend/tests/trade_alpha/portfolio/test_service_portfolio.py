@@ -1,11 +1,13 @@
 """Unit tests for portfolio service."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
+from beanie import PydanticObjectId
 from trade_alpha.portfolio.service import (
     create_portfolio,
-    get_portfolio,
     get_portfolio_by_id,
+    get_portfolio_by_name,
+    list_portfolios,
     get_or_create_portfolio,
 )
 
@@ -13,71 +15,109 @@ from trade_alpha.portfolio.service import (
 class TestPortfolioService:
     """Test cases for portfolio service."""
 
-    @patch("trade_alpha.portfolio.service.MongoDB")
-    def test_create_portfolio(self, mock_mongo):
+    @pytest.mark.asyncio
+    async def test_create_portfolio(self):
         """Test creating portfolio."""
-        mock_collection = MagicMock()
-        mock_mongo.return_value._get_collection.return_value = mock_collection
-        mock_collection.insert_one.return_value.inserted_id = "test_id"
+        mock_portfolio = MagicMock()
+        mock_portfolio.id = PydanticObjectId()
+        
+        with patch("trade_alpha.portfolio.service.Portfolio") as MockPortfolio:
+            MockPortfolio.find_one = AsyncMock(return_value=None)
+            mock_portfolio.insert = AsyncMock()
+            MockPortfolio.return_value = mock_portfolio
+            
+            result = await create_portfolio("test_portfolio", 100000)
+            
+            assert result is not None
+            mock_portfolio.insert.assert_called_once()
 
-        portfolio_id = create_portfolio("test_portfolio", 100000)
+    @pytest.mark.asyncio
+    async def test_create_portfolio_duplicate_name(self):
+        """Test creating portfolio with duplicate name."""
+        mock_existing = MagicMock()
+        
+        with patch("trade_alpha.portfolio.service.Portfolio") as MockPortfolio:
+            MockPortfolio.find_one = AsyncMock(return_value=mock_existing)
+            
+            with pytest.raises(ValueError, match="already exists"):
+                await create_portfolio("test_portfolio", 100000)
 
-        assert portfolio_id == "test_id"
-        mock_collection.insert_one.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_get_portfolio_by_id(self):
+        """Test getting portfolio by ID."""
+        mock_portfolio = MagicMock()
+        mock_portfolio.id = PydanticObjectId()
+        mock_portfolio.name = "test_portfolio"
+        mock_portfolio.initial_capital = 100000
+        
+        with patch("trade_alpha.portfolio.service.Portfolio") as MockPortfolio:
+            MockPortfolio.get = AsyncMock(return_value=mock_portfolio)
+            
+            result = await get_portfolio_by_id(mock_portfolio.id)
+            
+            assert result is not None
+            assert result.name == "test_portfolio"
 
-    @patch("trade_alpha.portfolio.service.MongoDB")
-    def test_get_portfolio(self, mock_mongo):
-        """Test getting portfolio."""
-        mock_collection = MagicMock()
-        mock_mongo.return_value._get_collection.return_value = mock_collection
-        mock_collection.find_one.return_value = {
-            "_id": "test_id",
-            "name": "test_portfolio",
-            "initial_capital": 100000,
-            "buy_fee_rate": 0.0003,
-            "sell_fee_rate": 0.0003,
-            "stamp_tax_rate": 0.001,
-            "min_fee": 5.0,
-        }
+    @pytest.mark.asyncio
+    async def test_get_portfolio_by_name(self):
+        """Test getting portfolio by name."""
+        mock_portfolio = MagicMock()
+        mock_portfolio.name = "test_portfolio"
+        mock_portfolio.initial_capital = 100000
+        
+        with patch("trade_alpha.portfolio.service.Portfolio") as MockPortfolio:
+            mock_find = MagicMock()
+            mock_find.find_one = AsyncMock(return_value=mock_portfolio)
+            MockPortfolio.find_one = AsyncMock(return_value=mock_portfolio)
+            
+            result = await get_portfolio_by_name("test_portfolio")
+            
+            assert result is not None
+            assert result.name == "test_portfolio"
 
-        portfolio = get_portfolio("test_portfolio")
+    @pytest.mark.asyncio
+    async def test_list_portfolios(self):
+        """Test listing portfolios."""
+        mock_portfolios = [
+            MagicMock(name="portfolio1", initial_capital=100000),
+            MagicMock(name="portfolio2", initial_capital=200000),
+        ]
+        
+        with patch("trade_alpha.portfolio.service.Portfolio") as MockPortfolio:
+            mock_find_all = MagicMock()
+            mock_find_all.to_list = AsyncMock(return_value=mock_portfolios)
+            MockPortfolio.find_all = MagicMock(return_value=mock_find_all)
+            
+            result = await list_portfolios()
+            
+            assert len(result) == 2
 
-        assert portfolio is not None
-        assert portfolio["name"] == "test_portfolio"
-
-    @patch("trade_alpha.portfolio.service.MongoDB")
-    def test_get_or_create_portfolio_existing(self, mock_mongo):
+    @pytest.mark.asyncio
+    async def test_get_or_create_portfolio_existing(self):
         """Test get_or_create with existing portfolio."""
-        mock_collection = MagicMock()
-        mock_mongo.return_value._get_collection.return_value = mock_collection
-        mock_collection.find_one.return_value = {
-            "_id": "existing_id",
-            "name": "test_portfolio",
-            "initial_capital": 100000,
-            "buy_fee_rate": 0.0003,
-            "sell_fee_rate": 0.0003,
-            "stamp_tax_rate": 0.001,
-            "min_fee": 5.0,
-        }
+        mock_portfolio = MagicMock()
+        mock_portfolio.id = PydanticObjectId()
+        mock_portfolio.name = "test_portfolio"
+        mock_portfolio.initial_capital = 100000
+        
+        with patch("trade_alpha.portfolio.service.get_portfolio_by_name", AsyncMock(return_value=mock_portfolio)):
+            result = await get_or_create_portfolio("test_portfolio", 100000)
+            
+            assert result is not None
+            assert result.name == "test_portfolio"
 
-        portfolio_id, portfolio_obj = get_or_create_portfolio("test_portfolio", 100000)
-
-        assert portfolio_id == "existing_id"
-        assert portfolio_obj.initial_capital == 100000
-        mock_collection.insert_one.assert_not_called()
-
-    @patch("trade_alpha.portfolio.service.get_portfolio_by_name")
-    @patch("trade_alpha.portfolio.service.create_portfolio")
-    @patch("trade_alpha.portfolio.service.portfolio_to_obj")
-    def test_get_or_create_portfolio_new(
-        self, mock_to_obj, mock_create, mock_get
-    ):
+    @pytest.mark.asyncio
+    async def test_get_or_create_portfolio_new(self):
         """Test get_or_create creating new portfolio."""
-        mock_get.side_effect = [None, {"_id": "new_id", "initial_capital": 100000}]
-        mock_create.return_value = "new_id"
-        mock_to_obj.return_value = MagicMock()
-
-        portfolio_id, portfolio_obj = get_or_create_portfolio("new_portfolio", 100000)
-
-        assert portfolio_id == "new_id"
-        mock_create.assert_called_once()
+        mock_new_portfolio = MagicMock()
+        mock_new_portfolio.id = PydanticObjectId()
+        mock_new_portfolio.name = "new_portfolio"
+        mock_new_portfolio.initial_capital = 100000
+        
+        with patch("trade_alpha.portfolio.service.get_portfolio_by_name", AsyncMock(return_value=None)), \
+             patch("trade_alpha.portfolio.service.create_portfolio", AsyncMock(return_value=mock_new_portfolio)):
+            
+            result = await get_or_create_portfolio("new_portfolio", 100000)
+            
+            assert result is not None
+            assert result.name == "new_portfolio"

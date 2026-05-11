@@ -1,36 +1,31 @@
 """Integration tests for prediction module."""
 
 import pytest
-from trade_alpha.predict import predict
-from trade_alpha.dao import MongoDB
+from trade_alpha.predict.service import predict
+from trade_alpha.dao import StockDaily, Prediction
 
 
+@pytest.mark.integration
+@pytest.mark.order(4)
 class TestPredictIntegration:
     """Integration tests with real MongoDB."""
 
     @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        self.storage = MongoDB()
+    async def setup_teardown(self):
+        """Setup and teardown for each test."""
         self.ts_code = "002594.SZ"
 
         yield
 
-        self.storage.close()
+        await Prediction.find(Prediction.ts_code == self.ts_code).delete()
 
-    def cleanup(self):
-        coll = self.storage._get_collection("predictions")
-        coll.delete_many({"ts_code": self.ts_code})
-
-    @pytest.mark.order(4)
-    @pytest.mark.integration
-    def test_predict(self):
+    @pytest.mark.asyncio
+    async def test_predict(self):
         """Test predict with existing indicators."""
-        records = self.storage.find_by_ts_code(self.ts_code)
+        records = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
         assert len(records) > 0, "No data available, run data/indicators integration tests first"
 
-        self.cleanup()
-
-        result = predict(
+        result = await predict(
             ts_code=self.ts_code,
             targets=["open", "close"],
             model="linear",
@@ -43,6 +38,5 @@ class TestPredictIntegration:
         assert result["open"] > 0
         assert result["close"] > 0
 
-        predictions = self.storage._get_collection("predictions")
-        pred_records = list(predictions.find({"ts_code": self.ts_code}))
+        pred_records = await PredictionResult.find(PredictionResult.ts_code == self.ts_code).to_list()
         assert len(pred_records) > 0
