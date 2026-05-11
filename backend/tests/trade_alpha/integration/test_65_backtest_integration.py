@@ -39,18 +39,15 @@ class TestBacktestIntegration:
 
         await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
 
-        account_configs = await account_config_service.list_account_configs()
-        assert len(account_configs) > 0, "No account configs, please run full integration tests (Layer 41 first)"
+        account_config = await account_config_service.get_account_config_by_name("test_portfolio")
+        assert account_config is not None, "No default account config 'test_portfolio', please run full integration tests (Layer 41 first)"
 
-        strategies = await strategy_service.list_strategies()
-        assert len(strategies) > 0, "No strategies, please run full integration tests (Layer 42 first)"
+        strategy = await strategy_service.get_strategy_by_name("test_strategy")
+        assert strategy is not None, "No default strategy 'test_strategy', please run full integration tests (Layer 42 first)"
 
-        configs = await config_service.list_configs()
-        assert len(configs) > 0, "No model configs, please run full integration tests (Layer 43 first)"
+        config = await config_service.get_config_by_name("test_model_config")
+        assert config is not None, "No default model config 'test_model_config', please run full integration tests (Layer 43 first)"
 
-        account_config = account_configs[0]
-        strategy = strategies[0]
-        config = configs[0]
         training = await _ensure_default_training(config.id)
 
         self.account_config_id = account_config.id
