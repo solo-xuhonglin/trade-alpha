@@ -11,7 +11,7 @@ from trade_alpha.api.routers import (
     indicators,
     predict,
     strategy,
-    portfolio,
+    account_config,
     backtest,
     model_configs,
     trainings,
@@ -64,7 +64,7 @@ app.include_router(data.router, prefix="/api")
 app.include_router(indicators.router, prefix="/api")
 app.include_router(predict.router, prefix="/api")
 app.include_router(strategy.router, prefix="/api")
-app.include_router(portfolio.router, prefix="/api")
+app.include_router(account_config.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(model_configs.router, prefix="/api")
 app.include_router(trainings.router, prefix="/api")

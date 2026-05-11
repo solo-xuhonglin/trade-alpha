@@ -47,7 +47,7 @@ class StrategyResponse(BaseModel):
     created_at: datetime
 
 
-class PortfolioCreateRequest(BaseModel):
+class AccountConfigCreateRequest(BaseModel):
     name: str
     initial_capital: float = 100000.0
     buy_fee_rate: float = 0.0003
@@ -56,14 +56,14 @@ class PortfolioCreateRequest(BaseModel):
     min_fee: float = 5.0
 
 
-class PortfolioUpdateRequest(BaseModel):
+class AccountConfigUpdateRequest(BaseModel):
     buy_fee_rate: Optional[float] = None
     sell_fee_rate: Optional[float] = None
     stamp_tax_rate: Optional[float] = None
     min_fee: Optional[float] = None
 
 
-class PortfolioResponse(BaseModel):
+class AccountConfigResponse(BaseModel):
     id: str
     name: str
     initial_capital: float
@@ -79,14 +79,14 @@ class BacktestRunRequest(BaseModel):
     ts_code: str
     start_date: str
     end_date: str
-    portfolio_id: str
+    account_config_id: str
     strategy_id: str
     training_id: str
 
 
 class BacktestResponse(BaseModel):
     id: str
-    portfolio_id: Optional[str]
+    account_config_id: Optional[str]
     strategy_id: str
     training_id: str
     ts_code: str

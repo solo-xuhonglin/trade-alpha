@@ -1,12 +1,14 @@
 """API routers."""
 
 from trade_alpha.api.routers import (
+    account_config,
+    backtest,
     data,
     indicators,
+    model_configs,
     predict,
     strategy,
-    portfolio,
-    backtest,
+    trainings,
 )
 
-__all__ = ["data", "indicators", "predict", "strategy", "portfolio", "backtest"]
+__all__ = ["account_config", "backtest", "data", "indicators", "model_configs", "predict", "strategy", "trainings"]
