@@ -1,7 +1,7 @@
 """Prediction service."""
 
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from beanie import PydanticObjectId
 from trade_alpha.dao import StockDaily, PredictionResult
 from trade_alpha.predict.linear import LinearPredictor
@@ -89,7 +89,7 @@ async def predict(
         target_close=predictions.get("close"),
         target_high=predictions.get("high"),
         target_low=predictions.get("low"),
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     await prediction.insert()
 

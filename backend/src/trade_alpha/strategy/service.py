@@ -1,6 +1,6 @@
 """Strategy service module."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from beanie import PydanticObjectId
 from trade_alpha.dao import StrategyConfig, StockDaily, PredictionResult, SignalResult
@@ -25,7 +25,7 @@ async def create_strategy(
         name=name,
         type=strategy_type,
         config=config,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     await strategy.insert()
@@ -67,7 +67,7 @@ async def update_strategy(
     if config is not None:
         strategy.config = config
 
-    strategy.updated_at = datetime.utcnow()
+    strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
     logger.info(f"Strategy updated: id={strategy_id}")
     return strategy
@@ -165,7 +165,7 @@ async def generate_signal(
         current_price=context.current_price,
         target_price=prediction.get("close"),
         reason=f"{strategy} strategy",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     await signal.insert()

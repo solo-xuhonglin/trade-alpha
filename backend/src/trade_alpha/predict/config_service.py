@@ -1,6 +1,6 @@
 """Model configuration service."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import ModelConfig, TrainingResult
@@ -31,8 +31,8 @@ async def create_config(
         model_type=model_type,
         params=params,
         targets=targets,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     
     await config.insert()
@@ -74,7 +74,7 @@ async def update_config(config_id: PydanticObjectId, **kwargs) -> Optional[Model
         if hasattr(config, key):
             setattr(config, key, value)
     
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now(timezone.utc)
     await config.save()
     logger.info(f"Config updated: id={config_id}")
     return config

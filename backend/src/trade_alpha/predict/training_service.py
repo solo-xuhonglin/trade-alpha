@@ -1,7 +1,7 @@
 """Training service."""
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import StockDaily, TrainingResult
@@ -108,7 +108,7 @@ async def create_training(
         end_date=end_date,
         feature_cols=all_feature_cols,
         metrics=metrics,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     await training.insert()

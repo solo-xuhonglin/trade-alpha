@@ -1,6 +1,6 @@
 """Backtest service module."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from beanie import PydanticObjectId
 from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
@@ -58,7 +58,7 @@ async def save_backtest(result: EngineBacktestResult) -> BacktestResult:
         win_rate=result.win_rate,
         total_trades=result.total_trades,
         total_fees=result.total_fees,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     await backtest.insert()

@@ -1,7 +1,7 @@
 """Data service module."""
 
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic
 from trade_alpha.dao import StockDaily, StockList
 from trade_alpha.logging import get_logger
@@ -64,7 +64,7 @@ async def fetch_and_store_stock_list() -> int:
             total_mv=float(row["total_mv"]) if pd.notna(row.get("total_mv")) else None,
             pe=float(row["pe"]) if pd.notna(row.get("pe")) else None,
             pb=float(row["pb"]) if pd.notna(row.get("pb")) else None,
-            updated_at=datetime.utcnow(),
+            updated_at=datetime.now(timezone.utc),
         )
         if existing:
             for key, value in stock.model_dump(exclude={"id"}).items():

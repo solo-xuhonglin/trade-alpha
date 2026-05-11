@@ -1,6 +1,6 @@
 """Portfolio service module."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import AccountConfig
@@ -32,7 +32,7 @@ async def create_portfolio(
         stamp_tax_rate=stamp_tax_rate,
         min_fee=min_fee,
         cash=initial_capital,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     await account_config.insert()
@@ -68,7 +68,7 @@ async def update_portfolio(
         if hasattr(account_config, key):
             setattr(account_config, key, value)
 
-    account_config.updated_at = datetime.utcnow()
+    account_config.updated_at = datetime.now(timezone.utc)
     await account_config.save()
     logger.info(f"Portfolio updated: id={portfolio_id}")
     return account_config
