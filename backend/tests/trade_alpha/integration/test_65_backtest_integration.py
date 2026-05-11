@@ -10,47 +10,6 @@ from trade_alpha.predict import training_service, config_service
 from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
 
 
-async def _ensure_default_account_config():
-    """Ensure default account config exists."""
-    account_configs = await account_config_service.list_account_configs()
-    for p in account_configs:
-        if p.name == "test_backtest_integration":
-            return p
-    return await account_config_service.create_account_config(
-        name="test_backtest_integration",
-        initial_capital=100000,
-        buy_fee_rate=0.0003,
-        sell_fee_rate=0.0003,
-    )
-
-
-async def _ensure_default_strategy():
-    """Ensure default strategy exists."""
-    strategies = await strategy_service.list_strategies()
-    for s in strategies:
-        if s.name == "test_backtest_strategy":
-            return s
-    return await strategy_service.create_strategy(
-        name="test_backtest_strategy",
-        strategy_type="price",
-        config={"buy_threshold": 0.02, "sell_threshold": -0.02},
-    )
-
-
-async def _ensure_default_config():
-    """Ensure default config exists."""
-    configs = await config_service.list_configs()
-    for c in configs:
-        if c.name == "test_backtest_config":
-            return c
-    return await config_service.create_config(
-        name="test_backtest_config",
-        model_type="linear",
-        params={},
-        targets=["open", "close", "high", "low"],
-    )
-
-
 async def _ensure_default_training(config_id: PydanticObjectId):
     """Ensure default training exists."""
     trainings = await training_service.list_trainings(config_id=config_id)
@@ -80,12 +39,22 @@ class TestBacktestIntegration:
 
         await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
 
-        account_config = await _ensure_default_account_config()
-        strategy = await _ensure_default_strategy()
-        config = await _ensure_default_config()
+        account_configs = await account_config_service.list_account_configs()
+        assert len(account_configs) > 0, "No account configs, please run full integration tests (Layer 41 first)"
+
+        strategies = await strategy_service.list_strategies()
+        assert len(strategies) > 0, "No strategies, please run full integration tests (Layer 42 first)"
+
+        configs = await config_service.list_configs()
+        assert len(configs) > 0, "No model configs, please run full integration tests (Layer 43 first)"
+
+        account_config = account_configs[0]
+        strategy = strategies[0]
+        config = configs[0]
         training = await _ensure_default_training(config.id)
 
         self.account_config_id = account_config.id
+        self.account_config_name = account_config.name
         self.strategy_id = strategy.id
         self.training_id = training.id
 
@@ -100,7 +69,7 @@ class TestBacktestIntegration:
     async def test_run_backtest(self, setup_db):
         """Test running backtest with real data from MongoDB."""
         records = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
-        assert len(records) > 0, "No data available, run data/indicators integration tests first"
+        assert len(records) > 0, "No data available, please run full integration tests (Layer 3 first)"
 
         result = await backtest_service.run_backtest(
             ts_code=self.ts_code,
@@ -124,4 +93,4 @@ class TestBacktestIntegration:
 
         saved_account_config = await account_config_service.get_account_config_by_id(PydanticObjectId(result.account_config_id))
         assert saved_account_config is not None
-        assert saved_account_config.name == "test_backtest_integration"
+        assert saved_account_config.name == self.account_config_name
