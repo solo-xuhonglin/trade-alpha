@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from trade_alpha.config import load_config
 
 
-def get_pro_api():
+def get_pro_api() -> "ts.pro":
     """Get Tushare Pro API instance."""
     config = load_config()
     token = config.tushare_token or os.getenv("TUSHARE_TOKEN") or os.getenv("TS_TOKEN")

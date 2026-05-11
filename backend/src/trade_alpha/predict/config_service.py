@@ -59,7 +59,7 @@ async def list_configs(model_type: str = None) -> List[ModelConfig]:
     return await ModelConfig.find_all().to_list()
 
 
-async def update_config(config_id: PydanticObjectId, **kwargs) -> Optional[ModelConfig]:
+async def update_config(config_id: PydanticObjectId, **kwargs: Any) -> Optional[ModelConfig]:
     """Update configuration."""
     config = await ModelConfig.get(config_id)
     if not config:

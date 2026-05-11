@@ -1,7 +1,7 @@
 """Backtest service module."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Any
 from beanie import PydanticObjectId
 from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
 from trade_alpha.logging import get_logger
@@ -70,10 +70,10 @@ async def save_backtest(result: EngineBacktestResult) -> BacktestResult:
 async def save_trades(
     backtest_id: PydanticObjectId,
     portfolio_id: PydanticObjectId,
-    trades: List,
+    trades: List[Any],
     ts_code: str = "",
-    strategy_id: PydanticObjectId = None,
-    training_id: PydanticObjectId = None
+    strategy_id: Optional[PydanticObjectId] = None,
+    training_id: Optional[PydanticObjectId] = None
 ) -> int:
     """Save trade records."""
     logger.info(f"Saving {len(trades)} trades for backtest: {backtest_id}")

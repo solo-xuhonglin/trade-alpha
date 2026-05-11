@@ -78,7 +78,7 @@ async def fetch_and_store_stock_list() -> int:
     return count
 
 
-async def list_stocks(page: int = 1, page_size: int = 20) -> tuple[list[StockList], int]:
+async def list_stocks(page: int = 1, page_size: int = 20) -> Tuple[List[StockList], int]:
     """List stocks with pagination."""
     total = await StockList.count()
     skip = (page - 1) * page_size

@@ -1,7 +1,7 @@
 """Portfolio service module."""
 
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Any
 from beanie import PydanticObjectId
 from trade_alpha.dao import AccountConfig
 from trade_alpha.logging import get_logger
@@ -57,7 +57,7 @@ async def list_portfolios() -> List[AccountConfig]:
 
 async def update_portfolio(
     portfolio_id: PydanticObjectId,
-    **kwargs
+    **kwargs: Any
 ) -> Optional[AccountConfig]:
     """Update portfolio."""
     account_config = await AccountConfig.get(portfolio_id)

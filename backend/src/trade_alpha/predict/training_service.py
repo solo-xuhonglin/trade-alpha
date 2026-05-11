@@ -21,7 +21,7 @@ PREDICTORS = {
 }
 
 
-def _ensure_model_dir(config_id: str):
+def _ensure_model_dir(config_id: str) -> None:
     """Ensure model directory exists for config."""
     os.makedirs(os.path.join(MODELS_DIR, config_id), exist_ok=True)
 

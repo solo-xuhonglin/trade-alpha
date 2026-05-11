@@ -24,7 +24,7 @@ def train_model(predictor, X, y, targets):
     logger.info("Model training completed")
 
 
-def predict_next(predictor, features, targets):
+def predict_next(predictor: LinearPredictor, features, targets: List[str]) -> dict[str, float]:
     logger.info("Making predictions...")
     predictions = predictor.predict(features, targets)
     logger.info(f"Predictions: {predictions}")
