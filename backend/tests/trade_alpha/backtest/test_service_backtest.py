@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from trade_alpha.backtest.service import save_backtest, save_trades
 from trade_alpha.backtest.engine import BacktestResult
-from trade_alpha.portfolio import Trade
+from trade_alpha.account import TradeRecord
 
 
 class TestBacktestServicePersistence:
@@ -19,7 +19,7 @@ class TestBacktestServicePersistence:
 
         result = BacktestResult(
             backtest_id="",
-            portfolio_id="507f1f77bcf86cd799439012",
+            account_config_id="507f1f77bcf86cd799439012",
             ts_code="000001.SZ",
             start_date="20240101",
             end_date="20240131",
@@ -48,7 +48,7 @@ class TestBacktestServicePersistence:
         mock_mongo.return_value._get_collection.return_value = mock_collection
 
         trades = [
-            Trade(
+            TradeRecord(
                 date="20240102",
                 action="buy",
                 price=100.0,
@@ -57,7 +57,7 @@ class TestBacktestServicePersistence:
                 cash_after=89995.0,
                 position_after=100,
             ),
-            Trade(
+            TradeRecord(
                 date="20240105",
                 action="sell",
                 price=105.0,

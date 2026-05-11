@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from trade_alpha.dao import StockDaily, StockList, Portfolio
+from trade_alpha.dao import StockDaily, StockList, AccountConfig
 
 
 @pytest.mark.integration
@@ -19,8 +19,8 @@ class TestDAOIntegration:
 
         await StockDaily.find(StockDaily.ts_code == self.ts_code).delete()
         await StockList.find(StockList.ts_code == self.ts_code).delete()
-        test_portfolios = await Portfolio.find(Portfolio.name == "test_dao_portfolio").to_list()
-        for p in test_portfolios:
+        test_account_configs = await AccountConfig.find(AccountConfig.name == "test_dao_portfolio").to_list()
+        for p in test_account_configs:
             await p.delete()
 
     @pytest.mark.asyncio
@@ -98,9 +98,9 @@ class TestDAOIntegration:
         assert found.name == "工商银行"
 
     @pytest.mark.asyncio
-    async def test_insert_and_find_portfolio(self):
-        """Test Portfolio operations."""
-        portfolio = Portfolio(
+    async def test_insert_and_find_account_config(self):
+        """Test AccountConfig operations."""
+        account_config = AccountConfig(
             name="test_dao_portfolio",
             initial_capital=100000,
             buy_fee_rate=0.0003,
@@ -110,7 +110,7 @@ class TestDAOIntegration:
             cash=100000,
             created_at=datetime.utcnow(),
         )
-        await portfolio.insert()
+        await account_config.insert()
 
         found = await AccountConfig.find_one(AccountConfig.name == "test_dao_portfolio")
         assert found is not None

@@ -4,19 +4,19 @@ import pytest
 from beanie import PydanticObjectId
 from trade_alpha.backtest import service as backtest_service
 from trade_alpha.data.service import fetch_and_store_stock_daily
-from trade_alpha.portfolio import service as portfolio_service
+from trade_alpha.account import service as account_config_service
 from trade_alpha.strategy import service as strategy_service
 from trade_alpha.predict import training_service, config_service
 from trade_alpha.dao import BacktestResult, BacktestTrade, BacktestPortfolioDaily
 
 
-async def _ensure_default_portfolio():
-    """Ensure default portfolio exists."""
-    portfolios = await portfolio_service.list_portfolios()
-    for p in portfolios:
+async def _ensure_default_account_config():
+    """Ensure default account config exists."""
+    account_configs = await account_config_service.list_account_configs()
+    for p in account_configs:
         if p.name == "test_portfolio":
             return p
-    return await portfolio_service.create_portfolio(
+    return await account_config_service.create_account_config(
         name="test_portfolio",
         initial_capital=100000,
         buy_fee_rate=0.0003,
@@ -80,12 +80,12 @@ class TestBacktest:
 
         await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
 
-        portfolio = await _ensure_default_portfolio()
+        account_config = await _ensure_default_account_config()
         strategy = await _ensure_default_strategy()
         config = await _ensure_default_config()
         training = await _ensure_default_training(config.id)
 
-        self.portfolio_id = portfolio.id
+        self.account_config_id = account_config.id
         self.strategy_id = strategy.id
         self.training_id = training.id
 
@@ -104,7 +104,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
@@ -120,7 +120,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
@@ -135,7 +135,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
@@ -152,7 +152,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
@@ -170,7 +170,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
@@ -186,7 +186,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
@@ -205,7 +205,7 @@ class TestBacktest:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )

@@ -4,19 +4,19 @@ import pytest
 from beanie import PydanticObjectId
 from trade_alpha.backtest import service as backtest_service
 from trade_alpha.data.service import fetch_and_store_stock_daily
-from trade_alpha.portfolio import service as portfolio_service
+from trade_alpha.account import service as account_config_service
 from trade_alpha.strategy import service as strategy_service
 from trade_alpha.predict import training_service, config_service
 from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
 
 
-async def _ensure_default_portfolio():
-    """Ensure default portfolio exists."""
-    portfolios = await portfolio_service.list_portfolios()
-    for p in portfolios:
+async def _ensure_default_account_config():
+    """Ensure default account config exists."""
+    account_configs = await account_config_service.list_account_configs()
+    for p in account_configs:
         if p.name == "test_backtest_integration":
             return p
-    return await portfolio_service.create_portfolio(
+    return await account_config_service.create_account_config(
         name="test_backtest_integration",
         initial_capital=100000,
         buy_fee_rate=0.0003,
@@ -80,12 +80,12 @@ class TestBacktestIntegration:
 
         await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
 
-        portfolio = await _ensure_default_portfolio()
+        account_config = await _ensure_default_account_config()
         strategy = await _ensure_default_strategy()
         config = await _ensure_default_config()
         training = await _ensure_default_training(config.id)
 
-        self.portfolio_id = portfolio.id
+        self.account_config_id = account_config.id
         self.strategy_id = strategy.id
         self.training_id = training.id
 
@@ -106,13 +106,13 @@ class TestBacktestIntegration:
             ts_code=self.ts_code,
             start_date=self.start_date,
             end_date=self.end_date,
-            portfolio_id=self.portfolio_id,
+            account_config_id=self.account_config_id,
             strategy_id=self.strategy_id,
             training_id=self.training_id,
         )
 
         assert result.backtest_id is not None
-        assert result.portfolio_id is not None
+        assert result.account_config_id is not None
         assert result.ts_code == self.ts_code
         assert result.initial_capital == 100000
         assert result.final_value > 0
@@ -120,8 +120,8 @@ class TestBacktestIntegration:
 
         saved_backtest = await BacktestResult.get(PydanticObjectId(result.backtest_id))
         assert saved_backtest is not None
-        assert saved_backtest.portfolio_id is not None
+        assert saved_backtest.account_config_id is not None
 
-        saved_portfolio = await portfolio_service.get_portfolio_by_id(PydanticObjectId(result.portfolio_id))
-        assert saved_portfolio is not None
-        assert saved_portfolio.name == "test_backtest_integration"
+        saved_account_config = await account_config_service.get_account_config_by_id(PydanticObjectId(result.account_config_id))
+        assert saved_account_config is not None
+        assert saved_account_config.name == "test_backtest_integration"

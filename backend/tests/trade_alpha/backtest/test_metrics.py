@@ -2,7 +2,7 @@
 
 import pytest
 from trade_alpha.backtest.metrics import calculate_metrics
-from trade_alpha.portfolio import Trade
+from trade_alpha.account import TradeRecord
 
 
 class TestMetrics:
@@ -36,10 +36,10 @@ class TestMetrics:
     def test_win_rate(self):
         """Test win rate calculation."""
         trades = [
-            Trade("20240102", "buy", 100.0, 100, 5.0, 90000, 100),
-            Trade("20240103", "sell", 105.0, 100, 15.5, 104984.5, 0),
-            Trade("20240104", "buy", 105.0, 100, 5.0, 94984.5, 100),
-            Trade("20240105", "sell", 103.0, 100, 15.3, 103969.2, 0),
+            TradeRecord("20240102", "buy", 100.0, 100, 5.0, 90000, 100),
+            TradeRecord("20240103", "sell", 105.0, 100, 15.5, 104984.5, 0),
+            TradeRecord("20240104", "buy", 105.0, 100, 5.0, 94984.5, 100),
+            TradeRecord("20240105", "sell", 103.0, 100, 15.3, 103969.2, 0),
         ]
         daily_values = [("20240102", 100000)] * 4
         result = calculate_metrics(trades, daily_values, 100000, 0.05)

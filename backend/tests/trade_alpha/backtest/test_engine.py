@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock
 from trade_alpha.backtest.engine import BacktestEngine
-from trade_alpha.portfolio import Portfolio
+from trade_alpha.account import AccountManager
 
 
 class TestBacktestEngine:
@@ -20,8 +20,8 @@ class TestBacktestEngine:
         strategy = MagicMock()
         strategy.decide.return_value = "buy"
         
-        portfolio = Portfolio(100000)
-        engine = BacktestEngine("000001.SZ", "20240101", "20240131", strategy, portfolio)
+        manager = AccountManager(100000)
+        engine = BacktestEngine("000001.SZ", "20240101", "20240131", strategy, manager)
         
         result = engine.run(mock_records)
         
