@@ -1,26 +1,34 @@
 """Tests for prediction service."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 from trade_alpha.predict.service import predict
 
 
-class TestPredictService:
-    @patch("trade_alpha.predict.service.MongoDB")
-    def test_predict_with_no_data(self, mock_mongo_class):
-        mock_mongo = MagicMock()
-        mock_mongo.find_by_ts_code.return_value = []
-        mock_mongo_class.return_value = mock_mongo
+def _make_mock_record(data: dict) -> MagicMock:
+    """Create a mock record with model_dump returning the given dict."""
+    record = MagicMock()
+    record.model_dump.return_value = data.copy()
+    for k, v in data.items():
+        setattr(record, k, v)
+    return record
 
-        result = predict("000001.SZ")
+
+class TestPredictService:
+    @pytest.mark.asyncio
+    @patch("trade_alpha.predict.service.StockDaily.find")
+    async def test_predict_with_no_data(self, mock_find):
+        mock_find.return_value.to_list = AsyncMock(return_value=[])
+
+        result = await predict("000001.SZ")
 
         assert result == {}
-        mock_mongo.close.assert_called_once()
 
-    @patch("trade_alpha.predict.service.MongoDB")
-    def test_predict_success(self, mock_mongo_class):
-        mock_mongo = MagicMock()
-        mock_mongo.find_by_ts_code.return_value = [
+    @pytest.mark.asyncio
+    @patch("trade_alpha.predict.service.PredictionResult")
+    @patch("trade_alpha.predict.service.StockDaily.find")
+    async def test_predict_success(self, mock_find, mock_prediction_cls):
+        data = [
             {"trade_date": "20240101", "open": 10, "high": 11, "low": 9, "close": 10.5, "vol": 100, "ma_5": 10.2},
             {"trade_date": "20240102", "open": 10.5, "high": 11.5, "low": 10, "close": 11, "vol": 110, "ma_5": 10.4},
             {"trade_date": "20240103", "open": 11, "high": 12, "low": 10.5, "close": 11.5, "vol": 120, "ma_5": 10.8},
@@ -34,11 +42,13 @@ class TestPredictService:
             {"trade_date": "20240111", "open": 15, "high": 16, "low": 14.5, "close": 15.5, "vol": 200, "ma_5": 14.5},
             {"trade_date": "20240112", "open": 15.5, "high": 16.5, "low": 15, "close": 16, "vol": 210, "ma_5": 15.0},
         ]
-        mock_mongo_class.return_value = mock_mongo
+        mock_find.return_value.to_list = AsyncMock(return_value=[
+            _make_mock_record(d) for d in data
+        ])
+        mock_prediction_cls.return_value.insert = AsyncMock()
 
-        result = predict("000001.SZ", targets=["open", "close"])
+        result = await predict("000001.SZ", targets=["open", "close"])
 
         assert "open" in result
         assert "close" in result
-        mock_mongo.insert_many.assert_called_once()
-        mock_mongo.close.assert_called_once()
+        mock_prediction_cls.return_value.insert.assert_called_once()
