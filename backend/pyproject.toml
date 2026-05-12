@@ -12,6 +12,10 @@ dependencies = [
     "numpy>=1.26",
     "xgboost>=2.0.0",
     "torch>=2.0.0",
+    "apscheduler>=3.10",
+    "beanie>=1.25",
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
 ]
 
 [build-system]
