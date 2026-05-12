@@ -1,10 +1,13 @@
 """FastAPI application entry point."""
 
+import math
 import time
+from typing import Any
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from trade_alpha.api.routers import (
     data,
@@ -19,6 +22,25 @@ from trade_alpha.api.routers import (
 from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
 from trade_alpha.scheduler import DataSyncScheduler
+
+
+def _clean_nan(obj: Any) -> Any:
+    """Recursively convert NaN floats to None for JSON-safe serialization."""
+    if isinstance(obj, float):
+        if math.isnan(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _clean_nan(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean_nan(v) for v in obj]
+    return obj
+
+
+class SafeJSONResponse(JSONResponse):
+    """JSONResponse that safely handles NaN values globally."""
+    def render(self, content: Any) -> bytes:
+        return super().render(_clean_nan(content))
 
 setup_logging()
 logger = get_logger("api")
@@ -64,6 +86,7 @@ app = FastAPI(
     description="Stock trading analysis system API",
     version="1.0.0",
     lifespan=lifespan,
+    default_response_class=SafeJSONResponse,
 )
 
 app.add_middleware(LoggingMiddleware)

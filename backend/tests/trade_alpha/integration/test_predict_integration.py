@@ -29,8 +29,8 @@ class TestPredictIntegration:
             ts_code=self.ts_code,
             targets=["open", "close"],
             model="linear",
-            start_date="20240101",
-            end_date="20240131"
+            start_date="20231101",
+            end_date="20231229"
         )
 
         assert "open" in result

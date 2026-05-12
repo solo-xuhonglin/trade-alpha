@@ -82,7 +82,7 @@ async def list_stocks(page: int = 1, page_size: int = 20) -> Tuple[List[StockLis
     """List stocks with pagination."""
     total = await StockList.count()
     skip = (page - 1) * page_size
-    stocks = await StockList.find_all().skip(skip).limit(page_size).to_list()
+    stocks = await StockList.find_all().sort(-StockList.total_mv).skip(skip).limit(page_size).to_list()
     return stocks, total
 
 

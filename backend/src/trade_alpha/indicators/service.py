@@ -38,6 +38,7 @@ async def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None)
         return 0
 
     df = pd.DataFrame([r.model_dump() for r in records])
+    df = df.sort_values("trade_date").reset_index(drop=True)
     df = calculate_ma(df, periods)
 
     updated_count = 0
@@ -72,6 +73,7 @@ async def calculate_and_store_macd(ts_code: str) -> int:
         return 0
 
     df = pd.DataFrame([r.model_dump() for r in records])
+    df = df.sort_values("trade_date").reset_index(drop=True)
     df = calculate_macd(df)
 
     updated_count = 0

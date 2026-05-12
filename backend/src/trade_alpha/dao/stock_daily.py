@@ -1,13 +1,23 @@
 """StockDaily Document model."""
 
+import math
 from datetime import datetime
 from typing import Optional
-from pydantic import Field
+from pydantic import Field, model_validator
 from beanie import Document
 
 
 class StockDaily(Document):
     """Stock daily data document for MongoDB."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def nan_to_none(cls, data):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if isinstance(v, float) and math.isnan(v):
+                    data[k] = None
+        return data
     
     ts_code: str
     trade_date: str
