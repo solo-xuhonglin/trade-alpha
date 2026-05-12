@@ -7268,3 +7268,206 @@
 2026-05-12 13:12:35.050 [INFO    ] [-              ] [backtest_service] [-              ] Saved 242 daily snapshots for backtest: 6a02b6c372121e1dbe89463d
 2026-05-12 13:12:35.051 [INFO    ] [-              ] [backtest_service] [-              ] Backtest completed: 002594.SZ, return rate: -4.20%
 2026-05-12 13:12:35.083 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
+2026-05-12 18:27:03.660 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 18:27:04.487 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 18:27:34.412 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 18:27:34.461 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 18:28:07.312 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 18:28:07.362 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 18:29:01.317 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 18:29:01.317 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking up time zone info from registry
+2026-05-12 18:29:01.345 [INFO    ] [-              ] [dao            ] [init_db        ] Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-12 18:29:01.346 [INFO    ] [-              ] [dao            ] [init_db        ] Added job "Data Sync Job" to job store "default"
+2026-05-12 18:29:01.347 [INFO    ] [-              ] [dao            ] [init_db        ] Scheduler started
+2026-05-12 18:29:01.347 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync scheduler started
+2026-05-12 18:29:01.347 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:29:01.347 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:30:01.345017+08:00 (in 59.997450 seconds)
+2026-05-12 18:30:01.353 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:30:01.354 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:31:01.345017+08:00 (in 59.990672 seconds)
+2026-05-12 18:30:01.354 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:31:01 CST)" (scheduled at 2026-05-12 18:30:01.345017+08:00)
+2026-05-12 18:30:01.354 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:30:01.386 [INFO    ] [-              ] [data_sync      ] [-              ] Processing data fetch for 601398.SH
+2026-05-12 18:30:01.386 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601398.SH from 20100101 to 20141231
+2026-05-12 18:30:01.660 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1199 records for 601398.SH
+2026-05-12 18:30:01.855 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1199 records for 601398.SH (20100101-20141231)
+2026-05-12 18:30:02.860 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601398.SH from 20150101 to 20191231
+2026-05-12 18:30:04.123 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1219 records for 601398.SH
+2026-05-12 18:30:04.394 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1219 records for 601398.SH (20150101-20191231)
+2026-05-12 18:30:05.407 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601398.SH from 20200101 to 20241231
+2026-05-12 18:30:05.670 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1212 records for 601398.SH
+2026-05-12 18:30:06.133 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 970 records for 601398.SH (20200101-20241231)
+2026-05-12 18:30:07.147 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601398.SH from 20250101 to 20260512
+2026-05-12 18:30:07.351 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 325 records for 601398.SH
+2026-05-12 18:30:07.680 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 325 records for 601398.SH (20250101-20260512)
+2026-05-12 18:30:08.686 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (data fetch)
+2026-05-12 18:30:08.686 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:31:01 CST)" executed successfully
+2026-05-12 18:31:01.348 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:31:01.348 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:32:01.345017+08:00 (in 59.996259 seconds)
+2026-05-12 18:31:01.349 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:32:01 CST)" (scheduled at 2026-05-12 18:31:01.345017+08:00)
+2026-05-12 18:31:01.349 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:31:01.354 [INFO    ] [-              ] [data_sync      ] [-              ] Processing indicators for 601398.SH
+2026-05-12 18:31:01.354 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 601398.SH with periods None
+2026-05-12 18:31:06.683 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MA for 601398.SH: 3955 records updated
+2026-05-12 18:31:06.686 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MACD for 601398.SH
+2026-05-12 18:31:11.944 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MACD for 601398.SH: 3955 records updated
+2026-05-12 18:31:11.949 [INFO    ] [-              ] [data_sync      ] [-              ] Completed indicators for 601398.SH
+2026-05-12 18:31:11.949 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (indicators)
+2026-05-12 18:31:11.949 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:32:01 CST)" executed successfully
+2026-05-12 18:32:01.357 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:32:01.358 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:33:01.345017+08:00 (in 59.986929 seconds)
+2026-05-12 18:32:01.358 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:33:01 CST)" (scheduled at 2026-05-12 18:32:01.345017+08:00)
+2026-05-12 18:32:01.358 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:32:01.365 [INFO    ] [-              ] [data_sync      ] [-              ] Processing data fetch for 601939.SH
+2026-05-12 18:32:01.366 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601939.SH from 20100101 to 20141231
+2026-05-12 18:32:02.654 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1200 records for 601939.SH
+2026-05-12 18:32:02.807 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1200 records for 601939.SH (20100101-20141231)
+2026-05-12 18:32:03.819 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601939.SH from 20150101 to 20191231
+2026-05-12 18:32:04.132 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1219 records for 601939.SH
+2026-05-12 18:32:04.374 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1219 records for 601939.SH (20150101-20191231)
+2026-05-12 18:32:05.389 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601939.SH from 20200101 to 20241231
+2026-05-12 18:32:05.673 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1212 records for 601939.SH
+2026-05-12 18:32:06.026 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1212 records for 601939.SH (20200101-20241231)
+2026-05-12 18:32:07.029 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601939.SH from 20250101 to 20260512
+2026-05-12 18:32:07.272 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 325 records for 601939.SH
+2026-05-12 18:32:07.581 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 325 records for 601939.SH (20250101-20260512)
+2026-05-12 18:32:08.598 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (data fetch)
+2026-05-12 18:32:08.598 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:33:01 CST)" executed successfully
+2026-05-12 18:33:01.360 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:33:01.360 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:34:01.345017+08:00 (in 59.984667 seconds)
+2026-05-12 18:33:01.360 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:34:01 CST)" (scheduled at 2026-05-12 18:33:01.345017+08:00)
+2026-05-12 18:33:01.360 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:33:01.366 [INFO    ] [-              ] [data_sync      ] [-              ] Processing indicators for 601939.SH
+2026-05-12 18:33:01.366 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 601939.SH with periods None
+2026-05-12 18:33:06.568 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MA for 601939.SH: 3956 records updated
+2026-05-12 18:33:06.571 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MACD for 601939.SH
+2026-05-12 18:33:11.789 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MACD for 601939.SH: 3956 records updated
+2026-05-12 18:33:11.794 [INFO    ] [-              ] [data_sync      ] [-              ] Completed indicators for 601939.SH
+2026-05-12 18:33:11.794 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (indicators)
+2026-05-12 18:33:11.794 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:34:01 CST)" executed successfully
+2026-05-12 18:33:39.405 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 18:33:39.462 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 18:34:01.346 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:34:01.347 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:35:01.345017+08:00 (in 59.997926 seconds)
+2026-05-12 18:34:01.347 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:35:01 CST)" (scheduled at 2026-05-12 18:34:01.345017+08:00)
+2026-05-12 18:34:01.347 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:34:01.355 [INFO    ] [-              ] [data_sync      ] [-              ] Processing data fetch for 601288.SH
+2026-05-12 18:34:01.355 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601288.SH from 20100101 to 20141231
+2026-05-12 18:34:03.706 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1080 records for 601288.SH
+2026-05-12 18:34:03.849 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1080 records for 601288.SH (20100101-20141231)
+2026-05-12 18:34:04.864 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601288.SH from 20150101 to 20191231
+2026-05-12 18:34:05.129 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1219 records for 601288.SH
+2026-05-12 18:34:05.380 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1219 records for 601288.SH (20150101-20191231)
+2026-05-12 18:34:06.382 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601288.SH from 20200101 to 20241231
+2026-05-12 18:34:07.666 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1212 records for 601288.SH
+2026-05-12 18:34:08.003 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1212 records for 601288.SH (20200101-20241231)
+2026-05-12 18:34:09.009 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601288.SH from 20250101 to 20260512
+2026-05-12 18:34:09.223 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 325 records for 601288.SH
+2026-05-12 18:34:09.627 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 325 records for 601288.SH (20250101-20260512)
+2026-05-12 18:34:10.639 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (data fetch)
+2026-05-12 18:34:10.639 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:35:01 CST)" executed successfully
+2026-05-12 18:35:01.350 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:35:01.350 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:36:01.345017+08:00 (in 59.994377 seconds)
+2026-05-12 18:35:01.350 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:36:01 CST)" (scheduled at 2026-05-12 18:35:01.345017+08:00)
+2026-05-12 18:35:01.351 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:35:01.356 [INFO    ] [-              ] [data_sync      ] [-              ] Processing indicators for 601288.SH
+2026-05-12 18:35:01.356 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 601288.SH with periods None
+2026-05-12 18:35:06.363 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MA for 601288.SH: 3836 records updated
+2026-05-12 18:35:06.366 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MACD for 601288.SH
+2026-05-12 18:35:11.327 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MACD for 601288.SH: 3836 records updated
+2026-05-12 18:35:11.332 [INFO    ] [-              ] [data_sync      ] [-              ] Completed indicators for 601288.SH
+2026-05-12 18:35:11.332 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (indicators)
+2026-05-12 18:35:11.332 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:36:01 CST)" executed successfully
+2026-05-12 18:36:01.358 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:36:01.358 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:37:01.345017+08:00 (in 59.986637 seconds)
+2026-05-12 18:36:01.358 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:37:01 CST)" (scheduled at 2026-05-12 18:36:01.345017+08:00)
+2026-05-12 18:36:01.358 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:36:01.366 [INFO    ] [-              ] [data_sync      ] [-              ] Processing data fetch for 600941.SH
+2026-05-12 18:36:01.366 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 600941.SH from 20100101 to 20141231
+2026-05-12 18:36:01.577 [WARNING ] [-              ] [data_service   ] [-              ] No data fetched for 600941.SH from 20100101 to 20141231
+2026-05-12 18:36:01.577 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 0 records for 600941.SH (20100101-20141231)
+2026-05-12 18:36:02.586 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 600941.SH from 20150101 to 20191231
+2026-05-12 18:36:02.857 [WARNING ] [-              ] [data_service   ] [-              ] No data fetched for 600941.SH from 20150101 to 20191231
+2026-05-12 18:36:02.857 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 0 records for 600941.SH (20150101-20191231)
+2026-05-12 18:36:03.863 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 600941.SH from 20200101 to 20241231
+2026-05-12 18:36:04.118 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 725 records for 600941.SH
+2026-05-12 18:36:04.217 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 725 records for 600941.SH (20200101-20241231)
+2026-05-12 18:36:05.230 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 600941.SH from 20250101 to 20260512
+2026-05-12 18:36:05.481 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 325 records for 600941.SH
+2026-05-12 18:36:05.583 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 325 records for 600941.SH (20250101-20260512)
+2026-05-12 18:36:06.601 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (data fetch)
+2026-05-12 18:36:06.601 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:37:01 CST)" executed successfully
+2026-05-12 18:37:01.352 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:37:01.353 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:38:01.345017+08:00 (in 59.991691 seconds)
+2026-05-12 18:37:01.353 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:38:01 CST)" (scheduled at 2026-05-12 18:37:01.345017+08:00)
+2026-05-12 18:37:01.353 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:37:01.359 [INFO    ] [-              ] [data_sync      ] [-              ] Processing indicators for 600941.SH
+2026-05-12 18:37:01.359 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 600941.SH with periods None
+2026-05-12 18:37:02.727 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MA for 600941.SH: 1050 records updated
+2026-05-12 18:37:02.728 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MACD for 600941.SH
+2026-05-12 18:37:04.126 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MACD for 600941.SH: 1050 records updated
+2026-05-12 18:37:04.129 [INFO    ] [-              ] [data_sync      ] [-              ] Completed indicators for 600941.SH
+2026-05-12 18:37:04.129 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (indicators)
+2026-05-12 18:37:04.129 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:38:01 CST)" executed successfully
+2026-05-12 18:38:01.354 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:38:01.354 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:39:01.345017+08:00 (in 59.990207 seconds)
+2026-05-12 18:38:01.355 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:39:01 CST)" (scheduled at 2026-05-12 18:38:01.345017+08:00)
+2026-05-12 18:38:01.355 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:38:01.362 [INFO    ] [-              ] [data_sync      ] [-              ] Processing data fetch for 300750.SZ
+2026-05-12 18:38:01.363 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 300750.SZ from 20100101 to 20141231
+2026-05-12 18:38:02.585 [WARNING ] [-              ] [data_service   ] [-              ] No data fetched for 300750.SZ from 20100101 to 20141231
+2026-05-12 18:38:02.585 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 0 records for 300750.SZ (20100101-20141231)
+2026-05-12 18:38:03.594 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 300750.SZ from 20150101 to 20191231
+2026-05-12 18:38:03.823 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 382 records for 300750.SZ
+2026-05-12 18:38:03.878 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 382 records for 300750.SZ (20150101-20191231)
+2026-05-12 18:38:04.885 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 300750.SZ from 20200101 to 20241231
+2026-05-12 18:38:05.176 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1212 records for 300750.SZ
+2026-05-12 18:38:05.365 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 1212 records for 300750.SZ (20200101-20241231)
+2026-05-12 18:38:06.376 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 300750.SZ from 20250101 to 20260512
+2026-05-12 18:38:07.634 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 325 records for 300750.SZ
+2026-05-12 18:38:07.800 [INFO    ] [-              ] [data_sync      ] [-              ] Fetched 325 records for 300750.SZ (20250101-20260512)
+2026-05-12 18:38:08.808 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (data fetch)
+2026-05-12 18:38:08.808 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:39:01 CST)" executed successfully
+2026-05-12 18:39:01.349 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:39:01.349 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:40:01.345017+08:00 (in 59.995708 seconds)
+2026-05-12 18:39:01.349 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:40:01 CST)" (scheduled at 2026-05-12 18:39:01.345017+08:00)
+2026-05-12 18:39:01.349 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:39:01.354 [INFO    ] [-              ] [data_sync      ] [-              ] Processing indicators for 300750.SZ
+2026-05-12 18:39:01.355 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 300750.SZ with periods None
+2026-05-12 18:39:03.972 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MA for 300750.SZ: 1919 records updated
+2026-05-12 18:39:03.974 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MACD for 300750.SZ
+2026-05-12 18:39:06.525 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MACD for 300750.SZ: 1919 records updated
+2026-05-12 18:39:06.529 [INFO    ] [-              ] [data_sync      ] [-              ] Completed indicators for 300750.SZ
+2026-05-12 18:39:06.529 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync job completed (indicators)
+2026-05-12 18:39:06.529 [INFO    ] [-              ] [data_sync      ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:40:01 CST)" executed successfully
+2026-05-12 18:40:01.349 [DEBUG   ] [-              ] [dao            ] [init_db        ] Looking for jobs to run
+2026-05-12 18:40:01.350 [DEBUG   ] [-              ] [dao            ] [init_db        ] Next wakeup is due at 2026-05-12 18:41:01.345017+08:00 (in 59.994956 seconds)
+2026-05-12 18:40:01.350 [INFO    ] [-              ] [dao            ] [init_db        ] Running job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:41:01 CST)" (scheduled at 2026-05-12 18:40:01.345017+08:00)
+2026-05-12 18:40:01.350 [INFO    ] [-              ] [data_sync      ] [-              ] Starting data sync job
+2026-05-12 18:40:01.362 [INFO    ] [-              ] [data_sync      ] [-              ] Processing data fetch for 601857.SH
+2026-05-12 18:40:01.362 [INFO    ] [-              ] [data_service   ] [-              ] Fetching daily data for 601857.SH from 20100101 to 20141231
+2026-05-12 18:40:02.678 [INFO    ] [-              ] [data_service   ] [-              ] Successfully fetched 1207 records for 601857.SH
+2026-05-12 18:40:02.853 [INFO    ] [-              ] [data_sync      ] [-              ] Data sync scheduler stopped
+2026-05-12 18:40:02.854 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
+2026-05-12 18:40:02.854 [INFO    ] [-              ] [data_sync      ] [-              ] Scheduler has been shut down
+2026-05-12 18:40:02.858 [ERROR   ] [-              ] [data_service   ] [-              ] Job "Data Sync Job (trigger: interval[0:01:00], next run at: 2026-05-12 18:41:01 CST)" raised an exception
+Traceback (most recent call last):
+  File "C:\Users\Agent\AppData\Local\Programs\Python\Python314\Lib\site-packages\apscheduler\executors\base.py", line 181, in run_coroutine_job
+    retval = await job.func(*job.args, **job.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\projects\trade-alpha\backend\src\trade_alpha\scheduler\data_sync.py", line 118, in run_data_sync_job
+    await fetch_stock_data_with_periods(stock)
+  File "D:\projects\trade-alpha\backend\src\trade_alpha\scheduler\data_sync.py", line 61, in fetch_stock_data_with_periods
+    count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\projects\trade-alpha\backend\src\trade_alpha\data\service.py", line 33, in fetch_and_store_stock_daily
+    await StockDaily.insert_many([StockDaily(**r) for r in new_records])
+  File "C:\Users\Agent\AppData\Local\Programs\Python\Python314\Lib\site-packages\beanie\odm\documents.py", line 462, in insert_many
+    return await cls.get_pymongo_collection().insert_many(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        documents_list, session=session, **pymongo_kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+asyncio.exceptions.CancelledError
+2026-05-12 18:40:29.596 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 18:40:29.646 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha

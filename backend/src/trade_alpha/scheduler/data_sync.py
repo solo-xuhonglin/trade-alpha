@@ -83,7 +83,7 @@ async def calculate_stock_indicators(stock: StockList) -> bool:
         await calculate_and_store_ma(stock.ts_code)
         await calculate_and_store_macd(stock.ts_code)
 
-        stock.sync_status = "indicator_completed"
+        stock.sync_status = "active"
         await stock.save()
         logger.info(f"Completed indicators for {stock.ts_code}")
         return True

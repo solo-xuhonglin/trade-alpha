@@ -285,7 +285,7 @@ trade-alpha/
 - `run_data_sync_job()`: 每分钟执行的同步任务
 
 **状态流转**:
-- `pending` → `data_completed` → `indicator_completed`
+- `pending` → `data_completed` → `active`
 
 **任务逻辑**:
 1. 检查是否有待计算指标的股票（data_completed）
