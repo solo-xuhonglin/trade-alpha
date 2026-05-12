@@ -65,6 +65,8 @@ trade-alpha/
 │   │   │   ├── signal_generator.py # 信号生成器
 │   │   │   ├── position_manager.py # 仓位管理器
 │   │   │   └── schemas.py          # 数据结构定义
+│   │   ├── scheduler/          # 定时任务模块
+│   │   │   └── data_sync.py       # 数据同步定时任务
 │   │   └── api/routers/       # API 路由
 │   │       ├── data.py
 │   │       ├── indicators.py
@@ -115,7 +117,7 @@ trade-alpha/
 
 - `mongodb.py`: MongoDB 连接管理和 Beanie 初始化
 - `stock_daily.py`: 股票日线数据 Document
-- `stock_list.py`: 股票列表 Document
+- `stock_list.py`: 股票列表 Document（包含 sync_status 字段用于数据同步状态追踪）
 - `account_config.py`: 账户配置 Document
 - `strategy_config.py`: 策略配置 Document
 - `model_config.py`: 模型配置 Document
@@ -275,7 +277,31 @@ trade-alpha/
 - `Position`: 持仓信息
 - `TradeOrder`: 交易订单
 
-### 11. API 路由
+### 11. 调度器模块 (scheduler)
+
+数据同步定时任务，集成到 FastAPI 生命周期：
+
+- `DataSyncScheduler`: APScheduler 调度器封装
+- `run_data_sync_job()`: 每分钟执行的同步任务
+
+**状态流转**:
+- `pending` → `data_completed` → `indicator_completed`
+
+**任务逻辑**:
+1. 检查是否有待计算指标的股票（data_completed）
+2. 检查是否有待获取数据的股票（pending）
+3. 每次任务处理1只股票，4个时间段的数据获取
+4. 每次 API 请求间隔1秒
+
+**数据分段**:
+| 序号 | 开始日期 | 结束日期 |
+|------|----------|----------|
+| 1 | 2010-01-01 | 2014-12-31 |
+| 2 | 2015-01-01 | 2019-12-31 |
+| 3 | 2020-01-01 | 2024-12-31 |
+| 4 | 2025-01-01 | 当前日期 |
+
+### 12. API 路由
 
 | 路由 | 说明 |
 |------|------|
