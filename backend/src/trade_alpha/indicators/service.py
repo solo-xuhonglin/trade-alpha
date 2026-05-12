@@ -4,6 +4,12 @@ import pandas as pd
 from trade_alpha.dao import StockDaily
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
+from trade_alpha.indicators.more_indicators import (
+    calculate_pct_chg,
+    calculate_bias,
+    calculate_close_pct_rank,
+    calculate_vol_ratio,
+)
 from trade_alpha.logging import get_logger
 
 logger = get_logger("indicators_service")
@@ -80,4 +86,49 @@ async def calculate_and_store_macd(ts_code: str) -> int:
         updated_count += 1
 
     logger.info(f"Successfully calculated and stored MACD for {ts_code}: {updated_count} records updated")
+    return updated_count
+
+
+async def calculate_and_store_more_indicators(ts_code: str) -> int:
+    """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio).
+
+    Args:
+        ts_code: Stock code
+
+    Returns:
+        Number of records updated
+    """
+    logger.info(f"Calculating additional indicators for {ts_code}")
+
+    records = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
+    if not records:
+        logger.warning(f"No data found for {ts_code}")
+        return 0
+
+    df = pd.DataFrame([r.model_dump() for r in records])
+    df = df.sort_values("trade_date").reset_index(drop=True)
+
+    df = calculate_pct_chg(df)
+    df = calculate_bias(df, periods=[5, 10, 20, 60])
+    df = calculate_close_pct_rank(df, period=20)
+    df = calculate_vol_ratio(df, period=5)
+
+    updated_count = 0
+    for _, row in df.iterrows():
+        update_data = {
+            "pct_chg": row.get("pct_chg"),
+            "bias_5": row.get("bias_5"),
+            "bias_10": row.get("bias_10"),
+            "bias_20": row.get("bias_20"),
+            "bias_60": row.get("bias_60"),
+            "close_pct_rank_20": row.get("close_pct_rank_20"),
+            "vol_ratio_5": row.get("vol_ratio_5"),
+        }
+        await StockDaily.find_one(
+            StockDaily.ts_code == ts_code,
+            StockDaily.trade_date == row["trade_date"]
+        ).update({"$set": update_data})
+        updated_count += 1
+
+    logger.info(f"Successfully stored additional indicators for {ts_code}: {updated_count} records")
     return updated_count

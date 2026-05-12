@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd
+from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd, calculate_and_store_more_indicators
 
 
 def _make_mock_record(data: dict) -> MagicMock:
@@ -55,3 +55,26 @@ class TestService:
         result = await calculate_and_store_macd("000001.SZ")
 
         assert result == 50
+
+    @pytest.mark.asyncio
+    @patch("trade_alpha.indicators.service.StockDaily.find_one")
+    @patch("trade_alpha.indicators.service.StockDaily.find")
+    async def test_calculate_and_store_more_indicators_success(self, mock_find, mock_find_one):
+        mock_find.return_value.to_list = AsyncMock(return_value=[
+            _make_mock_record({"ts_code": "000001.SZ", "trade_date": f"2024010{i:02d}", "close": 10.0 + i, "vol": 100.0 + i})
+            for i in range(10)
+        ])
+        mock_find_one.return_value.update = AsyncMock()
+
+        result = await calculate_and_store_more_indicators("000001.SZ")
+
+        assert result == 10
+
+    @pytest.mark.asyncio
+    @patch("trade_alpha.indicators.service.StockDaily.find")
+    async def test_calculate_and_store_more_indicators_empty(self, mock_find):
+        mock_find.return_value.to_list = AsyncMock(return_value=[])
+
+        result = await calculate_and_store_more_indicators("000001.SZ")
+
+        assert result == 0
