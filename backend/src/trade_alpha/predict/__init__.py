@@ -4,6 +4,12 @@ from trade_alpha.predict.base import BasePredictor
 from trade_alpha.predict.linear import LinearPredictor
 from trade_alpha.predict.xgboost import XGBoostPredictor
 from trade_alpha.predict.lstm import LSTMPredictor
+from trade_alpha.predict.normalizer import (
+    BaseNormalizer,
+    SlidingWindowNormalizer,
+    CrossSectionalNormalizer,
+    NormalizerRegistry,
+)
 from trade_alpha.dao import ModelConfig, TrainingResult
 from trade_alpha.predict import config_service
 from trade_alpha.predict import training_service
@@ -13,6 +19,10 @@ __all__ = [
     "LinearPredictor",
     "XGBoostPredictor",
     "LSTMPredictor",
+    "BaseNormalizer",
+    "SlidingWindowNormalizer",
+    "CrossSectionalNormalizer",
+    "NormalizerRegistry",
     "ModelConfig",
     "TrainingResult",
     "config_service",

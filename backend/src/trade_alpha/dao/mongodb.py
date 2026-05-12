@@ -23,13 +23,14 @@ async def init_db():
     from trade_alpha.dao.strategy import StrategyConfig
     from trade_alpha.dao.model_config import ModelConfig
     from trade_alpha.dao.training import TrainingResult
-    from trade_alpha.dao.backtest import BacktestResult
-    from trade_alpha.dao.backtest_trade import BacktestTrade
-    from trade_alpha.dao.backtest_portfolio_daily import BacktestPortfolioDaily
+    from trade_alpha.dao.execution import ExecutionResult
+    from trade_alpha.dao.execution_trade import ExecutionTrade
+    from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
     from trade_alpha.dao.prediction import PredictionResult
     from trade_alpha.dao.signal import SignalResult
     from trade_alpha.dao.stock_daily import StockDaily
     from trade_alpha.dao.stock_list import StockList
+    from trade_alpha.dao.order_suggestion import OrderSuggestion
 
     await init_beanie(
         database=database,
@@ -38,13 +39,14 @@ async def init_db():
             StrategyConfig,
             ModelConfig,
             TrainingResult,
-            BacktestResult,
-            BacktestTrade,
-            BacktestPortfolioDaily,
+            ExecutionResult,
+            ExecutionTrade,
+            ExecutionPortfolioDaily,
             PredictionResult,
             SignalResult,
             StockDaily,
             StockList,
+            OrderSuggestion,
         ]
     )
     logger.info("init_db", f"Beanie initialized for {config.mongodb_db}")

@@ -7,7 +7,7 @@ from trade_alpha.data.service import fetch_and_store_stock_daily
 from trade_alpha.account import service as account_config_service
 from trade_alpha.strategy import service as strategy_service
 from trade_alpha.predict import training_service, config_service
-from trade_alpha.dao import BacktestResult, BacktestTrade, StockDaily
+from trade_alpha.dao import ExecutionResult, ExecutionTrade, StockDaily
 
 
 async def _ensure_default_training(config_id: PydanticObjectId):
@@ -57,10 +57,10 @@ class TestBacktestIntegration:
 
         yield
 
-        backtests = await BacktestResult.find(BacktestResult.ts_code == self.ts_code).to_list()
+        backtests = await ExecutionResult.find(ExecutionResult.ts_code == self.ts_code).to_list()
         for bt in backtests:
-            await BacktestTrade.find(BacktestTrade.backtest_id == bt.id).delete()
-        await BacktestResult.find(BacktestResult.ts_code == self.ts_code).delete()
+            await ExecutionTrade.find(ExecutionTrade.backtest_id == bt.id).delete()
+        await ExecutionResult.find(ExecutionResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
     async def test_run_backtest(self, setup_db):
@@ -84,7 +84,7 @@ class TestBacktestIntegration:
         assert result.final_value > 0
         assert isinstance(result.total_return, float)
 
-        saved_backtest = await BacktestResult.get(PydanticObjectId(result.backtest_id))
+        saved_backtest = await ExecutionResult.get(PydanticObjectId(result.backtest_id))
         assert saved_backtest is not None
         assert saved_backtest.account_config_id is not None
 

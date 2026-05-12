@@ -47,11 +47,11 @@ class TestBacktestServicePersistence:
         mock_strategy.type = "price"
         mock_strategy.config = {}
 
-        with patch("trade_alpha.backtest.service.BacktestResult") as MockBacktestResult:
+        with patch("trade_alpha.backtest.service.ExecutionResult") as MockExecutionResult:
             mock_backtest = MagicMock()
             mock_backtest.id = PydanticObjectId()
             mock_backtest.insert = AsyncMock()
-            MockBacktestResult.return_value = mock_backtest
+            MockExecutionResult.return_value = mock_backtest
 
             result = await save_backtest(engine_result, mock_account_config, mock_strategy)
 
@@ -87,8 +87,8 @@ class TestBacktestServicePersistence:
             ),
         ]
 
-        with patch("trade_alpha.backtest.service.BacktestTrade") as MockBacktestTrade:
-            MockBacktestTrade.insert_many = AsyncMock()
+        with patch("trade_alpha.backtest.service.ExecutionTrade") as MockExecutionTrade:
+            MockExecutionTrade.insert_many = AsyncMock()
 
             result = await save_trades(
                 mock_backtest_id,
@@ -100,4 +100,4 @@ class TestBacktestServicePersistence:
             )
 
             assert result == len(trades)
-            MockBacktestTrade.insert_many.assert_called_once()
+            MockExecutionTrade.insert_many.assert_called_once()

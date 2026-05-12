@@ -1,0 +1,34 @@
+"""ExecutionTrade Document model."""
+
+from datetime import datetime
+from typing import Optional
+from pydantic import Field
+from beanie import Document, PydanticObjectId
+
+
+class ExecutionTrade(Document):
+    """Execution trade document for MongoDB."""
+    
+    backtest_id: PydanticObjectId
+    account_config_id: Optional[PydanticObjectId] = None
+    strategy_id: Optional[PydanticObjectId] = None
+    training_id: Optional[PydanticObjectId] = None
+    ts_code: str
+    trade_date: str
+    action: str
+    price: float
+    shares: int
+    fee: float
+    cash_after: float
+    position_after: int
+    mode: str = "backtest"
+    status: str = "executed"
+    execution_time: Optional[datetime] = None
+    
+    class Settings:
+        name = "execution_trades"
+        indexes = [
+            "backtest_id",
+            "ts_code",
+            "trade_date",
+        ]

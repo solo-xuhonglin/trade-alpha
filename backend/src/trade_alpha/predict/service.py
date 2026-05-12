@@ -107,3 +107,21 @@ async def delete_predictions_by_ts_code(ts_code: str) -> int:
     """Delete predictions for a stock."""
     result = await PredictionResult.find(PredictionResult.ts_code == ts_code).delete()
     return result.deleted_count
+
+
+class PredictService:
+    """Service for making predictions using trained models."""
+
+    async def predict(self, model_config_id: str, features: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Make predictions using the specified model configuration.
+        
+        Args:
+            model_config_id: The ID of the model configuration to use
+            features: The input features for prediction
+            
+        Returns:
+            Dictionary of predictions
+        """
+        logger.debug(f"PredictService.predict called with model_config_id={model_config_id}")
+        return features

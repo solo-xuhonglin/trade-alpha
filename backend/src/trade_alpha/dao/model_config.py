@@ -13,6 +13,10 @@ class ModelConfig(Document):
     model_type: str
     params: Dict[str, Any] = Field(default_factory=dict)
     targets: List[str] = Field(default_factory=list)
+    normalizer: str = "cross_sectional"
+    window_size: int = 60
+    feature_cols: List[str] = Field(default_factory=list)
+    target_cols: List[str] = Field(default_factory=list)
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     

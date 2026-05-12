@@ -1,4 +1,4 @@
-"""BacktestResult Document model."""
+"""ExecutionResult Document model."""
 
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -25,8 +25,8 @@ class StrategySnapshotEmbed(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
 
 
-class BacktestResult(Document):
-    """Backtest result document for MongoDB."""
+class ExecutionResult(Document):
+    """Execution result document for MongoDB."""
 
     account_config_id: Optional[PydanticObjectId] = None
     strategy_id: Optional[PydanticObjectId] = None
@@ -47,9 +47,10 @@ class BacktestResult(Document):
     account_snapshot: Optional[AccountSnapshotEmbed] = None
     strategy_snapshot: Optional[StrategySnapshotEmbed] = None
     created_at: Optional[datetime] = None
+    mode: str = Field(default="backtest")
 
     class Settings:
-        name = "backtest_results"
+        name = "execution_results"
         indexes = [
             "ts_code",
             "account_config_id",

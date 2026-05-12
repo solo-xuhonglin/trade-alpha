@@ -7,7 +7,7 @@ from trade_alpha.data.service import fetch_and_store_stock_daily
 from trade_alpha.account import service as account_config_service
 from trade_alpha.strategy import service as strategy_service
 from trade_alpha.predict import training_service, config_service
-from trade_alpha.dao import BacktestResult, BacktestTrade, BacktestPortfolioDaily
+from trade_alpha.dao import ExecutionResult, ExecutionTrade, ExecutionPortfolioDaily
 
 
 async def _ensure_default_account_config():
@@ -91,11 +91,11 @@ class TestBacktest:
 
         yield
 
-        backtests = await BacktestResult.find(BacktestResult.ts_code == self.ts_code).to_list()
+        backtests = await ExecutionResult.find(ExecutionResult.ts_code == self.ts_code).to_list()
         for bt in backtests:
-            await BacktestTrade.find(BacktestTrade.backtest_id == bt.id).delete()
-            await BacktestPortfolioDaily.find(BacktestPortfolioDaily.backtest_id == bt.id).delete()
-        await BacktestResult.find(BacktestResult.ts_code == self.ts_code).delete()
+            await ExecutionTrade.find(ExecutionTrade.backtest_id == bt.id).delete()
+            await ExecutionPortfolioDaily.find(ExecutionPortfolioDaily.backtest_id == bt.id).delete()
+        await ExecutionResult.find(ExecutionResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
     async def test_run_backtest(self, setup_db):
@@ -142,7 +142,7 @@ class TestBacktest:
 
         assert result.backtest_id is not None
 
-        saved = await BacktestResult.get(PydanticObjectId(result.backtest_id))
+        saved = await ExecutionResult.get(PydanticObjectId(result.backtest_id))
         assert saved is not None
 
     @pytest.mark.asyncio
@@ -158,8 +158,8 @@ class TestBacktest:
         )
 
         if result.total_trades > 0:
-            trades = await BacktestTrade.find(
-                BacktestTrade.backtest_id == PydanticObjectId(result.backtest_id)
+            trades = await ExecutionTrade.find(
+                ExecutionTrade.backtest_id == PydanticObjectId(result.backtest_id)
             ).to_list()
             assert len(trades) == result.total_trades
 
@@ -191,7 +191,7 @@ class TestBacktest:
             training_id=self.training_id,
         )
 
-        backtest = await BacktestResult.get(PydanticObjectId(result.backtest_id))
+        backtest = await ExecutionResult.get(PydanticObjectId(result.backtest_id))
         assert backtest is not None
         assert backtest.account_snapshot is not None
         assert backtest.strategy_snapshot is not None
@@ -210,8 +210,8 @@ class TestBacktest:
             training_id=self.training_id,
         )
 
-        snapshots = await BacktestPortfolioDaily.find(
-            BacktestPortfolioDaily.backtest_id == PydanticObjectId(result.backtest_id)
+        snapshots = await ExecutionPortfolioDaily.find(
+            ExecutionPortfolioDaily.backtest_id == PydanticObjectId(result.backtest_id)
         ).to_list()
 
         assert len(snapshots) > 0

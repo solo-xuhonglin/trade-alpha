@@ -3,9 +3,9 @@
 from datetime import datetime, timezone
 from typing import List, Optional, Any
 from beanie import PydanticObjectId
-from trade_alpha.dao import BacktestResult, BacktestTrade, BacktestPortfolioDaily, StockDaily
-from trade_alpha.dao.backtest import AccountSnapshotEmbed, StrategySnapshotEmbed
-from trade_alpha.dao.backtest_portfolio_daily import Position
+from trade_alpha.dao import ExecutionResult, ExecutionTrade, ExecutionPortfolioDaily, StockDaily
+from trade_alpha.dao.execution import AccountSnapshotEmbed, StrategySnapshotEmbed
+from trade_alpha.dao.execution_portfolio_daily import Position
 from trade_alpha.logging import get_logger
 from trade_alpha.account import get_account_config_by_id, AccountManager
 from trade_alpha.strategy import get_strategy_instance
@@ -14,27 +14,27 @@ from trade_alpha.backtest.engine import BacktestEngine, BacktestResult as Engine
 logger = get_logger("backtest_service")
 
 
-async def get_backtest_by_id(backtest_id: PydanticObjectId) -> Optional[BacktestResult]:
+async def get_backtest_by_id(backtest_id: PydanticObjectId) -> Optional[ExecutionResult]:
     """Get backtest by ID."""
-    return await BacktestResult.get(backtest_id)
+    return await ExecutionResult.get(backtest_id)
 
 
-async def list_backtests(page: int = 1, page_size: int = 20) -> tuple[List[BacktestResult], int]:
+async def list_backtests(page: int = 1, page_size: int = 20) -> tuple[List[ExecutionResult], int]:
     """List backtests with pagination."""
-    total = await BacktestResult.count()
+    total = await ExecutionResult.count()
     skip = (page - 1) * page_size
-    results = await BacktestResult.find_all().sort(-BacktestResult.id).skip(skip).limit(page_size).to_list()
+    results = await ExecutionResult.find_all().sort(-ExecutionResult.id).skip(skip).limit(page_size).to_list()
     return results, total
 
 
 async def delete_backtest(backtest_id: PydanticObjectId) -> bool:
     """Delete backtest, trades, and daily snapshots."""
-    backtest = await BacktestResult.get(backtest_id)
+    backtest = await ExecutionResult.get(backtest_id)
     if not backtest:
         return False
 
-    await BacktestTrade.find(BacktestTrade.backtest_id == backtest_id).delete()
-    await BacktestPortfolioDaily.find(BacktestPortfolioDaily.backtest_id == backtest_id).delete()
+    await ExecutionTrade.find(ExecutionTrade.backtest_id == backtest_id).delete()
+    await ExecutionPortfolioDaily.find(ExecutionPortfolioDaily.backtest_id == backtest_id).delete()
     await backtest.delete()
     logger.info(f"Backtest deleted: id={backtest_id}")
     return True
@@ -44,11 +44,11 @@ async def save_backtest(
     result: EngineBacktestResult,
     account_config: Any,
     strategy: Any,
-) -> BacktestResult:
+) -> ExecutionResult:
     """Save backtest result with configuration snapshots."""
     logger.info("Saving backtest result")
 
-    backtest = BacktestResult(
+    backtest = ExecutionResult(
         account_config_id=PydanticObjectId(result.account_config_id) if result.account_config_id else None,
         strategy_id=PydanticObjectId(result.strategy_id) if result.strategy_id else None,
         training_id=PydanticObjectId(result.training_id) if result.training_id else None,
@@ -101,7 +101,7 @@ async def save_daily_snapshots(
             Position(ts_code=p.ts_code, shares=p.shares)
             for p in snapshot.positions
         ]
-        doc = BacktestPortfolioDaily(
+        doc = ExecutionPortfolioDaily(
             backtest_id=backtest_id,
             date=snapshot.date,
             cash=snapshot.cash,
@@ -112,7 +112,7 @@ async def save_daily_snapshots(
         )
         snapshot_docs.append(doc)
 
-    await BacktestPortfolioDaily.insert_many(snapshot_docs)
+    await ExecutionPortfolioDaily.insert_many(snapshot_docs)
     logger.info(f"Saved {len(snapshot_docs)} daily snapshots for backtest: {backtest_id}")
     return len(snapshot_docs)
 
@@ -130,7 +130,7 @@ async def save_trades(
 
     trade_docs = []
     for trade_record in trades:
-        trade_doc = BacktestTrade(
+        trade_doc = ExecutionTrade(
             backtest_id=backtest_id,
             portfolio_id=account_config_id,
             strategy_id=strategy_id,
@@ -147,7 +147,7 @@ async def save_trades(
         trade_docs.append(trade_doc)
 
     if trade_docs:
-        await BacktestTrade.insert_many(trade_docs)
+        await ExecutionTrade.insert_many(trade_docs)
         return len(trade_docs)
     return 0
 
@@ -249,7 +249,7 @@ async def list_trainings_for_filter() -> List[dict]:
 
 async def get_distinct_ts_codes() -> List[str]:
     """Get distinct ts_codes from trades."""
-    docs = await BacktestTrade.find_all().to_list()
+    docs = await ExecutionTrade.find_all().to_list()
     return sorted(set(doc.ts_code for doc in docs if doc.ts_code))
 
 
@@ -260,22 +260,22 @@ async def list_trades(
     strategy_id: PydanticObjectId = None,
     training_id: PydanticObjectId = None,
     ts_code: str = None,
-) -> tuple[List[BacktestTrade], int]:
+) -> tuple[List[ExecutionTrade], int]:
     """List trades with pagination and filtering."""
-    query = BacktestTrade.find_all()
+    query = ExecutionTrade.find_all()
 
     if account_config_id:
-        query = query.filter(BacktestTrade.account_config_id == account_config_id)
+        query = query.filter(ExecutionTrade.account_config_id == account_config_id)
     if strategy_id:
-        query = query.filter(BacktestTrade.strategy_id == strategy_id)
+        query = query.filter(ExecutionTrade.strategy_id == strategy_id)
     if training_id:
-        query = query.filter(BacktestTrade.training_id == training_id)
+        query = query.filter(ExecutionTrade.training_id == training_id)
     if ts_code:
-        query = query.filter(BacktestTrade.ts_code == ts_code)
+        query = query.filter(ExecutionTrade.ts_code == ts_code)
 
     total = await query.count()
     skip = (page - 1) * page_size
-    results = await query.sort(-BacktestTrade.trade_date).skip(skip).limit(page_size).to_list()
+    results = await query.sort(-ExecutionTrade.trade_date).skip(skip).limit(page_size).to_list()
     return results, total
 
 
@@ -283,12 +283,12 @@ async def list_trades_by_backtest_id(
     backtest_id: PydanticObjectId,
     page: int = 1,
     page_size: int = 20,
-) -> tuple[List[BacktestTrade], int]:
+) -> tuple[List[ExecutionTrade], int]:
     """List trades for a specific backtest."""
-    query = BacktestTrade.find(BacktestTrade.backtest_id == backtest_id)
+    query = ExecutionTrade.find(ExecutionTrade.backtest_id == backtest_id)
     total = await query.count()
     skip = (page - 1) * page_size
-    results = await query.sort(-BacktestTrade.trade_date).skip(skip).limit(page_size).to_list()
+    results = await query.sort(-ExecutionTrade.trade_date).skip(skip).limit(page_size).to_list()
     return results, total
 
 
@@ -296,10 +296,10 @@ async def list_daily_snapshots(
     backtest_id: PydanticObjectId,
     page: int = 1,
     page_size: int = 20,
-) -> tuple[List[BacktestPortfolioDaily], int]:
+) -> tuple[List[ExecutionPortfolioDaily], int]:
     """List daily snapshots for a backtest."""
-    query = BacktestPortfolioDaily.find(BacktestPortfolioDaily.backtest_id == backtest_id)
+    query = ExecutionPortfolioDaily.find(ExecutionPortfolioDaily.backtest_id == backtest_id)
     total = await query.count()
     skip = (page - 1) * page_size
-    results = await query.sort(BacktestPortfolioDaily.date).skip(skip).limit(page_size).to_list()
+    results = await query.sort(ExecutionPortfolioDaily.date).skip(skip).limit(page_size).to_list()
     return results, total
