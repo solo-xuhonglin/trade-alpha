@@ -49,7 +49,10 @@ trade-alpha/
 │   │   │   │   ├── xgboost.py       # XGBoostPredictor
 │   │   │   │   └── lstm.py          # LSTMPredictor
 │   │   │   ├── normalizers/         # 标准化器
-│   │   │   │   └── normalizer.py    # 标准化器实现
+│   │   │   │   ├── base.py              # BaseNormalizer 基类
+│   │   │   │   ├── sliding_window.py    # 滑动窗口标准化
+│   │   │   │   ├── cross_sectional.py   # 截面标准化
+│   │   │   │   └── registry.py          # 标准化器注册表
 │   │   │   ├── config_service.py   # 模型配置服务
 │   │   │   ├── service.py           # 预测服务
 │   │   │   └── training_service.py  # 训练服务
