@@ -9,7 +9,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list
-from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd, calculate_and_store_more_indicators
+from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd, calculate_and_store_custom_indicators
 from trade_alpha.logging import get_logger
 
 logger = get_logger("data_sync")
@@ -82,7 +82,7 @@ async def calculate_stock_indicators(stock: StockList) -> bool:
     try:
         await calculate_and_store_ma(stock.ts_code)
         await calculate_and_store_macd(stock.ts_code)
-        await calculate_and_store_more_indicators(stock.ts_code)
+        await calculate_and_store_custom_indicators(stock.ts_code)
 
         stock.sync_status = "active"
         await stock.save()

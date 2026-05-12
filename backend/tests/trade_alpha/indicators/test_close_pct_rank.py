@@ -1,7 +1,7 @@
 """Tests for close_pct_rank module."""
 
 import pandas as pd
-from trade_alpha.indicators.close_pct_rank import calculate_close_pct_rank
+from trade_alpha.indicators.custom.close_pct_rank import calculate_close_pct_rank
 
 
 def test_calculate_close_pct_rank():

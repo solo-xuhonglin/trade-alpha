@@ -4,12 +4,14 @@ import pandas as pd
 from trade_alpha.dao import StockDaily
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
-from trade_alpha.indicators.pct_chg import calculate_pct_chg
-from trade_alpha.indicators.bias import calculate_bias
-from trade_alpha.indicators.close_pct_rank import calculate_close_pct_rank
-from trade_alpha.indicators.vol_ratio import calculate_vol_ratio
-from trade_alpha.indicators.kdj import calculate_kdj
-from trade_alpha.indicators.boll import calculate_boll
+from trade_alpha.indicators.custom import (
+    calculate_pct_chg,
+    calculate_bias,
+    calculate_close_pct_rank,
+    calculate_vol_ratio,
+    calculate_kdj,
+    calculate_boll,
+)
 from trade_alpha.logging import get_logger
 
 logger = get_logger("indicators_service")
@@ -89,7 +91,7 @@ async def calculate_and_store_macd(ts_code: str) -> int:
     return updated_count
 
 
-async def calculate_and_store_more_indicators(ts_code: str) -> int:
+async def calculate_and_store_custom_indicators(ts_code: str) -> int:
     """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio, kdj, boll).
 
     Args:

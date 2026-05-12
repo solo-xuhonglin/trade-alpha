@@ -1,7 +1,7 @@
 """Tests for bias module."""
 
 import pandas as pd
-from trade_alpha.indicators.bias import calculate_bias
+from trade_alpha.indicators.custom.bias import calculate_bias
 
 
 def test_calculate_bias():

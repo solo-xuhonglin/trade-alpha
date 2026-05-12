@@ -2,7 +2,7 @@
 
 import pandas as pd
 import pytest
-from trade_alpha.indicators.pct_chg import calculate_pct_chg
+from trade_alpha.indicators.custom.pct_chg import calculate_pct_chg
 
 
 def test_calculate_pct_chg():

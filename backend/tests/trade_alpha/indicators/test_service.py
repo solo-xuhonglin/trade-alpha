@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from trade_alpha.indicators.service import (
     calculate_and_store_ma,
     calculate_and_store_macd,
-    calculate_and_store_more_indicators,
+    calculate_and_store_custom_indicators,
 )
 
 
@@ -76,19 +76,19 @@ class TestService:
     @pytest.mark.asyncio
     @patch("trade_alpha.indicators.service.StockDaily.find_one")
     @patch("trade_alpha.indicators.service.StockDaily.find")
-    async def test_calculate_and_store_more_indicators_success(self, mock_find, mock_find_one):
+    async def test_calculate_and_store_custom_indicators_success(self, mock_find, mock_find_one):
         mock_find.return_value.to_list = AsyncMock(return_value=_make_price_records(30))
         mock_find_one.return_value.update = AsyncMock()
 
-        result = await calculate_and_store_more_indicators("000001.SZ")
+        result = await calculate_and_store_custom_indicators("000001.SZ")
 
         assert result == 30
 
     @pytest.mark.asyncio
     @patch("trade_alpha.indicators.service.StockDaily.find")
-    async def test_calculate_and_store_more_indicators_empty(self, mock_find):
+    async def test_calculate_and_store_custom_indicators_empty(self, mock_find):
         mock_find.return_value.to_list = AsyncMock(return_value=[])
 
-        result = await calculate_and_store_more_indicators("000001.SZ")
+        result = await calculate_and_store_custom_indicators("000001.SZ")
 
         assert result == 0

@@ -1,7 +1,7 @@
 """Tests for vol_ratio module."""
 
 import pandas as pd
-from trade_alpha.indicators.vol_ratio import calculate_vol_ratio
+from trade_alpha.indicators.custom.vol_ratio import calculate_vol_ratio
 
 
 def test_calculate_vol_ratio():

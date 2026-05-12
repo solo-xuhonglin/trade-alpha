@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from trade_alpha.indicators.boll import calculate_boll
+from trade_alpha.indicators.custom.boll import calculate_boll
 
 
 def test_calculate_boll_columns():

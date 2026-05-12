@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from trade_alpha.indicators.kdj import calculate_kdj
+from trade_alpha.indicators.custom.kdj import calculate_kdj
 
 
 def test_calculate_kdj_columns():
