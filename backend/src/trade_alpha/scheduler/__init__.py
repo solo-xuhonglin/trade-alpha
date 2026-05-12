@@ -1,7 +1,8 @@
 """Scheduler module for Trade Alpha."""
 
-from .live_trading import run_live_trading
+from .data_sync import run_data_sync_job, DataSyncScheduler
 
 __all__ = [
-    "run_live_trading",
+    "run_data_sync_job",
+    "DataSyncScheduler",
 ]
