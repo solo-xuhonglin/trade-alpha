@@ -18,6 +18,10 @@ class SlidingWindowNormalizer(BaseNormalizer):
         self.window_size = window_size
         self.feature_cols = feature_cols or []
 
+    @property
+    def name(self) -> str:
+        return "sliding_window"
+
     def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
         """Normalize using sliding window approach."""
         if self.feature_cols:

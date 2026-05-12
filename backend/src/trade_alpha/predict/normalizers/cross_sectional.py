@@ -33,6 +33,10 @@ class CrossSectionalNormalizer(BaseNormalizer):
         self.winsorize_lower = winsorize_lower
         self.winsorize_upper = winsorize_upper
 
+    @property
+    def name(self) -> str:
+        return "cross_sectional"
+
     def _winsorize_group(self, group: pd.DataFrame) -> pd.DataFrame:
         for field in self.winsorize_fields:
             if field not in group.columns:
