@@ -24,6 +24,13 @@ class StockDaily(Document):
     macd: Optional[float] = None
     macd_signal: Optional[float] = None
     macd_hist: Optional[float] = None
+    pct_chg: Optional[float] = None
+    bias_5: Optional[float] = None
+    bias_10: Optional[float] = None
+    bias_20: Optional[float] = None
+    bias_60: Optional[float] = None
+    close_pct_rank_20: Optional[float] = None
+    vol_ratio_5: Optional[float] = None
     
     class Settings:
         name = "stock_daily"
