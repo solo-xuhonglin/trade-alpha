@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from trade_alpha.predict.linear import LinearPredictor
+from trade_alpha.predict.models.linear import LinearPredictor
 
 
 class TestLinearPredictor:

@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 from beanie import PydanticObjectId
 from trade_alpha.dao import StockDaily, PredictionResult
-from trade_alpha.predict.linear import LinearPredictor
+from trade_alpha.predict.models.linear import LinearPredictor
 from trade_alpha.logging import get_logger
 
 logger = get_logger("predict_service")

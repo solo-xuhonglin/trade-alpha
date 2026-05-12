@@ -3,7 +3,7 @@
 import pickle
 import numpy as np
 import xgboost as xgb
-from trade_alpha.predict.base import BasePredictor
+from trade_alpha.predict.models.base import BasePredictor
 
 
 class XGBoostPredictor(BasePredictor):

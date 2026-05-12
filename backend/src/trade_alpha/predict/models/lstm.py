@@ -4,7 +4,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from trade_alpha.predict.base import BasePredictor
+from trade_alpha.predict.models.base import BasePredictor
 
 
 class LSTMModel(nn.Module):

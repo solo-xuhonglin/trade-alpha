@@ -6,9 +6,9 @@ from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import StockDaily, TrainingResult
 from trade_alpha.logging import get_logger
-from trade_alpha.predict.linear import LinearPredictor
-from trade_alpha.predict.xgboost import XGBoostPredictor
-from trade_alpha.predict.lstm import LSTMPredictor
+from trade_alpha.predict.models.linear import LinearPredictor
+from trade_alpha.predict.models.xgboost import XGBoostPredictor
+from trade_alpha.predict.models.lstm import LSTMPredictor
 
 logger = get_logger("training_service")
 

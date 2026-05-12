@@ -1,10 +1,12 @@
 """Predict module."""
 
-from trade_alpha.predict.base import BasePredictor
-from trade_alpha.predict.linear import LinearPredictor
-from trade_alpha.predict.xgboost import XGBoostPredictor
-from trade_alpha.predict.lstm import LSTMPredictor
-from trade_alpha.predict.normalizer import (
+from trade_alpha.predict.models import (
+    BasePredictor,
+    LinearPredictor,
+    XGBoostPredictor,
+    LSTMPredictor,
+)
+from trade_alpha.predict.normalizers import (
     BaseNormalizer,
     SlidingWindowNormalizer,
     CrossSectionalNormalizer,

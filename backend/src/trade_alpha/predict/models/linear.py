@@ -1,9 +1,9 @@
-"""Linear regression predictor."""
+"""Linear predictor."""
 
 import pickle
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from trade_alpha.predict.base import BasePredictor
+from trade_alpha.predict.models.base import BasePredictor
 
 
 class LinearPredictor(BasePredictor):
@@ -25,7 +25,7 @@ class LinearPredictor(BasePredictor):
         result = {}
         for target in targets:
             if target in self.models:
-                result[target] = self.models[target].predict(features)[0]
+                result[target] = float(self.models[target].predict(features)[0])
         return result
 
     def save(self, path: str) -> None:

@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 import pandas as pd
-from trade_alpha.predict.normalizer import NormalizerRegistry
+from trade_alpha.predict.normalizers import NormalizerRegistry
 from trade_alpha.dao.model_config import ModelConfig
 
 
