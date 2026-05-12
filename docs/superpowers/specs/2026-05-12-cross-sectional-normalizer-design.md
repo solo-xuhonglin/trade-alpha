@@ -55,29 +55,33 @@ class CrossSectionalNormalizer(BaseNormalizer):
 
 ## 接口设计
 
-### fit
+所有标准化器统一为单一接口：
+
+### BaseNormalizer
 
 ```python
-def fit(self, X: pd.DataFrame) -> CrossSectionalNormalizer:
+class BaseNormalizer(ABC):
+    @abstractmethod
+    def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """标准化数据。"""
 ```
 
-校验输入，验证必需字段和配置。返回 self。（每组样本独立，fit 实际只做验证）
-
-### transform
+### CrossSectionalNormalizer
 
 ```python
-def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+class CrossSectionalNormalizer(BaseNormalizer):
+    def __init__(
+        self,
+        standardize_fields: list[str],
+        winsorize_fields: Optional[list[str]] = None,
+        winsorize_lower: float = 0.01,
+        winsorize_upper: float = 0.95,
+    )
+
+    def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
 ```
 
-执行完整处理流程：分组 → 缩尾 → Z-Score → 去除标识列 → 返回。
-
-### fit_transform
-
-```python
-def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
-```
-
-等价于 `fit(X).transform(X)`。
+`normalize` 执行完整处理流程：分组 → 缩尾 → Z-Score → 去除标识列 → 返回纯特征 DataFrame。
 
 ## 依赖
 
