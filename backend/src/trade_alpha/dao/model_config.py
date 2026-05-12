@@ -17,7 +17,7 @@ class ModelConfig(Document):
     updated_at: Optional[datetime] = None
     
     class Settings:
-        collection = "model_configs"
+        name = "model_configs"
         indexes = [
             "name",
         ]

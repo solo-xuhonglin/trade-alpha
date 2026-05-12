@@ -26,7 +26,7 @@ class StockDaily(Document):
     macd_hist: Optional[float] = None
     
     class Settings:
-        collection = "stock_daily"
+        name = "stock_daily"
         indexes = [
             [("ts_code", 1), ("trade_date", -1)],
         ]

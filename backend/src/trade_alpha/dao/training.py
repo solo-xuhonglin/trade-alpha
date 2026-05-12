@@ -20,7 +20,7 @@ class TrainingResult(Document):
     created_at: Optional[datetime] = None
 
     class Settings:
-        collection = "training_results"
+        name = "training_results"
         indexes = [
             "name",
             "config_id",

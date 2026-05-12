@@ -20,7 +20,7 @@ class StockList(Document):
     updated_at: Optional[datetime] = None
     
     class Settings:
-        collection = "stock_list"
+        name = "stock_list"
         indexes = [
             "ts_code",
             "market",

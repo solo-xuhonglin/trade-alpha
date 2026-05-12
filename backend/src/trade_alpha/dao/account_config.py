@@ -19,7 +19,7 @@ class AccountConfig(Document):
     updated_at: Optional[datetime] = None
 
     class Settings:
-        collection = "account_configs"
+        name = "account_configs"
         indexes = [
             "name",
         ]

@@ -23,7 +23,7 @@ class BacktestTrade(Document):
     position_after: int
     
     class Settings:
-        collection = "backtest_trades"
+        name = "backtest_trades"
         indexes = [
             "backtest_id",
             "ts_code",

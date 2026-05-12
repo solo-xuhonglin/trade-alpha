@@ -19,7 +19,7 @@ class SignalResult(Document):
     created_at: Optional[datetime] = None
 
     class Settings:
-        collection = "signal_results"
+        name = "signal_results"
         indexes = [
             "ts_code",
             "trade_date",

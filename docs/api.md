@@ -529,7 +529,7 @@ GET /api/backtests
   "items": [
     {
       "id": "507f1f77bcf86cd799439011",
-      "portfolio_id": "507f1f77bcf86cd799439012",
+      "account_config_id": "507f1f77bcf86cd799439012",
       "strategy_id": "507f1f77bcf86cd799439013",
       "training_id": "507f1f77bcf86cd799439014",
       "ts_code": "000001.SZ",
@@ -566,7 +566,7 @@ POST /api/backtests
   "ts_code": "000001.SZ",
   "start_date": "20240101",
   "end_date": "20241231",
-  "portfolio_id": "507f1f77bcf86cd799439012",
+  "account_config_id": "507f1f77bcf86cd799439012",
   "strategy_id": "507f1f77bcf86cd799439013",
   "training_id": "507f1f77bcf86cd799439014"
 }
@@ -598,7 +598,7 @@ GET /api/backtests/{id}
   "win_rate": 0.65,
   "total_trades": 20,
   "total_fees": 500.0,
-  "portfolio_snapshot": {
+  "account_snapshot": {
     "name": "default",
     "initial_capital": 100000.0,
     "buy_fee_rate": 0.0003,

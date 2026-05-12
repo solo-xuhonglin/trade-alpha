@@ -49,7 +49,7 @@ class BacktestResult(Document):
     created_at: Optional[datetime] = None
 
     class Settings:
-        collection = "backtest_results"
+        name = "backtest_results"
         indexes = [
             "ts_code",
             "account_config_id",

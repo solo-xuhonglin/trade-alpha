@@ -18,7 +18,7 @@ class BacktestPortfolioDaily(Document):
     position_ratio: float
 
     class Settings:
-        collection = "backtest_portfolio_daily"
+        name = "backtest_portfolio_daily"
         indexes = [
             "backtest_id",
             [("backtest_id", 1), ("date", 1)],

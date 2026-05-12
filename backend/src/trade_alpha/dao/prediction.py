@@ -19,7 +19,7 @@ class PredictionResult(Document):
     created_at: Optional[datetime] = None
 
     class Settings:
-        collection = "prediction_results"
+        name = "prediction_results"
         indexes = [
             "ts_code",
             "trade_date",

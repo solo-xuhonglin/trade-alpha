@@ -16,7 +16,7 @@ class StrategyConfig(Document):
     updated_at: Optional[datetime] = None
 
     class Settings:
-        collection = "strategy_configs"
+        name = "strategy_configs"
         indexes = [
             "name",
         ]
