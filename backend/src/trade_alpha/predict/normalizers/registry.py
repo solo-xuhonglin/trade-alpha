@@ -1,6 +1,6 @@
 """Normalizer registry."""
 
-from typing import Dict, List
+from typing import Dict, List, Type
 
 from trade_alpha.predict.normalizers.base import BaseNormalizer
 from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
@@ -10,12 +10,12 @@ from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormal
 class NormalizerRegistry:
     """Registry for normalizers."""
 
-    _normalizers: Dict[str, type] = {}
+    _normalizers: Dict[str, Type[BaseNormalizer]] = {}
 
     @classmethod
-    def register(cls, normalizer: type):
+    def register(cls, normalizer: Type[BaseNormalizer]):
         """Register a normalizer class."""
-        cls._normalizers[normalizer().name] = normalizer
+        cls._normalizers[normalizer.__name__] = normalizer
 
     @classmethod
     def get(cls, name: str) -> BaseNormalizer:
