@@ -401,7 +401,7 @@ git commit -m "feat: integrate data sync scheduler into FastAPI lifespan"
 - 集成到 FastAPI 生命周期，随服务启动/停止
 
 **状态流转**:
-- `pending` → `data_completed` → `indicator_completed`
+- `pending` → `data_completed` → `active`
 ```
 
 - [ ] **Step 2: 提交**

@@ -30,7 +30,7 @@ StockList 新增字段 `sync_status`：
 5. **处理指标计算**（sync_status = "data_completed"）：
    - 计算 MA 指标（5/10/20/60日均线）
    - 计算 MACD 指标
-   - 更新状态为 `indicator_completed`
+   - 更新状态为 `active`
 
 ### 数据分段
 
