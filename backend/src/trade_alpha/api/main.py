@@ -18,6 +18,7 @@ from trade_alpha.api.routers import (
 )
 from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
+from trade_alpha.scheduler import DataSyncScheduler
 
 setup_logging()
 logger = get_logger("api")
@@ -47,7 +48,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    scheduler = DataSyncScheduler()
+    scheduler.start()
+    app.state.scheduler = scheduler
+
     yield
+
+    scheduler.stop()
     await close_db()
 
 
