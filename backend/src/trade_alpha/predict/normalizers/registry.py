@@ -13,16 +13,19 @@ class NormalizerRegistry:
     _normalizers: Dict[str, Type[BaseNormalizer]] = {}
 
     @classmethod
-    def register(cls, normalizer: Type[BaseNormalizer]):
+    def register(cls, normalizer: Type[BaseNormalizer], aliases: List[str] = None):
         """Register a normalizer class."""
         cls._normalizers[normalizer.__name__] = normalizer
+        if aliases:
+            for alias in aliases:
+                cls._normalizers[alias] = normalizer
 
     @classmethod
-    def get(cls, name: str) -> BaseNormalizer:
+    def get(cls, name: str, **kwargs) -> BaseNormalizer:
         """Get a normalizer instance by name."""
         if name not in cls._normalizers:
             raise ValueError(f"Unknown normalizer: {name}. Available: {list(cls._normalizers.keys())}")
-        return cls._normalizers[name]()
+        return cls._normalizers[name](**kwargs)
 
     @classmethod
     def list_normalizers(cls) -> List[str]:
@@ -30,5 +33,5 @@ class NormalizerRegistry:
         return list(cls._normalizers.keys())
 
 
-NormalizerRegistry.register(SlidingWindowNormalizer)
-NormalizerRegistry.register(CrossSectionalNormalizer)
+NormalizerRegistry.register(SlidingWindowNormalizer, aliases=["sliding_window"])
+NormalizerRegistry.register(CrossSectionalNormalizer, aliases=["cross_sectional"])
