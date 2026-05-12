@@ -4,12 +4,12 @@ import pandas as pd
 from trade_alpha.dao import StockDaily
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
-from trade_alpha.indicators.more_indicators import (
-    calculate_pct_chg,
-    calculate_bias,
-    calculate_close_pct_rank,
-    calculate_vol_ratio,
-)
+from trade_alpha.indicators.pct_chg import calculate_pct_chg
+from trade_alpha.indicators.bias import calculate_bias
+from trade_alpha.indicators.close_pct_rank import calculate_close_pct_rank
+from trade_alpha.indicators.vol_ratio import calculate_vol_ratio
+from trade_alpha.indicators.kdj import calculate_kdj
+from trade_alpha.indicators.boll import calculate_boll
 from trade_alpha.logging import get_logger
 
 logger = get_logger("indicators_service")
@@ -90,7 +90,7 @@ async def calculate_and_store_macd(ts_code: str) -> int:
 
 
 async def calculate_and_store_more_indicators(ts_code: str) -> int:
-    """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio).
+    """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio, kdj, boll).
 
     Args:
         ts_code: Stock code
@@ -112,6 +112,8 @@ async def calculate_and_store_more_indicators(ts_code: str) -> int:
     df = calculate_bias(df, periods=[5, 10, 20, 60])
     df = calculate_close_pct_rank(df, period=20)
     df = calculate_vol_ratio(df, period=5)
+    df = calculate_kdj(df)
+    df = calculate_boll(df)
 
     updated_count = 0
     for _, row in df.iterrows():
@@ -123,6 +125,12 @@ async def calculate_and_store_more_indicators(ts_code: str) -> int:
             "bias_60": row.get("bias_60"),
             "close_pct_rank_20": row.get("close_pct_rank_20"),
             "vol_ratio_5": row.get("vol_ratio_5"),
+            "kdj_k": row.get("kdj_k"),
+            "kdj_d": row.get("kdj_d"),
+            "kdj_j": row.get("kdj_j"),
+            "boll_upper": row.get("boll_upper"),
+            "boll_middle": row.get("boll_middle"),
+            "boll_lower": row.get("boll_lower"),
         }
         await StockDaily.find_one(
             StockDaily.ts_code == ts_code,

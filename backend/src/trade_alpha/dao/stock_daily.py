@@ -31,6 +31,12 @@ class StockDaily(Document):
     bias_60: Optional[float] = None
     close_pct_rank_20: Optional[float] = None
     vol_ratio_5: Optional[float] = None
+    kdj_k: Optional[float] = None
+    kdj_d: Optional[float] = None
+    kdj_j: Optional[float] = None
+    boll_upper: Optional[float] = None
+    boll_middle: Optional[float] = None
+    boll_lower: Optional[float] = None
     
     class Settings:
         name = "stock_daily"
