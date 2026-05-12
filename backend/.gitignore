@@ -68,6 +68,9 @@ dmypy.json
 # Ruff
 .ruff_cache/
 
+# Log files
+logs/
+
 # Model files
 models/**/*.pkl
 models/**/*.pt

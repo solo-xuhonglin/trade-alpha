@@ -112,8 +112,8 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
 
     df = calculate_pct_chg(df)
     df = calculate_bias(df, periods=[5, 10, 20, 60])
-    df = calculate_close_pct_rank(df, period=20)
-    df = calculate_vol_ratio(df, period=5)
+    df = calculate_close_pct_rank(df)
+    df = calculate_vol_ratio(df)
     df = calculate_kdj(df)
     df = calculate_boll(df)
 
@@ -125,8 +125,14 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "bias_10": row.get("bias_10"),
             "bias_20": row.get("bias_20"),
             "bias_60": row.get("bias_60"),
+            "close_pct_rank_5": row.get("close_pct_rank_5"),
+            "close_pct_rank_10": row.get("close_pct_rank_10"),
             "close_pct_rank_20": row.get("close_pct_rank_20"),
+            "close_pct_rank_60": row.get("close_pct_rank_60"),
             "vol_ratio_5": row.get("vol_ratio_5"),
+            "vol_ratio_10": row.get("vol_ratio_10"),
+            "vol_ratio_20": row.get("vol_ratio_20"),
+            "vol_ratio_60": row.get("vol_ratio_60"),
             "kdj_k": row.get("kdj_k"),
             "kdj_d": row.get("kdj_d"),
             "kdj_j": row.get("kdj_j"),

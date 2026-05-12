@@ -2,7 +2,7 @@
 
 import pytest
 from trade_alpha.predict.service import predict
-from trade_alpha.dao import StockDaily, Prediction
+from trade_alpha.dao import StockDaily, PredictionResult
 
 
 @pytest.mark.integration
@@ -17,7 +17,7 @@ class TestPredictIntegration:
 
         yield
 
-        await Prediction.find(Prediction.ts_code == self.ts_code).delete()
+        await PredictionResult.find(PredictionResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
     async def test_predict(self):

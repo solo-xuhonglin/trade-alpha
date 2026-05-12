@@ -29,8 +29,14 @@ class StockDaily(Document):
     bias_10: Optional[float] = None
     bias_20: Optional[float] = None
     bias_60: Optional[float] = None
+    close_pct_rank_5: Optional[float] = None
+    close_pct_rank_10: Optional[float] = None
     close_pct_rank_20: Optional[float] = None
+    close_pct_rank_60: Optional[float] = None
     vol_ratio_5: Optional[float] = None
+    vol_ratio_10: Optional[float] = None
+    vol_ratio_20: Optional[float] = None
+    vol_ratio_60: Optional[float] = None
     kdj_k: Optional[float] = None
     kdj_d: Optional[float] = None
     kdj_j: Optional[float] = None

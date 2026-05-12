@@ -139,9 +139,27 @@ trade-alpha/
 
 ### 5. 指标模块 (indicators)
 
-- `ma.py`: 均线计算
+**基础指标**:
+- `ma.py`: 均线计算 (MA)
 - `macd.py`: MACD 计算
-- `service.py`: 指标计算编排
+
+**自定义指标** (`custom/` 子目录):
+- `pct_chg.py`: 涨跌幅计算
+- `bias.py`: 乖离率计算 (依赖已计算的 MA 列)
+- `close_pct_rank.py`: N 天收盘价百分位 (rolling rank)
+- `vol_ratio.py`: 成交量相对比值
+- `kdj.py`: KDJ 随机指标 (RSV → K/D/J 迭代 SMA)
+- `boll.py`: 布林线 (中轨 ± k×标准差)
+
+**编排服务**:
+- `service.py`: 统一入口方法
+  - `calculate_and_store_ma()` — 均线计算与存储
+  - `calculate_and_store_macd()` — MACD 计算与存储
+  - `calculate_and_store_custom_indicators()` — 自定义指标顺序计算与存储
+
+**计算顺序**: `pct_chg` → `bias` → `close_pct_rank` → `vol_ratio` → `kdj` → `boll`
+
+**存储字段**: pct_chg, bias_5/10/20/60, close_pct_rank_20, vol_ratio_5, kdj_k/d/j, boll_upper/middle/lower
 
 ### 6. 预测模块 (predict)
 
@@ -357,7 +375,7 @@ create_training(
 ## 已实现功能
 
 - [x] 数据层：Tushare 数据获取，MongoDB 存储
-- [x] 分析层：技术指标计算（MA、MACD）
+- [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_pct_rank、vol_ratio、KDJ、BOLL）
 - [x] 预测层：价格预测（线性回归、XGBoost、LSTM）
 - [x] 训练层：样本混合训练、模型持久化
 - [x] 策略层：交易信号生成

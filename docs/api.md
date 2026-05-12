@@ -88,7 +88,20 @@ GET /api/data/{ts_code}
     "ma_60": 10.30,
     "macd": 0.15,
     "macd_signal": 0.12,
-    "macd_hist": 0.03
+    "macd_hist": 0.03,
+    "pct_chg": 2.38,
+    "bias_5": 0.65,
+    "bias_10": 1.23,
+    "bias_20": 1.90,
+    "bias_60": 4.37,
+    "close_pct_rank_20": 0.85,
+    "vol_ratio_5": 1.25,
+    "kdj_k": 72.34,
+    "kdj_d": 65.12,
+    "kdj_j": 86.78,
+    "boll_upper": 11.20,
+    "boll_middle": 10.55,
+    "boll_lower": 9.90
   }
 ]
 ```

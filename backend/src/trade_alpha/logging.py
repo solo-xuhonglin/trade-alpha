@@ -30,12 +30,12 @@ def setup_logging(log_level: Optional[str] = None, log_dir: Optional[str] = None
     if log_dir:
         log_path = Path(log_dir)
     else:
-        log_path = Path(__file__).parent.parent / "logs"
+        log_path = Path(__file__).parent.parent.parent.parent / "logs"
     log_path.mkdir(parents=True, exist_ok=True)
     log_file = log_path / "trade_alpha.log"
 
     formatter = StructuredFormatter(
-        fmt="%(asctime)s.%(msecs)03d [%(levelname)-8s] [%(request_id)-15s] [%(module)-15s] [%(method)-15s] %(message)s",
+        fmt="%(asctime)s.%(msecs)03d [%(levelname)s] [%(request_id)s] [%(module)s] [%(method)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
@@ -53,6 +53,8 @@ def setup_logging(log_level: Optional[str] = None, log_dir: Optional[str] = None
 
     logging.getLogger("pymongo").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").propagate = False
+    logging.getLogger("uvicorn.error").propagate = False
 
 
 class ContextLogger:

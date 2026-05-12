@@ -51,6 +51,25 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `macd` | float | MACD 柱状值 (DIF) |
 | `macd_signal` | float | MACD 信号线 |
 | `macd_hist` | float | MACD 柱状图 (MACD - Signal) |
+| `pct_chg` | float | 涨跌幅 (%) |
+| `bias_5` | float | 5日乖离率 |
+| `bias_10` | float | 10日乖离率 |
+| `bias_20` | float | 20日乖离率 |
+| `bias_60` | float | 60日乖离率 |
+| `close_pct_rank_5` | float | 5日收盘价百分位 (0~1) |
+| `close_pct_rank_10` | float | 10日收盘价百分位 (0~1) |
+| `close_pct_rank_20` | float | 20日收盘价百分位 (0~1) |
+| `close_pct_rank_60` | float | 60日收盘价百分位 (0~1) |
+| `vol_ratio_5` | float | 5日成交量相对比值 |
+| `vol_ratio_10` | float | 10日成交量相对比值 |
+| `vol_ratio_20` | float | 20日成交量相对比值 |
+| `vol_ratio_60` | float | 60日成交量相对比值 |
+| `kdj_k` | float | KDJ K值 |
+| `kdj_d` | float | KDJ D值 |
+| `kdj_j` | float | KDJ J值 |
+| `boll_upper` | float | 布林线上轨 |
+| `boll_middle` | float | 布林线中轨 |
+| `boll_lower` | float | 布林线下轨 |
 
 #### 示例文档
 
@@ -71,7 +90,26 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
   "ma_60": 10.30,
   "macd": 0.15,
   "macd_signal": 0.12,
-  "macd_hist": 0.03
+  "macd_hist": 0.03,
+  "pct_chg": 2.38,
+  "bias_5": 0.65,
+  "bias_10": 1.23,
+  "bias_20": 1.90,
+  "bias_60": 4.37,
+  "close_pct_rank_5": 0.60,
+  "close_pct_rank_10": 0.70,
+  "close_pct_rank_20": 0.85,
+  "close_pct_rank_60": 0.90,
+  "vol_ratio_5": 1.25,
+  "vol_ratio_10": 1.15,
+  "vol_ratio_20": 1.08,
+  "vol_ratio_60": 1.02,
+  "kdj_k": 72.34,
+  "kdj_d": 65.12,
+  "kdj_j": 86.78,
+  "boll_upper": 11.20,
+  "boll_middle": 10.55,
+  "boll_lower": 9.90
 }
 ```
 
