@@ -43,8 +43,16 @@ trade-alpha/
 │   │   ├── data/             # 数据获取模块
 │   │   ├── indicators/        # 技术指标模块
 │   │   ├── predict/          # 预测模块
+│   │   │   ├── models/              # 模型类
+│   │   │   │   ├── base.py          # BasePredictor 基类
+│   │   │   │   ├── linear.py        # LinearPredictor
+│   │   │   │   ├── xgboost.py       # XGBoostPredictor
+│   │   │   │   └── lstm.py          # LSTMPredictor
+│   │   │   ├── normalizers/         # 标准化器
+│   │   │   │   └── normalizer.py    # 标准化器实现
 │   │   │   ├── config_service.py   # 模型配置服务
-│   │   │   └── training_service.py # 训练服务
+│   │   │   ├── service.py           # 预测服务
+│   │   │   └── training_service.py  # 训练服务
 │   │   ├── strategy/          # 交易策略模块
 │   │   ├── account/           # 账户管理模块
 │   │   │   ├── service.py          # 账户配置 CRUD
@@ -132,6 +140,20 @@ trade-alpha/
 
 ### 6. 预测模块 (predict)
 
+#### models - 模型类
+
+- `BasePredictor`: 预测器抽象基类，定义 `fit()`, `predict()`, `save()`, `load()` 接口
+- `LinearPredictor`: 线性回归预测器
+- `XGBoostPredictor`: XGBoost 预测器
+- `LSTMPredictor`: LSTM 神经网络预测器
+
+#### normalizers - 标准化器
+
+- `BaseNormalizer`: 标准化器抽象基类
+- `SlidingWindowNormalizer`: 滑动窗口标准化（用于 LSTM 等时序模型）
+- `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型）
+- `NormalizerRegistry`: 标准化器注册表
+
 #### config_service - 模型配置
 
 - `create_config()`: 创建模型配置
@@ -150,11 +172,10 @@ trade-alpha/
 
 **样本混合策略**: 支持多只股票数据合并训练，提高模型泛化能力
 
-#### 模型预测器
+#### service - 预测服务
 
-- `LinearPredictor`: 线性回归
-- `XGBoostPredictor`: XGBoost
-- `LSTMPredictor`: LSTM
+- `predict()`: 预测股票价格并存储结果
+- `get_prediction_by_ts_code()`: 获取最新预测结果
 
 ### 7. 策略模块 (strategy)
 
