@@ -7609,3 +7609,197 @@ asyncio.exceptions.CancelledError
 2026-05-12 21:10:58.606 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
 2026-05-12 21:10:58.666 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
 2026-05-12 21:10:58.692 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
+2026-05-12 21:22:23.802 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.address`.
+2026-05-12 21:22:23.808 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.address` has been localized to `en_US`.
+2026-05-12 21:22:23.813 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.automotive`.
+2026-05-12 21:22:23.817 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.automotive` has been localized to `en_US`.
+2026-05-12 21:22:23.821 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.bank`.
+2026-05-12 21:22:23.825 [DEBUG   ] [-              ] [-              ] [-              ] Specified locale `en_US` is not available for provider `faker.providers.bank`. Locale reset to `en_GB` for this provider.
+2026-05-12 21:22:23.827 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.barcode`.
+2026-05-12 21:22:23.828 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.barcode` has been localized to `en_US`.
+2026-05-12 21:22:23.830 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.color`.
+2026-05-12 21:22:23.832 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.color` has been localized to `en_US`.
+2026-05-12 21:22:23.834 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.company`.
+2026-05-12 21:22:23.838 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.company` has been localized to `en_US`.
+2026-05-12 21:22:23.840 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.credit_card`.
+2026-05-12 21:22:23.841 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.credit_card` has been localized to `en_US`.
+2026-05-12 21:22:23.842 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.currency`.
+2026-05-12 21:22:23.845 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.currency` has been localized to `en_US`.
+2026-05-12 21:22:23.846 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.date_time`.
+2026-05-12 21:22:23.850 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.date_time` has been localized to `en_US`.
+2026-05-12 21:22:23.852 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.emoji` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.852 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.file` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.853 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.geo`.
+2026-05-12 21:22:23.854 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.geo` has been localized to `en_US`.
+2026-05-12 21:22:23.856 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.internet`.
+2026-05-12 21:22:23.860 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.internet` has been localized to `en_US`.
+2026-05-12 21:22:23.861 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.isbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.862 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.job`.
+2026-05-12 21:22:23.865 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.job` has been localized to `en_US`.
+2026-05-12 21:22:23.867 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.lorem`.
+2026-05-12 21:22:23.870 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.lorem` has been localized to `en_US`.
+2026-05-12 21:22:23.875 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.misc`.
+2026-05-12 21:22:23.876 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.misc` has been localized to `en_US`.
+2026-05-12 21:22:23.877 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.passport`.
+2026-05-12 21:22:23.878 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.passport` has been localized to `en_US`.
+2026-05-12 21:22:23.879 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.person`.
+2026-05-12 21:22:23.886 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.person` has been localized to `en_US`.
+2026-05-12 21:22:23.895 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.phone_number`.
+2026-05-12 21:22:23.901 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.phone_number` has been localized to `en_US`.
+2026-05-12 21:22:23.903 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.profile` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.903 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.python` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.903 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.sbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.903 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.ssn`.
+2026-05-12 21:22:23.908 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.ssn` has been localized to `en_US`.
+2026-05-12 21:22:23.910 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.user_agent` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:22:23.912 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 21:22:23.993 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 21:22:24.275 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
+2026-05-12 21:24:43.117 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.address`.
+2026-05-12 21:24:43.123 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.address` has been localized to `en_US`.
+2026-05-12 21:24:43.127 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.automotive`.
+2026-05-12 21:24:43.132 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.automotive` has been localized to `en_US`.
+2026-05-12 21:24:43.134 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.bank`.
+2026-05-12 21:24:43.138 [DEBUG   ] [-              ] [-              ] [-              ] Specified locale `en_US` is not available for provider `faker.providers.bank`. Locale reset to `en_GB` for this provider.
+2026-05-12 21:24:43.139 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.barcode`.
+2026-05-12 21:24:43.140 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.barcode` has been localized to `en_US`.
+2026-05-12 21:24:43.142 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.color`.
+2026-05-12 21:24:43.144 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.color` has been localized to `en_US`.
+2026-05-12 21:24:43.146 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.company`.
+2026-05-12 21:24:43.150 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.company` has been localized to `en_US`.
+2026-05-12 21:24:43.152 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.credit_card`.
+2026-05-12 21:24:43.153 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.credit_card` has been localized to `en_US`.
+2026-05-12 21:24:43.154 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.currency`.
+2026-05-12 21:24:43.157 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.currency` has been localized to `en_US`.
+2026-05-12 21:24:43.158 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.date_time`.
+2026-05-12 21:24:43.162 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.date_time` has been localized to `en_US`.
+2026-05-12 21:24:43.164 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.emoji` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.164 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.file` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.164 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.geo`.
+2026-05-12 21:24:43.165 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.geo` has been localized to `en_US`.
+2026-05-12 21:24:43.167 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.internet`.
+2026-05-12 21:24:43.172 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.internet` has been localized to `en_US`.
+2026-05-12 21:24:43.173 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.isbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.174 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.job`.
+2026-05-12 21:24:43.177 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.job` has been localized to `en_US`.
+2026-05-12 21:24:43.179 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.lorem`.
+2026-05-12 21:24:43.181 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.lorem` has been localized to `en_US`.
+2026-05-12 21:24:43.186 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.misc`.
+2026-05-12 21:24:43.187 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.misc` has been localized to `en_US`.
+2026-05-12 21:24:43.189 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.passport`.
+2026-05-12 21:24:43.189 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.passport` has been localized to `en_US`.
+2026-05-12 21:24:43.191 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.person`.
+2026-05-12 21:24:43.197 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.person` has been localized to `en_US`.
+2026-05-12 21:24:43.204 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.phone_number`.
+2026-05-12 21:24:43.209 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.phone_number` has been localized to `en_US`.
+2026-05-12 21:24:43.211 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.profile` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.211 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.python` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.211 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.sbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.212 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.ssn`.
+2026-05-12 21:24:43.216 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.ssn` has been localized to `en_US`.
+2026-05-12 21:24:43.218 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.user_agent` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:24:43.220 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 21:24:43.276 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 21:24:43.526 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
+2026-05-12 21:25:06.286 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.address`.
+2026-05-12 21:25:06.293 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.address` has been localized to `en_US`.
+2026-05-12 21:25:06.297 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.automotive`.
+2026-05-12 21:25:06.301 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.automotive` has been localized to `en_US`.
+2026-05-12 21:25:06.305 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.bank`.
+2026-05-12 21:25:06.309 [DEBUG   ] [-              ] [-              ] [-              ] Specified locale `en_US` is not available for provider `faker.providers.bank`. Locale reset to `en_GB` for this provider.
+2026-05-12 21:25:06.311 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.barcode`.
+2026-05-12 21:25:06.312 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.barcode` has been localized to `en_US`.
+2026-05-12 21:25:06.314 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.color`.
+2026-05-12 21:25:06.317 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.color` has been localized to `en_US`.
+2026-05-12 21:25:06.318 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.company`.
+2026-05-12 21:25:06.324 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.company` has been localized to `en_US`.
+2026-05-12 21:25:06.326 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.credit_card`.
+2026-05-12 21:25:06.327 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.credit_card` has been localized to `en_US`.
+2026-05-12 21:25:06.329 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.currency`.
+2026-05-12 21:25:06.332 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.currency` has been localized to `en_US`.
+2026-05-12 21:25:06.334 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.date_time`.
+2026-05-12 21:25:06.338 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.date_time` has been localized to `en_US`.
+2026-05-12 21:25:06.340 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.emoji` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.340 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.file` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.340 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.geo`.
+2026-05-12 21:25:06.342 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.geo` has been localized to `en_US`.
+2026-05-12 21:25:06.343 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.internet`.
+2026-05-12 21:25:06.347 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.internet` has been localized to `en_US`.
+2026-05-12 21:25:06.349 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.isbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.350 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.job`.
+2026-05-12 21:25:06.353 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.job` has been localized to `en_US`.
+2026-05-12 21:25:06.355 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.lorem`.
+2026-05-12 21:25:06.357 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.lorem` has been localized to `en_US`.
+2026-05-12 21:25:06.362 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.misc`.
+2026-05-12 21:25:06.363 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.misc` has been localized to `en_US`.
+2026-05-12 21:25:06.364 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.passport`.
+2026-05-12 21:25:06.365 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.passport` has been localized to `en_US`.
+2026-05-12 21:25:06.366 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.person`.
+2026-05-12 21:25:06.374 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.person` has been localized to `en_US`.
+2026-05-12 21:25:06.382 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.phone_number`.
+2026-05-12 21:25:06.387 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.phone_number` has been localized to `en_US`.
+2026-05-12 21:25:06.390 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.profile` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.390 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.python` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.390 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.sbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.391 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.ssn`.
+2026-05-12 21:25:06.396 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.ssn` has been localized to `en_US`.
+2026-05-12 21:25:06.398 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.user_agent` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:25:06.399 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 21:25:06.453 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 21:25:06.472 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
+2026-05-12 21:26:48.836 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.address`.
+2026-05-12 21:26:48.843 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.address` has been localized to `en_US`.
+2026-05-12 21:26:48.848 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.automotive`.
+2026-05-12 21:26:48.852 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.automotive` has been localized to `en_US`.
+2026-05-12 21:26:48.856 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.bank`.
+2026-05-12 21:26:48.860 [DEBUG   ] [-              ] [-              ] [-              ] Specified locale `en_US` is not available for provider `faker.providers.bank`. Locale reset to `en_GB` for this provider.
+2026-05-12 21:26:48.861 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.barcode`.
+2026-05-12 21:26:48.862 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.barcode` has been localized to `en_US`.
+2026-05-12 21:26:48.865 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.color`.
+2026-05-12 21:26:48.867 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.color` has been localized to `en_US`.
+2026-05-12 21:26:48.868 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.company`.
+2026-05-12 21:26:48.872 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.company` has been localized to `en_US`.
+2026-05-12 21:26:48.874 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.credit_card`.
+2026-05-12 21:26:48.875 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.credit_card` has been localized to `en_US`.
+2026-05-12 21:26:48.877 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.currency`.
+2026-05-12 21:26:48.879 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.currency` has been localized to `en_US`.
+2026-05-12 21:26:48.881 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.date_time`.
+2026-05-12 21:26:48.885 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.date_time` has been localized to `en_US`.
+2026-05-12 21:26:48.886 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.emoji` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.887 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.file` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.887 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.geo`.
+2026-05-12 21:26:48.888 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.geo` has been localized to `en_US`.
+2026-05-12 21:26:48.889 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.internet`.
+2026-05-12 21:26:48.894 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.internet` has been localized to `en_US`.
+2026-05-12 21:26:48.896 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.isbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.896 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.job`.
+2026-05-12 21:26:48.900 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.job` has been localized to `en_US`.
+2026-05-12 21:26:48.902 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.lorem`.
+2026-05-12 21:26:48.905 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.lorem` has been localized to `en_US`.
+2026-05-12 21:26:48.910 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.misc`.
+2026-05-12 21:26:48.911 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.misc` has been localized to `en_US`.
+2026-05-12 21:26:48.913 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.passport`.
+2026-05-12 21:26:48.913 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.passport` has been localized to `en_US`.
+2026-05-12 21:26:48.915 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.person`.
+2026-05-12 21:26:48.922 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.person` has been localized to `en_US`.
+2026-05-12 21:26:48.928 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.phone_number`.
+2026-05-12 21:26:48.934 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.phone_number` has been localized to `en_US`.
+2026-05-12 21:26:48.936 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.profile` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.936 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.python` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.937 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.sbn` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.937 [DEBUG   ] [-              ] [-              ] [-              ] Looking for locale `en_US` in provider `faker.providers.ssn`.
+2026-05-12 21:26:48.942 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.ssn` has been localized to `en_US`.
+2026-05-12 21:26:48.944 [DEBUG   ] [-              ] [-              ] [-              ] Provider `faker.providers.user_agent` does not feature localization. Specified locale `en_US` is not utilized for this provider.
+2026-05-12 21:26:48.945 [DEBUG   ] [-              ] [-              ] [-              ] Using proactor: IocpProactor
+2026-05-12 21:26:49.004 [INFO    ] [-              ] [dao            ] [init_db        ] Beanie initialized for trade_alpha
+2026-05-12 21:26:49.007 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 000001.SZ with periods [2]
+2026-05-12 21:26:49.010 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MA for 000001.SZ: 3 records updated
+2026-05-12 21:26:49.013 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MA for 000001.SZ with periods None
+2026-05-12 21:26:49.013 [WARNING ] [-              ] [indicators_service] [-              ] No data found for 000001.SZ
+2026-05-12 21:26:49.028 [INFO    ] [-              ] [indicators_service] [-              ] Calculating MACD for 000001.SZ
+2026-05-12 21:26:49.037 [INFO    ] [-              ] [indicators_service] [-              ] Successfully calculated and stored MACD for 000001.SZ: 50 records updated
+2026-05-12 21:26:49.043 [INFO    ] [-              ] [indicators_service] [-              ] Calculating additional indicators for 000001.SZ
+2026-05-12 21:26:49.050 [INFO    ] [-              ] [indicators_service] [-              ] Successfully stored additional indicators for 000001.SZ: 10 records
+2026-05-12 21:26:49.053 [INFO    ] [-              ] [indicators_service] [-              ] Calculating additional indicators for 000001.SZ
+2026-05-12 21:26:49.053 [WARNING ] [-              ] [indicators_service] [-              ] No data found for 000001.SZ
+2026-05-12 21:26:49.055 [INFO    ] [-              ] [dao            ] [close_db       ] Database connection closed
