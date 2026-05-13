@@ -2,6 +2,7 @@
 
 import pytest
 from trade_alpha.predict import config_service
+from trade_alpha.predict.config_service import DEFAULT_INDICATOR_FIELDS
 
 
 @pytest.mark.integration
@@ -102,11 +103,16 @@ class TestModelConfigService:
         """Ensure default config exists for Layer 5 tests."""
         existing = await config_service.get_config_by_name(self.default_config_name)
         if existing:
-            return
+            await existing.delete()
 
-        await config_service.create_config(
+        config = await config_service.create_config(
             name=self.default_config_name,
             model_type="xgboost",
             classification_horizons=[3, 5],
             classification_threshold=0.02,
         )
+        assert config.feature_fields == DEFAULT_INDICATOR_FIELDS
+        assert config.standardize_fields == DEFAULT_INDICATOR_FIELDS
+        assert config.winsorize_fields == []
+        assert "label_3d" in config.output_fields
+        assert "label_5d" in config.output_fields

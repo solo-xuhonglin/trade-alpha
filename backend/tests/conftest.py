@@ -71,7 +71,7 @@ async def test_model_config():
     default_config_name = "test_model_config"
     config = await config_service.get_config_by_name(default_config_name)
     if config:
-        return config
+        await config.delete()
     
     config = await config_service.create_config(
         name=default_config_name,

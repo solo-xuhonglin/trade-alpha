@@ -1,4 +1,13 @@
-"""Model configuration service."""
+"""Model configuration service.
+
+字段默认值填充逻辑:
+1. classification_horizons: 默认为 [3, 5]
+2. target_names: 根据 classification_horizons 生成，如 ["label_3d", "label_5d"]
+3. feature_fields: 默认为 DEFAULT_INDICATOR_FIELDS (13个固定指标)
+4. standardize_fields: 默认为 feature_fields (标准化所有特征)
+5. winsorize_fields: 默认为空列表 (不进行缩尾)
+6. output_fields: 默认为 feature_fields + target_names (特征+标签)
+"""
 
 from datetime import datetime, timezone
 from typing import Optional, List
@@ -8,16 +17,37 @@ from trade_alpha.logging import get_logger
 
 logger = get_logger("config_service")
 
+DEFAULT_INDICATOR_FIELDS = [
+    "ma_5", "ma_10", "ma_20", "ma_30", "ma_60",
+    "pct_chg",
+    "vol_ratio_5", "vol_ratio_10",
+    "bias_5", "bias_10",
+    "kdj_k", "kdj_d", "kdj_j",
+]
+
 
 async def create_config(
     name: str,
     model_type: str,
     feature_fields: Optional[List[str]] = None,
+    standardize_fields: Optional[List[str]] = None,
+    winsorize_fields: Optional[List[str]] = None,
+    output_fields: Optional[List[str]] = None,
     classification_horizons: Optional[List[int]] = None,
     classification_threshold: float = 0.02,
-    normalizer_fields: Optional[dict] = None,
 ) -> ModelConfig:
-    """Create model configuration."""
+    """Create model configuration.
+
+    Args:
+        name: 配置名称（唯一）
+        model_type: 模型类型 (xgboost/lstm)
+        feature_fields: 模型输入特征字段列表，默认使用所有指标
+        standardize_fields: 需要Z-score标准化的字段列表，默认与feature_fields相同
+        winsorize_fields: 需要缩尾处理的字段列表，默认空列表
+        output_fields: 标准化器输出字段列表，默认feature_fields+分类标签
+        classification_horizons: 分类预测周期列表，默认[3, 5]
+        classification_threshold: 涨跌分类阈值，默认0.02
+    """
     if not name:
         raise ValueError("name is required")
     if model_type not in ("xgboost", "lstm"):
@@ -27,13 +57,23 @@ async def create_config(
     if existing:
         raise ValueError(f"Config already exists: {name}")
 
+    classification_horizons = classification_horizons or [3, 5]
+    target_names = [f"label_{h}d" for h in classification_horizons]
+
+    feature_fields = feature_fields or DEFAULT_INDICATOR_FIELDS.copy()
+    standardize_fields = standardize_fields or feature_fields.copy()
+    winsorize_fields = winsorize_fields or []
+    output_fields = output_fields or feature_fields + target_names
+
     config = ModelConfig(
         name=name,
         model_type=model_type,
-        feature_fields=feature_fields or [],
-        classification_horizons=classification_horizons or [3, 5],
+        feature_fields=feature_fields,
+        standardize_fields=standardize_fields,
+        winsorize_fields=winsorize_fields,
+        output_fields=output_fields,
+        classification_horizons=classification_horizons,
         classification_threshold=classification_threshold,
-        normalizer_fields=normalizer_fields or {},
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )

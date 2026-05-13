@@ -1,4 +1,12 @@
-"""Training service for classification models."""
+"""Training service for classification models.
+
+训练流程中的字段使用说明:
+1. 从 config 读取 feature_fields, standardize_fields, winsorize_fields, output_fields
+2. output_fields 包含特征字段和分类标签字段
+3. 标准化器对 standardize_fields 进行 Z-score 标准化，对 winsorize_fields 进行缩尾
+4. 标准化器输出 output_fields 中的字段
+5. X 数据集使用 feature_fields，y 数据集使用分类标签
+"""
 
 import os
 from datetime import datetime, timezone
@@ -22,27 +30,11 @@ CLASSIFIERS = {
     "lstm": LSTMClassifier,
 }
 
-RELATIVE_INDICATOR_PREFIXES = [
-    "ma_", "macd", "pct_chg", "bias_",
-    "close_pct_rank_", "vol_ratio_",
-    "kdj_", "boll_"
-]
-
 MODELS_DIR = "models"
 
 
 def _ensure_model_dir(config_id: str) -> None:
     os.makedirs(os.path.join(MODELS_DIR, config_id), exist_ok=True)
-
-
-def _get_default_feature_fields(columns: List[str]) -> List[str]:
-    features = []
-    for col in columns:
-        for prefix in RELATIVE_INDICATOR_PREFIXES:
-            if col.startswith(prefix) or col == prefix.rstrip("_"):
-                features.append(col)
-                break
-    return sorted(set(features))
 
 
 def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold: float) -> pd.DataFrame:
@@ -62,7 +54,14 @@ async def create_training(
     start_date: str,
     end_date: str,
 ) -> TrainingResult:
-    """Create training with classification labels."""
+    """Create training with classification labels.
+
+    使用配置的字段直接进行训练，无分支判断:
+    - feature_fields: 模型输入 X
+    - standardize_fields: 标准化器标准化
+    - winsorize_fields: 标准化器缩尾
+    - output_fields: 标准化器输出 (特征+标签)
+    """
     config = await get_config_by_id(config_id)
     if not config:
         raise ValueError(f"Config not found: {config_id}")
@@ -106,22 +105,20 @@ async def create_training(
         config.classification_threshold
     )
 
-    if config.feature_fields:
-        feature_fields = config.feature_fields
-    else:
-        feature_fields = _get_default_feature_fields(combined.columns.tolist())
+    feature_fields = config.feature_fields
+    standardize_fields = config.standardize_fields
+    winsorize_fields = config.winsorize_fields
+    output_fields = config.output_fields
 
     target_names = [f"label_{h}d" for h in config.classification_horizons]
 
-    if config.normalizer_fields:
-        normalizer = CrossSectionalNormalizer(
-            standardize_fields=feature_fields,
-            **config.normalizer_fields
-        )
-    else:
-        normalizer = CrossSectionalNormalizer(standardize_fields=feature_fields)
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=standardize_fields,
+        winsorize_fields=winsorize_fields,
+        output_fields=output_fields,
+    )
 
-    combined_normalized = normalizer.normalize(combined[feature_fields + ["trade_date", "ts_code"]])
+    combined_normalized = normalizer.normalize(combined[output_fields + ["trade_date", "ts_code"]])
     combined_normalized["trade_date"] = combined["trade_date"].values
     combined_normalized["ts_code"] = combined["ts_code"].values
     for t in target_names:
@@ -202,6 +199,13 @@ async def delete_training(training_id: PydanticObjectId) -> bool:
 
 
 async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> Dict:
+    """Predict using trained model.
+
+    预测流程与训练保持一致，使用相同的配置字段:
+    - standardize_fields: 标准化器标准化
+    - winsorize_fields: 标准化器缩尾
+    - output_fields: 标准化器输出
+    """
     from trade_alpha.predict.config_service import get_config_by_id
 
     training = await get_training_by_id(training_id)
@@ -222,15 +226,13 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     df = pd.DataFrame([r.model_dump() for r in records])
     df = df.sort_values("trade_date")
 
-    if config.normalizer_fields:
-        normalizer = CrossSectionalNormalizer(
-            standardize_fields=training.feature_fields,
-            **config.normalizer_fields
-        )
-    else:
-        normalizer = CrossSectionalNormalizer(standardize_fields=training.feature_fields)
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=config.standardize_fields,
+        winsorize_fields=config.winsorize_fields,
+        output_fields=config.output_fields,
+    )
 
-    df_norm = normalizer.normalize(df[training.feature_fields + ["trade_date", "ts_code"]])
+    df_norm = normalizer.normalize(df[config.output_fields + ["trade_date", "ts_code"]])
     for c in df.columns:
         if c not in training.feature_fields and c not in ["trade_date", "ts_code"]:
             if c in df_norm.columns:

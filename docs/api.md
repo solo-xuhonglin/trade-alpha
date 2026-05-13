@@ -279,14 +279,27 @@ POST /api/model-configs
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["ma_5", "ma_10", "ma_20"],
-  "standardize_fields": ["ma_5", "ma_10"],
+  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "pct_chg", "vol_ratio_5", "vol_ratio_10", "bias_5", "bias_10", "kdj_k", "kdj_d", "kdj_j"],
+  "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "vol_ratio_5", "vol_ratio_10"],
   "winsorize_fields": [],
-  "output_fields": ["ma_5", "ma_10", "ma_20", "label_3d", "label_5d"],
+  "output_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "pct_chg", "vol_ratio_5", "vol_ratio_10", "bias_5", "bias_10", "kdj_k", "kdj_d", "kdj_j", "label_3d", "label_5d"],
   "classification_horizons": [3, 5],
   "classification_threshold": 0.02
 }
 ```
+
+**字段说明**:
+- `feature_fields`: 模型输入特征字段 (X数据集)
+- `standardize_fields`: Z-score 标准化字段
+- `winsorize_fields`: 缩尾处理字段
+- `output_fields`: 标准化器输出字段 (特征+分类标签)
+
+**默认值**:
+- 所有字段均可省略，默认值由服务端填充
+- `feature_fields`: 使用所有指标字段
+- `standardize_fields`: 与 `feature_fields` 相同
+- `winsorize_fields`: 空列表
+- `output_fields`: `feature_fields` + 分类标签
 
 **模型类型**:
 - `xgboost`: XGBoost 分类器

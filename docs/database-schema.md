@@ -398,50 +398,34 @@ MACDStrategy:
 |-----|------|------|
 | `name` | string | 配置名称（唯一） |
 | `model_type` | string | 模型类型 ("xgboost", "lstm") |
-| `params` | object | 模型参数 |
-| `targets` | array | 预测目标列表 |
-| `feature_fields` | array | 特征字段列表（分类任务） |
-| `standardize_fields` | array | Z-score 标准化的字段列表 |
-| `winsorize_fields` | array | 缩尾处理的字段列表 |
-| `output_fields` | array | 标准化器输出字段（特征+标签） |
-| `classification_horizons` | array | 分类预测周期列表（分类任务） |
-| `classification_threshold` | float | 涨跌分类阈值（分类任务） |
+| `feature_fields` | array | 模型输入特征字段列表 (X数据集) |
+| `standardize_fields` | array | Z-score 标准化的字段列表 (通常与feature_fields相同) |
+| `winsorize_fields` | array | 缩尾处理的字段列表 (通常为空) |
+| `output_fields` | array | 标准化器输出字段列表 (feature_fields+分类标签) |
+| `classification_horizons` | array | 分类预测周期列表 |
+| `classification_threshold` | float | 涨跌分类阈值 |
 | `created_at` | datetime | 创建时间 |
 | `updated_at` | datetime | 更新时间 |
-
-**模型类型与参数**:
-
-xgboost:
-```json
-{
-  "n_estimators": 100,
-  "max_depth": 5,
-  "learning_rate": 0.1
-}
-```
-
-lstm:
-```json
-{
-  "epochs": 50,
-  "batch_size": 32,
-  "units": 64
-}
-```
 
 **分类任务配置示例**:
 ```json
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["ma_5", "ma_10", "ma_20"],
-  "standardize_fields": ["ma_5", "ma_10"],
+  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "pct_chg", "vol_ratio_5", "vol_ratio_10", "bias_5", "bias_10", "kdj_k", "kdj_d", "kdj_j"],
+  "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "vol_ratio_5", "vol_ratio_10"],
   "winsorize_fields": [],
-  "output_fields": ["ma_5", "ma_10", "ma_20", "label_3d", "label_5d"],
+  "output_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "pct_chg", "vol_ratio_5", "vol_ratio_10", "bias_5", "bias_10", "kdj_k", "kdj_d", "kdj_j", "label_3d", "label_5d"],
   "classification_horizons": [3, 5],
   "classification_threshold": 0.02
 }
 ```
+
+**字段默认值**:
+- `feature_fields`: 默认使用所有指标字段
+- `standardize_fields`: 默认与 `feature_fields` 相同
+- `winsorize_fields`: 默认空列表
+- `output_fields`: 默认 `feature_fields` + 分类标签
 
 ### training_results
 

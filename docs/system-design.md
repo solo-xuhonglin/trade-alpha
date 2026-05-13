@@ -382,10 +382,12 @@ create_training(
 模型配置支持分类任务参数：
 ```python
 {
-    "feature_fields": ["close", "pct_chg", "ma_5", ...],
-    "classification_horizons": [1, 5, 20],  # 预测未来 N 天涨跌
-    "classification_threshold": 0.0,  # 涨跌阈值
-    "normalizer_fields": ["ma_5", "ma_10", ...]  # 标准化特征字段
+    "feature_fields": ["ma_5", "ma_10", "ma_20", "pct_chg", ...],  # 模型输入特征
+    "standardize_fields": ["ma_5", "ma_10", ...],  # Z-score 标准化字段
+    "winsorize_fields": [],  # 缩尾处理字段
+    "output_fields": ["ma_5", "ma_10", ..., "label_3d", "label_5d"],  # 标准化器输出
+    "classification_horizons": [3, 5],  # 预测未来 N 天涨跌
+    "classification_threshold": 0.02,  # 涨跌阈值
 }
 ```
 

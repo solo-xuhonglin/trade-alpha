@@ -13,17 +13,21 @@ class ConfigCreate(BaseModel):
     name: str
     model_type: str
     feature_fields: Optional[List[str]] = None
+    standardize_fields: Optional[List[str]] = None
+    winsorize_fields: Optional[List[str]] = None
+    output_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
     classification_threshold: Optional[float] = None
-    normalizer_fields: Optional[Dict[str, Any]] = None
 
 
 class ConfigUpdate(BaseModel):
     name: Optional[str] = None
     feature_fields: Optional[List[str]] = None
+    standardize_fields: Optional[List[str]] = None
+    winsorize_fields: Optional[List[str]] = None
+    output_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
     classification_threshold: Optional[float] = None
-    normalizer_fields: Optional[Dict[str, Any]] = None
 
 
 @router.post("")
@@ -34,9 +38,11 @@ async def create_config(body: ConfigCreate):
             name=body.name,
             model_type=body.model_type,
             feature_fields=body.feature_fields,
+            standardize_fields=body.standardize_fields,
+            winsorize_fields=body.winsorize_fields,
+            output_fields=body.output_fields,
             classification_horizons=body.classification_horizons,
-            classification_threshold=body.classification_threshold,
-            normalizer_fields=body.normalizer_fields,
+            classification_threshold=body.classification_threshold or 0.02,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
