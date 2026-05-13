@@ -23,6 +23,11 @@ DATA_PERIODS: List[Tuple[str, str]] = [
 
 API_REQUEST_DELAY = 1
 
+TEST_EXCLUDED_TS_CODES: List[str] = [
+    "002594.SZ",
+    "601398.SH",
+]
+
 
 async def ensure_stock_list() -> int:
     """Ensure stock list exists, fetch from Tushare if empty."""
@@ -36,14 +41,16 @@ async def ensure_stock_list() -> int:
 async def get_pending_stocks(limit: int = 1) -> List[StockList]:
     """Get pending stocks sorted by market value descending."""
     return await StockList.find(
-        StockList.sync_status == "pending"
+        StockList.sync_status == "pending",
+        StockList.ts_code.not_in(TEST_EXCLUDED_TS_CODES)
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
 async def get_data_completed_stocks(limit: int = 1) -> List[StockList]:
     """Get stocks with data completed, waiting for indicators."""
     return await StockList.find(
-        StockList.sync_status == "data_completed"
+        StockList.sync_status == "data_completed",
+        StockList.ts_code.not_in(TEST_EXCLUDED_TS_CODES)
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
