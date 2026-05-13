@@ -1,18 +1,16 @@
-"""Integration tests for prediction API endpoints."""
+"""Integration tests for prediction service."""
 
 import pytest
-from httpx import AsyncClient, ASGITransport
 from trade_alpha.predict import config_service, training_service
 from trade_alpha.dao import PredictionResult, StockList
 from trade_alpha.data import fetch_and_store_stock_daily
 from trade_alpha.indicators import calculate_and_store_ma, calculate_and_store_macd, calculate_and_store_custom_indicators
-from trade_alpha.api.main import app
 
 
 @pytest.mark.integration
 @pytest.mark.order(4)
 class TestPredictIntegration:
-    """Integration tests with real MongoDB and API endpoints."""
+    """Integration tests with real MongoDB."""
 
     @pytest.fixture(autouse=True)
     async def setup_teardown(self):
@@ -49,7 +47,7 @@ class TestPredictIntegration:
 
         self.training = await training_service.create_training(
             config_id=self.config_id,
-            name="test_api_training",
+            name="test_integration_training",
             ts_codes=[self.ts_code],
             start_date=self.start_date,
             end_date=self.end_date,
@@ -60,27 +58,23 @@ class TestPredictIntegration:
         await PredictionResult.find(PredictionResult.ts_code == self.ts_code).delete()
 
     @pytest.mark.asyncio
-    async def test_predict_via_api(self):
-        """Test POST /api/trainings/{id}/predict via API."""
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                f"/api/trainings/{self.training.id}/predict",
-                json={"ts_code": self.ts_code}
-            )
-        assert response.status_code == 200
-        data = response.json()
-        assert "predictions" in data
-        assert "probabilities" in data
-        assert "label_3d" in data["predictions"]
-        assert "label_5d" in data["predictions"]
-        assert data["predictions"]["label_3d"] in [-1, 0, 1]
-        assert data["predictions"]["label_5d"] in [-1, 0, 1]
+    async def test_predict_with_training(self):
+        """Test predict_with_training returns classification predictions."""
+        result = await training_service.predict_with_training(self.training.id, self.ts_code)
+
+        assert "predictions" in result
+        assert "probabilities" in result
+        assert "label_3d" in result["predictions"]
+        assert "label_5d" in result["predictions"]
+        assert result["predictions"]["label_3d"] in [-1, 0, 1]
+        assert result["predictions"]["label_5d"] in [-1, 0, 1]
+        assert len(result["probabilities"]["label_3d"]) == 3
+        assert abs(sum(result["probabilities"]["label_3d"]) - 1.0) < 0.01
 
     @pytest.mark.asyncio
     async def test_get_prediction_by_id(self):
-        """Test GET /api/predict/{prediction_id} returns prediction with training_result_id."""
-        result = await training_service.predict_with_training(self.training.id, self.ts_code)
+        """Test get_prediction_by_id returns prediction with training_result_id."""
+        await training_service.predict_with_training(self.training.id, self.ts_code)
 
         pred_records = await PredictionResult.find(
             PredictionResult.training_result_id == self.training.id,
@@ -88,24 +82,17 @@ class TestPredictIntegration:
         ).to_list()
         assert len(pred_records) > 0
 
-        pred_id = str(pred_records[0].id)
-
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get(f"/api/predict/{pred_id}")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["training_result_id"] == str(self.training.id)
-        assert data["ts_code"] == self.ts_code
-        assert "predictions" in data
-        assert "label_3d" in data["predictions"]
-        assert data["predictions"]["label_3d"] in [-1, 0, 1]
+        pred = await training_service.get_prediction_by_id(pred_records[0].id)
+        assert pred is not None
+        assert pred.training_result_id == self.training.id
+        assert pred.ts_code == self.ts_code
+        assert "label_3d" in pred.predictions
+        assert pred.predictions["label_3d"] in [-1, 0, 1]
 
     @pytest.mark.asyncio
     async def test_delete_prediction(self):
-        """Test DELETE /api/predict/{prediction_id} works."""
-        result = await training_service.predict_with_training(self.training.id, self.ts_code)
+        """Test delete_prediction removes prediction."""
+        await training_service.predict_with_training(self.training.id, self.ts_code)
 
         pred_records = await PredictionResult.find(
             PredictionResult.training_result_id == self.training.id,
@@ -113,31 +100,25 @@ class TestPredictIntegration:
         ).to_list()
         assert len(pred_records) > 0
 
-        pred_id = str(pred_records[0].id)
+        pred_id = pred_records[0].id
+        deleted = await training_service.delete_prediction(pred_id)
+        assert deleted is True
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            delete_response = await client.delete(f"/api/predict/{pred_id}")
-            assert delete_response.status_code == 200
-            assert delete_response.json()["deleted"] is True
-
-            get_response = await client.get(f"/api/predict/{pred_id}")
-            assert get_response.status_code == 404
+        pred = await training_service.get_prediction_by_id(pred_id)
+        assert pred is None
 
     @pytest.mark.asyncio
     async def test_get_prediction_not_found(self):
-        """Test GET /api/predict/{id} returns 404 for non-existent prediction."""
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/predict/000000000000000000000000")
-
-        assert response.status_code == 404
+        """Test get_prediction_by_id returns None for non-existent prediction."""
+        from beanie import PydanticObjectId
+        fake_id = PydanticObjectId("000000000000000000000000")
+        pred = await training_service.get_prediction_by_id(fake_id)
+        assert pred is None
 
     @pytest.mark.asyncio
     async def test_delete_prediction_not_found(self):
-        """Test DELETE /api/predict/{id} returns 404 for non-existent prediction."""
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.delete("/api/predict/000000000000000000000000")
-
-        assert response.status_code == 404
+        """Test delete_prediction returns False for non-existent prediction."""
+        from beanie import PydanticObjectId
+        fake_id = PydanticObjectId("000000000000000000000000")
+        deleted = await training_service.delete_prediction(fake_id)
+        assert deleted is False
