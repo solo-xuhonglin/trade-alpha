@@ -4,9 +4,9 @@
 
 ### 股票代码规范
 - **主要股票代码**: `002594.SZ` (比亚迪)
-- **备用股票代码**: `601398.SH` (工商银行)
 - **禁止使用**自定义拼接的测试代码（如 `TEST_*`）
 - 测试数据清理时，保留 `002594.SZ` 作为默认数据
+- 定时任务自动排除集成测试使用的股票代码
 
 ### 数据清理规范
 - 测试数据使用 `test_*_temp` 命名，测试结束后自动清理
@@ -19,16 +19,16 @@
 |-------|------|------|------|
 | 1 | test_01_tushare_api.py | TestTushareAPI | 验证 Tushare API 连通性 |
 | 10 | test_10_mongodb_basic.py | TestMongoDBBasic | 验证 MongoDB 通用操作 |
-| 20 | test_20_dao_daily.py | TestDAODaily | 验证 StockDaily DAO 业务方法 |
-| 21 | test_21_dao_stock_list.py | TestDAOStockList | 验证 StockList DAO 业务方法 |
+| 20 | test_20_dao_daily.py | TestStockDaily | 验证 StockDaily DAO 业务方法 |
+| 21 | test_21_dao_stock_list.py | TestStockList | 验证 StockList DAO 业务方法 |
+| 25 | test_25_indicators_integration.py | TestIndicatorsIntegration | 验证指标计算服务 |
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
 | 41 | test_41_account_config_service.py | TestAccountConfigService | 验证账户管理服务 |
-| 42 | test_43_strategy_service.py | TestStrategyService | 验证策略管理服务 |
-| 43 | test_43_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
+| 42 | test_42_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
+| 44 | test_44_strategy_service.py | TestStrategyService | 验证策略管理服务 |
 | 51 | test_51_training_service.py | TestTrainingService | 验证训练服务 |
-| 60 | test_60_backtest.py | TestBacktest | 验证回测服务 |
-| 65 | test_65_backtest_integration.py | TestBacktestIntegration | 验证回测集成（依赖前置默认数据） |
+| 52 | test_52_predict_integration.py | TestPredictIntegration | 验证预测集成 |
 
 ## 依赖关系
 
@@ -45,7 +45,7 @@ Layer 2: 基础设施
 
 Layer 3: 业务逻辑
 ┌─────────────────────────┐     ┌─────────────────────────┐
-│  TestDAODaily (20)      │     │ TestDAOStockList (21)   │
+│  TestStockDaily (20)    │     │ TestStockList (21)      │
 │  (StockDailyDAO)        │     │ (StockListDAO)          │
 └─────────────────────────┘     └─────────────────────────┘
               │                               │
@@ -58,23 +58,37 @@ Layer 3: 业务逻辑
 └─────────────────────────┘     │  stock_list)            │
                                 └─────────────────────────┘
 
+Layer 3.5: 指标计算
+┌─────────────────────────┐
+│TestIndicatorsIntegration│
+│        (25)             │
+└─────────────────────────┘
+
 Layer 4: 基础配置 (账户/策略/模型配置)
 ┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
-│ TestAccountConfigService(41)│     │TestStrategyService (42) │     │TestModelConfigService(43)│
+│ TestAccountConfigService│     │TestModelConfigService   │     │TestStrategyService (44)│
+│         (41)            │     │         (42)            │     │                         │
 └─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
 
 Layer 5: 训练
                                     ┌─────────────────────────┐
                                     │ TestTrainingService(51) │  ← 依赖 ModelConfig
                                     └─────────────────────────┘
-
-Layer 6: 回归测试
-┌─────────────────────────┐     ┌─────────────────────────────┐
-│  TestBacktest (60)      │     │ TestBacktestIntegration (65)│
-│                          │     │  依赖 Portfolio, Strategy,  │
-│                          │     │  Training 默认记录          │
-└─────────────────────────┘     └─────────────────────────────┘
+                                    ┌─────────────────────────┐
+                                    │TestPredictIntegration(52)│
+                                    └─────────────────────────┘
 ```
+
+## 统一 Fixtures
+
+集成测试使用统一的 fixtures 来管理测试数据：
+
+| Fixture | 说明 | 范围 |
+|---------|------|------|
+| `test_stock` | 提供完整的比亚迪 (002594.SZ) 数据，包括日线数据、所有指标、sync_status=active | module |
+| `test_model_config` | 提供默认的模型配置 (xgboost, classification) | session |
+
+这些 fixtures 定义在 `backend/tests/conftest.py` 中。
 
 ## 执行影响
 
@@ -82,16 +96,23 @@ Layer 6: 回归测试
 |-------|---------|-------------|---------|
 | TestTushareAPI | 无 | 无需清理 | - |
 | TestMongoDBBasic | test_collection | 自动清理 | - |
-| TestDAODaily | 002594.SZ / 601398.SH | 自动清理 | - |
-| TestDAOStockList | 002594.SZ / 601398.SH | 自动清理 | - |
-| TestServiceData | 601398.SH | 自动清理 | 002594.SZ |
+| TestStockDaily | 002594.SZ | 自动清理 | - |
+| TestStockList | 002594.SZ / 临时测试数据 | 自动清理 | - |
+| TestIndicatorsIntegration | 002594.SZ | 自动清理 | - |
+| TestServiceData | 临时测试数据 | 自动清理 | 002594.SZ |
 | TestServiceStockList | 真实股票数据 | **不清理** | 真实业务数据 |
 | TestAccountConfigService | test_*_temp | 自动清理 | test_portfolio |
-| TestStrategyService | test_*_temp | 自动清理 | test_strategy |
 | TestModelConfigService | test_*_temp | 自动清理 | test_model_config |
+| TestStrategyService | test_*_temp | 自动清理 | test_strategy |
 | TestTrainingService | test_*_temp | 自动清理 | test_training |
-| TestBacktest | test_backtest_*_temp | 自动清理 | - |
-| TestBacktestIntegration | 依赖前置默认数据 | 清理回测数据 | 无 |
+| TestPredictIntegration | test_*_temp | 自动清理 | - |
+
+## 统一指标接口
+
+新增了 `calculate_all_indicators()` 统一接口：
+- 位置：`backend/src/trade_alpha/indicators/service.py`
+- 功能：一次性计算所有指标（MA、MACD、以及自定义指标）
+- 使用：`data_sync.py` 和测试都通过此接口来计算指标
 
 ## 默认记录说明
 

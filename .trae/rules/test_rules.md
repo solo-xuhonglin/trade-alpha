@@ -18,13 +18,18 @@
 | 股票代码 | 名称 | 用途 |
 |---------|------|------|
 | `002594.SZ` | 比亚迪 | 默认数据，测试后保留 |
-| `601398.SH` | 工商银行 | 临时数据，测试后清理 |
 
 ### 测试数据创建位置
 - 默认记录 `test_portfolio`：TestAccountConfigService.test_ensure_default_account_config
 - 默认记录 `test_strategy`：TestStrategyService.test_ensure_default_strategy
 - 默认记录 `test_model_config`：TestModelConfigService.test_ensure_default_config
-- 默认记录 `002594.SZ` 股票数据：TestServiceData.test_ensure_default_data
+- 默认记录 `002594.SZ` 股票数据：test_stock fixture (conftest.py)
+
+## 统一 Fixtures
+
+集成测试使用统一的 fixtures 来管理测试数据：
+- `test_stock`：提供完整的比亚迪 (002594.SZ) 数据，包括日线数据、所有指标、sync_status=active
+- `test_model_config`：提供默认的模型配置 (xgboost, classification)
 
 ## 运行命令
 

@@ -93,6 +93,27 @@ async def calculate_and_store_macd(ts_code: str) -> int:
     return updated_count
 
 
+async def calculate_all_indicators(ts_code: str) -> dict[str, int]:
+    """Calculate all indicators for a stock and store to database.
+
+    This is the unified interface for calculating all indicators (MA, MACD, and custom indicators).
+
+    Args:
+        ts_code: Stock code
+
+    Returns:
+        Dictionary with counts of updated records for each indicator type
+    """
+    ma_count = await calculate_and_store_ma(ts_code)
+    macd_count = await calculate_and_store_macd(ts_code)
+    custom_count = await calculate_and_store_custom_indicators(ts_code)
+    return {
+        "ma": ma_count,
+        "macd": macd_count,
+        "custom": custom_count,
+    }
+
+
 async def calculate_and_store_custom_indicators(ts_code: str) -> int:
     """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio, kdj, boll).
 
