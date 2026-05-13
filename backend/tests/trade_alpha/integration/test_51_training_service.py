@@ -2,6 +2,7 @@
 
 import pytest
 from trade_alpha.predict import config_service, training_service
+from trade_alpha.dao import StockList
 
 
 @pytest.mark.integration

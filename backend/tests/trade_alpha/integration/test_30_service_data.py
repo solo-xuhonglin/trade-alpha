@@ -3,7 +3,7 @@
 import pytest
 from trade_alpha.data.service import fetch_and_store_stock_daily
 from trade_alpha.dao import StockDaily
-from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd
+from trade_alpha.indicators.service import calculate_and_store_ma, calculate_and_store_macd, calculate_all_indicators
 
 TS_CODE = "002594.SZ"
 
