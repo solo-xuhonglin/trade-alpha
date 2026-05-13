@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from beanie import PydanticObjectId
 from trade_alpha.predict import config_service
 
@@ -12,14 +12,18 @@ router = APIRouter(prefix="/model-configs", tags=["model-configs"])
 class ConfigCreate(BaseModel):
     name: str
     model_type: str
-    params: Dict[str, Any] = {}
-    targets: List[str]
+    feature_fields: Optional[List[str]] = None
+    classification_horizons: Optional[List[int]] = None
+    classification_threshold: Optional[float] = None
+    normalizer_fields: Optional[Dict[str, Any]] = None
 
 
 class ConfigUpdate(BaseModel):
     name: Optional[str] = None
-    params: Optional[Dict[str, Any]] = None
-    targets: Optional[List[str]] = None
+    feature_fields: Optional[List[str]] = None
+    classification_horizons: Optional[List[int]] = None
+    classification_threshold: Optional[float] = None
+    normalizer_fields: Optional[Dict[str, Any]] = None
 
 
 @router.post("")
@@ -29,8 +33,10 @@ async def create_config(body: ConfigCreate):
         return await config_service.create_config(
             name=body.name,
             model_type=body.model_type,
-            params=body.params,
-            targets=body.targets,
+            feature_fields=body.feature_fields,
+            classification_horizons=body.classification_horizons,
+            classification_threshold=body.classification_threshold,
+            normalizer_fields=body.normalizer_fields,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -49,7 +55,7 @@ async def get_config(config_id: str):
         obj_id = PydanticObjectId(config_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID")
-    
+
     config = await config_service.get_config_by_id(obj_id)
     if not config:
         raise HTTPException(status_code=404, detail="Config not found")
@@ -63,7 +69,7 @@ async def update_config(config_id: str, body: ConfigUpdate):
         obj_id = PydanticObjectId(config_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID")
-    
+
     update_data = body.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -84,7 +90,7 @@ async def delete_config(config_id: str):
         obj_id = PydanticObjectId(config_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID")
-    
+
     deleted = await config_service.delete_config(obj_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Config not found")

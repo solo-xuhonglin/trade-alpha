@@ -20,14 +20,6 @@ class MACDCalculateRequest(BaseModel):
     ts_code: str
 
 
-class PredictRequest(BaseModel):
-    ts_code: str
-    targets: Optional[List[str]] = None
-    model: str = "linear"
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-
-
 class StrategyCreateRequest(BaseModel):
     name: str
     type: str
@@ -132,16 +124,6 @@ class DataRecordResponse(BaseModel):
     macd_hist: Optional[float] = None
 
 
-class PredictResponse(BaseModel):
-    ts_code: str
-    trade_date: str
-    model: str
-    target_open: Optional[float] = None
-    target_close: Optional[float] = None
-    target_high: Optional[float] = None
-    target_low: Optional[float] = None
-
-
 class IndicatorResult(BaseModel):
     ts_code: str
     updated_count: int
@@ -188,31 +170,3 @@ class TradeListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
-
-
-class ModelCreateRequest(BaseModel):
-    name: str
-    model_type: str
-    ts_code: str
-    targets: list[str] = ["open", "close", "high", "low"]
-    params: dict[str, Any] = {}
-    start_date: str
-    end_date: str
-
-
-class ModelResponse(BaseModel):
-    id: str
-    name: str
-    model_type: str
-    ts_code: str
-    targets: list[str]
-    params: dict[str, Any]
-    feature_cols: list[str]
-    train_date_range: dict[str, str]
-    metrics: dict[str, float]
-    created_at: datetime
-    updated_at: datetime
-
-
-class PredictWithModelRequest(BaseModel):
-    ts_code: Optional[str] = None

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from beanie import PydanticObjectId
 from trade_alpha.predict import training_service
 
@@ -17,10 +17,6 @@ class TrainingCreate(BaseModel):
     end_date: str
 
 
-class PredictRequest(BaseModel):
-    ts_code: Optional[str] = None
-
-
 @router.post("")
 async def create_training(body: TrainingCreate):
     """Create training."""
@@ -28,7 +24,7 @@ async def create_training(body: TrainingCreate):
         config_id = PydanticObjectId(body.config_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID format")
-    
+
     try:
         return await training_service.create_training(
             config_id=config_id,
@@ -60,7 +56,7 @@ async def get_training(training_id: str):
         obj_id = PydanticObjectId(training_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid training ID")
-    
+
     training = await training_service.get_training_by_id(obj_id)
     if not training:
         raise HTTPException(status_code=404, detail="Training not found")
@@ -74,24 +70,27 @@ async def delete_training(training_id: str):
         obj_id = PydanticObjectId(training_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid training ID")
-    
+
     deleted = await training_service.delete_training(obj_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Training not found")
     return {"deleted": True}
 
 
+class PredictRequest(BaseModel):
+    ts_code: str
+
+
 @router.post("/{training_id}/predict")
-async def predict(training_id: str, body: PredictRequest = None):
+async def predict(training_id: str, body: PredictRequest):
     """Predict using trained model."""
     try:
         obj_id = PydanticObjectId(training_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid training ID")
-    
+
     try:
-        ts_code = body.ts_code if body else None
-        predictions = await training_service.predict_with_training(obj_id, ts_code)
-        return {"predictions": predictions}
+        result = await training_service.predict_with_training(obj_id, body.ts_code)
+        return {"predictions": result["predictions"], "probabilities": result["probabilities"]}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
