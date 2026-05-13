@@ -11,3 +11,4 @@ Thumbs.db
 .env.local
 
 *./__pycache__/*.*
+logs/trade_alpha.log

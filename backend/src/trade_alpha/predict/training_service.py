@@ -4,7 +4,7 @@
 1. 从 config 读取 feature_fields, standardize_fields, winsorize_fields, output_fields
 2. output_fields 包含特征字段和分类标签字段
 3. 标准化器对 standardize_fields 进行 Z-score 标准化，对 winsorize_fields 进行缩尾
-4. 标准化器输出 output_fields 中的字段
+4. 标准化器输出 output_fields 中的字段 (自动排除 ts_code/trade_date)
 5. X 数据集使用 feature_fields，y 数据集使用分类标签
 """
 
@@ -21,7 +21,6 @@ from trade_alpha.predict.models.xgboost import XGBoostClassifier
 from trade_alpha.predict.models.lstm import LSTMClassifier
 from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
 from trade_alpha.logging import get_logger
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 logger = get_logger("training_service")
 
@@ -60,7 +59,7 @@ async def create_training(
     - feature_fields: 模型输入 X
     - standardize_fields: 标准化器标准化
     - winsorize_fields: 标准化器缩尾
-    - output_fields: 标准化器输出 (特征+标签)
+    - output_fields: 标准化器输出 (特征+标签，自动排除 ts_code/trade_date)
     """
     config = await get_config_by_id(config_id)
     if not config:
@@ -105,53 +104,27 @@ async def create_training(
         config.classification_threshold
     )
 
-    feature_fields = config.feature_fields
-    standardize_fields = config.standardize_fields
-    winsorize_fields = config.winsorize_fields
-    output_fields = config.output_fields
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=config.standardize_fields,
+        winsorize_fields=config.winsorize_fields,
+        output_fields=config.output_fields,
+    )
 
     target_names = [f"label_{h}d" for h in config.classification_horizons]
 
-    normalizer = CrossSectionalNormalizer(
-        standardize_fields=standardize_fields,
-        winsorize_fields=winsorize_fields,
-        output_fields=output_fields,
-    )
+    normalizer_input = config.feature_fields + target_names + ["trade_date", "ts_code"]
+    combined_normalized = normalizer.normalize(combined[normalizer_input])
 
-    combined_normalized = normalizer.normalize(combined[output_fields + ["trade_date", "ts_code"]])
-    combined_normalized["trade_date"] = combined["trade_date"].values
-    combined_normalized["ts_code"] = combined["ts_code"].values
-    for t in target_names:
-        combined_normalized[t] = combined[t].values
-
-    drop_cols = ["trade_date", "ts_code"] + [c for c in combined.columns if c not in feature_fields + ["trade_date", "ts_code"] + target_names]
-    for c in drop_cols:
-        if c in combined_normalized.columns:
-            combined_normalized = combined_normalized.drop(columns=[c])
-
-    valid_labels = [t for t in target_names if t in combined_normalized.columns]
-    combined_normalized = combined_normalized.dropna(subset=feature_fields + valid_labels)
+    combined_normalized = combined_normalized.dropna(subset=config.feature_fields + target_names)
 
     if len(combined_normalized) < 20:
         raise ValueError(f"Insufficient data ({len(combined_normalized)} < 20)")
 
-    X = combined_normalized[feature_fields].values
+    X = combined_normalized[config.feature_fields].values
     y = combined_normalized[target_names].values
 
     classifier = CLASSIFIERS[config.model_type]()
     classifier.fit(X, y, target_names)
-
-    y_pred_all = classifier.predict(X, target_names)
-    y_true_all = {t: combined_normalized[t].values for t in target_names}
-
-    metrics = {}
-    metrics["sample_count"] = len(combined_normalized)
-    for t in target_names:
-        y_pred_arr = np.array([y_pred_all[t]] * len(y_true_all[t]))
-        metrics[f"{t}_accuracy"] = accuracy_score(y_true_all[t], y_pred_arr)
-        metrics[f"{t}_precision"] = precision_score(y_true_all[t], y_pred_arr, average="macro", zero_division=0)
-        metrics[f"{t}_recall"] = recall_score(y_true_all[t], y_pred_arr, average="macro", zero_division=0)
-        metrics[f"{t}_f1"] = f1_score(y_true_all[t], y_pred_arr, average="macro", zero_division=0)
 
     training = TrainingResult(
         config_id=config_id,
@@ -159,9 +132,9 @@ async def create_training(
         ts_codes=[c for c in ts_codes if c not in skipped],
         start_date=start_date,
         end_date=end_date,
-        feature_fields=feature_fields,
+        feature_fields=config.feature_fields,
         classification_horizons=config.classification_horizons,
-        metrics=metrics,
+        metrics={"sample_count": len(combined_normalized)},
         created_at=datetime.now(timezone.utc),
     )
     await training.insert()
@@ -173,7 +146,7 @@ async def create_training(
     training.model_path = model_path
     await training.save()
 
-    logger.info(f"Training completed: name={name} id={training.id} samples={metrics['sample_count']}")
+    logger.info(f"Training completed: name={name} id={training.id} samples={len(combined_normalized)}")
     return training
 
 
@@ -204,7 +177,7 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     预测流程与训练保持一致，使用相同的配置字段:
     - standardize_fields: 标准化器标准化
     - winsorize_fields: 标准化器缩尾
-    - output_fields: 标准化器输出
+    - output_fields: 标准化器输出 (自动排除 ts_code/trade_date)
     """
     from trade_alpha.predict.config_service import get_config_by_id
 
@@ -232,13 +205,10 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
         output_fields=config.output_fields,
     )
 
-    df_norm = normalizer.normalize(df[config.output_fields + ["trade_date", "ts_code"]])
-    for c in df.columns:
-        if c not in training.feature_fields and c not in ["trade_date", "ts_code"]:
-            if c in df_norm.columns:
-                df_norm = df_norm.drop(columns=[c])
+    normalizer_input = config.feature_fields + ["trade_date", "ts_code"]
+    df_norm = normalizer.normalize(df[normalizer_input])
 
-    df_norm = df_norm.dropna(subset=training.feature_fields)
+    df_norm = df_norm.dropna(subset=config.feature_fields)
     if len(df_norm) == 0:
         raise ValueError("No valid data after normalization")
 
@@ -246,7 +216,7 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     classifier.load(training.model_path)
 
     target_names = [f"label_{h}d" for h in training.classification_horizons]
-    features = df_norm[training.feature_fields].iloc[-1:].values
+    features = df_norm[config.feature_fields].iloc[-1:].values
 
     predictions = classifier.predict(features, target_names)
     probabilities = classifier.predict_proba(features, target_names)

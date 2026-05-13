@@ -80,17 +80,20 @@ Expected: 可能有 schema 相关错误，待 Task 5 处理旧数据
 **Files:**
 - Modify: `backend/src/trade_alpha/predict/config_service.py`
 
-- [ ] **Step 1: 添加预定义指标常量**
+- [ ] **Step 1: 添加预定义指标常量 (25个字段)**
 
 在 `backend/src/trade_alpha/predict/config_service.py` 文件开头添加：
 
 ```python
 DEFAULT_INDICATOR_FIELDS = [
-    "ma_5", "ma_10", "ma_20", "ma_30", "ma_60",
+    "ma_5", "ma_10", "ma_20", "ma_60",
+    "macd", "macd_signal", "macd_hist",
     "pct_chg",
-    "vol_ratio_5", "vol_ratio_10",
-    "bias_5", "bias_10",
+    "bias_5", "bias_10", "bias_20", "bias_60",
+    "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60",
+    "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60",
     "kdj_k", "kdj_d", "kdj_j",
+    "boll_upper", "boll_middle", "boll_lower",
 ]
 ```
 

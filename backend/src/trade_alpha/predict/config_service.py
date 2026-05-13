@@ -18,11 +18,14 @@ from trade_alpha.logging import get_logger
 logger = get_logger("config_service")
 
 DEFAULT_INDICATOR_FIELDS = [
-    "ma_5", "ma_10", "ma_20", "ma_30", "ma_60",
+    "ma_5", "ma_10", "ma_20", "ma_60",
+    "macd", "macd_signal", "macd_hist",
     "pct_chg",
-    "vol_ratio_5", "vol_ratio_10",
-    "bias_5", "bias_10",
+    "bias_5", "bias_10", "bias_20", "bias_60",
+    "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60",
+    "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60",
     "kdj_k", "kdj_d", "kdj_j",
+    "boll_upper", "boll_middle", "boll_lower",
 ]
 
 

@@ -412,10 +412,10 @@ MACDStrategy:
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "pct_chg", "vol_ratio_5", "vol_ratio_10", "bias_5", "bias_10", "kdj_k", "kdj_d", "kdj_j"],
-  "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "vol_ratio_5", "vol_ratio_10"],
+  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower"],
+  "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
-  "output_fields": ["ma_5", "ma_10", "ma_20", "ma_30", "ma_60", "pct_chg", "vol_ratio_5", "vol_ratio_10", "bias_5", "bias_10", "kdj_k", "kdj_d", "kdj_j", "label_3d", "label_5d"],
+  "output_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower", "label_3d", "label_5d"],
   "classification_horizons": [3, 5],
   "classification_threshold": 0.02
 }
