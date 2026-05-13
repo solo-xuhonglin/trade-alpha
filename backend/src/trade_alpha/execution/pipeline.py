@@ -1,15 +1,29 @@
-"""Execution pipeline module - main orchestrator."""
+"""Execution pipeline - main orchestrator for backtest and live trading."""
 
-from typing import List, Optional, Literal, Union
-from datetime import datetime
-from trade_alpha.execution.data_loader import DataLoader
-from trade_alpha.execution.predictor import PredictorManager
-from trade_alpha.execution.signal_generator import SignalGenerator
-from trade_alpha.execution.position_manager import PositionManager
-from trade_alpha.execution.schemas import ExecutionResult, OrderSuggestion
+from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from beanie import PydanticObjectId
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
+from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
+from trade_alpha.execution.data_loader import DataLoader
+from trade_alpha.execution.predictor import Predictor
+from trade_alpha.execution.position_manager import PositionManager
+from trade_alpha.execution.schemas import ScoredStock, PendingOrder
+from trade_alpha.dao.position import PositionEmbed
+from trade_alpha.logging import get_logger
+
+logger = get_logger("execution.pipeline")
+
+
+def _next_date(date_str: str) -> str:
+    """Return the next calendar date, skipping weekends."""
+    dt = datetime.strptime(date_str, "%Y%m%d")
+    dt += timedelta(days=1)
+    while dt.weekday() >= 5:
+        dt += timedelta(days=1)
+    return dt.strftime("%Y%m%d")
 
 
 class ExecutionPipeline:
@@ -18,54 +32,256 @@ class ExecutionPipeline:
     def __init__(
         self,
         account_config: AccountConfig,
-        strategy_config: StrategyConfig,
+        training_id: PydanticObjectId,
         model_config: ModelConfig,
+        strategy_config: Optional[StrategyConfig] = None,
+        max_positions: int = 10,
     ):
         self.account_config = account_config
-        self.strategy_config = strategy_config
+        self.training_id = training_id
         self.model_config = model_config
-        self.data_loader = DataLoader()
-        self.predictor = PredictorManager(model_config)
-        self.signal_generator = SignalGenerator(strategy_id=str(strategy_config.id))
-        self.position_manager = PositionManager(account_config)
+        self.strategy_config = strategy_config
+        self.max_positions = max_positions
 
-    async def run(
-        self,
-        mode: Literal["backtest", "live"],
-        ts_codes: List[str],
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        date: Optional[str] = None,
-    ) -> Union[ExecutionResult, List[OrderSuggestion]]:
-        """
-        Run the execution pipeline.
-        
-        Args:
-            mode: Execution mode ('backtest' or 'live')
-            ts_codes: List of stock codes
-            start_date: Start date for backtest mode
-            end_date: End date for backtest mode
-            date: Single date for live mode
-        
-        Returns:
-            ExecutionResult for backtest mode
-            List[OrderSuggestion] for live mode
-        """
-        result = ExecutionResult(
-            execution_id=str(datetime.now().timestamp()),
-            mode=mode,
-            start_time=datetime.now()
+        self.data_loader = DataLoader()
+        self.predictor = Predictor(training_id)
+        self.position_manager = PositionManager(
+            account_config=account_config,
+            max_positions=max_positions,
         )
-        
-        try:
-            if mode == "backtest":
-                result.status = "completed"
-                result.end_time = datetime.now()
-                return result
-            else:
-                return []
-                
-        except Exception as e:
-            result.status = "failed"
-            result.error_message = str(e)
-            return result
+
+        self.cash: float = account_config.initial_capital
+        self.positions: Dict[str, PositionEmbed] = {}
+        self.prev_total_value: Optional[float] = None
+
+    async def run_backtest(
+        self,
+        start_date: str,
+        end_date: str,
+        name: Optional[str] = None,
+    ) -> ExecutionResult:
+        """Run backtest from start_date to end_date (inclusive)."""
+        backtest_name = name or f"backtest_{start_date}_{end_date}"
+
+        result = ExecutionResult(
+            account_config_id=self.account_config.id,
+            training_id=self.training_id,
+            name=backtest_name,
+            mode="backtest",
+            start_date=start_date,
+            end_date=end_date,
+            initial_capital=self.account_config.initial_capital,
+            final_value=0.0,
+            total_return=0.0,
+            account_snapshot=AccountSnapshotEmbed(
+                name=self.account_config.name,
+                initial_capital=self.account_config.initial_capital,
+                buy_fee_rate=self.account_config.buy_fee_rate,
+                sell_fee_rate=self.account_config.sell_fee_rate,
+                stamp_tax_rate=self.account_config.stamp_tax_rate,
+                min_fee=self.account_config.min_fee,
+            ),
+            model_snapshot=ModelSnapshotEmbed(
+                name=self.model_config.name,
+                model_type=self.model_config.model_type,
+                feature_fields=self.model_config.feature_fields,
+                classification_horizons=self.model_config.classification_horizons,
+                classification_threshold=self.model_config.classification_threshold,
+            ),
+            status="running",
+        )
+        await result.insert()
+        backtest_id = result.id
+
+        logger.info(f"Backtest {backtest_id} started: {start_date} -> {end_date}")
+
+        top_stock_list = await self.data_loader.get_top_stocks(date=start_date, limit=300)
+        universe = {s["ts_code"]: s["name"] for s in top_stock_list}
+        ts_codes = list(universe.keys())
+
+        self.cash = self.account_config.initial_capital
+        self.positions = {}
+        self.prev_total_value = None
+
+        daily_values: List[float] = []
+        total_trades = 0
+        total_fees = 0.0
+
+        date = start_date
+        while date <= end_date:
+            weekday = datetime.strptime(date, "%Y%m%d").weekday()
+            if weekday >= 5:
+                date = _next_date(date)
+                continue
+
+            logger.debug(f"Processing {date}")
+            close_prices = await self.data_loader.load_day_close(date, ts_codes)
+            if not close_prices:
+                date = _next_date(date)
+                continue
+
+            day_df = await self.data_loader.load_day_data(date, ts_codes)
+            if day_df.empty:
+                date = _next_date(date)
+                continue
+
+            pred_results = await self.predictor.predict_batch(day_df, ts_codes)
+            if not pred_results:
+                date = _next_date(date)
+                continue
+
+            scored = [
+                ScoredStock(
+                    ts_code=ts_code,
+                    stock_name=universe.get(ts_code, ""),
+                    close=r["close"],
+                    up_prob_3d=r["up_prob_3d"],
+                    up_prob_5d=r["up_prob_5d"],
+                    score=r["score"],
+                )
+                for ts_code, r in pred_results.items()
+                if r["score"] > 0
+            ]
+
+            pending_orders = self.position_manager.make_decisions(
+                scored_stocks=scored,
+                current_positions=self.positions,
+                cash=self.cash,
+                trade_date=date,
+                close_prices=close_prices,
+            )
+
+            if pending_orders:
+                trades, net_cash = await self.position_manager.settle_orders(
+                    orders=pending_orders,
+                    date=date,
+                    close_prices=close_prices,
+                )
+                self.cash += net_cash
+                total_trades += len(trades)
+                for t in trades:
+                    total_fees += t.fee
+                    if t.action == "sell":
+                        total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
+
+                for t in trades:
+                    if t.action == "sell":
+                        self.positions.pop(t.ts_code, None)
+                    elif t.action == "buy":
+                        self.positions[t.ts_code] = PositionEmbed(
+                            ts_code=t.ts_code,
+                            stock_name=universe.get(t.ts_code, ""),
+                            buy_date=date,
+                            buy_price=t.price,
+                            shares=t.shares,
+                            fee=t.fee,
+                            entry_score=t.entry_score or 0,
+                            entry_3d_prob=t.up_prob_3d or 0,
+                            entry_5d_prob=t.up_prob_5d or 0,
+                            hold_days=0,
+                        )
+
+            snapshot = await self.position_manager.daily_snapshot(
+                backtest_id=backtest_id,
+                date=date,
+                cash=self.cash,
+                positions=self.positions,
+                close_prices=close_prices,
+                prev_total_value=self.prev_total_value,
+            )
+            self.prev_total_value = snapshot.total_value
+            daily_values.append(snapshot.total_value)
+
+            date = _next_date(date)
+
+        final_value = daily_values[-1] if daily_values else self.cash
+        total_return = (final_value - self.account_config.initial_capital) / self.account_config.initial_capital
+
+        max_drawdown = self._calc_max_drawdown(daily_values)
+        win_rate = await self._calc_win_rate(backtest_id)
+
+        result.final_value = round(final_value, 2)
+        result.total_return = round(total_return, 4)
+        result.max_drawdown = round(max_drawdown, 4)
+        result.win_rate = round(win_rate, 4)
+        result.total_trades = total_trades
+        result.total_fees = round(total_fees, 2)
+        result.status = "completed"
+        await result.save()
+
+        logger.info(f"Backtest {backtest_id} completed: return={total_return:.2%}, "
+                    f"drawdown={max_drawdown:.2%}, trades={total_trades}")
+        return result
+
+    async def run_live(self, date: str) -> List[PendingOrder]:
+        """Run live trading for a single date.
+
+        Returns a list of pending orders for manual review or execution.
+        """
+        top_stock_list = await self.data_loader.get_top_stocks(date=date, limit=300)
+        universe = {s["ts_code"]: s["name"] for s in top_stock_list}
+        ts_codes = list(universe.keys())
+
+        close_prices = await self.data_loader.load_day_close(date, ts_codes)
+        if not close_prices:
+            logger.warning(f"No close prices for {date}")
+            return []
+
+        day_df = await self.data_loader.load_day_data(date, ts_codes)
+        if day_df.empty:
+            return []
+
+        pred_results = await self.predictor.predict_batch(day_df, ts_codes)
+        if not pred_results:
+            return []
+
+        scored = [
+            ScoredStock(
+                ts_code=ts_code,
+                stock_name=universe.get(ts_code, ""),
+                close=r["close"],
+                up_prob_3d=r["up_prob_3d"],
+                up_prob_5d=r["up_prob_5d"],
+                score=r["score"],
+            )
+            for ts_code, r in pred_results.items()
+            if r["score"] > 0
+        ]
+
+        pending_orders = self.position_manager.make_decisions(
+            scored_stocks=scored,
+            current_positions=self.positions,
+            cash=self.cash,
+            trade_date=date,
+            close_prices=close_prices,
+        )
+
+        logger.info(f"Live {date}: {len(pending_orders)} orders generated")
+        return pending_orders
+
+    @staticmethod
+    def _calc_max_drawdown(values: List[float]) -> float:
+        """Calculate maximum drawdown from a list of portfolio values."""
+        if not values:
+            return 0.0
+        peak = values[0]
+        max_dd = 0.0
+        for v in values:
+            if v > peak:
+                peak = v
+            dd = (peak - v) / peak if peak > 0 else 0
+            if dd > max_dd:
+                max_dd = dd
+        return max_dd
+
+    @staticmethod
+    async def _calc_win_rate(backtest_id: PydanticObjectId) -> float:
+        """Calculate win rate from daily snapshots (positive day_return ratio)."""
+        from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
+        snapshots = await ExecutionPortfolioDaily.find(
+            ExecutionPortfolioDaily.backtest_id == backtest_id
+        ).to_list()
+        if not snapshots:
+            return 0.0
+        positive_days = sum(1 for s in snapshots if s.day_return > 0)
+        return positive_days / len(snapshots)
