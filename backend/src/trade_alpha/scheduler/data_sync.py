@@ -7,6 +7,8 @@ from typing import List, Tuple
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+from beanie.odm.operators.find.comparison import NotIn
+
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list
 from trade_alpha.indicators.service import calculate_all_indicators
@@ -25,7 +27,6 @@ API_REQUEST_DELAY = 1
 
 TEST_EXCLUDED_TS_CODES: List[str] = [
     "002594.SZ",
-    "601398.SH",
 ]
 
 
@@ -42,7 +43,7 @@ async def get_pending_stocks(limit: int = 1) -> List[StockList]:
     """Get pending stocks sorted by market value descending."""
     return await StockList.find(
         StockList.sync_status == "pending",
-        StockList.ts_code.not_in(TEST_EXCLUDED_TS_CODES)
+        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
@@ -50,7 +51,7 @@ async def get_data_completed_stocks(limit: int = 1) -> List[StockList]:
     """Get stocks with data completed, waiting for indicators."""
     return await StockList.find(
         StockList.sync_status == "data_completed",
-        StockList.ts_code.not_in(TEST_EXCLUDED_TS_CODES)
+        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 

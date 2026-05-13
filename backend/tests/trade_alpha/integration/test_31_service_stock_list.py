@@ -10,11 +10,6 @@ from trade_alpha.dao import StockList
 class TestServiceStockList:
     """Integration tests for stock list service."""
 
-    @pytest.fixture(autouse=True)
-    async def setup_teardown(self):
-        """Setup and teardown for each test."""
-        yield
-
     @pytest.mark.asyncio
     async def test_update_stock_list(self, setup_db):
         """Test updating stock list from Tushare."""

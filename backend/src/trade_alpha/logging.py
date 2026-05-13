@@ -69,35 +69,25 @@ class ContextLogger:
         _method_var.set(method)
         self._logger.log(level, msg, *args, **kwargs)
 
-    def debug(self, method: str, msg: str = "", *args, **kwargs):
+    def _log_with_fallback(self, method: str, msg: str, level: int, *args, **kwargs):
         if not msg:
-            msg = method
-            method = "-"
-        self._log(method, msg, logging.DEBUG, *args, **kwargs)
+            msg, method = method, "-"
+        self._log(method, msg, level, *args, **kwargs)
+
+    def debug(self, method: str, msg: str = "", *args, **kwargs):
+        self._log_with_fallback(method, msg, logging.DEBUG, *args, **kwargs)
 
     def info(self, method: str, msg: str = "", *args, **kwargs):
-        if not msg:
-            msg = method
-            method = "-"
-        self._log(method, msg, logging.INFO, *args, **kwargs)
+        self._log_with_fallback(method, msg, logging.INFO, *args, **kwargs)
 
     def warning(self, method: str, msg: str = "", *args, **kwargs):
-        if not msg:
-            msg = method
-            method = "-"
-        self._log(method, msg, logging.WARNING, *args, **kwargs)
+        self._log_with_fallback(method, msg, logging.WARNING, *args, **kwargs)
 
     def error(self, method: str, msg: str = "", *args, **kwargs):
-        if not msg:
-            msg = method
-            method = "-"
-        self._log(method, msg, logging.ERROR, *args, **kwargs)
+        self._log_with_fallback(method, msg, logging.ERROR, *args, **kwargs)
 
     def exception(self, method: str, msg: str = "", *args, **kwargs):
-        if not msg:
-            msg = method
-            method = "-"
-        self._log(method, msg, logging.ERROR, *args, **kwargs)
+        self._log_with_fallback(method, msg, logging.ERROR, *args, **kwargs)
 
 
 def get_logger(module: str) -> ContextLogger:

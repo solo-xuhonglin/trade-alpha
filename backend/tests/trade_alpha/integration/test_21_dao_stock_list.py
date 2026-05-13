@@ -17,12 +17,6 @@ class TestStockList:
         stock = await StockList.find_one(StockList.ts_code == ts_code)
         assert stock is not None
         assert stock.name == "比亚迪"
-        
-        # Ensure sync_status is active
-        if stock.sync_status != "active":
-            stock.sync_status = "active"
-            await stock.save()
-        
         assert stock.sync_status == "active"
 
     @pytest.mark.asyncio

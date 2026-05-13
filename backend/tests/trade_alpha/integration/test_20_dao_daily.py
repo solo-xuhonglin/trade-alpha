@@ -13,12 +13,10 @@ class TestStockDaily:
     async def setup_teardown(self):
         """Setup and teardown for each test."""
         self.ts_code = "002594.SZ"
-        self.backup_ts_code = "601398.SH"
 
         yield
 
         await StockDaily.find(StockDaily.ts_code == self.ts_code).delete()
-        await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
 
     @pytest.mark.asyncio
     async def test_insert_and_find(self, setup_db):
@@ -39,11 +37,11 @@ class TestStockDaily:
     @pytest.mark.asyncio
     async def test_delete_by_ts_code(self, setup_db):
         """Test delete operation."""
-        record = StockDaily(ts_code=self.backup_ts_code, trade_date="20240101", open=10.0, close=10.5, high=10.8, low=9.9, vol=1000, amount=10000)
+        record = StockDaily(ts_code=self.ts_code, trade_date="20240103", open=10.0, close=10.5, high=10.8, low=9.9, vol=1000, amount=10000)
         await record.insert()
 
-        result = await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).delete()
+        result = await StockDaily.find(StockDaily.ts_code == self.ts_code, StockDaily.trade_date == "20240103").delete()
         assert result.deleted_count >= 1
 
-        found = await StockDaily.find(StockDaily.ts_code == self.backup_ts_code).to_list()
+        found = await StockDaily.find(StockDaily.ts_code == self.ts_code, StockDaily.trade_date == "20240103").to_list()
         assert len(found) == 0

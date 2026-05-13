@@ -1,7 +1,7 @@
 """Pydantic models for API."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from pydantic import BaseModel
 
 
@@ -9,15 +9,6 @@ class DataFetchRequest(BaseModel):
     ts_code: str
     start_date: str
     end_date: str
-
-
-class MACalculateRequest(BaseModel):
-    ts_code: str
-    periods: Optional[List[int]] = None
-
-
-class MACDCalculateRequest(BaseModel):
-    ts_code: str
 
 
 class StrategyCreateRequest(BaseModel):
@@ -29,14 +20,6 @@ class StrategyCreateRequest(BaseModel):
 class StrategyUpdateRequest(BaseModel):
     name: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
-
-
-class StrategyResponse(BaseModel):
-    id: str
-    name: str
-    type: str
-    config: Dict[str, Any]
-    created_at: datetime
 
 
 class AccountConfigCreateRequest(BaseModel):
@@ -53,75 +36,6 @@ class AccountConfigUpdateRequest(BaseModel):
     sell_fee_rate: Optional[float] = None
     stamp_tax_rate: Optional[float] = None
     min_fee: Optional[float] = None
-
-
-class AccountConfigResponse(BaseModel):
-    id: str
-    name: str
-    initial_capital: float
-    cash: float
-    position: int
-    buy_fee_rate: float
-    sell_fee_rate: float
-    stamp_tax_rate: float
-    min_fee: float
-
-
-class BacktestRunRequest(BaseModel):
-    ts_code: str
-    start_date: str
-    end_date: str
-    account_config_id: str
-    strategy_id: str
-    training_id: str
-
-
-class BacktestResponse(BaseModel):
-    id: str
-    account_config_id: Optional[str]
-    strategy_id: str
-    training_id: str
-    ts_code: str
-    start_date: str
-    end_date: str
-    initial_capital: float
-    final_value: float
-    total_return: float
-    annual_return: float
-    benchmark_return: float
-    max_drawdown: float
-    sharpe_ratio: float
-    win_rate: float
-    total_trades: int
-    total_fees: float
-
-
-class TradeResponse(BaseModel):
-    trade_date: str
-    action: str
-    price: float
-    shares: int
-    fee: float
-    cash_after: float
-    position_after: int
-
-
-class DataRecordResponse(BaseModel):
-    ts_code: str
-    trade_date: str
-    open: float
-    high: float
-    low: float
-    close: float
-    vol: float
-    amount: float
-    ma_5: Optional[float] = None
-    ma_10: Optional[float] = None
-    ma_20: Optional[float] = None
-    ma_60: Optional[float] = None
-    macd: Optional[float] = None
-    macd_signal: Optional[float] = None
-    macd_hist: Optional[float] = None
 
 
 class IndicatorResult(BaseModel):
@@ -144,28 +58,8 @@ class StockResponse(BaseModel):
     latest_date: Optional[str] = None
 
 
-class StockListUpdateResponse(BaseModel):
-    updated_count: int
-
-
 class StockListResponse(BaseModel):
     items: list[StockResponse]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
-
-
-class BacktestListResponse(BaseModel):
-    items: list[BacktestResponse]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
-
-
-class TradeListResponse(BaseModel):
-    items: list[TradeResponse]
     total: int
     page: int
     page_size: int

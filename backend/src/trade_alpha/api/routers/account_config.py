@@ -1,7 +1,6 @@
 """Account config API endpoints."""
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from beanie import PydanticObjectId
 
 from trade_alpha.account import (
@@ -11,24 +10,12 @@ from trade_alpha.account import (
     update_account_config,
     delete_account_config,
 )
+from trade_alpha.api.schemas import (
+    AccountConfigCreateRequest,
+    AccountConfigUpdateRequest,
+)
 
 router = APIRouter(prefix="/account-configs", tags=["account-configs"])
-
-
-class AccountConfigCreateRequest(BaseModel):
-    name: str
-    initial_capital: float = 100000.0
-    buy_fee_rate: float = 0.0003
-    sell_fee_rate: float = 0.0003
-    stamp_tax_rate: float = 0.001
-    min_fee: float = 5.0
-
-
-class AccountConfigUpdateRequest(BaseModel):
-    buy_fee_rate: float | None = None
-    sell_fee_rate: float | None = None
-    stamp_tax_rate: float | None = None
-    min_fee: float | None = None
 
 
 @router.get("")

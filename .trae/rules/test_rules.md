@@ -55,7 +55,7 @@ cd frontend/e2e && pytest -v --base-url=http://localhost:3000
 
 ```python
 # backend/src/trade_alpha/scheduler/data_sync.py
-TEST_EXCLUDED_TS_CODES = ["002594.SZ", "601398.SH"]
+TEST_EXCLUDED_TS_CODES = ["002594.SZ"]
 ```
 
 定时任务的 `get_pending_stocks` 和 `get_data_completed_stocks` 查询会自动排除这些代码。

@@ -173,4 +173,3 @@ class LSTMClassifier(BaseClassifier):
             self.models[target] = model
 
 
-LSTMPredictor = LSTMClassifier

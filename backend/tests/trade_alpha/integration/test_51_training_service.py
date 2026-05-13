@@ -2,7 +2,6 @@
 
 import pytest
 from trade_alpha.predict import config_service, training_service
-from trade_alpha.dao import StockList
 
 
 @pytest.mark.integration
@@ -17,12 +16,6 @@ class TestTrainingService:
         self.default_training_name = "test_training"
         self.start_date = "20230101"
         self.end_date = "20231231"
-        
-        # Ensure test stock is active
-        stock = await StockList.find_one(StockList.ts_code == test_stock)
-        if stock and stock.sync_status != "active":
-            stock.sync_status = "active"
-            await stock.save()
 
         yield
 

@@ -1,31 +1,21 @@
 """Indicators API endpoints."""
 
 from fastapi import APIRouter
-from trade_alpha.api.schemas import (
-    MACalculateRequest,
-    MACDCalculateRequest,
-    IndicatorResult,
-)
-from trade_alpha.indicators.service import (
-    calculate_and_store_ma,
-    calculate_and_store_macd,
-)
+from pydantic import BaseModel
+from trade_alpha.api.schemas import IndicatorResult
+from trade_alpha.indicators.service import calculate_all_indicators
+
+
+class CalculateIndicatorsRequest(BaseModel):
+    ts_code: str
+
 
 router = APIRouter(prefix="/indicators", tags=["indicators"])
 
 
-@router.post("/ma", response_model=IndicatorResult)
-async def calculate_ma_endpoint(request: MACalculateRequest):
-    """Calculate and store MA."""
-    count = await calculate_and_store_ma(
-        ts_code=request.ts_code,
-        periods=request.periods,
-    )
-    return IndicatorResult(ts_code=request.ts_code, updated_count=count)
-
-
-@router.post("/macd", response_model=IndicatorResult)
-async def calculate_macd_endpoint(request: MACDCalculateRequest):
-    """Calculate and store MACD."""
-    count = await calculate_and_store_macd(ts_code=request.ts_code)
-    return IndicatorResult(ts_code=request.ts_code, updated_count=count)
+@router.post("", response_model=IndicatorResult)
+async def calculate_indicators_endpoint(request: CalculateIndicatorsRequest):
+    """Calculate and store all indicators."""
+    result = await calculate_all_indicators(ts_code=request.ts_code)
+    total = sum(result.values())
+    return IndicatorResult(ts_code=request.ts_code, updated_count=total)
