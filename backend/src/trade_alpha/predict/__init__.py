@@ -1,10 +1,9 @@
 """Predict module."""
 
 from trade_alpha.predict.models import (
-    BasePredictor,
-    LinearPredictor,
-    XGBoostPredictor,
-    LSTMPredictor,
+    BaseClassifier,
+    XGBoostClassifier,
+    LSTMClassifier,
 )
 from trade_alpha.predict.normalizers import (
     BaseNormalizer,
@@ -17,10 +16,9 @@ from trade_alpha.predict import config_service
 from trade_alpha.predict import training_service
 
 __all__ = [
-    "BasePredictor",
-    "LinearPredictor",
-    "XGBoostPredictor",
-    "LSTMPredictor",
+    "BaseClassifier",
+    "XGBoostClassifier",
+    "LSTMClassifier",
     "BaseNormalizer",
     "SlidingWindowNormalizer",
     "CrossSectionalNormalizer",
