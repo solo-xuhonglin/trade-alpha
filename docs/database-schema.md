@@ -160,7 +160,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 
 **索引**: `{ts_code: 1, trade_date: 1, model: 1}` 联合唯一索引
 
-**字段**:
+**回归任务字段**:
 
 | 字段 | 类型 | 说明 |
 |-----|------|------|
@@ -171,6 +171,21 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `target_close` | float | 预测收盘价 |
 | `target_high` | float | 预测最高价 |
 | `target_low` | float | 预测最低价 |
+
+**分类任务字段**:
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `training_result_id` | ObjectId | 关联的训练结果ID |
+| `ts_code` | string | 股票代码 |
+| `trade_date` | string | 预测日期 (YYYYMMDD) |
+| `model` | string | 模型类型 ("xgboost" / "lstm") |
+| `predictions` | object | 各周期预测类别 `{"1": 1, "5": 0, "20": -1}` |
+| `probabilities` | object | 各周期预测概率 `{"1": [0.2, 0.5, 0.3], "5": [0.3, 0.4, 0.3], "20": [0.4, 0.3, 0.3]}` |
+
+**分类标签**: -1=下跌, 0=持平, 1=上涨
+
+**概率数组**: [P(-1), P(0), P(1)]
 
 ### signal_results
 
@@ -382,20 +397,17 @@ MACDStrategy:
 | 字段 | 类型 | 说明 |
 |-----|------|------|
 | `name` | string | 配置名称（唯一） |
-| `model_type` | string | 模型类型 ("linear", "xgboost", "lstm") |
+| `model_type` | string | 模型类型 ("xgboost", "lstm") |
 | `params` | object | 模型参数 |
 | `targets` | array | 预测目标列表 |
+| `feature_fields` | array | 特征字段列表（分类任务） |
+| `classification_horizons` | array | 分类预测周期列表（分类任务） |
+| `classification_threshold` | float | 涨跌分类阈值（分类任务） |
+| `normalizer_fields` | array | 标准化器使用的特征字段 |
 | `created_at` | datetime | 创建时间 |
 | `updated_at` | datetime | 更新时间 |
 
 **模型类型与参数**:
-
-linear:
-```json
-{
-  "fit_intercept": true
-}
-```
 
 xgboost:
 ```json
@@ -415,6 +427,18 @@ lstm:
 }
 ```
 
+**分类任务配置示例**:
+```json
+{
+  "name": "xgboost-classifier",
+  "model_type": "xgboost",
+  "feature_fields": ["close", "pct_chg", "ma_5", "ma_10", "vol_ratio_5"],
+  "classification_horizons": [1, 5, 20],
+  "classification_threshold": 0.0,
+  "normalizer_fields": ["ma_5", "ma_10", "ma_20"]
+}
+```
+
 ### training_results
 
 存储训练记录和指标。
@@ -431,11 +455,33 @@ lstm:
 | `start_date` | string | 训练开始日期 |
 | `end_date` | string | 训练结束日期 |
 | `feature_cols` | array | 特征列列表 |
+| `feature_fields` | array | 特征字段列表（分类任务） |
+| `classification_horizons` | array | 分类预测周期列表（分类任务） |
 | `metrics` | object | 训练指标 |
 | `model_path` | string | 模型文件路径 |
 | `created_at` | datetime | 创建时间 |
 
-**指标示例**:
+**分类任务指标示例**:
+
+```json
+{
+  "horizon_1": {
+    "accuracy": 0.55,
+    "precision": 0.52,
+    "recall": 0.50,
+    "f1": 0.48
+  },
+  "horizon_5": {
+    "accuracy": 0.58,
+    "precision": 0.55,
+    "recall": 0.52,
+    "f1": 0.51
+  },
+  "sample_count": 2000
+}
+```
+
+**回归任务指标示例**:
 
 ```json
 {

@@ -192,21 +192,32 @@ POST /api/indicators/macd
 ### 获取预测结果
 
 ```
-GET /api/predict/{ts_code}
+GET /api/predict/{id}
 ```
 
 **响应**:
 ```json
 {
+  "id": "507f1f77bcf86cd799439012",
+  "training_result_id": "507f1f77bcf86cd799439011",
   "ts_code": "000001.SZ",
   "trade_date": "20241231",
-  "model": "linear",
-  "target_open": 10.50,
-  "target_close": 10.75,
-  "target_high": 10.80,
-  "target_low": 10.45
+  "model": "xgboost",
+  "predictions": {
+    "1": 1,
+    "5": 0,
+    "20": -1
+  },
+  "probabilities": {
+    "1": [0.2, 0.5, 0.3],
+    "5": [0.3, 0.4, 0.3],
+    "20": [0.4, 0.3, 0.3]
+  }
 }
 ```
+
+**分类标签**: -1=下跌, 0=持平, 1=上涨
+**概率数组**: [P(-1), P(0), P(1)]
 
 ### 生成预测
 
@@ -226,7 +237,7 @@ POST /api/predict
 ### 删除预测结果
 
 ```
-DELETE /api/predict/{ts_code}
+DELETE /api/predict/{id}
 ```
 
 ## 模型配置
@@ -245,10 +256,12 @@ GET /api/model-configs
 [
   {
     "id": "507f1f77bcf86cd799439011",
-    "name": "linear-default",
-    "model_type": "linear",
-    "params": {"fit_intercept": true},
-    "targets": ["open", "close"]
+    "name": "xgboost-classifier",
+    "model_type": "xgboost",
+    "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
+    "classification_horizons": [1, 5, 20],
+    "classification_threshold": 0.0,
+    "normalizer_fields": ["ma_5", "ma_10", "ma_20"]
   }
 ]
 ```
@@ -262,17 +275,18 @@ POST /api/model-configs
 **请求体**:
 ```json
 {
-  "name": "linear-default",
-  "model_type": "linear",
-  "params": {"fit_intercept": true},
-  "targets": ["open", "close"]
+  "name": "xgboost-classifier",
+  "model_type": "xgboost",
+  "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
+  "classification_horizons": [1, 5, 20],
+  "classification_threshold": 0.0,
+  "normalizer_fields": ["ma_5", "ma_10", "ma_20"]
 }
 ```
 
 **模型类型**:
-- `linear`: 线性回归
-- `xgboost`: XGBoost
-- `lstm`: LSTM
+- `xgboost`: XGBoost 分类器
+- `lstm`: LSTM 分类器
 
 ### 获取配置详情
 
@@ -343,6 +357,26 @@ POST /api/trainings
 }
 ```
 
+**响应**:
+```json
+{
+  "id": "507f1f77bcf86cd799439012",
+  "config_id": "507f1f77bcf86cd799439011",
+  "name": "训练-2024",
+  "ts_codes": ["000001.SZ", "600000.SH"],
+  "start_date": "20230101",
+  "end_date": "20231231",
+  "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
+  "classification_horizons": [1, 5, 20],
+  "metrics": {
+    "horizon_1": {"accuracy": 0.55, "precision": 0.52, "recall": 0.50, "f1": 0.48},
+    "horizon_5": {"accuracy": 0.58, "precision": 0.55, "recall": 0.52, "f1": 0.51},
+    "sample_count": 2000
+  },
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
 ### 获取训练详情
 
 ```
@@ -368,17 +402,26 @@ POST /api/trainings/{id}/predict
 }
 ```
 
-**响应**:
+**分类任务响应**:
 ```json
 {
+  "prediction_id": "507f1f77bcf86cd799439013",
+  "ts_code": "000001.SZ",
+  "trade_date": "20241231",
   "predictions": {
-    "open": 10.50,
-    "close": 10.75,
-    "high": 10.80,
-    "low": 10.45
+    "1": 1,
+    "5": 0,
+    "20": -1
+  },
+  "probabilities": {
+    "1": [0.2, 0.5, 0.3],
+    "5": [0.3, 0.4, 0.3],
+    "20": [0.4, 0.3, 0.3]
   }
 }
 ```
+
+**分类标签**: -1=下跌, 0=持平, 1=上涨
 
 ## 策略管理
 

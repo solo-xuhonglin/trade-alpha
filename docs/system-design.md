@@ -166,15 +166,15 @@ trade-alpha/
 #### models - 模型类
 
 - `BasePredictor`: 预测器抽象基类，定义 `fit()`, `predict()`, `save()`, `load()` 接口
-- `LinearPredictor`: 线性回归预测器
-- `XGBoostPredictor`: XGBoost 预测器
-- `LSTMPredictor`: LSTM 神经网络预测器
+- `LinearPredictor`: 线性回归预测器（回归任务）
+- `XGBoostClassifier`: XGBoost 分类器（分类任务，支持多 horizons）
+- `LSTMClassifier`: LSTM 神经网络分类器（分类任务，支持多 horizons）
 
 #### normalizers - 标准化器
 
 - `BaseNormalizer`: 标准化器抽象基类
 - `SlidingWindowNormalizer`: 滑动窗口标准化（用于 LSTM 等时序模型）
-- `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型）
+- `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型，支持 `output_fields` 指定输出特征）
 - `NormalizerRegistry`: 标准化器注册表
 
 #### config_service - 模型配置
@@ -194,6 +194,11 @@ trade-alpha/
 - `predict_with_training()`: 使用训练模型预测
 
 **样本混合策略**: 支持多只股票数据合并训练，提高模型泛化能力
+
+**分类标签**: 分类任务使用 -1/0/1 三类标签
+- `-1`: 下跌
+- `0`: 持平
+- `1`: 上涨
 
 #### service - 预测服务
 
@@ -370,6 +375,18 @@ create_training(
     start_date="20240101",
     end_date="20241231"
 )
+```
+
+### 分类任务配置
+
+模型配置支持分类任务参数：
+```python
+{
+    "feature_fields": ["close", "pct_chg", "ma_5", ...],
+    "classification_horizons": [1, 5, 20],  # 预测未来 N 天涨跌
+    "classification_threshold": 0.0,  # 涨跌阈值
+    "normalizer_fields": ["ma_5", "ma_10", ...]  # 标准化特征字段
+}
 ```
 
 ## 已实现功能
