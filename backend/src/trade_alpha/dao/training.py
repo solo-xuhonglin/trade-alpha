@@ -14,14 +14,12 @@ class TrainingResult(Document):
     ts_codes: List[str] = Field(default_factory=list)
     start_date: str
     end_date: str
-    feature_cols: List[str] = Field(default_factory=list)
+    feature_fields: List[str] = Field(default_factory=list)
+    classification_horizons: List[int] = Field(default_factory=lambda: [3, 5])
     metrics: Dict[str, Any] = Field(default_factory=dict)
     model_path: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Settings:
         name = "training_results"
-        indexes = [
-            "name",
-            "config_id",
-        ]
+        indexes = ["name", "config_id"]
