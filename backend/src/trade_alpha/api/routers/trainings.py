@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict, Any
 from beanie import PydanticObjectId
+import numpy as np
 from trade_alpha.predict import training_service
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
@@ -91,6 +92,12 @@ async def predict(training_id: str, body: PredictRequest):
 
     try:
         result = await training_service.predict_with_training(obj_id, body.ts_code)
-        return {"predictions": result["predictions"], "probabilities": result["probabilities"]}
+        predictions = {}
+        for k, v in result["predictions"].items():
+            predictions[k] = int(v) if isinstance(v, (np.integer, np.int64)) else v
+        probabilities = {}
+        for k, v in result["probabilities"].items():
+            probabilities[k] = [float(x) if isinstance(x, (np.floating, np.float64)) else x for x in v]
+        return {"predictions": predictions, "probabilities": probabilities}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

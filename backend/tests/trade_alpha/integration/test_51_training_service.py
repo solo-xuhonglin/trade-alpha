@@ -3,6 +3,8 @@
 import pytest
 from trade_alpha.predict import config_service, training_service
 from trade_alpha.data import fetch_and_store_stock_daily
+from trade_alpha.indicators import calculate_and_store_ma, calculate_and_store_macd, calculate_and_store_custom_indicators
+from trade_alpha.dao import StockList
 
 
 @pytest.mark.integration
@@ -23,15 +25,26 @@ class TestTrainingService:
         await fetch_and_store_stock_daily(self.ts_code, self.start_date, self.end_date)
         await fetch_and_store_stock_daily(self.backup_ts_code, self.start_date, self.end_date)
 
+        for ts_code in [self.ts_code, self.backup_ts_code]:
+            await calculate_and_store_ma(ts_code)
+            await calculate_and_store_macd(ts_code)
+            await calculate_and_store_custom_indicators(ts_code)
+            stock = await StockList.find_one(StockList.ts_code == ts_code)
+            if stock:
+                stock.sync_status = "active"
+                await stock.save()
+
         config = await config_service.get_config_by_name(self.default_config_name)
-        if config:
+        if config and config.model_type == "xgboost":
             self.config_id = config.id
         else:
+            if config:
+                await config_service.delete_config(config.id)
             config = await config_service.create_config(
                 name=self.default_config_name,
-                model_type="linear",
-                params={},
-                targets=["close"],
+                model_type="xgboost",
+                classification_horizons=[3, 5],
+                classification_threshold=0.02,
             )
             self.config_id = config.id
 
@@ -55,6 +68,11 @@ class TestTrainingService:
 
         assert training is not None
         assert self.ts_code in training.ts_codes
+        assert training.classification_horizons == [3, 5]
+        assert training.model_path is not None
+        assert training.metrics["sample_count"] >= 20
+        assert isinstance(training.feature_fields, list)
+        assert len(training.feature_fields) > 0
 
     @pytest.mark.asyncio
     async def test_create_training_multi_stocks(self):
@@ -126,8 +144,26 @@ class TestTrainingService:
             end_date=self.end_date,
         )
 
-        predictions = await training_service.predict_with_training(training.id)
-        assert "close" in predictions
+        result = await training_service.predict_with_training(training.id, self.ts_code)
+        assert "predictions" in result
+        assert "probabilities" in result
+        assert isinstance(result["predictions"], dict)
+        assert isinstance(result["probabilities"], dict)
+
+        assert "label_3d" in result["predictions"]
+        assert "label_5d" in result["predictions"]
+        assert result["predictions"]["label_3d"] in [-1, 0, 1]
+        assert result["predictions"]["label_5d"] in [-1, 0, 1]
+
+        assert "label_3d" in result["probabilities"]
+        assert "label_5d" in result["probabilities"]
+        assert len(result["probabilities"]["label_3d"]) == 3
+        assert len(result["probabilities"]["label_5d"]) == 3
+
+        total_prob_3d = sum(result["probabilities"]["label_3d"])
+        total_prob_5d = sum(result["probabilities"]["label_5d"])
+        assert abs(total_prob_3d - 1.0) < 0.01
+        assert abs(total_prob_5d - 1.0) < 0.01
 
     @pytest.mark.asyncio
     async def test_ensure_default_training(self):

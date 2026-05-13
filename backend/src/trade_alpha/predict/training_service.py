@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict
 from beanie import PydanticObjectId
 import pandas as pd
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import numpy as np
 
 from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult
 from trade_alpha.predict.config_service import get_config_by_id
@@ -13,6 +13,7 @@ from trade_alpha.predict.models.xgboost import XGBoostClassifier
 from trade_alpha.predict.models.lstm import LSTMClassifier
 from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
 from trade_alpha.logging import get_logger
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 logger = get_logger("training_service")
 
@@ -123,13 +124,16 @@ async def create_training(
     combined_normalized = normalizer.normalize(combined[feature_fields + ["trade_date", "ts_code"]])
     combined_normalized["trade_date"] = combined["trade_date"].values
     combined_normalized["ts_code"] = combined["ts_code"].values
+    for t in target_names:
+        combined_normalized[t] = combined[t].values
 
     drop_cols = ["trade_date", "ts_code"] + [c for c in combined.columns if c not in feature_fields + ["trade_date", "ts_code"] + target_names]
     for c in drop_cols:
         if c in combined_normalized.columns:
             combined_normalized = combined_normalized.drop(columns=[c])
 
-    combined_normalized = combined_normalized.dropna(subset=feature_fields + target_names)
+    valid_labels = [t for t in target_names if t in combined_normalized.columns]
+    combined_normalized = combined_normalized.dropna(subset=feature_fields + valid_labels)
 
     if len(combined_normalized) < 20:
         raise ValueError(f"数据不足（{len(combined_normalized)} < 20）")
@@ -140,16 +144,17 @@ async def create_training(
     classifier = CLASSIFIERS[config.model_type]()
     classifier.fit(X, y, target_names)
 
-    y_pred = classifier.predict(X, target_names)
-    y_true = {t: combined_normalized[t].values for t in target_names}
+    y_pred_all = classifier.predict(X, target_names)
+    y_true_all = {t: combined_normalized[t].values for t in target_names}
 
     metrics = {}
-    for t in target_names:
-        metrics[f"{t}_accuracy"] = accuracy_score(y_true[t], y_pred[t])
-        metrics[f"{t}_precision"] = precision_score(y_true[t], y_pred[t], average="macro", zero_division=0)
-        metrics[f"{t}_recall"] = recall_score(y_true[t], y_pred[t], average="macro", zero_division=0)
-        metrics[f"{t}_f1"] = f1_score(y_true[t], y_pred[t], average="macro", zero_division=0)
     metrics["sample_count"] = len(combined_normalized)
+    for t in target_names:
+        y_pred_arr = np.array([y_pred_all[t]] * len(y_true_all[t]))
+        metrics[f"{t}_accuracy"] = accuracy_score(y_true_all[t], y_pred_arr)
+        metrics[f"{t}_precision"] = precision_score(y_true_all[t], y_pred_arr, average="macro", zero_division=0)
+        metrics[f"{t}_recall"] = recall_score(y_true_all[t], y_pred_arr, average="macro", zero_division=0)
+        metrics[f"{t}_f1"] = f1_score(y_true_all[t], y_pred_arr, average="macro", zero_division=0)
 
     training = TrainingResult(
         config_id=config_id,
