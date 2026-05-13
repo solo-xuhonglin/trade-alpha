@@ -1,7 +1,7 @@
 """OrderSuggestion Document model."""
 
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional
 from pydantic import Field
 from beanie import Document, PydanticObjectId
 
@@ -9,30 +9,29 @@ from beanie import Document, PydanticObjectId
 class OrderSuggestion(Document):
     """Order suggestion document for MongoDB."""
 
-    execution_result_id: Optional[PydanticObjectId] = None
+    backtest_id: PydanticObjectId
     ts_code: str
     stock_name: str
-    date: str
+    trade_date: str
+    settle_date: str
     action: str
-    suggested_price: float
-    suggested_shares: int
-    signal_strength: float
-    position_reason: str
-    risk_notes: Optional[str] = None
-    prediction_data: Optional[Dict] = None
-    account_config_id: PydanticObjectId
-    strategy_id: PydanticObjectId
-    training_id: PydanticObjectId
+    order_price: float
+    order_shares: int
+    score: float
+    up_prob_3d: float
+    up_prob_5d: float
     status: str = Field(default="pending")
+    actual_price: Optional[float] = None
+    actual_shares: Optional[int] = None
+    fee: Optional[float] = None
+    cash_after: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.now)
 
     class Settings:
         name = "order_suggestions"
         indexes = [
+            "backtest_id",
             "ts_code",
-            "date",
-            "account_config_id",
-            "strategy_id",
-            "training_id",
+            "trade_date",
             "status",
         ]

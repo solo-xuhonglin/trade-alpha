@@ -8,11 +8,8 @@ from beanie import Document, PydanticObjectId
 
 class ExecutionTrade(Document):
     """Execution trade document for MongoDB."""
-    
+
     backtest_id: PydanticObjectId
-    account_config_id: Optional[PydanticObjectId] = None
-    strategy_id: Optional[PydanticObjectId] = None
-    training_id: Optional[PydanticObjectId] = None
     ts_code: str
     trade_date: str
     action: str
@@ -20,11 +17,13 @@ class ExecutionTrade(Document):
     shares: int
     fee: float
     cash_after: float
-    position_after: int
-    mode: str = "backtest"
-    status: str = "executed"
-    execution_time: Optional[datetime] = None
-    
+    reason: Optional[str] = None
+    entry_score: Optional[float] = None
+    up_prob_3d: Optional[float] = None
+    up_prob_5d: Optional[float] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    mode: str = Field(default="backtest")
+
     class Settings:
         name = "execution_trades"
         indexes = [

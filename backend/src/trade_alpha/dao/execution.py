@@ -1,7 +1,7 @@
 """ExecutionResult Document model."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from beanie import Document, PydanticObjectId
 
@@ -17,42 +17,40 @@ class AccountSnapshotEmbed(BaseModel):
     min_fee: float
 
 
-class StrategySnapshotEmbed(BaseModel):
-    """Embedded strategy snapshot."""
+class ModelSnapshotEmbed(BaseModel):
+    """Embedded model config snapshot."""
 
     name: str
-    type: str
-    config: Dict[str, Any] = Field(default_factory=dict)
+    model_type: str
+    feature_fields: List[str] = Field(default_factory=list)
+    classification_horizons: List[int] = Field(default_factory=list)
+    classification_threshold: float
 
 
 class ExecutionResult(Document):
     """Execution result document for MongoDB."""
 
-    account_config_id: Optional[PydanticObjectId] = None
-    strategy_id: Optional[PydanticObjectId] = None
-    training_id: Optional[PydanticObjectId] = None
-    ts_code: str
+    account_config_id: PydanticObjectId
+    training_id: PydanticObjectId
+    name: str
+    mode: str = Field(default="backtest")
     start_date: str
     end_date: str
     initial_capital: float
     final_value: float
     total_return: float
-    annual_return: float
-    benchmark_return: float = Field(default=0.0)
-    max_drawdown: float
-    sharpe_ratio: float
-    win_rate: float
-    total_trades: int
-    total_fees: float
+    max_drawdown: float = 0.0
+    win_rate: float = 0.0
+    total_trades: int = 0
+    total_fees: float = 0.0
     account_snapshot: Optional[AccountSnapshotEmbed] = None
-    strategy_snapshot: Optional[StrategySnapshotEmbed] = None
-    created_at: Optional[datetime] = None
-    mode: str = Field(default="backtest")
+    model_snapshot: Optional[ModelSnapshotEmbed] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    status: str = Field(default="completed")
 
     class Settings:
         name = "execution_results"
         indexes = [
-            "ts_code",
             "account_config_id",
-            "strategy_id",
+            "training_id",
         ]

@@ -3,7 +3,7 @@
 from typing import List
 from pydantic import Field
 from beanie import Document, PydanticObjectId
-from trade_alpha.dao.position import Position
+from trade_alpha.dao.position import PositionEmbed
 
 
 class ExecutionPortfolioDaily(Document):
@@ -12,11 +12,11 @@ class ExecutionPortfolioDaily(Document):
     backtest_id: PydanticObjectId
     date: str
     cash: float
-    positions: List[Position] = Field(default_factory=list)
-    market_value: float
-    total_value: float
-    position_ratio: float
-    mode: str = "backtest"
+    positions: List[PositionEmbed] = Field(default_factory=list)
+    total_market_value: float = 0.0
+    total_value: float = 0.0
+    day_return: float = 0.0
+    mode: str = Field(default="backtest")
 
     class Settings:
         name = "execution_portfolio_snapshots"
