@@ -75,7 +75,7 @@ async def create_training(
         stock = await StockList.find_one(StockList.ts_code == ts_code)
         if not stock or stock.sync_status != "active":
             skipped.append(ts_code)
-            logger.warning(f"跳过 {ts_code}（sync_status != active，数据未就绪）")
+            logger.warning(f"Skip {ts_code}: sync_status != active, data not ready")
             continue
 
         records = await StockDaily.find(
@@ -86,7 +86,7 @@ async def create_training(
 
         if not records:
             skipped.append(ts_code)
-            logger.warning(f"跳过 {ts_code}（无数据）")
+            logger.warning(f"Skip {ts_code}: no data available")
             continue
 
         df = pd.DataFrame([r.model_dump() for r in records])
@@ -94,7 +94,7 @@ async def create_training(
         all_dfs.append(df)
 
     if not all_dfs:
-        raise ValueError("无可用数据，所有股票均跳过")
+        raise ValueError("No available data, all stocks skipped")
 
     combined = pd.concat(all_dfs, ignore_index=True)
     combined = combined.sort_values(["trade_date", "ts_code"])
@@ -133,7 +133,7 @@ async def create_training(
     combined_normalized = combined_normalized.dropna(subset=feature_fields + valid_labels)
 
     if len(combined_normalized) < 20:
-        raise ValueError(f"数据不足（{len(combined_normalized)} < 20）")
+        raise ValueError(f"Insufficient data ({len(combined_normalized)} < 20)")
 
     X = combined_normalized[feature_fields].values
     y = combined_normalized[target_names].values
@@ -173,7 +173,7 @@ async def create_training(
     training.model_path = model_path
     await training.save()
 
-    logger.info(f"训练完成 '{name}' id={training.id} samples={metrics['sample_count']}")
+    logger.info(f"Training completed: name={name} id={training.id} samples={metrics['sample_count']}")
     return training
 
 
