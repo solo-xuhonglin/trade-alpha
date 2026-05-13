@@ -1,29 +1,57 @@
-"""Training service."""
+"""Training service for classification models."""
 
 import os
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict
 from beanie import PydanticObjectId
-from trade_alpha.dao import StockDaily, TrainingResult
+import pandas as pd
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult
+from trade_alpha.predict.config_service import get_config_by_id
+from trade_alpha.predict.models.xgboost import XGBoostClassifier
+from trade_alpha.predict.models.lstm import LSTMClassifier
+from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
 from trade_alpha.logging import get_logger
-from trade_alpha.predict.models.linear import LinearPredictor
-from trade_alpha.predict.models.xgboost import XGBoostPredictor
-from trade_alpha.predict.models.lstm import LSTMPredictor
 
 logger = get_logger("training_service")
 
-MODELS_DIR = "models"
-
-PREDICTORS = {
-    "linear": LinearPredictor,
-    "xgboost": XGBoostPredictor,
-    "lstm": LSTMPredictor,
+CLASSIFIERS = {
+    "xgboost": XGBoostClassifier,
+    "lstm": LSTMClassifier,
 }
+
+RELATIVE_INDICATOR_PREFIXES = [
+    "ma_", "macd", "pct_chg", "bias_",
+    "close_pct_rank_", "vol_ratio_",
+    "kdj_", "boll_"
+]
+
+MODELS_DIR = "models"
 
 
 def _ensure_model_dir(config_id: str) -> None:
-    """Ensure model directory exists for config."""
     os.makedirs(os.path.join(MODELS_DIR, config_id), exist_ok=True)
+
+
+def _get_default_feature_fields(columns: List[str]) -> List[str]:
+    features = []
+    for col in columns:
+        for prefix in RELATIVE_INDICATOR_PREFIXES:
+            if col.startswith(prefix) or col == prefix.rstrip("_"):
+                features.append(col)
+                break
+    return sorted(set(features))
+
+
+def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold: float) -> pd.DataFrame:
+    for horizon in horizons:
+        future_pct = (df["close"].shift(-horizon) - df["close"]) / df["close"]
+        labels = future_pct.apply(
+            lambda x: 1 if x > threshold else (-1 if x < -threshold else 0)
+        )
+        df[f"label_{horizon}d"] = labels
+    return df.iloc[:-max(horizons)]
 
 
 async def create_training(
@@ -33,24 +61,23 @@ async def create_training(
     start_date: str,
     end_date: str,
 ) -> TrainingResult:
-    """Create training with sample mixing strategy."""
-    import pandas as pd
-    import numpy as np
-
-    from trade_alpha.predict.config_service import get_config_by_id
-
-    logger.info(f"Creating training '{name}' with config {config_id}")
-
+    """Create training with classification labels."""
     config = await get_config_by_id(config_id)
     if not config:
         raise ValueError(f"Config not found: {config_id}")
 
-    model_type = config.model_type
-    params = config.params or {}
-    targets = config.targets
+    if config.model_type not in CLASSIFIERS:
+        raise ValueError(f"Unsupported model type: {config.model_type}")
 
     all_dfs = []
+    skipped = []
     for ts_code in ts_codes:
+        stock = await StockList.find_one(StockList.ts_code == ts_code)
+        if not stock or stock.sync_status != "active":
+            skipped.append(ts_code)
+            logger.warning(f"跳过 {ts_code}（sync_status != active，数据未就绪）")
+            continue
+
         records = await StockDaily.find(
             StockDaily.ts_code == ts_code,
             StockDaily.trade_date >= start_date,
@@ -58,7 +85,8 @@ async def create_training(
         ).sort(StockDaily.trade_date).to_list()
 
         if not records:
-            logger.warning(f"No data found for stock {ts_code}")
+            skipped.append(ts_code)
+            logger.warning(f"跳过 {ts_code}（无数据）")
             continue
 
         df = pd.DataFrame([r.model_dump() for r in records])
@@ -66,108 +94,110 @@ async def create_training(
         all_dfs.append(df)
 
     if not all_dfs:
-        raise ValueError("No data found for specified stocks and date range")
+        raise ValueError("无可用数据，所有股票均跳过")
 
-    combined_df = pd.concat(all_dfs, ignore_index=True)
+    combined = pd.concat(all_dfs, ignore_index=True)
+    combined = combined.sort_values(["trade_date", "ts_code"])
 
-    feature_cols = ["open", "high", "low", "close", "vol"]
-    indicator_cols = [col for col in combined_df.columns if col.startswith(("ma_", "macd"))]
-    all_feature_cols = [col for col in feature_cols + indicator_cols if col in combined_df.columns]
+    combined = _create_classification_labels(
+        combined,
+        config.classification_horizons,
+        config.classification_threshold
+    )
 
-    combined_df = combined_df.dropna(subset=all_feature_cols + targets)
-    combined_df = combined_df.sort_values(["trade_date", "ts_code"])
+    if config.feature_fields:
+        feature_fields = config.feature_fields
+    else:
+        feature_fields = _get_default_feature_fields(combined.columns.tolist())
 
-    if len(combined_df) < 20:
-        raise ValueError("Insufficient data for training (minimum 20 samples)")
+    target_names = [f"label_{h}d" for h in config.classification_horizons]
 
-    X = combined_df[all_feature_cols].values[:-1]
-    y = combined_df[targets].values[1:]
+    if config.normalizer_fields:
+        normalizer = CrossSectionalNormalizer(
+            standardize_fields=feature_fields,
+            **config.normalizer_fields
+        )
+    else:
+        normalizer = CrossSectionalNormalizer(standardize_fields=feature_fields)
 
-    predictor = PREDICTORS[model_type](**params)
-    predictor.fit(X, y, targets)
+    combined_normalized = normalizer.normalize(combined[feature_fields + ["trade_date", "ts_code"]])
+    combined_normalized["trade_date"] = combined["trade_date"].values
+    combined_normalized["ts_code"] = combined["ts_code"].values
 
-    last_features = combined_df[all_feature_cols].iloc[-1:].values
-    predictions = predictor.predict(last_features, targets)
-    actuals = combined_df[targets].iloc[-1].to_dict()
+    drop_cols = ["trade_date", "ts_code"] + [c for c in combined.columns if c not in feature_fields + ["trade_date", "ts_code"] + target_names]
+    for c in drop_cols:
+        if c in combined_normalized.columns:
+            combined_normalized = combined_normalized.drop(columns=[c])
+
+    combined_normalized = combined_normalized.dropna(subset=feature_fields + target_names)
+
+    if len(combined_normalized) < 20:
+        raise ValueError(f"数据不足（{len(combined_normalized)} < 20）")
+
+    X = combined_normalized[feature_fields].values
+    y = combined_normalized[target_names].values
+
+    classifier = CLASSIFIERS[config.model_type]()
+    classifier.fit(X, y, target_names)
+
+    y_pred = classifier.predict(X, target_names)
+    y_true = {t: combined_normalized[t].values for t in target_names}
 
     metrics = {}
-    for target in targets:
-        actual_val = actuals.get(target, 0)
-        pred_val = predictions.get(target, 0)
-        metrics[f"{target}_mse"] = float((actual_val - pred_val) ** 2)
-        metrics[f"{target}_mae"] = float(abs(actual_val - pred_val))
-    metrics["sample_count"] = len(combined_df)
-
-    logger.info(f"Training prepared with {len(combined_df)} samples")
+    for t in target_names:
+        metrics[f"{t}_accuracy"] = accuracy_score(y_true[t], y_pred[t])
+        metrics[f"{t}_precision"] = precision_score(y_true[t], y_pred[t], average="macro", zero_division=0)
+        metrics[f"{t}_recall"] = recall_score(y_true[t], y_pred[t], average="macro", zero_division=0)
+        metrics[f"{t}_f1"] = f1_score(y_true[t], y_pred[t], average="macro", zero_division=0)
+    metrics["sample_count"] = len(combined_normalized)
 
     training = TrainingResult(
         config_id=config_id,
         name=name,
-        ts_codes=ts_codes,
+        ts_codes=[c for c in ts_codes if c not in skipped],
         start_date=start_date,
         end_date=end_date,
-        feature_cols=all_feature_cols,
+        feature_fields=feature_fields,
+        classification_horizons=config.classification_horizons,
         metrics=metrics,
         created_at=datetime.now(timezone.utc),
     )
-
     await training.insert()
 
     _ensure_model_dir(str(config_id))
     model_path = os.path.join(MODELS_DIR, str(config_id), f"{training.id}.pkl")
-    predictor.save(model_path)
+    classifier.save(model_path)
 
     training.model_path = model_path
     await training.save()
 
-    logger.info(f"Training '{name}' completed with ID {training.id}")
+    logger.info(f"训练完成 '{name}' id={training.id} samples={metrics['sample_count']}")
     return training
 
 
 async def get_training_by_id(training_id: PydanticObjectId) -> Optional[TrainingResult]:
-    """Get training by ID."""
     return await TrainingResult.get(training_id)
 
 
-async def get_training_by_name(name: str) -> Optional[TrainingResult]:
-    """Get training by name."""
-    return await TrainingResult.find_one(TrainingResult.name == name)
-
-
 async def list_trainings(config_id: PydanticObjectId = None) -> List[TrainingResult]:
-    """List trainings with optional filter."""
     if config_id:
-        return await TrainingResult.find(
-            TrainingResult.config_id == config_id
-        ).to_list()
+        return await TrainingResult.find(TrainingResult.config_id == config_id).to_list()
     return await TrainingResult.find_all().to_list()
 
 
 async def delete_training(training_id: PydanticObjectId) -> bool:
-    """Delete training and model file."""
-    logger.info(f"Deleting training {training_id}")
-
     training = await TrainingResult.get(training_id)
     if not training:
-        logger.warning(f"Training {training_id} not found")
         return False
-
     if training.model_path and os.path.exists(training.model_path):
-        logger.debug(f"Deleting model file: {training.model_path}")
         os.remove(training.model_path)
-
+    await PredictionResult.find(PredictionResult.training_result_id == training_id).delete()
     await training.delete()
-    logger.info(f"Training {training_id} deleted successfully")
     return True
 
 
-async def predict_with_training(training_id: PydanticObjectId, ts_code: str = None) -> dict[str, float]:
-    """Predict using trained model."""
-    import pandas as pd
-
+async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> Dict:
     from trade_alpha.predict.config_service import get_config_by_id
-
-    logger.info(f"Running prediction with training {training_id}")
 
     training = await get_training_by_id(training_id)
     if not training:
@@ -177,26 +207,65 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str = No
     if not config:
         raise ValueError(f"Config not found: {training.config_id}")
 
-    ts_code = ts_code or training.ts_codes[0]
-
     records = await StockDaily.find(
         StockDaily.ts_code == ts_code
     ).sort(-StockDaily.trade_date).to_list()
 
     if not records:
-        raise ValueError(f"No data found for {ts_code}")
+        raise ValueError(f"No data for {ts_code}")
 
     df = pd.DataFrame([r.model_dump() for r in records])
     df = df.sort_values("trade_date")
 
-    feature_cols = training.feature_cols
-    df = df.dropna(subset=feature_cols)
+    if config.normalizer_fields:
+        normalizer = CrossSectionalNormalizer(
+            standardize_fields=training.feature_fields,
+            **config.normalizer_fields
+        )
+    else:
+        normalizer = CrossSectionalNormalizer(standardize_fields=training.feature_fields)
 
-    predictor = PREDICTORS[config.model_type]()
-    predictor.load(training.model_path)
+    df_norm = normalizer.normalize(df[training.feature_fields + ["trade_date", "ts_code"]])
+    for c in df.columns:
+        if c not in training.feature_fields and c not in ["trade_date", "ts_code"]:
+            if c in df_norm.columns:
+                df_norm = df_norm.drop(columns=[c])
 
-    last_features = df[feature_cols].iloc[-1:].values
-    predictions = predictor.predict(last_features, config.targets)
+    df_norm = df_norm.dropna(subset=training.feature_fields)
+    if len(df_norm) == 0:
+        raise ValueError("No valid data after normalization")
 
-    logger.info(f"Prediction completed for {ts_code}: {predictions}")
-    return predictions
+    classifier = CLASSIFIERS[config.model_type]()
+    classifier.load(training.model_path)
+
+    target_names = [f"label_{h}d" for h in training.classification_horizons]
+    features = df_norm[training.feature_fields].iloc[-1:].values
+
+    predictions = classifier.predict(features, target_names)
+    probabilities = classifier.predict_proba(features, target_names)
+
+    last_date = df["trade_date"].iloc[-1]
+
+    prediction = PredictionResult(
+        training_result_id=training_id,
+        ts_code=ts_code,
+        trade_date=last_date,
+        predictions=predictions,
+        probabilities=probabilities,
+        created_at=datetime.now(timezone.utc),
+    )
+    await prediction.insert()
+
+    return {"predictions": predictions, "probabilities": probabilities}
+
+
+async def get_prediction_by_id(prediction_id: PydanticObjectId) -> Optional[PredictionResult]:
+    return await PredictionResult.get(prediction_id)
+
+
+async def delete_prediction(prediction_id: PydanticObjectId) -> bool:
+    prediction = await PredictionResult.get(prediction_id)
+    if not prediction:
+        return False
+    await prediction.delete()
+    return True
