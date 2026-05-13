@@ -44,8 +44,20 @@ cd frontend/e2e && pytest -v --base-url=http://localhost:3000
 4. 启动前端服务
 5. 运行 E2E 测试
 
+## 测试与定时任务隔离
+
+集成测试使用的股票代码由定时任务排除，避免并发修改 `sync_status` 造成冲突：
+
+```python
+# backend/src/trade_alpha/scheduler/data_sync.py
+TEST_EXCLUDED_TS_CODES = ["002594.SZ", "601398.SH"]
+```
+
+定时任务的 `get_pending_stocks` 和 `get_data_completed_stocks` 查询会自动排除这些代码。
+
 ## 测试原则
 
 1. 单元测试隔离外部依赖
 2. 集成测试使用真实数据
 3. E2E 测试依赖集成测试数据
+4. 集成测试股票代码需在 `TEST_EXCLUDED_TS_CODES` 中声明
