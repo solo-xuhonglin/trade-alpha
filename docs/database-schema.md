@@ -401,9 +401,11 @@ MACDStrategy:
 | `params` | object | 模型参数 |
 | `targets` | array | 预测目标列表 |
 | `feature_fields` | array | 特征字段列表（分类任务） |
+| `standardize_fields` | array | Z-score 标准化的字段列表 |
+| `winsorize_fields` | array | 缩尾处理的字段列表 |
+| `output_fields` | array | 标准化器输出字段（特征+标签） |
 | `classification_horizons` | array | 分类预测周期列表（分类任务） |
 | `classification_threshold` | float | 涨跌分类阈值（分类任务） |
-| `normalizer_fields` | array | 标准化器使用的特征字段 |
 | `created_at` | datetime | 创建时间 |
 | `updated_at` | datetime | 更新时间 |
 
@@ -432,10 +434,12 @@ lstm:
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["close", "pct_chg", "ma_5", "ma_10", "vol_ratio_5"],
-  "classification_horizons": [1, 5, 20],
-  "classification_threshold": 0.0,
-  "normalizer_fields": ["ma_5", "ma_10", "ma_20"]
+  "feature_fields": ["ma_5", "ma_10", "ma_20"],
+  "standardize_fields": ["ma_5", "ma_10"],
+  "winsorize_fields": [],
+  "output_fields": ["ma_5", "ma_10", "ma_20", "label_3d", "label_5d"],
+  "classification_horizons": [3, 5],
+  "classification_threshold": 0.02
 }
 ```
 

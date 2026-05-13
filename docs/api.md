@@ -258,10 +258,12 @@ GET /api/model-configs
     "id": "507f1f77bcf86cd799439011",
     "name": "xgboost-classifier",
     "model_type": "xgboost",
-    "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
-    "classification_horizons": [1, 5, 20],
-    "classification_threshold": 0.0,
-    "normalizer_fields": ["ma_5", "ma_10", "ma_20"]
+    "feature_fields": ["ma_5", "ma_10", "ma_20"],
+    "standardize_fields": ["ma_5", "ma_10"],
+    "winsorize_fields": [],
+    "output_fields": ["ma_5", "ma_10", "ma_20", "label_3d", "label_5d"],
+    "classification_horizons": [3, 5],
+    "classification_threshold": 0.02
   }
 ]
 ```
@@ -277,10 +279,12 @@ POST /api/model-configs
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
-  "classification_horizons": [1, 5, 20],
-  "classification_threshold": 0.0,
-  "normalizer_fields": ["ma_5", "ma_10", "ma_20"]
+  "feature_fields": ["ma_5", "ma_10", "ma_20"],
+  "standardize_fields": ["ma_5", "ma_10"],
+  "winsorize_fields": [],
+  "output_fields": ["ma_5", "ma_10", "ma_20", "label_3d", "label_5d"],
+  "classification_horizons": [3, 5],
+  "classification_threshold": 0.02
 }
 ```
 
