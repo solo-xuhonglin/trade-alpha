@@ -4,6 +4,7 @@ from trade_alpha.predict.models import (
     BaseClassifier,
     XGBoostClassifier,
     LSTMClassifier,
+    LSTMPredictor,
 )
 from trade_alpha.predict.normalizers import (
     BaseNormalizer,
@@ -19,6 +20,7 @@ __all__ = [
     "BaseClassifier",
     "XGBoostClassifier",
     "LSTMClassifier",
+    "LSTMPredictor",
     "BaseNormalizer",
     "SlidingWindowNormalizer",
     "CrossSectionalNormalizer",
