@@ -63,3 +63,76 @@ def test_normalize_empty():
     result = normalizer.normalize(df)
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 0
+
+
+def test_normalize_backward_compatibility():
+    df = pd.DataFrame({
+        "ts_code": ["000001.SZ", "000002.SZ"],
+        "trade_date": ["20240101", "20240101"],
+        "close": [10.0, 20.0],
+        "volume": [1000, 2000],
+    })
+    
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=["close", "volume"],
+        winsorize_fields=["close"]
+    )
+    
+    result = normalizer.normalize(df)
+    
+    assert list(result.columns) == ["close", "volume"]
+
+
+def test_normalize_output_fields():
+    df = pd.DataFrame({
+        "ts_code": ["000001.SZ", "000002.SZ"],
+        "trade_date": ["20240101", "20240101"],
+        "close": [10.0, 20.0],
+        "volume": [1000, 2000],
+        "open": [9.5, 19.5],
+    })
+    
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=["close", "volume"],
+        winsorize_fields=["close"],
+        output_fields=["close", "open"]
+    )
+    
+    result = normalizer.normalize(df)
+    
+    assert list(result.columns) == ["close", "open"]
+    assert result["open"].tolist() == [9.5, 19.5]
+
+
+def test_normalize_output_fields_missing_fields():
+    df = pd.DataFrame({
+        "ts_code": ["000001.SZ", "000002.SZ"],
+        "trade_date": ["20240101", "20240101"],
+        "close": [10.0, 20.0],
+    })
+    
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=["close"],
+        output_fields=["close", "volume", "high"]
+    )
+    
+    result = normalizer.normalize(df)
+    
+    assert list(result.columns) == ["close"]
+
+
+def test_normalize_output_fields_excluded_fields():
+    df = pd.DataFrame({
+        "ts_code": ["000001.SZ", "000002.SZ"],
+        "trade_date": ["20240101", "20240101"],
+        "close": [10.0, 20.0],
+    })
+    
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=["close"],
+        output_fields=["close", "ts_code", "trade_date"]
+    )
+    
+    result = normalizer.normalize(df)
+    
+    assert list(result.columns) == ["close"]

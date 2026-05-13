@@ -27,11 +27,13 @@ class CrossSectionalNormalizer(BaseNormalizer):
         winsorize_fields: Optional[List[str]] = None,
         winsorize_lower: float = 0.01,
         winsorize_upper: float = 0.95,
+        output_fields: Optional[List[str]] = None,
     ):
         self.standardize_fields = standardize_fields
         self.winsorize_fields = winsorize_fields or []
         self.winsorize_lower = winsorize_lower
         self.winsorize_upper = winsorize_upper
+        self.output_fields = output_fields
 
     @property
     def name(self) -> str:
@@ -62,6 +64,8 @@ class CrossSectionalNormalizer(BaseNormalizer):
 
     def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
         if df.empty:
+            if self.output_fields:
+                return pd.DataFrame(columns=self.output_fields)
             return pd.DataFrame(columns=self.standardize_fields)
 
         grouped = df.groupby("trade_date")
@@ -69,6 +73,16 @@ class CrossSectionalNormalizer(BaseNormalizer):
         for _, group in grouped:
             group = self._winsorize_group(group.copy())
             group = self._standardize_group(group)
-            result_parts.append(group[self.standardize_fields])
+            result_parts.append(group)
 
-        return pd.concat(result_parts, ignore_index=True)
+        result_df = pd.concat(result_parts, ignore_index=True)
+        
+        output_fields = self.output_fields if self.output_fields else self.standardize_fields
+        
+        excluded_fields = {"ts_code", "trade_date"}
+        output_fields = [f for f in output_fields if f not in excluded_fields]
+        
+        available_fields = result_df.columns.tolist()
+        output_fields = [f for f in output_fields if f in available_fields]
+        
+        return result_df[output_fields]
