@@ -37,12 +37,14 @@ class ExecutionPipeline:
         model_config: ModelConfig,
         strategy_config: Optional[StrategyConfig] = None,
         max_positions: int = 10,
+        single_stock_ts_code: Optional[str] = None,
     ):
         self.account_config = account_config
         self.training_id = training_id
         self.model_config = model_config
         self.strategy_config = strategy_config
         self.max_positions = max_positions
+        self.single_stock_ts_code = single_stock_ts_code
 
         self.data_loader = DataLoader()
         self.predictor = Predictor(training_id)
@@ -98,15 +100,31 @@ class ExecutionPipeline:
 
         # Get stocks from the universe (same stocks used in training)
         from trade_alpha.dao import StockList
+        
+        # For single-stock mode: optimize by only loading top 200 stocks for cross-sectional normalization
+        limit = 200 if self.single_stock_ts_code else 3000
+        
         all_stocks = await StockList.find(
             StockList.sync_status == "active",
             StockList.ts_code != "002594.SZ"
-        ).sort(-StockList.total_mv).limit(3000).to_list()
+        ).sort(-StockList.total_mv).limit(limit).to_list()
+        
+        # Ensure target stock is included in single-stock mode
+        if self.single_stock_ts_code:
+            target_stock = await StockList.find_one(StockList.ts_code == self.single_stock_ts_code)
+            if target_stock and target_stock not in all_stocks:
+                all_stocks.append(target_stock)
         
         universe = {s.ts_code: s.name for s in all_stocks}
         ts_codes = list(universe.keys())
         
-        logger.info(f"Universe contains {len(ts_codes)} stocks")
+        # Single-stock mode: set ts_code and stock_name
+        if self.single_stock_ts_code:
+            result.ts_code = self.single_stock_ts_code
+            result.stock_name = universe.get(self.single_stock_ts_code, self.single_stock_ts_code)
+            logger.info(f"Single-stock mode: {result.ts_code} ({result.stock_name})")
+        
+        logger.info(f"Universe contains {len(ts_codes)} stocks (top {limit})")
         
         # Pre-load all stock data for cross-sectional normalization during backtest
         logger.info("Pre-loading all stock data for cross-sectional normalization...")
@@ -138,8 +156,28 @@ class ExecutionPipeline:
         self.prev_total_value = None
 
         daily_values: List[float] = []
+        daily_returns: List[float] = []
         total_trades = 0
         total_fees = 0.0
+
+        # Load baseline prices
+        baseline_start_price = None
+        baseline_end_price = None
+        baseline_daily_prices: List[float] = []
+
+        if self.single_stock_ts_code:
+            from beanie.odm.operators.find.comparison import In
+            baseline_records = await StockDaily.find(
+                StockDaily.ts_code == self.single_stock_ts_code,
+                StockDaily.trade_date >= start_date,
+                StockDaily.trade_date <= end_date,
+            ).sort(StockDaily.trade_date).to_list()
+            
+            if baseline_records:
+                baseline_daily_prices = [r.close for r in baseline_records]
+                baseline_start_price = baseline_records[0].close
+                baseline_end_price = baseline_records[-1].close
+                logger.info(f"Baseline: {len(baseline_records)} records, {baseline_start_price} -> {baseline_end_price}")
 
         date = start_date
         while date <= end_date:
@@ -181,6 +219,10 @@ class ExecutionPipeline:
                 for ts_code, r in pred_results.items()
                 if r["score"] > 0
             ]
+            
+            # Single-stock mode: filter to only the target stock
+            if self.single_stock_ts_code:
+                scored = [s for s in scored if s.ts_code == self.single_stock_ts_code]
             
             # Log first day predictions for debugging
             if date == start_date:
@@ -244,6 +286,8 @@ class ExecutionPipeline:
             )
             self.prev_total_value = snapshot.total_value
             daily_values.append(snapshot.total_value)
+            if self.prev_total_value and snapshot.day_return is not None:
+                daily_returns.append(snapshot.day_return)
 
             date = _next_date(date)
 
@@ -252,6 +296,29 @@ class ExecutionPipeline:
 
         max_drawdown = self._calc_max_drawdown(daily_values)
         win_rate = await self._calc_win_rate(backtest_id)
+
+        # Calculate new metrics
+        metrics = self.position_manager.calculate_metrics(daily_returns)
+        result.sharpe_ratio = round(metrics["sharpe_ratio"], 4) if metrics["sharpe_ratio"] else None
+        result.volatility = round(metrics["volatility"], 4) if metrics["volatility"] else None
+
+        # Calculate average hold days
+        trade_metrics = await self.position_manager.calculate_trade_metrics(
+            await ExecutionTrade.find(ExecutionTrade.backtest_id == backtest_id).to_list(),
+            []
+        )
+        result.avg_hold_days = round(trade_metrics["avg_hold_days"], 2) if trade_metrics["avg_hold_days"] else None
+
+        # Calculate baseline metrics for single-stock mode
+        if self.single_stock_ts_code and baseline_start_price and baseline_end_price:
+            baseline_metrics = self.position_manager.calculate_baseline_metrics(
+                baseline_start_price,
+                baseline_end_price,
+                baseline_daily_prices
+            )
+            result.baseline_return = round(baseline_metrics["baseline_return"], 4)
+            result.baseline_max_drawdown = round(baseline_metrics["baseline_max_drawdown"], 4)
+            result.excess_return = round(total_return - baseline_metrics["baseline_return"], 4)
 
         result.final_value = round(final_value, 2)
         result.total_return = round(total_return, 4)
@@ -264,6 +331,12 @@ class ExecutionPipeline:
 
         logger.info(f"Backtest {backtest_id} completed: return={total_return:.2%}, "
                     f"drawdown={max_drawdown:.2%}, trades={total_trades}")
+        if result.baseline_return is not None:
+            logger.info(f"  Baseline return: {result.baseline_return:.2%}, "
+                        f"Excess return: {result.excess_return:.2%}")
+        if result.sharpe_ratio is not None:
+            logger.info(f"  Sharpe: {result.sharpe_ratio:.2f}, Volatility: {result.volatility:.2%}")
+        
         return result
 
     async def run_live(self, date: str) -> List[PendingOrder]:
