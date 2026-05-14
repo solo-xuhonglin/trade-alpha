@@ -268,32 +268,37 @@ MACDStrategy:
 
 存储执行结果（支持回测和实盘模式）。
 
-**索引**: `{ts_code: 1}`, `{account_config_id: 1}`, `{strategy_id: 1}` 索引
+**索引**: `{account_config_id: 1}`, `{training_id: 1}`, `{ts_code: 1}` 索引
 
 **字段**:
 
 | 字段 | 类型 | 说明 | 默认值 |
 |------|------|------|-------|
 | `account_config_id` | ObjectId | 关联的账户配置ID | - |
-| `strategy_id` | ObjectId | 关联的策略ID | - |
 | `training_id` | ObjectId | 关联的训练结果ID | - |
-| `ts_code` | string | 股票代码 | - |
+| `name` | string | 执行名称 | - |
+| `mode` | string | 执行模式 ("backtest" / "live") | "backtest" |
 | `start_date` | string | 开始日期 | - |
 | `end_date` | string | 结束日期 | - |
 | `initial_capital` | float | 初始资金 | - |
 | `final_value` | float | 最终资产 | - |
 | `total_return` | float | 总收益率 | - |
-| `annual_return` | float | 年化收益率 | - |
-| `benchmark_return` | float | 基准收益率 | 0.0 |
-| `max_drawdown` | float | 最大回撤 | - |
+| `max_drawdown` | float | 最大回撤 | 0.0 |
+| `win_rate` | float | 胜率 | 0.0 |
+| `total_trades` | int | 总交易次数 | 0 |
+| `total_fees` | float | 总手续费 | 0.0 |
+| `ts_code` | string | 单股票模式的股票代码 | - |
+| `stock_name` | string | 单股票模式的股票名称 | - |
+| `baseline_return` | float | 基线收益率 | - |
+| `excess_return` | float | 超额收益率 | - |
+| `baseline_max_drawdown` | float | 基线最大回撤 | - |
 | `sharpe_ratio` | float | 夏普比率 | - |
-| `win_rate` | float | 胜率 | - |
-| `total_trades` | int | 总交易次数 | - |
-| `total_fees` | float | 总手续费 | - |
+| `volatility` | float | 波动率 | - |
+| `avg_hold_days` | float | 平均持仓天数 | - |
 | `account_snapshot` | object | 账户配置快照（嵌入） | - |
-| `strategy_snapshot` | object | 策略配置快照（嵌入） | - |
-| `created_at` | datetime | 创建时间 | - |
-| `mode` | string | 执行模式 ("backtest" / "live") | "backtest" |
+| `model_snapshot` | object | 模型配置快照（嵌入） | - |
+| `created_at` | datetime | 创建时间 | now |
+| `status` | string | 状态 ("pending" / "running" / "completed" / "failed") | "completed" |
 
 **account_snapshot（嵌入字段）**:
 
@@ -306,13 +311,15 @@ MACDStrategy:
 | `stamp_tax_rate` | float | 印花税率 |
 | `min_fee` | float | 最低手续费 |
 
-**strategy_snapshot（嵌入字段）**:
+**model_snapshot（嵌入字段）**:
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `name` | string | 策略名称 |
-| `type` | string | 策略类型 |
-| `config` | object | 策略配置参数 |
+| `name` | string | 模型配置名称 |
+| `model_type` | string | 模型类型 |
+| `feature_fields` | array | 特征字段列表 |
+| `classification_horizons` | array | 分类预测周期 |
+| `classification_threshold` | float | 分类阈值 |
 
 ### execution_portfolio_snapshots
 
@@ -327,11 +334,28 @@ MACDStrategy:
 | `backtest_id` | ObjectId | 关联的执行ID | - |
 | `date` | string | 日期 | - |
 | `cash` | float | 当日现金 | - |
-| `positions` | array | 持仓列表 [{ts_code, shares}] | - |
-| `market_value` | float | 持仓市值 | - |
-| `total_value` | float | 总资产 | - |
-| `position_ratio` | float | 仓位比例 | - |
+| `positions` | array | 持仓列表 [PositionEmbed] | [] |
+| `total_market_value` | float | 持仓市值 | 0.0 |
+| `total_value` | float | 总资产 | 0.0 |
+| `day_return` | float | 日收益率 | 0.0 |
 | `mode` | string | 执行模式 ("backtest" / "live") | "backtest" |
+| `baseline_value` | float | 基线资产值 | 0.0 |
+| `baseline_hold_days` | int | 基线持仓天数 | 0 |
+
+**PositionEmbed（持仓嵌入字段）**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `ts_code` | string | 股票代码 |
+| `stock_name` | string | 股票名称 |
+| `buy_date` | string | 买入日期 |
+| `buy_price` | float | 买入价格 |
+| `shares` | int | 股数 |
+| `fee` | float | 手续费 |
+| `entry_score` | float | 入场评分 |
+| `entry_3d_prob` | float | 入场3日上涨概率 |
+| `entry_5d_prob` | float | 入场5日上涨概率 |
+| `hold_days` | int | 持仓天数 |
 
 ### execution_trades
 
@@ -344,9 +368,6 @@ MACDStrategy:
 | 字段 | 类型 | 说明 | 默认值 |
 |------|------|------|-------|
 | `backtest_id` | ObjectId | 关联的执行ID | - |
-| `account_config_id` | ObjectId | 关联的账户配置ID | - |
-| `strategy_id` | ObjectId | 关联的策略ID | - |
-| `training_id` | ObjectId | 关联的训练结果ID | - |
 | `ts_code` | string | 股票代码 | - |
 | `trade_date` | string | 交易日期 | - |
 | `action` | string | "buy" / "sell" | - |
@@ -354,37 +375,40 @@ MACDStrategy:
 | `shares` | int | 成交股数 | - |
 | `fee` | float | 手续费 | - |
 | `cash_after` | float | 交易后现金 | - |
-| `position_after` | int | 交易后持仓 | - |
+| `reason` | string | 交易原因 | - |
+| `entry_score` | float | 入场评分 | - |
+| `up_prob_3d` | float | 3日上涨概率 | - |
+| `up_prob_5d` | float | 5日上涨概率 | - |
+| `created_at` | datetime | 创建时间 | now |
 | `mode` | string | 执行模式 ("backtest" / "live") | "backtest" |
-| `status` | string | 交易状态 ("executed" / "pending" / "failed") | "executed" |
-| `execution_time` | datetime | 实际执行时间 | - |
 
 ### order_suggestions
 
 存储订单建议。
 
-**索引**: `{ts_code: 1}`, `{date: 1}`, `{account_config_id: 1}`, `{strategy_id: 1}`, `{training_id: 1}`, `{status: 1}` 索引
+**索引**: `{backtest_id: 1}`, `{ts_code: 1}`, `{trade_date: 1}`, `{status: 1}` 索引
 
 **字段**:
 
 | 字段 | 类型 | 说明 | 默认值 |
 |------|------|------|-------|
-| `execution_result_id` | ObjectId | 关联的执行结果ID | - |
+| `backtest_id` | ObjectId | 关联的执行ID | - |
 | `ts_code` | string | 股票代码 | - |
 | `stock_name` | string | 股票名称 | - |
-| `date` | string | 建议日期 | - |
+| `trade_date` | string | 交易日期 | - |
+| `settle_date` | string | 结算日期 | - |
 | `action` | string | 建议动作 ("buy" / "sell") | - |
-| `suggested_price` | float | 建议价格 | - |
-| `suggested_shares` | int | 建议股数 | - |
-| `signal_strength` | float | 信号强度 (0-1) | - |
-| `position_reason` | string | 持仓理由 | - |
-| `risk_notes` | string | 风险提示 | - |
-| `prediction_data` | object | 预测数据 | - |
-| `account_config_id` | ObjectId | 关联的账户配置ID | - |
-| `strategy_id` | ObjectId | 关联的策略ID | - |
-| `training_id` | ObjectId | 关联的训练结果ID | - |
+| `order_price` | float | 订单价格 | - |
+| `order_shares` | int | 订单股数 | - |
+| `score` | float | 评分 | - |
+| `up_prob_3d` | float | 3日上涨概率 | - |
+| `up_prob_5d` | float | 5日上涨概率 | - |
 | `status` | string | 状态 ("pending" / "executed" / "cancelled") | "pending" |
-| `created_at` | datetime | 创建时间 | - |
+| `actual_price` | float | 实际成交价格 | - |
+| `actual_shares` | int | 实际成交股数 | - |
+| `fee` | float | 手续费 | - |
+| `cash_after` | float | 交易后现金 | - |
+| `created_at` | datetime | 创建时间 | now |
 
 ### model_configs
 

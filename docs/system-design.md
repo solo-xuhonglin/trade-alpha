@@ -207,88 +207,65 @@ trade-alpha/
 
 ### 7. 策略模块 (strategy)
 
-- `PriceStrategy`: 价格策略
-- `MAStrategy`: 均线策略
-- `MACDStrategy`: MACD 策略
-- `service.py`: 策略 CRUD 和信号生成
+已重构，策略逻辑已整合到 execution 模块。
 
-### 8. 账户模块 (account)
-
-- `AccountManager`: 运行时投资组合引擎（资金管理、交易执行）
-- `TradeRecord`: 交易记录（轻量 dataclass）
-- `service.py`: 账户配置持久化（AccountConfig CRUD）
-
-### 9. 回测模块 (backtest)
-
-- `BacktestEngine`: 回测引擎
-- `BacktestResult`: 回测结果（含配置快照）
-- `BacktestTrade`: 交易记录
-- `BacktestPortfolioDaily`: 每日账户快照
-- `service.py`: 回测服务
-
-**回测必填参数**: account_config_id, strategy_id, training_id
-
-**数据结构**:
-- 回测记录内嵌配置快照（账户、策略），确保历史数据一致性
-- 交易记录独立存储
-- 每日账户快照独立存储
-
-### 10. 执行模块 (execution)
+### 8. 执行模块 (execution)
 
 #### pipeline.py - 统一流程编排
 
-- 协调数据加载、预测、信号生成、仓位管理的完整流程
-- 支持回测模式和实盘模式的统一接口
+- 协调数据加载、预测、策略决策、仓位管理的完整流程
+- 支持组合策略模式和单股票策略模式
+- 支持回测模式和实盘模式
 - 执行上下文管理，确保状态一致性
+- 新增基线对比功能（买入持有策略）
+- 新增夏普比率、波动率等指标计算
 
 **核心方法**:
-- `run_pipeline()`: 执行完整的预测-信号-交易流程
 - `run_backtest()`: 回测模式执行
 - `run_live()`: 实盘模式执行
+
+**策略模式**:
+- `portfolio`: 多股票组合策略，基于评分排名
+- `single`: 单股票策略，基于预测概率
 
 #### data_loader.py - 数据加载器
 
 - 支持回测模式（历史数据）和实盘模式（实时数据）
 - 统一的数据接口，屏蔽数据源差异
+- 支持截面标准化所需的全市场数据加载
 - 自动处理数据对齐和缺失值
-
-**模式切换**:
-- `backtest` 模式：从 MongoDB 加载历史数据
-- `live` 模式：从 Tushare 获取实时数据
 
 #### predictor.py - 预测管理器
 
-- 集成多种预测模型，提供标准化接口
-- 自动选择最优模型进行预测
-- 预测结果标准化输出
+- 基于已训练模型进行预测
+- 输出预测概率和评分
+- 支持3日、5日等多周期预测
 
-**标准化输出**:
-- 预测价格
-- 置信区间
-- 预测概率分布
+#### portfolio_strategy.py - 组合策略
 
-#### signal_generator.py - 信号生成器
+- 多股票组合策略，基于评分排名选股
+- 支持最大持仓数限制
+- 支持单只股票最大仓位限制
+- 支持止损和最大持仓天数
 
-- 基于预测结果和策略规则生成交易信号
-- 支持多策略组合
-- 信号过滤和风险控制
+**核心方法**:
+- `make_decisions()`: 基于评分排名做出买卖决策
 
-**信号类型**:
-- `BUY`: 买入信号
-- `SELL`: 卖出信号
-- `HOLD`: 持有信号
-- `NONE`: 无信号
+#### single_stock_strategy.py - 单股票策略
 
-#### position_manager.py - 仓位管理器
+- 单股票策略，基于预测概率和评分
+- 自动根据评分调整仓位
+- 支持止损和最大持仓天数
 
-- 根据信号和账户配置管理仓位
-- 支持仓位限制和风险控制
-- 自动计算最优持仓比例
+**核心方法**:
+- `make_decisions()`: 基于预测概率做出买卖决策
 
-**仓位控制**:
-- 单只股票最大持仓比例
-- 行业/板块持仓限制
-- 止损/止盈规则
+#### position_manager.py - 仓位管理器基类
+
+- 仓位管理基类，提供通用功能
+- 处理订单执行和手续费计算
+- 管理持仓信息
+- 计算交易记录
 
 #### schemas.py - 数据结构定义
 
@@ -297,11 +274,18 @@ trade-alpha/
 - 数据验证和序列化
 
 **核心数据结构**:
-- `ExecutionContext`: 执行上下文
-- `PredictionResult`: 预测结果
-- `TradingSignal`: 交易信号
-- `Position`: 持仓信息
-- `TradeOrder`: 交易订单
+- `ScoredStock`: 带评分的股票
+- `PendingOrder`: 待执行订单
+
+### 9. 账户模块 (account)
+
+- `AccountManager`: 运行时投资组合引擎（资金管理、交易执行）
+- `TradeRecord`: 交易记录（轻量 dataclass）
+- `service.py`: 账户配置持久化（AccountConfig CRUD）
+
+### 10. 回测模块 (backtest)
+
+已重构，回测逻辑已整合到 execution 模块。
 
 ### 11. 调度器模块 (scheduler)
 
@@ -335,13 +319,12 @@ trade-alpha/
 | `indicators.py` | 指标计算 |
 | `predict.py` | 预测 |
 | `strategy.py` | 策略管理 |
-| `account/` | 账户管理 |
+| `account_config.py` | 账户管理 |
 | `backtest.py` | 回测管理 |
 | `model_configs.py` | 模型配置 CRUD |
 | `trainings.py` | 训练管理 |
-| `execution.py` | 执行框架 API |
 
-### 12. 前端页面
+### 13. 前端页面
 
 | 页面 | URL | 说明 |
 |------|-----|------|
@@ -395,13 +378,13 @@ create_training(
 
 - [x] 数据层：Tushare 数据获取，MongoDB 存储
 - [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_pct_rank、vol_ratio、KDJ、BOLL）
-- [x] 预测层：价格预测（线性回归、XGBoost、LSTM）
+- [x] 预测层：价格预测（XGBoost、LSTM）
 - [x] 训练层：样本混合训练、模型持久化
-- [x] 策略层：交易信号生成
+- [x] 执行层：统一流程编排、数据加载器、预测管理器、组合策略、单股票策略、仓位管理器
 - [x] 账户层：资金管理、交易记录
-- [x] 回测层：策略回测、指标计算
+- [x] 回测层：策略回测、基线对比、夏普比率、波动率、最大回撤、胜率等指标计算
 - [x] API 层：FastAPI RESTful 接口
 - [x] 前端界面：Vue 3 + Vuetify 4
 - [x] 日志系统：结构化日志，请求链路追踪
 - [x] 测试：集成测试 + E2E 测试
-- [x] 执行层：统一流程编排、数据加载器、预测管理器、信号生成器、仓位管理器
+- [x] CLI：支持训练、组合回测、单股票回测等多种模式

@@ -586,91 +586,44 @@ DELETE /api/account-configs/{account_config_id}
 
 ## 回测管理
 
-### 获取回测历史
-
-```
-GET /api/backtests
-```
-
-**参数**:
-- `page` (query, optional): 页码，默认 1
-- `page_size` (query, optional): 每页数量，默认 20，最大 100
-
-**响应**:
-```json
-{
-  "items": [
-    {
-      "id": "507f1f77bcf86cd799439011",
-      "account_config_id": "507f1f77bcf86cd799439012",
-      "strategy_id": "507f1f77bcf86cd799439013",
-      "training_id": "507f1f77bcf86cd799439014",
-      "ts_code": "000001.SZ",
-      "start_date": "20240101",
-      "end_date": "20241231",
-      "initial_capital": 100000.0,
-      "final_value": 120000.0,
-      "total_return": 0.20,
-      "annual_return": 0.25,
-      "benchmark_return": 0.10,
-      "max_drawdown": 0.08,
-      "sharpe_ratio": 1.5,
-      "win_rate": 0.65,
-      "total_trades": 20,
-      "total_fees": 500.0
-    }
-  ],
-  "total": 100,
-  "page": 1,
-  "page_size": 20,
-  "total_pages": 5
-}
-```
-
 ### 运行回测
 
 ```
-POST /api/backtests
+POST /api/backtest/run
 ```
 
-**请求体**:
-```json
-{
-  "ts_code": "000001.SZ",
-  "start_date": "20240101",
-  "end_date": "20241231",
-  "account_config_id": "507f1f77bcf86cd799439012",
-  "strategy_id": "507f1f77bcf86cd799439013",
-  "training_id": "507f1f77bcf86cd799439014"
-}
-```
-
-### 获取回测详情
-
-```
-GET /api/backtests/{id}
-```
+**参数**:
+- `account_config_id` (query, required): 账户配置 ID
+- `training_id` (query, required): 训练结果 ID
+- `start_date` (query, required): 回测开始日期 (YYYYMMDD)
+- `end_date` (query, required): 回测结束日期 (YYYYMMDD)
+- `name` (query, optional): 回测名称，默认 "backtest"
+- `top_n` (query, optional): 用于截面标准化的股票数量，默认 300
+- `max_positions` (query, optional): 最大持仓数，默认 10
 
 **响应**:
 ```json
 {
   "id": "507f1f77bcf86cd799439011",
-  "portfolio_id": "507f1f77bcf86cd799439012",
-  "strategy_id": "507f1f77bcf86cd799439013",
+  "account_config_id": "507f1f77bcf86cd799439012",
   "training_id": "507f1f77bcf86cd799439014",
-  "ts_code": "000001.SZ",
+  "name": "backtest",
+  "mode": "backtest",
   "start_date": "20240101",
   "end_date": "20241231",
   "initial_capital": 100000.0,
   "final_value": 120000.0,
   "total_return": 0.20,
-  "annual_return": 0.25,
-  "benchmark_return": 0.10,
   "max_drawdown": 0.08,
-  "sharpe_ratio": 1.5,
   "win_rate": 0.65,
   "total_trades": 20,
   "total_fees": 500.0,
+  "baseline_return": 0.10,
+  "excess_return": 0.10,
+  "baseline_max_drawdown": 0.05,
+  "sharpe_ratio": 1.5,
+  "volatility": 0.20,
+  "avg_hold_days": 15.5,
   "account_snapshot": {
     "name": "default",
     "initial_capital": 100000.0,
@@ -679,73 +632,65 @@ GET /api/backtests/{id}
     "stamp_tax_rate": 0.001,
     "min_fee": 5.0
   },
-  "strategy_snapshot": {
-    "name": "MA20策略",
-    "type": "ma",
-    "config": { "ma_period": 20, "threshold": 0.01 }
+  "model_snapshot": {
+    "name": "xgboost-classifier",
+    "model_type": "xgboost",
+    "feature_fields": ["ma_5", "ma_10", "ma_20"],
+    "classification_horizons": [3, 5],
+    "classification_threshold": 0.02
   },
-  "created_at": "2024-01-01T00:00:00Z"
+  "created_at": "2024-01-01T00:00:00Z",
+  "status": "completed"
 }
 ```
 
-### 获取回测交易记录
+### 获取回测详情
 
 ```
-GET /api/backtests/{id}/trades
+GET /api/backtest/results/{result_id}
 ```
 
 **响应**:
 ```json
 {
-  "items": [
-    {
-      "ts_code": "000001.SZ",
-      "trade_date": "20240105",
-      "action": "buy",
-      "price": 10.50,
-      "shares": 1000,
-      "fee": 5.0,
-      "cash_after": 89495.0,
-      "position_after": 1000
-    }
-  ],
-  "total": 50,
-  "page": 1,
-  "page_size": 20,
-  "total_pages": 3
+  "id": "507f1f77bcf86cd799439011",
+  "account_config_id": "507f1f77bcf86cd799439012",
+  "training_id": "507f1f77bcf86cd799439014",
+  "name": "backtest",
+  "mode": "backtest",
+  "start_date": "20240101",
+  "end_date": "20241231",
+  "initial_capital": 100000.0,
+  "final_value": 120000.0,
+  "total_return": 0.20,
+  "max_drawdown": 0.08,
+  "win_rate": 0.65,
+  "total_trades": 20,
+  "total_fees": 500.0,
+  "baseline_return": 0.10,
+  "excess_return": 0.10,
+  "baseline_max_drawdown": 0.05,
+  "sharpe_ratio": 1.5,
+  "volatility": 0.20,
+  "avg_hold_days": 15.5,
+  "account_snapshot": {
+    "name": "default",
+    "initial_capital": 100000.0,
+    "buy_fee_rate": 0.0003,
+    "sell_fee_rate": 0.0003,
+    "stamp_tax_rate": 0.001,
+    "min_fee": 5.0
+  },
+  "model_snapshot": {
+    "name": "xgboost-classifier",
+    "model_type": "xgboost",
+    "feature_fields": ["ma_5", "ma_10", "ma_20"],
+    "classification_horizons": [3, 5],
+    "classification_threshold": 0.02
+  },
+  "created_at": "2024-01-01T00:00:00Z",
+  "status": "completed"
 }
-```
-
-### 获取回测每日账户快照
-
-```
-GET /api/backtests/{id}/daily
-```
-
-**响应**:
-```json
-{
-  "items": [
-    {
-      "date": "20240102",
-      "cash": 100000.0,
-      "positions": [{ "ts_code": "000001.SZ", "shares": 0 }],
-      "market_value": 0,
-      "total_value": 100000.0,
-      "position_ratio": 0
-    }
-  ],
-  "total": 242,
-  "page": 1,
-  "page_size": 20,
-  "total_pages": 13
-}
-```
-
-### 删除回测
-
-```
-DELETE /api/backtests/{id}
 ```
 
 ## 错误响应
