@@ -11,6 +11,8 @@ from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
 from trade_alpha.execution.position_manager import PositionManager
+from trade_alpha.execution.portfolio_strategy import PortfolioStrategy
+from trade_alpha.execution.single_stock_strategy import SingleStockStrategy
 from trade_alpha.execution.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
@@ -36,6 +38,8 @@ class ExecutionPipeline:
         training_id: PydanticObjectId,
         model_config: ModelConfig,
         strategy_config: Optional[StrategyConfig] = None,
+        mode: str = "portfolio",
+        ts_codes: List[str] = None,
         max_positions: int = 10,
         single_stock_ts_code: Optional[str] = None,
     ):
@@ -43,15 +47,30 @@ class ExecutionPipeline:
         self.training_id = training_id
         self.model_config = model_config
         self.strategy_config = strategy_config
+        self.mode = mode
+        self.ts_codes = ts_codes or []
         self.max_positions = max_positions
         self.single_stock_ts_code = single_stock_ts_code
 
         self.data_loader = DataLoader()
         self.predictor = Predictor(training_id)
-        self.position_manager = PositionManager(
-            account_config=account_config,
-            max_positions=max_positions,
-        )
+        
+        # Initialize strategy based on mode
+        if mode == "single":
+            # For backward compatibility, support single_stock_ts_code
+            target_code = single_stock_ts_code or (ts_codes[0] if ts_codes else None)
+            assert target_code, "single mode requires ts_codes or single_stock_ts_code"
+            self.strategy = SingleStockStrategy(
+                account_config=account_config,
+                target_ts_code=target_code,
+            )
+            self.single_stock_ts_code = target_code
+        else:
+            self.strategy = PortfolioStrategy(
+                account_config=account_config,
+                max_positions=max_positions,
+                ts_codes=ts_codes,
+            )
 
         self.cash: float = account_config.initial_capital
         self.positions: Dict[str, PositionEmbed] = {}
@@ -231,7 +250,7 @@ class ExecutionPipeline:
                     top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
                     logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
 
-            pending_orders = await self.position_manager.make_decisions(
+            pending_orders = await self.strategy.make_decisions(
                 scored_stocks=scored,
                 current_positions=self.positions,
                 cash=self.cash,
@@ -243,7 +262,7 @@ class ExecutionPipeline:
                 logger.info(f"First day orders: {len(pending_orders)} orders generated")
             
             if pending_orders:
-                trades, net_cash = await self.position_manager.settle_orders(
+                trades, net_cash = await self.strategy.settle_orders(
                     orders=pending_orders,
                     date=date,
                     close_prices=close_prices,
@@ -276,7 +295,7 @@ class ExecutionPipeline:
                             hold_days=0,
                         )
 
-            snapshot = await self.position_manager.daily_snapshot(
+            snapshot = await self.strategy.daily_snapshot(
                 backtest_id=backtest_id,
                 date=date,
                 cash=self.cash,
@@ -298,12 +317,12 @@ class ExecutionPipeline:
         win_rate = await self._calc_win_rate(backtest_id)
 
         # Calculate new metrics
-        metrics = self.position_manager.calculate_metrics(daily_returns)
+        metrics = self.strategy.calculate_metrics(daily_returns)
         result.sharpe_ratio = round(metrics["sharpe_ratio"], 4) if metrics["sharpe_ratio"] else None
         result.volatility = round(metrics["volatility"], 4) if metrics["volatility"] else None
 
         # Calculate average hold days
-        trade_metrics = await self.position_manager.calculate_trade_metrics(
+        trade_metrics = await self.strategy.calculate_trade_metrics(
             await ExecutionTrade.find(ExecutionTrade.backtest_id == backtest_id).to_list(),
             []
         )
@@ -311,7 +330,7 @@ class ExecutionPipeline:
 
         # Calculate baseline metrics for single-stock mode
         if self.single_stock_ts_code and baseline_start_price and baseline_end_price:
-            baseline_metrics = self.position_manager.calculate_baseline_metrics(
+            baseline_metrics = self.strategy.calculate_baseline_metrics(
                 baseline_start_price,
                 baseline_end_price,
                 baseline_daily_prices
@@ -374,7 +393,7 @@ class ExecutionPipeline:
             if r["score"] > 0
         ]
 
-        pending_orders = self.position_manager.make_decisions(
+        pending_orders = await self.strategy.make_decisions(
             scored_stocks=scored,
             current_positions=self.positions,
             cash=self.cash,
