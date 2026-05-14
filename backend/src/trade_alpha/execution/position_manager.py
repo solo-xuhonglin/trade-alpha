@@ -19,7 +19,7 @@ TRADING_DAYS = 252
 
 
 class PositionManager:
-    """Position management: ranking, selling, buying, settlement, and snapshots."""
+    """Position manager base class with common functionality."""
 
     def __init__(
         self,
@@ -45,133 +45,8 @@ class PositionManager:
         trade_date: str,
         close_prices: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
-        """Unified ranking and position adjustment.
-
-        Sort all scored stocks by score descending, sell positions that fall
-        out of the top N or meet exit conditions, then buy top-ranked stocks
-        that are not yet held.
-
-        Args:
-            scored_stocks: Ranked stocks with prediction scores.
-            current_positions: Currently held positions dict (ts_code -> PositionEmbed).
-            cash: Current cash balance.
-            trade_date: Current trading date.
-            close_prices: Optional mapping of ts_code -> close price for accurate
-                          sell proceeds estimation. Falls back to buy_price if not provided.
-
-        Returns:
-            List of PendingOrder (positive shares = buy, negative shares = sell).
-        """
-        sorted_stocks = sorted(scored_stocks, key=lambda s: s.score, reverse=True)
-        top_stocks = sorted_stocks[:self.max_positions]
-        top_ts_codes = {s.ts_code for s in top_stocks}
-
-        orders: List[PendingOrder] = []
-        cash_available = cash
-
-        for ts_code, pos in current_positions.items():
-            if self._check_sell(pos, top_ts_codes, close_prices=close_prices):
-                sell_price = close_prices.get(ts_code, pos.buy_price) if close_prices else pos.buy_price
-                sell_value = sell_price * pos.shares
-                sell_fee = max(sell_value * self.account_config.sell_fee_rate, self.account_config.min_fee)
-                stamp_tax = sell_value * self.account_config.stamp_tax_rate
-                cash_available += sell_value - sell_fee - stamp_tax
-                orders.append(PendingOrder(
-                    ts_code=pos.ts_code,
-                    stock_name=pos.stock_name,
-                    order_price=sell_price,
-                    order_shares=-pos.shares,
-                    score=pos.entry_score,
-                    up_prob_3d=pos.entry_3d_prob,
-                    up_prob_5d=pos.entry_5d_prob,
-                    trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
-                ))
-
-        held_ts_codes = set(current_positions.keys())
-        for stock in top_stocks:
-            if stock.ts_code in held_ts_codes:
-                continue
-            buy_order = self._allocate_buy(cash_available, stock, trade_date)
-            if buy_order is not None:
-                cash_available -= buy_order.order_price * buy_order.order_shares
-                cash_available -= max(
-                    buy_order.order_price * buy_order.order_shares * self.account_config.buy_fee_rate,
-                    self.account_config.min_fee,
-                )
-                orders.append(buy_order)
-
-        return orders
-
-    def _check_sell(
-        self,
-        position: PositionEmbed,
-        top_ts_codes: set,
-        close_prices: Optional[Dict[str, float]] = None,
-    ) -> bool:
-        """Check whether a position should be sold.
-
-        Sell conditions (any one triggers a sell):
-        1. Stock is not in the top N ranking
-        2. Hold days exceed max_hold_days
-        3. Current price drops below stop_loss_pct from buy price (if close_prices provided)
-        """
-        if position.ts_code not in top_ts_codes:
-            return True
-        if position.hold_days >= self.max_hold_days:
-            return True
-        if close_prices and position.ts_code in close_prices:
-            current_price = close_prices[position.ts_code]
-            if current_price < position.buy_price * (1 + self.stop_loss_pct):
-                return True
-        return False
-
-    def _allocate_buy(
-        self,
-        cash: float,
-        scored_stock: ScoredStock,
-        trade_date: str,
-    ) -> Optional[PendingOrder]:
-        """Allocate cash to buy a stock.
-
-        Returns a PendingOrder if the cash is sufficient, otherwise None.
-        Shares are rounded down to the nearest round lot (100 for A-shares).
-        """
-        max_cost = cash * self.max_position_pct
-        if max_cost < self.min_order_value:
-            return None
-
-        fee_rate = self.account_config.buy_fee_rate
-        price = scored_stock.close
-        if price <= 0:
-            return None
-
-        shares = int(max_cost / (price * (1 + fee_rate)) / 100) * 100
-        if shares < 100:
-            shares = 100
-
-        total_cost = shares * price
-        fee = max(total_cost * fee_rate, self.account_config.min_fee)
-        if total_cost + fee > cash:
-            shares = int((cash - self.account_config.min_fee) / price / 100) * 100
-            if shares < 100:
-                return None
-            total_cost = shares * price
-            fee = max(total_cost * fee_rate, self.account_config.min_fee)
-            if total_cost + fee > cash:
-                return None
-
-        return PendingOrder(
-            ts_code=scored_stock.ts_code,
-            stock_name=scored_stock.stock_name,
-            order_price=price,
-            order_shares=shares,
-            score=scored_stock.score,
-            up_prob_3d=scored_stock.up_prob_3d,
-            up_prob_5d=scored_stock.up_prob_5d,
-            trade_date=trade_date,
-            settle_date=self._next_trade_date(trade_date),
-        )
+        """Make buy/sell decisions (to be implemented by subclasses)."""
+        raise NotImplementedError("Subclasses must implement make_decisions")
 
     async def settle_orders(
         self,
