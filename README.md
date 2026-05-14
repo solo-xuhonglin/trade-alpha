@@ -115,6 +115,71 @@ result = run_backtest("000001.SZ", "20240101", "20241231", strategy="price")
 print(f"总收益率: {result.total_return:.2%}, 最大回撤: {result.max_drawdown:.2%}")
 ```
 
+## 命令行使用
+
+main.py 提供训练和回测功能，支持多种运行模式：
+
+```bash
+cd backend
+```
+
+### 1. 完整流程（训练 + 综合回测）
+
+```bash
+python main.py --mode=full
+```
+
+### 2. 仅训练模型
+
+```bash
+python main.py --mode=train
+```
+
+### 3. 使用已有模型进行综合回测
+
+```bash
+python main.py --mode=portfolio --training-id=<training_id>
+```
+
+### 4. 单股票回测（带基线对比）
+
+```bash
+python main.py --mode=single --ts-code=600519.SH --training-id=<training_id>
+```
+
+### 5. 批量单股票回测
+
+```bash
+python main.py --mode=single-batch --training-id=<training_id>
+```
+
+### 参数说明
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--mode` | 运行模式：full/train/portfolio/single/single-batch | full |
+| `--training-id` | 已有的训练ID（用于回测模式） | - |
+| `--ts-code` | 股票代码（单股票模式） | - |
+| `--train-start` | 训练开始日期 | 20160101 |
+| `--train-end` | 训练结束日期 | 20241231 |
+| `--backtest-start` | 回测开始日期 | 20250101 |
+| `--backtest-end` | 回测结束日期 | 20250331 |
+| `--max-positions` | 最大持仓数 | 10 |
+
+### 回测结果字段说明
+
+| 字段 | 说明 |
+|------|------|
+| Total Return | 总收益率 |
+| Max Drawdown | 最大回撤 |
+| Sharpe Ratio | 夏普比率 |
+| Volatility | 年化波动率 |
+| Avg Hold Days | 平均持仓天数 |
+| Win Rate | 胜率 |
+| Total Trades | 总交易次数 |
+| Baseline Return | 基线收益率（买入持有） |
+| Excess Return | 超额收益（策略 - 基线） |
+
 ## 开发
 
 ```bash
