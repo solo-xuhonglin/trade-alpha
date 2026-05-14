@@ -10,10 +10,10 @@ from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, Mod
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
-from trade_alpha.execution.position_manager import PositionManager
-from trade_alpha.execution.portfolio_strategy import PortfolioStrategy
-from trade_alpha.execution.single_stock_strategy import SingleStockStrategy
-from trade_alpha.execution.schemas import ScoredStock, PendingOrder
+from trade_alpha.strategy.base import PositionManager
+from trade_alpha.strategy.portfolio import PortfolioStrategy
+from trade_alpha.strategy.single_stock import SingleStockStrategy
+from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
 

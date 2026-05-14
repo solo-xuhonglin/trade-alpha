@@ -64,3 +64,29 @@ class StockListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class StockDailyItem(BaseModel):
+    ts_code: str
+    trade_date: str
+    open: float
+    high: float
+    low: float
+    close: float
+    vol: float
+    amount: float
+    ma_5: Optional[float] = None
+    ma_10: Optional[float] = None
+    ma_20: Optional[float] = None
+    ma_60: Optional[float] = None
+    macd: Optional[float] = None
+    macd_signal: Optional[float] = None
+    macd_hist: Optional[float] = None
+
+
+class StockDailyListResponse(BaseModel):
+    items: list[StockDailyItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

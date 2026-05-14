@@ -23,34 +23,22 @@ class TestStrategyService:
 
     @pytest.mark.asyncio
     async def test_create_strategy(self):
-        """Test creating strategy."""
+        """Test creating single stock strategy."""
         strategy = await strategy_service.create_strategy(
             name="test_create_temp",
-            strategy_type="price",
-            config={"buy_threshold": 0.02, "sell_threshold": -0.02},
+            strategy_type="single",
+            config={"target_ts_code": "002594.SZ"},
         )
 
         assert strategy is not None
-        assert strategy.type == "price"
-
-    @pytest.mark.asyncio
-    async def test_create_ma_strategy(self):
-        """Test creating MA strategy."""
-        strategy = await strategy_service.create_strategy(
-            name="test_ma_temp",
-            strategy_type="ma",
-            config={"short_window": 5, "long_window": 20},
-        )
-
-        assert strategy is not None
-        assert strategy.type == "ma"
+        assert strategy.type == "single"
 
     @pytest.mark.asyncio
     async def test_list_strategies(self):
         """Test listing strategies."""
         await strategy_service.create_strategy(
             name="test_list_temp",
-            strategy_type="price",
+            strategy_type="single",
             config={},
         )
 
@@ -62,24 +50,24 @@ class TestStrategyService:
         """Test updating strategy."""
         strategy = await strategy_service.create_strategy(
             name="test_update_temp",
-            strategy_type="price",
-            config={"buy_threshold": 0.01},
+            strategy_type="single",
+            config={"target_ts_code": "002594.SZ"},
         )
 
         updated = await strategy_service.update_strategy(
             strategy.id,
-            config={"buy_threshold": 0.03},
+            config={"target_ts_code": "000001.SZ"},
         )
 
         assert updated is not None
-        assert updated.config["buy_threshold"] == 0.03
+        assert updated.config["target_ts_code"] == "000001.SZ"
 
     @pytest.mark.asyncio
     async def test_delete_strategy(self):
         """Test deleting strategy."""
         strategy = await strategy_service.create_strategy(
             name="test_delete_temp",
-            strategy_type="price",
+            strategy_type="single",
             config={},
         )
 
@@ -99,6 +87,6 @@ class TestStrategyService:
 
         await strategy_service.create_strategy(
             name=self.default_strategy_name,
-            strategy_type="price",
-            config={"buy_threshold": 0.02, "sell_threshold": -0.02},
+            strategy_type="single",
+            config={},
         )

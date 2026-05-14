@@ -57,6 +57,10 @@ trade-alpha/
 │   │   │   ├── service.py           # 预测服务
 │   │   │   └── training_service.py  # 训练服务
 │   │   ├── strategy/          # 交易策略模块
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py        # 策略基类 (PositionManager)
+│   │   │   ├── portfolio.py   # 组合策略 (PortfolioStrategy)
+│   │   │   └── single_stock.py # 单股票策略 (SingleStockStrategy)
 │   │   ├── account/           # 账户管理模块
 │   │   │   ├── service.py          # 账户配置 CRUD
 │   │   │   └── account_manager.py  # 运行时投资组合引擎
@@ -207,7 +211,31 @@ trade-alpha/
 
 ### 7. 策略模块 (strategy)
 
-已重构，策略逻辑已整合到 execution 模块。
+#### base.py - 策略基类 (PositionManager)
+
+- 仓位管理基类，提供通用功能
+- 处理订单执行和手续费计算
+- 管理持仓信息
+- 计算交易记录、夏普比率、最大回撤等指标
+
+#### portfolio.py - 组合策略 (PortfolioStrategy)
+
+- 多股票组合策略，基于评分排名选股
+- 支持最大持仓数限制
+- 支持单只股票最大仓位限制
+- 支持止损和最大持仓天数
+
+**核心方法**:
+- `make_decisions()`: 基于评分排名做出买卖决策
+
+#### single_stock.py - 单股票策略 (SingleStockStrategy)
+
+- 单股票策略，基于预测概率和评分
+- 自动根据评分调整仓位
+- 支持止损和最大持仓天数
+
+**核心方法**:
+- `make_decisions()`: 基于预测概率做出买卖决策
 
 ### 8. 执行模块 (execution)
 
@@ -241,32 +269,6 @@ trade-alpha/
 - 输出预测概率和评分
 - 支持3日、5日等多周期预测
 
-#### portfolio_strategy.py - 组合策略
-
-- 多股票组合策略，基于评分排名选股
-- 支持最大持仓数限制
-- 支持单只股票最大仓位限制
-- 支持止损和最大持仓天数
-
-**核心方法**:
-- `make_decisions()`: 基于评分排名做出买卖决策
-
-#### single_stock_strategy.py - 单股票策略
-
-- 单股票策略，基于预测概率和评分
-- 自动根据评分调整仓位
-- 支持止损和最大持仓天数
-
-**核心方法**:
-- `make_decisions()`: 基于预测概率做出买卖决策
-
-#### position_manager.py - 仓位管理器基类
-
-- 仓位管理基类，提供通用功能
-- 处理订单执行和手续费计算
-- 管理持仓信息
-- 计算交易记录
-
 #### schemas.py - 数据结构定义
 
 - 执行过程中的数据结构定义
@@ -276,6 +278,40 @@ trade-alpha/
 **核心数据结构**:
 - `ScoredStock`: 带评分的股票
 - `PendingOrder`: 待执行订单
+
+### 9. 任务模块 (tasks)
+
+异步任务管理模块，支持回测和训练的异步执行。
+
+**核心功能**:
+- `run_backtest_async()`: 异步执行回测
+- `run_training_async()`: 异步执行训练
+- 任务状态跟踪: pending → running → completed/failed
+- 任务进度更新
+- 错误捕获和记录
+
+### 10. API 路由
+
+| 路由 | 说明 |
+|-----|------|
+| `data.py` | 数据管理 |
+| `indicators.py` | 指标计算 |
+| `predict.py` | 预测 |
+| `strategy.py` | 策略管理 |
+| `account_config.py` | 账户管理 |
+| `backtest.py` | 回测管理（异步任务模式） |
+| `model_configs.py` | 模型配置 CRUD |
+| `trainings.py` | 训练管理（异步任务模式） |
+
+**异步任务 API**（新增）:
+- `POST /backtest/run`: 触发回测任务
+- `GET /backtest/task/{task_id}`: 查询回测任务状态
+- `DELETE /backtest/task/{task_id}`: 取消回测任务
+- `GET /backtest/tasks`: 获取回测任务列表
+- `POST /trainings`: 触发训练任务
+- `GET /trainings/task/{task_id}`: 查询训练任务状态
+- `DELETE /trainings/task/{task_id}`: 取消训练任务
+- `GET /trainings/tasks`: 获取训练任务列表
 
 ### 9. 账户模块 (account)
 

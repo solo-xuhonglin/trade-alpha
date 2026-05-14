@@ -1,5 +1,3 @@
-"""Position manager for backtest execution pipeline."""
-
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from beanie import PydanticObjectId
@@ -8,11 +6,10 @@ from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
-from trade_alpha.dao.order_suggestion import OrderSuggestion
-from trade_alpha.execution.schemas import ScoredStock, PendingOrder
+from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.logging import get_logger
 
-logger = get_logger("execution.position_manager")
+logger = get_logger("strategy.base")
 
 RISK_FREE_RATE = 0.03
 TRADING_DAYS = 252
@@ -55,17 +52,7 @@ class PositionManager:
         close_prices: Dict[str, float],
         backtest_id: PydanticObjectId = None,
     ) -> Tuple[List[ExecutionTrade], float]:
-        """Settle pending orders using actual close prices.
-
-        Args:
-            orders: Pending orders to settle.
-            date: Settlement date.
-            close_prices: Mapping of ts_code -> close price.
-            backtest_id: ID of the backtest execution.
-
-        Returns:
-            Tuple of (list of ExecutionTrade records, net cash change).
-        """
+        """Settle pending orders using actual close prices."""
         trades: List[ExecutionTrade] = []
         net_cash_change = 0.0
 
@@ -109,19 +96,7 @@ class PositionManager:
         close_prices: Dict[str, float],
         prev_total_value: Optional[float] = None,
     ) -> ExecutionPortfolioDaily:
-        """Create and save daily portfolio snapshot.
-
-        Args:
-            backtest_id: ID of the backtest execution.
-            date: Snapshot date.
-            cash: Current cash balance.
-            positions: Current positions dict.
-            close_prices: Mapping of ts_code -> close price for valuation.
-            prev_total_value: Previous day total value for day_return calculation.
-
-        Returns:
-            The saved ExecutionPortfolioDaily document.
-        """
+        """Create and save daily portfolio snapshot."""
         pos_list: List[PositionEmbed] = []
         total_market_value = 0.0
 
@@ -164,7 +139,7 @@ class PositionManager:
     @staticmethod
     def _next_trade_date(date_str: str) -> str:
         """Return the next trading date skipping weekends."""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
         dt = datetime.strptime(date_str, "%Y%m%d")
         dt += timedelta(days=1)
         while dt.weekday() >= 5:
@@ -173,14 +148,7 @@ class PositionManager:
 
     @staticmethod
     def calculate_metrics(daily_returns: List[float]) -> Dict[str, float]:
-        """Calculate Sharpe ratio, volatility from daily returns.
-
-        Args:
-            daily_returns: List of daily return values (e.g., [0.01, -0.02, 0.03])
-
-        Returns:
-            Dict with sharpe_ratio and volatility
-        """
+        """Calculate Sharpe ratio, volatility from daily returns."""
         if not daily_returns:
             return {"sharpe_ratio": 0.0, "volatility": 0.0}
 
@@ -199,14 +167,7 @@ class PositionManager:
 
     @staticmethod
     def calculate_max_drawdown(values: List[float]) -> float:
-        """Calculate maximum drawdown from portfolio values.
-
-        Args:
-            values: List of portfolio values over time
-
-        Returns:
-            Maximum drawdown as a positive percentage (e.g., 0.05 for 5%)
-        """
+        """Calculate maximum drawdown from portfolio values."""
         if not values or len(values) < 2:
             return 0.0
 
@@ -229,16 +190,7 @@ class PositionManager:
         end_price: float,
         daily_prices: List[float],
     ) -> Dict[str, float]:
-        """Calculate baseline metrics for buy-and-hold strategy.
-
-        Args:
-            start_price: Buy price on first day
-            end_price: Sell price on last day
-            daily_prices: List of daily close prices
-
-        Returns:
-            Dict with baseline_return and baseline_max_drawdown
-        """
+        """Calculate baseline metrics for buy-and-hold strategy."""
         if not daily_prices or start_price <= 0:
             return {"baseline_return": 0.0, "baseline_max_drawdown": 0.0}
 
@@ -257,15 +209,7 @@ class PositionManager:
         trades: List[ExecutionTrade],
         daily_snapshots: List[ExecutionPortfolioDaily],
     ) -> Dict[str, float]:
-        """Calculate trading metrics including avg_hold_days.
-
-        Args:
-            trades: List of execution trades
-            daily_snapshots: List of daily portfolio snapshots
-
-        Returns:
-            Dict with avg_hold_days
-        """
+        """Calculate trading metrics including avg_hold_days."""
         if not trades:
             return {"avg_hold_days": 0.0}
 
@@ -280,7 +224,6 @@ class PositionManager:
                 None
             )
             if sell_trade:
-                from datetime import datetime
                 buy_dt = datetime.strptime(buy_trade.trade_date, "%Y%m%d")
                 sell_dt = datetime.strptime(sell_trade.trade_date, "%Y%m%d")
                 hold_days = (sell_dt - buy_dt).days

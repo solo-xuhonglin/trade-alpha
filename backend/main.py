@@ -11,7 +11,6 @@ from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.account import service as account_service
 from trade_alpha.predict import config_service, training_service
 from trade_alpha.execution.pipeline import ExecutionPipeline
-from trade_alpha.execution.position_manager import PositionManager
 from trade_alpha.logging import get_logger
 
 logger = get_logger("main")

@@ -3,7 +3,7 @@
     <v-card-text>
       <v-row>
         <v-col cols="12" sm="3" md="2">
-          <v-text-field v-model="form.ts_code" label="股票代码" placeholder="000001.SZ" />
+          <v-text-field v-model="form.ts_codes" label="股票代码" placeholder="多个代码用逗号分隔" />
         </v-col>
         <v-col cols="12" sm="3" md="2">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
@@ -11,51 +11,43 @@
         <v-col cols="12" sm="3" md="2">
           <v-text-field v-model="form.end_date" label="结束日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="3" md="3">
-          <v-select v-model="form.strategy_id" :items="strategies" item-title="name" item-value="id" label="策略" />
+        <v-col cols="12" sm="3" md="2">
+          <v-select v-model="form.mode" :items="modeOptions" item-title="label" item-value="value" label="模式" />
         </v-col>
-        <v-col cols="12" sm="3" md="1">
+        <v-col cols="12" sm="3" md="2">
+          <v-text-field v-model.number="form.max_positions" label="最大持仓数" type="number" />
+        </v-col>
+        <v-col cols="12" sm="3" md="2">
           <v-btn color="primary" block @click="runBacktest" :loading="running">运行</v-btn>
         </v-col>
       </v-row>
     </v-card-text>
   </v-card>
 
-  <v-card v-if="result" border rounded class="mb-4">
-    <v-card-title>回测结果</v-card-title>
+  <v-card v-if="error" border rounded class="mb-4" color="error">
+    <v-card-text class="text-white">{{ error }}</v-card-text>
+  </v-card>
+
+  <v-card border rounded class="mb-4">
+    <v-card-title>当前运行中的任务</v-card-title>
     <v-card-text>
-      <v-row>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">总收益率</div>
-          <div class="text-h5" :class="result.total_return >= 0 ? 'text-success' : 'text-error'">
-            {{ (result.total_return * 100).toFixed(2) }}%
-          </div>
-        </v-col>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">年化收益</div>
-          <div class="text-h5">{{ (result.annual_return * 100).toFixed(2) }}%</div>
-        </v-col>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">最大回撤</div>
-          <div class="text-h5 text-error">{{ (result.max_drawdown * 100).toFixed(2) }}%</div>
-        </v-col>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">夏普比率</div>
-          <div class="text-h5">{{ result.sharpe_ratio.toFixed(2) }}</div>
-        </v-col>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">胜率</div>
-          <div class="text-h5">{{ (result.win_rate * 100).toFixed(1) }}%</div>
-        </v-col>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">交易次数</div>
-          <div class="text-h5">{{ result.total_trades }}</div>
-        </v-col>
-        <v-col cols="6" sm="4" md="2">
-          <div class="text-caption">总手续费</div>
-          <div class="text-h5">{{ result.total_fees.toFixed(2) }}</div>
-        </v-col>
-      </v-row>
+      <v-data-table
+        v-if="activeTasks.length > 0"
+        :headers="activeTaskHeaders"
+        :items="activeTasks"
+        hide-default-footer
+      >
+        <template v-slot:item.status="{ item }">
+          <v-chip :color="getStatusColor(item.status)" size="small">{{ getStatusText(item.status) }}</v-chip>
+        </template>
+        <template v-slot:item.progress="{ item }">
+          <v-progress-linear :value="item.progress" height="6" class="mt-2"></v-progress-linear>
+        </template>
+        <template v-slot:item.error_message="{ item }">
+          <span class="text-error">{{ item.error_message }}</span>
+        </template>
+      </v-data-table>
+      <div v-else class="text-center text-medium-emphasis pa-4">暂无运行中的任务</div>
     </v-card-text>
   </v-card>
 
@@ -80,7 +72,7 @@
             rounded="lg"
             text="刷新"
             border
-            @click="loadBacktests"
+            @click="loadAll"
             :loading="loading"
           ></v-btn>
         </v-toolbar>
@@ -101,11 +93,74 @@
     </v-data-table-server>
   </v-card>
 
+  <v-dialog v-model="resultDialog" max-width="1000px">
+    <v-card title="回测结果详情">
+      <v-card-text>
+        <v-row v-if="selectedResult">
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">总收益率</div>
+            <div class="text-h5" :class="selectedResult.total_return >= 0 ? 'text-success' : 'text-error'">
+              {{ (selectedResult.total_return * 100).toFixed(2) }}%
+            </div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">年化收益</div>
+            <div class="text-h5">{{ (selectedResult.annual_return * 100).toFixed(2) }}%</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">波动率</div>
+            <div class="text-h5">{{ ((selectedResult.volatility || 0) * 100).toFixed(2) }}%</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">最大回撤</div>
+            <div class="text-h5 text-error">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">基线收益</div>
+            <div class="text-h5">{{ ((selectedResult.baseline_return || 0) * 100).toFixed(2) }}%</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">超额收益</div>
+            <div class="text-h5" :class="(selectedResult.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">
+              {{ ((selectedResult.excess_return || 0) * 100).toFixed(2) }}%
+            </div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">夏普比率</div>
+            <div class="text-h5">{{ (selectedResult.sharpe_ratio || 0).toFixed(2) }}</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">胜率</div>
+            <div class="text-h5">{{ ((selectedResult.win_rate || 0) * 100).toFixed(1) }}%</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">交易次数</div>
+            <div class="text-h5">{{ selectedResult.total_trades }}</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">平均持仓天数</div>
+            <div class="text-h5">{{ selectedResult.avg_hold_days || 0 }}</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">总手续费</div>
+            <div class="text-h5">{{ (selectedResult.total_fees || 0).toFixed(2) }}</div>
+          </v-col>
+          <v-col cols="6" sm="4" md="2">
+            <div class="text-caption">基线最大回撤</div>
+            <div class="text-h5 text-error">{{ ((selectedResult.baseline_max_drawdown || 0) * 100).toFixed(2) }}%</div>
+          </v-col>
+        </v-row>
+      </v-card-text>
+      <v-divider></v-divider>
+      <v-card-actions class="bg-surface-light">
+        <v-spacer></v-spacer>
+        <v-btn text="关闭" variant="plain" @click="resultDialog = false"></v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card
-      subtitle="此操作不可撤销"
-      title="确认删除"
-    >
+    <v-card subtitle="此操作不可撤销" title="确认删除">
       <template v-slot:text>
         确定要删除回测记录「{{ deletingItem?.id }}」吗？
       </template>
@@ -153,9 +208,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { strategyApi, type Strategy } from '@/api/strategy'
-import { backtestApi, type Backtest, type Trade } from '@/api/backtest'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { backtestApi, type Backtest, type TaskStatusResponse } from '@/api/backtest'
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]
 
@@ -165,25 +219,34 @@ const loadingTrades = ref(false)
 const running = ref(false)
 const deleteDialog = ref(false)
 const tradesDialog = ref(false)
+const resultDialog = ref(false)
 const deletingItem = ref<Backtest | null>(null)
 const viewingBacktest = ref<Backtest | null>(null)
-const strategies = ref<Strategy[]>([])
+const selectedResult = ref<Backtest | null>(null)
 const backtests = ref<Backtest[]>([])
-const trades = ref<Trade[]>([])
-const result = ref<Backtest | null>(null)
+const trades = ref<any[]>([])
+const activeTasks = ref<TaskStatusResponse[]>([])
 const totalItems = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const totalTrades = ref(0)
 const tradesPage = ref(1)
 const tradesPageSize = ref(20)
+const error = ref('')
+
+const modeOptions = [
+  { label: '组合回测', value: 'portfolio' },
+  { label: '单股票回测', value: 'single' },
+]
 
 const form = ref({
-  ts_code: '',
+  ts_codes: '',
   start_date: formatDate(new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)),
   end_date: formatDate(new Date()),
-  strategy_id: '',
-  account_config_name: 'default_account_config',
+  mode: 'portfolio',
+  max_positions: 10,
+  account_config_id: '',
+  training_id: '',
 })
 
 const historyHeaders = [
@@ -191,7 +254,7 @@ const historyHeaders = [
   { title: '策略', key: 'strategy' },
   { title: '总收益', key: 'total_return' },
   { title: '最大回撤', key: 'max_drawdown' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const tradesHeaders = [
@@ -204,9 +267,76 @@ const tradesHeaders = [
   { title: '持仓', key: 'position_after' },
 ]
 
-const loadStrategies = async () => {
-  const res = await strategyApi.list()
-  strategies.value = res.data
+const activeTaskHeaders = [
+  { title: '任务ID', key: 'task_id' },
+  { title: '状态', key: 'status' },
+  { title: '进度', key: 'progress' },
+  { title: '错误信息', key: 'error_message' },
+  { title: '创建时间', key: 'created_at' },
+]
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'pending': return 'info'
+    case 'running': return 'warning'
+    case 'completed': return 'success'
+    case 'failed': return 'error'
+    default: return ''
+  }
+}
+
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'pending': return '等待中'
+    case 'running': return '运行中'
+    case 'completed': return '已完成'
+    case 'failed': return '失败'
+    default: return status
+  }
+}
+
+let pollInterval: number | null = null
+
+const startPolling = () => {
+  if (pollInterval) return
+  pollInterval = window.setInterval(pollActiveTasks, 2000)
+}
+
+const stopPolling = () => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
+const pollActiveTasks = async () => {
+  try {
+    const res = await backtestApi.listTasks(1, 10, 'running')
+    const pendingRes = await backtestApi.listTasks(1, 10, 'pending')
+    const failedRes = await backtestApi.listTasks(1, 10, 'failed')
+
+    const taskDetails: TaskStatusResponse[] = []
+
+    for (const task of [...res.data.items, ...pendingRes.data.items]) {
+      const detailRes = await backtestApi.getTask(task.task_id)
+      taskDetails.push(detailRes.data)
+    }
+
+    for (const task of failedRes.data.items) {
+      const detailRes = await backtestApi.getTask(task.task_id)
+      taskDetails.push(detailRes.data)
+    }
+
+    activeTasks.value = taskDetails
+
+    const hasActiveTasks = taskDetails.some(t => t.status === 'pending' || t.status === 'running')
+    if (!hasActiveTasks && pollInterval) {
+      stopPolling()
+      await loadBacktests()
+    }
+  } catch (e) {
+    console.error('Poll error:', e)
+  }
 }
 
 const loadBacktests = async () => {
@@ -215,6 +345,18 @@ const loadBacktests = async () => {
     const res = await backtestApi.list(page.value, pageSize.value)
     backtests.value = res.data.items
     totalItems.value = res.data.total
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadAll = async () => {
+  loading.value = true
+  try {
+    await Promise.all([
+      loadBacktests(),
+      pollActiveTasks(),
+    ])
   } finally {
     loading.value = false
   }
@@ -234,25 +376,32 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
 
 const runBacktest = async () => {
   running.value = true
+  error.value = ''
+
   try {
+    const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
+
     const payload = {
-      ts_code: form.value.ts_code,
+      account_config_id: '6a0519848fc1cd0e6f315515',
+      training_id: '6a0519848fc1cd0e6f315516',
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
-      account_config_id: form.value.account_config_name,
-      strategy_id: form.value.strategy_id,
-      training_id: '',
+      name: 'backtest',
+      mode: form.value.mode,
+      ts_codes: tsCodes.length > 0 ? tsCodes : undefined,
+      max_positions: form.value.max_positions,
     }
-    const res = await backtestApi.run(payload)
-    result.value = res.data
-    await loadBacktests()
+
+    await backtestApi.run(payload)
+    startPolling()
   } finally {
     running.value = false
   }
 }
 
 const viewResult = (item: Backtest) => {
-  result.value = item
+  selectedResult.value = item
+  resultDialog.value = true
 }
 
 const viewTrades = async (item: Backtest) => {
@@ -293,7 +442,11 @@ const deleteBacktest = async () => {
 }
 
 onMounted(() => {
-  loadStrategies()
-  loadBacktests()
+  loadAll()
+  startPolling()
+})
+
+onUnmounted(() => {
+  stopPolling()
 })
 </script>

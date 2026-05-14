@@ -2,7 +2,7 @@ import api from './index'
 
 export interface Backtest {
   id: string
-  ptrldol?o string
+  name: string
   strategy_id: string
   training_id: string
   ts_code: string
@@ -18,6 +18,11 @@ export interface Backtest {
   win_rate: number
   total_trades: number
   total_fees: number
+  volatility?: number
+  baseline_return?: number
+  excess_return?: number
+  baseline_max_drawdown?: number
+  avg_hold_days?: number
 }
 
 export interface Trade {
@@ -60,20 +65,60 @@ export interface TradeFilterParams {
   ts_code?: string
 }
 
+export interface TaskStatusResponse {
+  task_id: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  progress: number
+  result?: Backtest
+  error_message?: string
+  created_at: string
+  started_at?: string
+  completed_at?: string
+}
+
+export interface TaskListResponse {
+  items: {
+    task_id: string
+    status: string
+    progress: number
+    created_at: string
+    completed_at?: string
+  }[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const backtestApi = {
-  list: (page: number = 1, pageSize: number = 20) =>
-    api.get<BacktestListResponse>('/backtests', { params: { page, page_size: pageSize } }),
-
-  get: (id: string) => api.get<Backtest>(`/backtests/${id}`),
-
   run: (data: {
-    ts_code: string
+    account_config_id: string
+    training_id: string
     start_date: string
     end_date: string
-    portfolio_id: string
-    strategy_id: string
-    training_id: string
-  }) => api.post<Backtest>('/backtests', data),
+    name?: string
+    mode?: string
+    ts_codes?: string[]
+    max_positions?: number
+    top_n?: number
+  }) => api.post<{ task_id: string; status: string; message: string }>('/backtest/run', data),
+
+  getTask: (task_id: string) => api.get<TaskStatusResponse>(`/backtest/task/${task_id}`),
+
+  cancelTask: (task_id: string) => api.delete(`/backtest/task/${task_id}`),
+
+  listTasks: (page?: number, pageSize?: number, status?: string) => {
+    const params: Record<string, any> = {}
+    if (page) params.page = page
+    if (pageSize) params.page_size = pageSize
+    if (status) params.status = status
+    return api.get<TaskListResponse>('/backtest/tasks', { params })
+  },
+
+  get: (id: string) => api.get<Backtest>(`/backtest/results/${id}`),
+
+  list: (page: number = 1, pageSize: number = 20) =>
+    api.get<BacktestListResponse>('/backtests', { params: { page, page_size: pageSize } }),
 
   getTrades: (id: string, page: number = 1, pageSize: number = 20) =>
     api.get<TradeListResponse>(`/backtests/${id}/trades`, { params: { page, page_size: pageSize } }),

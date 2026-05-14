@@ -504,3 +504,54 @@ MACDStrategy:
   "sample_count": 1000
 }
 ```
+
+### tasks
+
+存储异步任务信息（回测和训练）。
+
+**索引**: `{type: 1}`, `{type: 1, status: 1}`, `{created_at: -1}`
+
+**字段**:
+
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `type` | string | 任务类型 ("backtest" / "training") | - |
+| `status` | string | 任务状态 ("pending" / "running" / "completed" / "failed") | "pending" |
+| `progress` | float | 任务进度 (0.0 - 100.0) | 0.0 |
+| `result_id` | ObjectId | 关联的结果ID (execution_result或training_result) | - |
+| `error_message` | string | 错误信息（失败时） | - |
+| `created_at` | datetime | 创建时间 | now |
+| `started_at` | datetime | 开始时间 | - |
+| `completed_at` | datetime | 完成时间 | - |
+| `params` | object | 任务参数（JSON对象） | {} |
+
+**任务状态流转**:
+- `pending`: 任务等待执行
+- `running`: 任务执行中
+- `completed`: 任务成功完成
+- `failed`: 任务执行失败
+
+**params 示例（回测任务）**:
+```json
+{
+  "account_config_id": "507f1f77bcf86cd799439011",
+  "training_id": "507f1f77bcf86cd799439012",
+  "start_date": "20240101",
+  "end_date": "20241231",
+  "name": "backtest",
+  "mode": "portfolio",
+  "ts_codes": ["000001.SZ", "000002.SZ"],
+  "max_positions": 10
+}
+```
+
+**params 示例（训练任务）**:
+```json
+{
+  "config_id": "507f1f77bcf86cd799439011",
+  "name": "训练-2024",
+  "ts_codes": ["000001.SZ", "600000.SH"],
+  "start_date": "20230101",
+  "end_date": "20231231"
+}
+```

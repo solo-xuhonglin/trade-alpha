@@ -46,61 +46,15 @@
           <v-col cols="12">
             <v-select v-model="form.type" :items="strategyTypes" label="策略类型"></v-select>
           </v-col>
-          <template v-if="form.type === 'price'">
-            <v-col cols="12">
-              <v-text-field
-                v-model.number="form.config.buy_threshold"
-                label="买入阈值"
-                type="number"
-                step="0.01"
-                hint="预测涨幅超过此值时买入，默认0.01(1%)"
-                persistent-hint
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12">
-              <v-text-field
-                v-model.number="form.config.sell_threshold"
-                label="卖出阈值"
-                type="number"
-                step="0.01"
-                hint="预测跌幅超过此值时卖出，默认0.01(1%)"
-                persistent-hint
-              ></v-text-field>
-            </v-col>
-          </template>
-          <template v-if="form.type === 'ma'">
-            <v-col cols="12">
-              <v-text-field
-                v-model.number="form.config.ma_period"
-                label="MA周期"
-                type="number"
-                hint="移动平均线计算周期(天)，默认20"
-                persistent-hint
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12">
-              <v-text-field
-                v-model.number="form.config.threshold"
-                label="偏离阈值"
-                type="number"
-                step="0.01"
-                hint="价格与MA偏离阈值，默认0.01(1%)"
-                persistent-hint
-              ></v-text-field>
-            </v-col>
-          </template>
-          <template v-if="form.type === 'macd'">
-            <v-col cols="12">
-              <v-text-field
-                v-model.number="form.config.threshold"
-                label="差值阈值"
-                type="number"
-                step="0.1"
-                hint="MACD与信号线差值阈值，默认0.5"
-                persistent-hint
-              ></v-text-field>
-            </v-col>
-          </template>
+          <v-col cols="12">
+            <v-textarea
+              v-model="form.configJson"
+              label="配置参数 (JSON)"
+              hint='例如: {"max_positions": 10, "stop_loss_pct": 0.05}'
+              persistent-hint
+              rows="6"
+            ></v-textarea>
+          </v-col>
         </v-row>
       </template>
       <v-divider></v-divider>
@@ -140,17 +94,12 @@ const deleteDialog = ref(false)
 const strategies = ref<Strategy[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<Strategy | null>(null)
-const strategyTypes = ['price', 'ma', 'macd']
-
-const defaultConfigs: Record<string, Record<string, any>> = {
-  price: { buy_threshold: 0.01, sell_threshold: 0.01 },
-  ma: { ma_period: 20, threshold: 0.01 },
-  macd: { threshold: 0.5 },
-}
+const strategyTypes = ['single', 'portfolio']
 
 const form = ref({
   name: '',
-  type: 'price',
+  type: 'single',
+  configJson: '{}',
   config: {} as Record<string, any>,
 })
 
@@ -174,23 +123,34 @@ const loadStrategies = async () => {
 const openDialog = (item?: Strategy) => {
   if (item) {
     editingId.value = item.id
-    form.value = { name: item.name, type: item.type, config: { ...item.config } }
+    form.value = {
+      name: item.name,
+      type: item.type,
+      configJson: JSON.stringify(item.config, null, 2),
+      config: { ...item.config },
+    }
   } else {
     editingId.value = null
     form.value = {
       name: 'default_strategy',
-      type: 'price',
-      config: { ...defaultConfigs['price'] },
+      type: 'single',
+      configJson: '{}',
+      config: {},
     }
   }
   dialog.value = true
 }
 
 const saveStrategy = async () => {
+  try {
+    form.value.config = JSON.parse(form.value.configJson)
+  } catch {
+    return
+  }
   if (editingId.value) {
-    await strategyApi.update(editingId.value, form.value)
+    await strategyApi.update(editingId.value, { name: form.value.name, config: form.value.config })
   } else {
-    await strategyApi.create(form.value)
+    await strategyApi.create({ name: form.value.name, type: form.value.type, config: form.value.config })
   }
   dialog.value = false
   await loadStrategies()

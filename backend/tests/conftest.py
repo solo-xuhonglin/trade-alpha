@@ -49,7 +49,7 @@ async def test_stock():
     stock = await StockList.find_one(StockList.ts_code == ts_code)
     assert stock is not None
     
-    # Fetch daily data
+    # Fetch daily data (1 year for sufficient MA calculations)
     await fetch_and_store_stock_daily(ts_code, "20230101", "20231231")
     
     # Calculate all indicators

@@ -14,9 +14,13 @@ from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.order_suggestion import OrderSuggestion
+from trade_alpha.dao.task import Task, TaskStatus, TaskType
 
 __all__ = [
     "OrderSuggestion",
+    "Task",
+    "TaskStatus",
+    "TaskType",
     "init_db",
     "get_db",
     "close_db",

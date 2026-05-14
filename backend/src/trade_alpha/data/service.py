@@ -86,6 +86,14 @@ async def list_stocks(page: int = 1, page_size: int = 20) -> Tuple[List[StockLis
     return stocks, total
 
 
+async def list_stocks_by_mv_rank(start_rank: int = 1, end_rank: int = 3000) -> List[StockList]:
+    """List stocks by market value rank from start_rank to end_rank (1-based)."""
+    start_idx = max(0, start_rank - 1)
+    limit = max(0, end_rank - start_rank + 1)
+    stocks = await StockList.find_all().sort(-StockList.total_mv).skip(start_idx).limit(limit).to_list()
+    return stocks
+
+
 async def get_downloaded_summary() -> list[dict]:
     """Get summary of downloaded data per stock."""
     pipeline = [
@@ -112,13 +120,26 @@ async def find_stock_daily_by_ts_code(
     start_date: str = None,
     end_date: str = None,
 ) -> list[StockDaily]:
-    """Find stock daily records by ts_code with optional date filter."""
+    """Find stock daily records by ts_code with optional date filter, sorted by trade_date ascending."""
     query = StockDaily.find(StockDaily.ts_code == ts_code)
     if start_date:
         query = query.filter(StockDaily.trade_date >= start_date)
     if end_date:
         query = query.filter(StockDaily.trade_date <= end_date)
     return await query.sort(StockDaily.trade_date).to_list()
+
+
+async def find_stock_daily_paginated(
+    ts_code: str,
+    page: int = 1,
+    page_size: int = 500,
+) -> Tuple[list[StockDaily], int]:
+    """Find stock daily records with pagination, sorted by trade_date descending (newest first)."""
+    query = StockDaily.find(StockDaily.ts_code == ts_code).sort(-StockDaily.trade_date)
+    total = await query.count()
+    skip = (page - 1) * page_size
+    records = await query.skip(skip).limit(page_size).to_list()
+    return records, total
 
 
 async def delete_stock_daily_by_ts_code(ts_code: str) -> int:

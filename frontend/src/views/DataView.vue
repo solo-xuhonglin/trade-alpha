@@ -180,6 +180,12 @@ const chartRef = ref<HTMLElement>()
 const stockData = ref<DataRecord[]>([])
 let chartInstance: echarts.ECharts | null = null
 
+const currentPage = ref(1)
+const totalPages = ref(1)
+const loadingMore = ref(false)
+const hasMoreData = ref(true)
+const maxPageSize = 500
+
 const deleteDialog = ref(false)
 const deletingStock = ref<Stock | null>(null)
 
@@ -247,8 +253,16 @@ const downloadData = async () => {
 const viewChart = async (stock: Stock) => {
   selectedStock.value = stock
   chartDialog.value = true
-  const res = await dataApi.getData(stock.ts_code)
-  stockData.value = res.data
+
+  currentPage.value = 1
+  hasMoreData.value = true
+  loadingMore.value = false
+
+  const res = await dataApi.getDataPaginated(stock.ts_code, 1, maxPageSize)
+  stockData.value = [...res.data.items].reverse()
+  totalPages.value = res.data.total_pages
+  hasMoreData.value = currentPage.value < totalPages.value
+
   await nextTick()
   renderChart()
 }
@@ -266,13 +280,65 @@ const renderChart = () => {
     grid: { left: '5%', right: '5%', bottom: '10%', top: '10%' },
     xAxis: { type: 'category', data: dates },
     yAxis: { type: 'value', scale: true },
+    dataZoom: [{
+      type: 'inside',
+      start: 0,
+      end: 100,
+    }],
     series: [{
       type: 'candlestick',
       data: data,
     }],
   }, true)
 
+  chartInstance.on('dataZoom', onDataZoom)
   window.addEventListener('resize', handleResize)
+}
+
+const onDataZoom = () => {
+  if (!chartInstance || loadingMore.value || !hasMoreData.value) return
+  const option = chartInstance.getOption()
+  const dataZoom = option.dataZoom as any[]
+  if (!dataZoom || dataZoom.length === 0) return
+  const startValue = dataZoom[0].startValue
+  if (startValue === undefined || startValue === null) return
+
+  const firstDate = stockData.value[0]?.trade_date
+  if (!firstDate) return
+
+  const dates = stockData.value.map(d => d.trade_date)
+  const startIdx = dates.indexOf(startValue)
+  if (startIdx < 5 && startIdx >= 0) {
+    loadMoreHistory()
+  }
+}
+
+const loadMoreHistory = async () => {
+  if (!selectedStock.value || loadingMore.value || !hasMoreData.value) return
+  loadingMore.value = true
+  try {
+    const nextPage = currentPage.value + 1
+    if (nextPage > totalPages.value) {
+      hasMoreData.value = false
+      return
+    }
+    const res = await dataApi.getDataPaginated(selectedStock.value.ts_code, nextPage, maxPageSize)
+    const newData = [...res.data.items].reverse()
+    const prevDates = stockData.value.map(d => d.trade_date)
+    stockData.value = [...newData, ...stockData.value]
+    currentPage.value = nextPage
+    hasMoreData.value = currentPage.value < totalPages.value
+
+    const dates = stockData.value.map(d => d.trade_date)
+    chartInstance?.setOption({
+      xAxis: { type: 'category', data: dates },
+      series: [{
+        data: stockData.value.map(d => [d.open, d.close, d.low, d.high]),
+      }],
+    }, true)
+  } finally {
+    loadingMore.value = false
+  }
 }
 
 const handleResize = () => {
@@ -301,6 +367,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  chartInstance?.off('dataZoom', onDataZoom)
   chartInstance?.dispose()
   window.removeEventListener('resize', handleResize)
 })

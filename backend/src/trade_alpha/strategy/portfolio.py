@@ -1,36 +1,38 @@
-"""Single-stock strategy - probability-based trading."""
+"""Portfolio strategy - ranking-based multi-stock trading."""
 
 from typing import Dict, List, Optional
 
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.execution.schemas import ScoredStock, PendingOrder
-from trade_alpha.execution.position_manager import PositionManager
+from trade_alpha.schemas import ScoredStock, PendingOrder
+from trade_alpha.strategy.base import PositionManager
 from trade_alpha.logging import get_logger
 
-logger = get_logger("execution.single_stock_strategy")
+logger = get_logger("strategy.portfolio")
 
 
-class SingleStockStrategy(PositionManager):
-    """Single-stock strategy based on prediction probabilities."""
+class PortfolioStrategy(PositionManager):
+    """Multi-stock portfolio strategy based on ranking."""
 
     def __init__(
         self,
         account_config: AccountConfig,
-        target_ts_code: str,
+        max_positions: int = 10,
+        max_position_pct: float = 0.3,
         min_order_value: float = 5000,
         stop_loss_pct: float = -0.1,
-        max_hold_days: int = 30,
+        max_hold_days: int = 20,
+        ts_codes: List[str] = None,
     ):
         super().__init__(
             account_config=account_config,
-            max_positions=1,
-            max_position_pct=0.95,
+            max_positions=max_positions,
+            max_position_pct=max_position_pct,
             min_order_value=min_order_value,
             stop_loss_pct=stop_loss_pct,
             max_hold_days=max_hold_days,
         )
-        self.target_ts_code = target_ts_code
+        self.ts_codes = ts_codes or []
 
     async def make_decisions(
         self,
@@ -40,69 +42,62 @@ class SingleStockStrategy(PositionManager):
         trade_date: str,
         close_prices: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
-        """Make decisions based on prediction probabilities."""
-        # Find the target stock
-        target_stock = next((s for s in scored_stocks if s.ts_code == self.target_ts_code), None)
-        if not target_stock:
-            return []
+        """Make decisions based on ranking."""
+        if self.ts_codes:
+            scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
 
-        # Log the probabilities to see what we're getting
-        logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, score={target_stock.score:.3f}")
+        sorted_stocks = sorted(scored_stocks, key=lambda s: s.score, reverse=True)
+        top_stocks = sorted_stocks[:self.max_positions]
+        top_ts_codes = {s.ts_code for s in top_stocks}
 
         orders: List[PendingOrder] = []
         cash_available = cash
-        current_position = current_positions.get(self.target_ts_code)
 
-        # Check if we should sell (using score now)
-        if current_position:
-            if self._should_sell(target_stock, current_position, close_prices):
-                logger.debug(f"{trade_date} - Selling {self.target_ts_code}")
-                sell_price = close_prices.get(self.target_ts_code, current_position.buy_price) if close_prices else current_position.buy_price
-                sell_value = sell_price * current_position.shares
+        for ts_code, pos in current_positions.items():
+            if self._check_sell(pos, top_ts_codes, close_prices):
+                sell_price = close_prices.get(ts_code, pos.buy_price) if close_prices else pos.buy_price
+                sell_value = sell_price * pos.shares
                 sell_fee = max(sell_value * self.account_config.sell_fee_rate, self.account_config.min_fee)
                 stamp_tax = sell_value * self.account_config.stamp_tax_rate
                 cash_available += sell_value - sell_fee - stamp_tax
                 orders.append(PendingOrder(
-                    ts_code=current_position.ts_code,
-                    stock_name=current_position.stock_name,
+                    ts_code=pos.ts_code,
+                    stock_name=pos.stock_name,
                     order_price=sell_price,
-                    order_shares=-current_position.shares,
-                    score=current_position.entry_score,
-                    up_prob_3d=current_position.entry_3d_prob,
-                    up_prob_5d=current_position.entry_5d_prob,
+                    order_shares=-pos.shares,
+                    score=pos.entry_score,
+                    up_prob_3d=pos.entry_3d_prob,
+                    up_prob_5d=pos.entry_5d_prob,
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
                 ))
-                current_position = None
 
-        # Check if we should buy (using score now)
-        if not current_position and self._should_buy(target_stock):
-            logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
-            buy_order = self._allocate_buy(cash_available, target_stock, trade_date)
+        held_ts_codes = set(current_positions.keys())
+        for stock in top_stocks:
+            if stock.ts_code in held_ts_codes:
+                continue
+            buy_order = self._allocate_buy(cash_available, stock, trade_date)
             if buy_order is not None:
+                cash_available -= buy_order.order_price * buy_order.order_shares
+                cash_available -= max(
+                    buy_order.order_price * buy_order.order_shares * self.account_config.buy_fee_rate,
+                    self.account_config.min_fee,
+                )
                 orders.append(buy_order)
 
         return orders
 
-    def _should_buy(self, scored_stock: ScoredStock) -> bool:
-        """Determine if we should buy based on score."""
-        # Use score >0 as buy signal (since that's what's used for ranking)
-        return scored_stock.score > 0
-
-    def _should_sell(
+    def _check_sell(
         self,
-        scored_stock: ScoredStock,
         position: PositionEmbed,
+        top_ts_codes: set,
         close_prices: Optional[Dict[str, float]] = None,
     ) -> bool:
-        """Determine if we should sell."""
-        # Sell if score <=0
-        if scored_stock.score <= 0:
+        """Check whether a position should be sold."""
+        if position.ts_code not in top_ts_codes:
             return True
-        # Hold days limit
         if position.hold_days >= self.max_hold_days:
             return True
-        # Stop loss
         if close_prices and position.ts_code in close_prices:
             current_price = close_prices[position.ts_code]
             if current_price < position.buy_price * (1 + self.stop_loss_pct):
@@ -115,7 +110,7 @@ class SingleStockStrategy(PositionManager):
         scored_stock: ScoredStock,
         trade_date: str,
     ) -> Optional[PendingOrder]:
-        """Allocate cash to buy a stock (higher position size)."""
+        """Allocate cash to buy a stock."""
         max_cost = cash * self.max_position_pct
         if max_cost < self.min_order_value:
             return None

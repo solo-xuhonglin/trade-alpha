@@ -586,7 +586,7 @@ DELETE /api/account-configs/{account_config_id}
 
 ## 回测管理
 
-### 运行回测
+### 触发回测任务（异步）
 
 ```
 POST /api/backtest/run
@@ -598,100 +598,257 @@ POST /api/backtest/run
 - `start_date` (query, required): 回测开始日期 (YYYYMMDD)
 - `end_date` (query, required): 回测结束日期 (YYYYMMDD)
 - `name` (query, optional): 回测名称，默认 "backtest"
+- `mode` (query, optional): 策略模式 "portfolio" 或 "single"，默认 "portfolio"
+- `ts_codes` (query, optional): 股票代码列表（JSON数组格式）
 - `top_n` (query, optional): 用于截面标准化的股票数量，默认 300
 - `max_positions` (query, optional): 最大持仓数，默认 10
 
 **响应**:
 ```json
 {
-  "id": "507f1f77bcf86cd799439011",
-  "account_config_id": "507f1f77bcf86cd799439012",
-  "training_id": "507f1f77bcf86cd799439014",
-  "name": "backtest",
-  "mode": "backtest",
-  "start_date": "20240101",
-  "end_date": "20241231",
-  "initial_capital": 100000.0,
-  "final_value": 120000.0,
-  "total_return": 0.20,
-  "max_drawdown": 0.08,
-  "win_rate": 0.65,
-  "total_trades": 20,
-  "total_fees": 500.0,
-  "baseline_return": 0.10,
-  "excess_return": 0.10,
-  "baseline_max_drawdown": 0.05,
-  "sharpe_ratio": 1.5,
-  "volatility": 0.20,
-  "avg_hold_days": 15.5,
-  "account_snapshot": {
-    "name": "default",
-    "initial_capital": 100000.0,
-    "buy_fee_rate": 0.0003,
-    "sell_fee_rate": 0.0003,
-    "stamp_tax_rate": 0.001,
-    "min_fee": 5.0
-  },
-  "model_snapshot": {
-    "name": "xgboost-classifier",
-    "model_type": "xgboost",
-    "feature_fields": ["ma_5", "ma_10", "ma_20"],
-    "classification_horizons": [3, 5],
-    "classification_threshold": 0.02
-  },
-  "created_at": "2024-01-01T00:00:00Z",
-  "status": "completed"
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "pending",
+  "message": "Backtest task triggered"
 }
 ```
 
-### 获取回测详情
+### 查询回测任务状态
 
 ```
-GET /api/backtest/results/{result_id}
+GET /api/backtest/task/{task_id}
 ```
 
 **响应**:
 ```json
 {
-  "id": "507f1f77bcf86cd799439011",
-  "account_config_id": "507f1f77bcf86cd799439012",
-  "training_id": "507f1f77bcf86cd799439014",
-  "name": "backtest",
-  "mode": "backtest",
-  "start_date": "20240101",
-  "end_date": "20241231",
-  "initial_capital": 100000.0,
-  "final_value": 120000.0,
-  "total_return": 0.20,
-  "max_drawdown": 0.08,
-  "win_rate": 0.65,
-  "total_trades": 20,
-  "total_fees": 500.0,
-  "baseline_return": 0.10,
-  "excess_return": 0.10,
-  "baseline_max_drawdown": 0.05,
-  "sharpe_ratio": 1.5,
-  "volatility": 0.20,
-  "avg_hold_days": 15.5,
-  "account_snapshot": {
-    "name": "default",
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "completed",
+  "progress": 100.0,
+  "result": {
+    "id": "507f1f77bcf86cd799439012",
+    "account_config_id": "507f1f77bcf86cd799439013",
+    "training_id": "507f1f77bcf86cd799439014",
+    "name": "backtest",
+    "mode": "backtest",
+    "start_date": "20240101",
+    "end_date": "20241231",
     "initial_capital": 100000.0,
-    "buy_fee_rate": 0.0003,
-    "sell_fee_rate": 0.0003,
-    "stamp_tax_rate": 0.001,
-    "min_fee": 5.0
+    "final_value": 120000.0,
+    "total_return": 0.20,
+    "max_drawdown": 0.08,
+    "win_rate": 0.65,
+    "total_trades": 20,
+    "total_fees": 500.0,
+    "baseline_return": 0.10,
+    "excess_return": 0.10,
+    "baseline_max_drawdown": 0.05,
+    "sharpe_ratio": 1.5,
+    "volatility": 0.20,
+    "avg_hold_days": 15.5
   },
-  "model_snapshot": {
-    "name": "xgboost-classifier",
-    "model_type": "xgboost",
-    "feature_fields": ["ma_5", "ma_10", "ma_20"],
-    "classification_horizons": [3, 5],
-    "classification_threshold": 0.02
-  },
+  "error_message": null,
   "created_at": "2024-01-01T00:00:00Z",
-  "status": "completed"
+  "started_at": "2024-01-01T00:00:05Z",
+  "completed_at": "2024-01-01T00:15:30Z"
 }
 ```
+
+**任务状态**:
+- `pending`: 任务等待执行
+- `running`: 任务执行中
+- `completed`: 任务完成
+- `failed`: 任务失败
+
+### 取消回测任务
+
+```
+DELETE /api/backtest/task/{task_id}
+```
+
+**响应**:
+```json
+{
+  "message": "Task cancelled"
+}
+```
+
+### 获取回测任务列表
+
+```
+GET /api/backtest/tasks
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "task_id": "507f1f77bcf86cd799439011",
+      "status": "completed",
+      "progress": 100.0,
+      "created_at": "2024-01-01T00:00:00Z",
+      "completed_at": "2024-01-01T00:15:30Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
+### 获取回测结果详情
+
+```
+GET /api/backtest/results/{result_id}
+```
+
+**响应**: 同回测任务状态中的 result 字段
+
+## 训练管理
+
+### 触发训练任务（异步）
+
+```
+POST /api/trainings
+```
+
+**参数**:
+- `config_id` (query, required): 模型配置 ID
+- `name` (query, required): 训练名称
+- `ts_codes` (query, required): 股票代码列表（JSON数组格式）
+- `start_date` (query, required): 训练开始日期 (YYYYMMDD)
+- `end_date` (query, required): 训练结束日期 (YYYYMMDD)
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "pending",
+  "message": "Training task triggered"
+}
+```
+
+### 查询训练任务状态
+
+```
+GET /api/trainings/task/{task_id}
+```
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "completed",
+  "progress": 100.0,
+  "training": {
+    "id": "507f1f77bcf86cd799439012",
+    "config_id": "507f1f77bcf86cd799439013",
+    "name": "训练-2024",
+    "ts_codes": ["000001.SZ", "600000.SH"],
+    "start_date": "20230101",
+    "end_date": "20231231",
+    "metrics": {
+      "horizon_3": {
+        "accuracy": 0.55,
+        "precision": 0.52,
+        "recall": 0.50,
+        "f1": 0.48
+      },
+      "horizon_5": {
+        "accuracy": 0.58,
+        "precision": 0.55,
+        "recall": 0.52,
+        "f1": 0.51
+      },
+      "sample_count": 2000
+    },
+    "created_at": "2024-01-01T00:00:00Z"
+  },
+  "error_message": null,
+  "created_at": "2024-01-01T00:00:00Z",
+  "started_at": "2024-01-01T00:00:05Z",
+  "completed_at": "2024-01-01T00:30:00Z"
+}
+```
+
+### 取消训练任务
+
+```
+DELETE /api/trainings/task/{task_id}
+```
+
+**响应**:
+```json
+{
+  "message": "Task cancelled"
+}
+```
+
+### 获取训练任务列表
+
+```
+GET /api/trainings/tasks
+```
+
+**参数**: 同回测任务列表
+
+**响应**: 同回测任务列表格式
+
+### 获取训练列表
+
+```
+GET /api/trainings
+```
+
+**参数**:
+- `config_id` (query, optional): 按配置 ID 筛选
+
+### 获取训练详情
+
+```
+GET /api/trainings/{id}
+```
+
+### 删除训练
+
+```
+DELETE /api/trainings/{id}
+```
+
+### 使用训练模型预测
+
+```
+POST /api/trainings/{id}/predict
+```
+
+**请求体**:
+```json
+{
+  "ts_code": "000001.SZ"
+}
+```
+
+**响应**:
+```json
+{
+  "predictions": {
+    "3": 1,
+    "5": 0
+  },
+  "probabilities": {
+    "3": [0.2, 0.5, 0.3],
+    "5": [0.3, 0.4, 0.3]
+  }
+}
+```
+
+**分类标签**: -1=下跌, 0=持平, 1=上涨
 
 ## 错误响应
 

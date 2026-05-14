@@ -31,6 +31,7 @@ async def init_db():
     from trade_alpha.dao.stock_daily import StockDaily
     from trade_alpha.dao.stock_list import StockList
     from trade_alpha.dao.order_suggestion import OrderSuggestion
+    from trade_alpha.dao.task import Task
 
     await init_beanie(
         database=database,
@@ -47,6 +48,7 @@ async def init_db():
             StockDaily,
             StockList,
             OrderSuggestion,
+            Task,
         ]
     )
     logger.info("init_db", f"Beanie initialized for {config.mongodb_db}")

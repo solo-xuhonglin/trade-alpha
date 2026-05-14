@@ -2,13 +2,15 @@
 
 from typing import Optional
 from fastapi import APIRouter, Query
-from trade_alpha.api.schemas import DataFetchRequest, StockListResponse
+from trade_alpha.api.schemas import DataFetchRequest, StockListResponse, StockDailyListResponse
 from trade_alpha.data.service import (
     fetch_and_store,
     update_stock_list,
     list_stocks,
+    list_stocks_by_mv_rank,
     get_downloaded_summary,
     find_stock_daily_by_ts_code,
+    find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
 )
 
@@ -19,9 +21,22 @@ router = APIRouter(prefix="/data", tags=["data"])
 async def list_stocks_endpoint(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    start_rank: Optional[int] = Query(None, ge=1, description="Start market value rank (1-based)"),
+    end_rank: Optional[int] = Query(None, ge=1, description="End market value rank (1-based)"),
 ):
-    """List stocks with download status and pagination."""
-    stocks, total = await list_stocks(page=page, page_size=page_size)
+    """List stocks with download status and pagination. If start_rank/end_rank provided, returns stocks in that rank range."""
+    if start_rank is not None and end_rank is not None:
+        # Return all stocks in rank range without pagination
+        stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
+        total = len(stocks)
+        page = 1
+        page_size = total
+        total_pages = 1
+    else:
+        # Regular pagination
+        stocks, total = await list_stocks(page=page, page_size=page_size)
+        total_pages = (total + page_size - 1) // page_size
+
     downloaded_summary = await get_downloaded_summary()
 
     downloaded_map = {
@@ -51,7 +66,6 @@ async def list_stocks_endpoint(
             "latest_date": downloaded["latest_date"] if downloaded else None,
         })
 
-    total_pages = (total + page_size - 1) // page_size
     return StockListResponse(
         items=items,
         total=total,
@@ -74,9 +88,48 @@ async def get_data(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
 ):
-    """Get stock data."""
+    """Get stock daily data by date range. Returns all records sorted by trade_date ascending."""
     records = await find_stock_daily_by_ts_code(ts_code, start_date, end_date)
     return records
+
+
+@router.get("/{ts_code}/paginated", response_model=StockDailyListResponse)
+async def get_data_paginated(
+    ts_code: str,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(500, ge=1, le=2000, description="Items per page"),
+):
+    """Get stock daily data with pagination, sorted by trade_date descending (newest first)."""
+    records, total = await find_stock_daily_paginated(ts_code, page, page_size)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    items = []
+    for r in records:
+        items.append({
+            "ts_code": r.ts_code,
+            "trade_date": r.trade_date,
+            "open": r.open,
+            "high": r.high,
+            "low": r.low,
+            "close": r.close,
+            "vol": r.vol,
+            "amount": r.amount,
+            "ma_5": r.ma_5,
+            "ma_10": r.ma_10,
+            "ma_20": r.ma_20,
+            "ma_60": r.ma_60,
+            "macd": r.macd,
+            "macd_signal": r.macd_signal,
+            "macd_hist": r.macd_hist,
+        })
+
+    return StockDailyListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.post("")
