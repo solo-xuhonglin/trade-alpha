@@ -121,6 +121,8 @@ async def run_portfolio_backtest(
         account_config=account_config,
         training_id=training_id,
         model_config=model_config,
+        mode="portfolio",
+        ts_codes=ts_codes,
         max_positions=max_positions
     )
 
@@ -178,8 +180,8 @@ async def run_single_stock_backtest(
         account_config=account_config,
         training_id=training_id,
         model_config=model_config,
-        max_positions=1,
-        single_stock_ts_code=ts_code,
+        mode="single",
+        ts_codes=[ts_code],
     )
 
     backtest_start_time = datetime.now()
