@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from beanie import PydanticObjectId
+import numpy as np
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
@@ -12,6 +13,9 @@ from trade_alpha.execution.schemas import ScoredStock, PendingOrder
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.position_manager")
+
+RISK_FREE_RATE = 0.03
+TRADING_DAYS = 252
 
 
 class PositionManager:
@@ -291,3 +295,124 @@ class PositionManager:
         while dt.weekday() >= 5:
             dt += timedelta(days=1)
         return dt.strftime("%Y%m%d")
+
+    @staticmethod
+    def calculate_metrics(daily_returns: List[float]) -> Dict[str, float]:
+        """Calculate Sharpe ratio, volatility from daily returns.
+
+        Args:
+            daily_returns: List of daily return values (e.g., [0.01, -0.02, 0.03])
+
+        Returns:
+            Dict with sharpe_ratio and volatility
+        """
+        if not daily_returns:
+            return {"sharpe_ratio": 0.0, "volatility": 0.0}
+
+        returns = np.array(daily_returns)
+        mean_return = np.mean(returns)
+        std_return = np.std(returns)
+
+        daily_rf = RISK_FREE_RATE / TRADING_DAYS
+        sharpe_ratio = (mean_return - daily_rf) / std_return if std_return > 0 else 0.0
+        volatility = std_return * np.sqrt(TRADING_DAYS)
+
+        return {
+            "sharpe_ratio": float(sharpe_ratio),
+            "volatility": float(volatility),
+        }
+
+    @staticmethod
+    def calculate_max_drawdown(values: List[float]) -> float:
+        """Calculate maximum drawdown from portfolio values.
+
+        Args:
+            values: List of portfolio values over time
+
+        Returns:
+            Maximum drawdown as a positive percentage (e.g., 0.05 for 5%)
+        """
+        if not values or len(values) < 2:
+            return 0.0
+
+        values_arr = np.array(values)
+        peak = values_arr[0]
+        max_dd = 0.0
+
+        for value in values_arr:
+            if value > peak:
+                peak = value
+            dd = (peak - value) / peak if peak > 0 else 0.0
+            if dd > max_dd:
+                max_dd = dd
+
+        return float(max_dd)
+
+    @staticmethod
+    def calculate_baseline_metrics(
+        start_price: float,
+        end_price: float,
+        daily_prices: List[float],
+    ) -> Dict[str, float]:
+        """Calculate baseline metrics for buy-and-hold strategy.
+
+        Args:
+            start_price: Buy price on first day
+            end_price: Sell price on last day
+            daily_prices: List of daily close prices
+
+        Returns:
+            Dict with baseline_return and baseline_max_drawdown
+        """
+        if not daily_prices or start_price <= 0:
+            return {"baseline_return": 0.0, "baseline_max_drawdown": 0.0}
+
+        baseline_return = (end_price - start_price) / start_price
+
+        values = [price / daily_prices[0] * start_price for price in daily_prices]
+        baseline_max_drawdown = PositionManager.calculate_max_drawdown(values)
+
+        return {
+            "baseline_return": float(baseline_return),
+            "baseline_max_drawdown": float(baseline_max_drawdown),
+        }
+
+    async def calculate_trade_metrics(
+        self,
+        trades: List[ExecutionTrade],
+        daily_snapshots: List[ExecutionPortfolioDaily],
+    ) -> Dict[str, float]:
+        """Calculate trading metrics including avg_hold_days.
+
+        Args:
+            trades: List of execution trades
+            daily_snapshots: List of daily portfolio snapshots
+
+        Returns:
+            Dict with avg_hold_days
+        """
+        if not trades:
+            return {"avg_hold_days": 0.0}
+
+        buy_trades = [t for t in trades if t.action == "buy"]
+        if not buy_trades:
+            return {"avg_hold_days": 0.0}
+
+        hold_days_list = []
+        for buy_trade in buy_trades:
+            sell_trade = next(
+                (t for t in trades if t.action == "sell" and t.ts_code == buy_trade.ts_code and t.trade_date > buy_trade.trade_date),
+                None
+            )
+            if sell_trade:
+                from datetime import datetime
+                buy_dt = datetime.strptime(buy_trade.trade_date, "%Y%m%d")
+                sell_dt = datetime.strptime(sell_trade.trade_date, "%Y%m%d")
+                hold_days = (sell_dt - buy_dt).days
+                hold_days_list.append(hold_days)
+
+        avg_hold_days = float(np.mean(hold_days_list)) if hold_days_list else 0.0
+
+        return {
+            "avg_hold_days": avg_hold_days,
+        }

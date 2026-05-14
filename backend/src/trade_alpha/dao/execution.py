@@ -43,6 +43,14 @@ class ExecutionResult(Document):
     win_rate: float = 0.0
     total_trades: int = 0
     total_fees: float = 0.0
+    ts_code: Optional[str] = None
+    stock_name: Optional[str] = None
+    baseline_return: Optional[float] = None
+    excess_return: Optional[float] = None
+    baseline_max_drawdown: Optional[float] = None
+    sharpe_ratio: Optional[float] = None
+    volatility: Optional[float] = None
+    avg_hold_days: Optional[float] = None
     account_snapshot: Optional[AccountSnapshotEmbed] = None
     model_snapshot: Optional[ModelSnapshotEmbed] = None
     created_at: datetime = Field(default_factory=datetime.now)
@@ -53,4 +61,5 @@ class ExecutionResult(Document):
         indexes = [
             "account_config_id",
             "training_id",
+            "ts_code",
         ]

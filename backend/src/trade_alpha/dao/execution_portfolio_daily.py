@@ -17,6 +17,8 @@ class ExecutionPortfolioDaily(Document):
     total_value: float = 0.0
     day_return: float = 0.0
     mode: str = Field(default="backtest")
+    baseline_value: float = 0.0
+    baseline_hold_days: int = 0
 
     class Settings:
         name = "execution_portfolio_snapshots"
