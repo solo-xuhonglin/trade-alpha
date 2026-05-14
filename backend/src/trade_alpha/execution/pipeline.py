@@ -7,6 +7,7 @@ from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
+from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
 from trade_alpha.execution.position_manager import PositionManager
@@ -95,9 +96,42 @@ class ExecutionPipeline:
 
         logger.info(f"Backtest {backtest_id} started: {start_date} -> {end_date}")
 
-        top_stock_list = await self.data_loader.get_top_stocks(date=start_date, limit=300)
-        universe = {s["ts_code"]: s["name"] for s in top_stock_list}
+        # Get stocks from the universe (same stocks used in training)
+        from trade_alpha.dao import StockList
+        all_stocks = await StockList.find(
+            StockList.sync_status == "active",
+            StockList.ts_code != "002594.SZ"
+        ).sort(-StockList.total_mv).limit(3000).to_list()
+        
+        universe = {s.ts_code: s.name for s in all_stocks}
         ts_codes = list(universe.keys())
+        
+        logger.info(f"Universe contains {len(ts_codes)} stocks")
+        
+        # Pre-load all stock data for cross-sectional normalization during backtest
+        logger.info("Pre-loading all stock data for cross-sectional normalization...")
+        import pandas as pd
+        from trade_alpha.dao import StockDaily
+        
+        # Load all data from training end to backtest end for normalization
+        lookback_days = 120  # Need historical data for features
+        lookback_date = (datetime.strptime(start_date, "%Y%m%d") - timedelta(days=lookback_days)).strftime("%Y%m%d")
+        
+        # Pre-load all stock data into memory for efficient cross-sectional normalization
+        from beanie.odm.operators.find.comparison import In
+        all_records = await StockDaily.find(
+            In(StockDaily.ts_code, ts_codes),
+            StockDaily.trade_date >= lookback_date,
+            StockDaily.trade_date <= end_date,
+        ).sort(StockDaily.trade_date).to_list()
+        
+        # Convert to DataFrame for efficient processing
+        if all_records:
+            self._all_stock_data = pd.DataFrame([r.model_dump() for r in all_records])
+        else:
+            self._all_stock_data = pd.DataFrame()
+        
+        logger.info(f"Loaded {len(all_records)} records for {len(ts_codes)} stocks")
 
         self.cash = self.account_config.initial_capital
         self.positions = {}
@@ -122,11 +156,16 @@ class ExecutionPipeline:
 
             day_df = await self.data_loader.load_day_data(date, ts_codes)
             if day_df.empty:
+                logger.debug(f"No day data for {date}, skipping")
                 date = _next_date(date)
                 continue
 
-            pred_results = await self.predictor.predict_batch(day_df, ts_codes)
+            # Use pre-loaded data for cross-sectional normalization
+            pred_results = await self.predictor.predict_batch_with_history(
+                day_df, ts_codes, self._all_stock_data, date
+            )
             if not pred_results:
+                logger.debug(f"No predictions for {date}, skipping")
                 date = _next_date(date)
                 continue
 
@@ -142,20 +181,31 @@ class ExecutionPipeline:
                 for ts_code, r in pred_results.items()
                 if r["score"] > 0
             ]
+            
+            # Log first day predictions for debugging
+            if date == start_date:
+                logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
+                if scored:
+                    top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
+                    logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
 
-            pending_orders = self.position_manager.make_decisions(
+            pending_orders = await self.position_manager.make_decisions(
                 scored_stocks=scored,
                 current_positions=self.positions,
                 cash=self.cash,
                 trade_date=date,
                 close_prices=close_prices,
             )
-
+            
+            if date == start_date and pending_orders:
+                logger.info(f"First day orders: {len(pending_orders)} orders generated")
+            
             if pending_orders:
                 trades, net_cash = await self.position_manager.settle_orders(
                     orders=pending_orders,
                     date=date,
                     close_prices=close_prices,
+                    backtest_id=backtest_id,
                 )
                 self.cash += net_cash
                 total_trades += len(trades)
@@ -163,6 +213,9 @@ class ExecutionPipeline:
                     total_fees += t.fee
                     if t.action == "sell":
                         total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
+                
+                # Save trades to database
+                await ExecutionTrade.insert_many(trades)
 
                 for t in trades:
                     if t.action == "sell":

@@ -174,6 +174,7 @@ class PositionManager:
         orders: List[PendingOrder],
         date: str,
         close_prices: Dict[str, float],
+        backtest_id: PydanticObjectId = None,
     ) -> Tuple[List[ExecutionTrade], float]:
         """Settle pending orders using actual close prices.
 
@@ -181,6 +182,7 @@ class PositionManager:
             orders: Pending orders to settle.
             date: Settlement date.
             close_prices: Mapping of ts_code -> close price.
+            backtest_id: ID of the backtest execution.
 
         Returns:
             Tuple of (list of ExecutionTrade records, net cash change).
@@ -203,6 +205,7 @@ class PositionManager:
 
             net_cash_change += cash_after
             trades.append(ExecutionTrade(
+                backtest_id=backtest_id,
                 ts_code=order.ts_code,
                 trade_date=date,
                 action=action,

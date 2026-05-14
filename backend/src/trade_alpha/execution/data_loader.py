@@ -2,6 +2,7 @@
 
 from typing import List, Dict
 import pandas as pd
+from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockList, StockDaily
 from trade_alpha.logging import get_logger
 
@@ -32,7 +33,7 @@ class DataLoader:
     async def load_day_data(self, date: str, ts_codes: List[str]) -> pd.DataFrame:
         records = await StockDaily.find(
             StockDaily.trade_date == date,
-            StockDaily.ts_code.is_in(ts_codes),
+            In(StockDaily.ts_code, ts_codes),
         ).to_list()
         if not records:
             return pd.DataFrame()
@@ -43,20 +44,20 @@ class DataLoader:
     async def load_day_low(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
         records = await StockDaily.find(
             StockDaily.trade_date == date,
-            StockDaily.ts_code.is_in(ts_codes),
+            In(StockDaily.ts_code, ts_codes),
         ).to_list()
         return {r.ts_code: r.low for r in records if r.low is not None}
 
     async def load_day_close(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
         records = await StockDaily.find(
             StockDaily.trade_date == date,
-            StockDaily.ts_code.is_in(ts_codes),
+            In(StockDaily.ts_code, ts_codes),
         ).to_list()
         return {r.ts_code: r.close for r in records if r.close is not None}
 
     async def load_day_high(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
         records = await StockDaily.find(
             StockDaily.trade_date == date,
-            StockDaily.ts_code.is_in(ts_codes),
+            In(StockDaily.ts_code, ts_codes),
         ).to_list()
         return {r.ts_code: r.high for r in records if r.high is not None}
