@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from pydantic import Field
 from beanie import Document, PydanticObjectId
+from pymongo import IndexModel
 
 
 class TrainingResult(Document):
@@ -23,6 +24,6 @@ class TrainingResult(Document):
     class Settings:
         name = "training_results"
         indexes = [
-            ("name", True),  # name 唯一索引
+            IndexModel("name", unique=True),
             "config_id"
         ]

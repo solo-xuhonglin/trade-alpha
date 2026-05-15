@@ -24,6 +24,16 @@ async def fetch_and_store_stock_daily(ts_code: str, start_date: str, end_date: s
     for record in records:
         record["trade_date"] = str(record["trade_date"])
 
+    REQUIRED_FIELDS = ["open", "high", "low", "close", "vol", "amount"]
+    before = len(records)
+    records = [
+        r for r in records
+        if all(r.get(f) is not None and not (isinstance(r.get(f), float) and pd.isna(r.get(f))) for f in REQUIRED_FIELDS)
+    ]
+    skipped = before - len(records)
+    if skipped:
+        logger.warning(f"Skipped {skipped} records with null OHLC values for {ts_code}")
+
     existing = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
     existing_dates = {r.trade_date for r in existing}
 

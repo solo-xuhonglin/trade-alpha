@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from beanie import Document, PydanticObjectId
+from pymongo import IndexModel, ASCENDING
 
 
 class AccountSnapshotEmbed(BaseModel):
@@ -62,5 +63,5 @@ class ExecutionResult(Document):
             "account_config_id",
             "training_id",
             "ts_code",
-            ("name", True),  # name 唯一索引
+            IndexModel("name", unique=True),
         ]
