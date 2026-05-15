@@ -136,6 +136,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `total_mv` | float | 总市值 (万元) |
 | `pe` | float | 市盈率 |
 | `pb` | float | 市净率 |
+| `sync_status` | string | 数据同步状态 ("pending" / "active") |
 | `updated_at` | datetime | 更新时间 |
 
 #### 示例文档
