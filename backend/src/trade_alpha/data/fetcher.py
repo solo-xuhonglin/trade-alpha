@@ -26,7 +26,14 @@ def fetch_stock_data(ts_code: str, start_date: str, end_date: str) -> pd.DataFra
         DataFrame with stock data, or None if no data
     """
     api = get_pro_api()
-    df = api.daily(ts_code=ts_code, start_date=start_date, end_date=end_date, adj="qfq")
+    df = ts.pro_bar(
+        api=api,
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+        adj="qfq",
+        freq="D"
+    )
     if df is None or df.empty:
         return None
     return df.sort_values("trade_date")

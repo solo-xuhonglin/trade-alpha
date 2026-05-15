@@ -17,13 +17,11 @@ from trade_alpha.logging import get_logger
 logger = get_logger("data_sync")
 
 DATA_PERIODS: List[Tuple[str, str]] = [
-    ("20100101", "20141231"),
-    ("20150101", "20191231"),
-    ("20200101", "20241231"),
-    ("20250101", datetime.now().strftime("%Y%m%d")),
+    ("20050101", datetime.now().strftime("%Y%m%d")),
 ]
 
-API_REQUEST_DELAY = 1
+# Max 5 requests per second, so 0.2 seconds delay per request
+API_REQUEST_DELAY = 0.2
 
 TEST_EXCLUDED_TS_CODES: List[str] = [
     "002594.SZ",
@@ -39,7 +37,7 @@ async def ensure_stock_list() -> int:
     return count
 
 
-async def get_pending_stocks(limit: int = 1) -> List[StockList]:
+async def get_pending_stocks(limit: int = 300) -> List[StockList]:
     """Get pending stocks sorted by market value descending."""
     return await StockList.find(
         StockList.sync_status == "pending",
@@ -47,39 +45,8 @@ async def get_pending_stocks(limit: int = 1) -> List[StockList]:
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
-async def get_data_completed_stocks(limit: int = 1) -> List[StockList]:
-    """Get stocks with data completed, waiting for indicators."""
-    return await StockList.find(
-        StockList.sync_status == "data_completed",
-        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
-    ).sort(-StockList.total_mv).limit(limit).to_list()
-
-
-async def fetch_stock_data_with_periods(stock: StockList) -> bool:
-    """Fetch stock data by periods.
-
-    Args:
-        stock: Stock object
-
-    Returns:
-        Whether all succeeded
-    """
-    try:
-        for start_date, end_date in DATA_PERIODS:
-            count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
-            logger.info(f"Fetched {count} records for {stock.ts_code} ({start_date}-{end_date})")
-            await asyncio.sleep(API_REQUEST_DELAY)
-
-        stock.sync_status = "data_completed"
-        await stock.save()
-        return True
-    except Exception as e:
-        logger.error(f"Failed to fetch data for {stock.ts_code}: {e}")
-        return False
-
-
-async def calculate_stock_indicators(stock: StockList) -> bool:
-    """Calculate stock indicators.
+async def process_single_stock(stock: StockList) -> bool:
+    """Process single stock: fetch data, calculate indicators, update status.
 
     Args:
         stock: Stock object
@@ -88,45 +55,55 @@ async def calculate_stock_indicators(stock: StockList) -> bool:
         Whether succeeded
     """
     try:
+        for start_date, end_date in DATA_PERIODS:
+            count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
+            logger.info(f"Fetched {count} records for {stock.ts_code} ({start_date}-{end_date})")
+            await asyncio.sleep(API_REQUEST_DELAY)
+
         await calculate_all_indicators(stock.ts_code)
+        logger.info(f"Completed indicators for {stock.ts_code}")
 
         stock.sync_status = "active"
         await stock.save()
-        logger.info(f"Completed indicators for {stock.ts_code}")
         return True
     except Exception as e:
-        logger.error(f"Failed to calculate indicators for {stock.ts_code}: {e}")
+        logger.error(f"Failed to process {stock.ts_code}: {e}")
         return False
 
 
 async def run_data_sync_job():
     """Execute one data sync job.
 
-    Process 1 stock per run:
-    1. Check if there are stocks waiting for indicators (data_completed status)
-    2. Then check if there are stocks waiting for data (pending status)
+    Process up to 300 stocks per run:
+    1. Get pending stocks (up to 300)
+    2. Process each stock sequentially:
+       a. Fetch 20 years of data
+       b. Calculate indicators
+       c. Update status to active
+       d. Wait 0.2 seconds
+    3. Stop on first failure
     """
     logger.info("Starting data sync job")
 
     await ensure_stock_list()
 
-    indicators_stocks = await get_data_completed_stocks(limit=1)
-    if indicators_stocks:
-        stock = indicators_stocks[0]
-        logger.info(f"Processing indicators for {stock.ts_code}")
-        await calculate_stock_indicators(stock)
-        logger.info("Data sync job completed (indicators)")
+    pending_stocks = await get_pending_stocks(limit=300)
+    if not pending_stocks:
+        logger.info("No stocks to process")
         return
 
-    pending_stocks = await get_pending_stocks(limit=1)
-    if pending_stocks:
-        stock = pending_stocks[0]
-        logger.info(f"Processing data fetch for {stock.ts_code}")
-        await fetch_stock_data_with_periods(stock)
-        logger.info("Data sync job completed (data fetch)")
-        return
+    logger.info(f"Found {len(pending_stocks)} stocks to process")
 
-    logger.info("No stocks to process in this run")
+    for stock in pending_stocks:
+        index = pending_stocks.index(stock) + 1
+        logger.info(f"Processing {stock.ts_code} ({index}/{len(pending_stocks)})")
+        success = await process_single_stock(stock)
+
+        if not success:
+            logger.error(f"Stopping job due to failure on {stock.ts_code}")
+            return
+
+    logger.info("Data sync job completed")
 
 
 def create_scheduler() -> AsyncIOScheduler:
