@@ -31,3 +31,32 @@
 
 ## 开发流程
 设计 → 实现 → 审查 → 测试 → 修复 → 再次审查 → 提交 → 重启服务
+
+## 脚本说明
+
+### scripts 目录
+位于 `backend/scripts/`，用于数据管理和服务器检查：
+
+| 脚本 | 说明 |
+|------|------|
+| `check_stock_sync_status.py` | 检查股票同步状态 |
+| `check_server.py` | 检查后端服务是否运行 |
+| `clean_stock_data.py` | 清理股票数据（删除所有日线和股票列表） |
+| `reset_business_data.py` | 重置业务数据（保留股票数据，清理账户/策略/模型等） |
+
+### 使用方法
+```bash
+cd backend
+
+# 检查服务器状态
+python scripts/check_server.py
+
+# 检查股票同步状态
+python scripts/check_stock_sync_status.py
+
+# 清理股票数据（用于重新同步）
+python scripts/clean_stock_data.py
+
+# 重置业务数据（保留股票数据）
+python scripts/reset_business_data.py
+```

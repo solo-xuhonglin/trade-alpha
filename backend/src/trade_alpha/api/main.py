@@ -19,9 +19,12 @@ from trade_alpha.api.routers import (
     model_configs,
     trainings,
 )
+from datetime import datetime
 from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
 from trade_alpha.scheduler import DataSyncScheduler
+
+app_start_time = datetime.now()
 
 
 def _clean_nan(obj: Any) -> Any:
@@ -108,4 +111,7 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "start_time": app_start_time.isoformat(),
+    }
