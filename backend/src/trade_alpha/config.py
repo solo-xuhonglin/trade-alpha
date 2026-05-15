@@ -14,6 +14,7 @@ class Config:
     mongodb_uri: str
     mongodb_db: str
     data_years: int = 20
+    target_active_stocks: int = 3000
 
 
 def load_config() -> Config:
@@ -22,4 +23,6 @@ def load_config() -> Config:
         tushare_token=os.getenv("TUSHARE_TOKEN", ""),
         mongodb_uri=os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
         mongodb_db=os.getenv("MONGODB_DB", "trade_alpha"),
+        data_years=int(os.getenv("DATA_YEARS", "20")),
+        target_active_stocks=int(os.getenv("TARGET_ACTIVE_STOCKS", "3000")),
     )

@@ -74,20 +74,40 @@ async def process_single_stock(stock: StockList) -> bool:
         return False
 
 
+async def check_active_stocks_sufficient() -> bool:
+    """Check if we have enough active stocks.
+
+    Returns:
+        True if we have reached or exceeded target active stocks count
+    """
+    config = load_config()
+    active_count = await StockList.find(
+        StockList.sync_status == "active",
+        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
+    ).count()
+    logger.info(f"Current active stocks: {active_count}, target: {config.target_active_stocks}")
+    return active_count >= config.target_active_stocks
+
+
 async def run_data_sync_job():
     """Execute one data sync job.
 
     Process up to 300 stocks per run with concurrency:
-    1. Get pending stocks (up to 300)
-    2. Process stocks concurrently (max 10 at a time):
+    1. Check if we have enough active stocks, skip if yes
+    2. Get pending stocks (up to 300)
+    3. Process stocks concurrently (max 10 at a time):
        a. Fetch {DATA_YEARS} years of data
        b. Calculate indicators
        c. Update status to active
-    3. Log summary of succeeded / failed stocks
+    4. Log summary of succeeded / failed stocks
     """
     logger.info("Starting data sync job")
 
     await ensure_stock_list()
+
+    if await check_active_stocks_sufficient():
+        logger.info("Target active stocks reached, skipping sync job")
+        return
 
     pending_stocks = await get_pending_stocks(limit=300)
     if not pending_stocks:
