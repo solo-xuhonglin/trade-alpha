@@ -22,4 +22,7 @@ class TrainingResult(Document):
 
     class Settings:
         name = "training_results"
-        indexes = ["name", "config_id"]
+        indexes = [
+            ("name", True),  # name 唯一索引
+            "config_id"
+        ]

@@ -3,14 +3,13 @@
 import asyncio
 import pytest
 import pytest_asyncio
+from datetime import datetime, timedelta
 from trade_alpha.dao.mongodb import init_db, close_db
 from trade_alpha.dao import StockList, StockDaily
 from trade_alpha.data.service import fetch_and_store_stock_list, fetch_and_store_stock_daily
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.predict import config_service
-
-
-TEST_STOCK = "002594.SZ"
+from trade_alpha.test_config import TEST_STOCK, TEST_MODEL_CONFIG_NAME, DATA_YEARS
 
 
 @pytest.fixture(scope="session")
@@ -49,8 +48,10 @@ async def test_stock():
     stock = await StockList.find_one(StockList.ts_code == ts_code)
     assert stock is not None
     
-    # Fetch daily data (1 year for sufficient MA calculations)
-    await fetch_and_store_stock_daily(ts_code, "20230101", "20231231")
+    # Fetch daily data (20 years before current date to current date)
+    end_date = datetime.now().strftime("%Y%m%d")
+    start_date = (datetime.now() - timedelta(days=365 * DATA_YEARS)).strftime("%Y%m%d")
+    await fetch_and_store_stock_daily(ts_code, start_date, end_date)
     
     # Calculate all indicators
     await calculate_all_indicators(ts_code)
@@ -68,7 +69,7 @@ async def test_model_config():
     
     Creates or ensures default model config exists.
     """
-    default_config_name = "test_model_config"
+    default_config_name = TEST_MODEL_CONFIG_NAME
     config = await config_service.get_config_by_name(default_config_name)
     if config:
         await config.delete()

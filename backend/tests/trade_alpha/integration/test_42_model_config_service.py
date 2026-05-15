@@ -3,6 +3,7 @@
 import pytest
 from trade_alpha.predict import config_service
 from trade_alpha.predict.config_service import DEFAULT_INDICATOR_FIELDS
+from trade_alpha.test_config import TEST_MODEL_CONFIG_NAME
 
 
 @pytest.mark.integration
@@ -13,7 +14,7 @@ class TestModelConfigService:
     @pytest.fixture(autouse=True)
     async def setup_teardown(self):
         """Setup and teardown for each test."""
-        self.default_config_name = "test_model_config"
+        self.default_config_name = TEST_MODEL_CONFIG_NAME
 
         yield
 

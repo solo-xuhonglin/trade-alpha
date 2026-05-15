@@ -13,6 +13,7 @@ class Config:
     tushare_token: str
     mongodb_uri: str
     mongodb_db: str
+    data_years: int = 20
 
 
 def load_config() -> Config:

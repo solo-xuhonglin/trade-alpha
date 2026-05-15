@@ -38,6 +38,7 @@ trade-alpha/
 ├── backend/                   # 后端项目
 │   ├── src/trade_alpha/      # Python 源码
 │   │   ├── config.py         # 配置管理
+│   │   ├── test_config.py    # 测试配置常量
 │   │   ├── logging.py        # 结构化日志
 │   │   ├── dao/              # 数据访问层
 │   │   ├── data/             # 数据获取模块
@@ -71,7 +72,8 @@ trade-alpha/
 │   │   │   ├── predictor.py        # 预测管理器
 │   │   │   ├── signal_generator.py # 信号生成器
 │   │   │   ├── position_manager.py # 仓位管理器
-│   │   │   └── schemas.py          # 数据结构定义
+│   │   │   ├── schemas.py          # 数据结构定义
+│   │   │   └── service.py          # 执行结果查询服务
 │   │   ├── scheduler/          # 定时任务模块
 │   │   │   └── data_sync.py       # 数据同步定时任务
 │   │   └── api/routers/       # API 路由
@@ -103,6 +105,18 @@ trade-alpha/
 - `MONGODB_URI`: MongoDB 连接地址
 - `MONGODB_DB`: 数据库名称
 - `LOG_LEVEL`: 日志级别（默认 DEBUG）
+- `data_years`: 数据同步年数（默认 20）
+
+### 2. 测试配置模块 (test_config)
+
+集中管理测试相关常量，避免测试代码与生产代码耦合：
+
+- `TEST_STOCK`: 测试用股票代码（比亚迪 002594.SZ）
+- `TEST_EXCLUDED_TS_CODES`: 定时任务排除的股票列表
+- `TEST_MODEL_CONFIG_NAME`: 测试模型配置名称
+- `TEST_STRATEGY_NAME`: 测试策略名称
+- `TEST_ACCOUNT_CONFIG_NAME`: 测试账户配置名称
+- `DATA_YEARS`: 数据同步年数（从 config.data_years 读取）
 
 ### 2. 日志模块 (logging)
 
@@ -191,8 +205,9 @@ trade-alpha/
 
 #### training_service - 训练服务
 
-- `create_training()`: 创建训练（支持多股票样本混合）
+- `create_training()`: 创建训练（支持多股票样本混合，name 唯一约束）
 - `get_training_by_id()`: 获取训练记录
+- `get_training_by_name()`: 按名称获取训练记录
 - `list_trainings()`: 列出训练记录
 - `delete_training()`: 删除训练（删除模型文件）
 - `predict_with_training()`: 使用训练模型预测
@@ -279,6 +294,14 @@ trade-alpha/
 - `ScoredStock`: 带评分的股票
 - `PendingOrder`: 待执行订单
 
+#### service.py - 执行结果查询服务
+
+- `get_execution_by_name()`: 按名称获取执行结果（回测/实盘）
+- `get_execution_by_id()`: 按 ID 获取执行结果
+- `list_executions()`: 列出执行结果（支持按账户/训练筛选）
+
+name 字段具备唯一索引，支持按名称直接查询。
+
 ### 9. 任务模块 (tasks)
 
 异步任务管理模块，支持回测和训练的异步执行。
@@ -333,7 +356,7 @@ trade-alpha/
 **任务逻辑**:
 1. 每分钟检查获取最多 300 只待处理股票（按市值降序）
 2. 循环处理每只股票：
-   - 拉取 20 年历史数据（20050101 至今）
+   - 拉取 data_years 年历史数据（动态计算开始日期）
    - 计算所有技术指标
    - 更新状态为 `active`
    - 处理间隔 0.2 秒

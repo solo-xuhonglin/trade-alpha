@@ -34,29 +34,6 @@
 
 ## 脚本说明
 
-### scripts 目录
-位于 `backend/scripts/`，用于数据管理和服务器检查：
+脚本统一位于 `backend/scripts/`，详见 [后端脚本说明](../backend/docs/scripts.md)。
 
-| 脚本 | 说明 |
-|------|------|
-| `check_stock_sync_status.py` | 检查股票同步状态 |
-| `check_server.py` | 检查后端服务是否运行 |
-| `clean_stock_data.py` | 清理股票数据（删除所有日线和股票列表） |
-| `reset_business_data.py` | 重置业务数据（保留股票数据，清理账户/策略/模型等） |
-
-### 使用方法
-```bash
-cd backend
-
-# 检查服务器状态
-python scripts/check_server.py
-
-# 检查股票同步状态
-python scripts/check_stock_sync_status.py
-
-# 清理股票数据（用于重新同步）
-python scripts/clean_stock_data.py
-
-# 重置业务数据（保留股票数据）
-python scripts/reset_business_data.py
-```
+> 服务管理优先使用 `service.bat` / `service.ps1`，服务状态检查优先使用 `backend/scripts/check_server.py`，避免重复实现已有功能。

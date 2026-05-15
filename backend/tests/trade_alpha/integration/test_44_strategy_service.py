@@ -2,6 +2,7 @@
 
 import pytest
 from trade_alpha.strategy import service as strategy_service
+from trade_alpha.test_config import TEST_STRATEGY_NAME
 
 
 @pytest.mark.integration

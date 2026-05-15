@@ -62,4 +62,5 @@ class ExecutionResult(Document):
             "account_config_id",
             "training_id",
             "ts_code",
+            ("name", True),  # name 唯一索引
         ]

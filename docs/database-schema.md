@@ -268,7 +268,7 @@ MACDStrategy:
 
 存储执行结果（支持回测和实盘模式）。
 
-**索引**: `{account_config_id: 1}`, `{training_id: 1}`, `{ts_code: 1}` 索引
+**索引**: `{account_config_id: 1}`, `{training_id: 1}`, `{ts_code: 1}`, `{name: 1}` 唯一索引
 
 **字段**:
 
@@ -455,7 +455,7 @@ MACDStrategy:
 
 存储训练记录和指标。
 
-**索引**: `{config_id: 1}` 索引
+**索引**: `{config_id: 1}`, `{name: 1}` 唯一索引
 
 **字段**:
 

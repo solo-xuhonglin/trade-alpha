@@ -61,6 +61,11 @@ async def create_training(
     - winsorize_fields: 标准化器缩尾
     - output_fields: 标准化器输出 (特征+标签，自动排除 ts_code/trade_date)
     """
+    # 检查 name 唯一性
+    existing = await get_training_by_name(name)
+    if existing:
+        raise ValueError(f"Training already exists: {name}")
+
     config = await get_config_by_id(config_id)
     if not config:
         raise ValueError(f"Config not found: {config_id}")
@@ -154,6 +159,10 @@ async def get_training_by_id(training_id: PydanticObjectId) -> Optional[Training
     return await TrainingResult.get(training_id)
 
 
+async def get_training_by_name(name: str) -> Optional[TrainingResult]:
+    return await TrainingResult.find_one(TrainingResult.name == name)
+
+
 async def list_trainings(config_id: PydanticObjectId = None) -> List[TrainingResult]:
     if config_id:
         return await TrainingResult.find(TrainingResult.config_id == config_id).to_list()
@@ -169,6 +178,13 @@ async def delete_training(training_id: PydanticObjectId) -> bool:
     await PredictionResult.find(PredictionResult.training_result_id == training_id).delete()
     await training.delete()
     return True
+
+
+async def delete_training_by_name(name: str) -> bool:
+    training = await get_training_by_name(name)
+    if not training:
+        return False
+    return await delete_training(training.id)
 
 
 async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> Dict:

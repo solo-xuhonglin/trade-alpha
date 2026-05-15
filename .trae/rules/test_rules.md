@@ -54,11 +54,11 @@ cd frontend/e2e && pytest -v --base-url=http://localhost:3000
 集成测试使用的股票代码由定时任务排除，避免并发修改 `sync_status` 造成冲突：
 
 ```python
-# backend/src/trade_alpha/scheduler/data_sync.py
+# backend/src/trade_alpha/test_config.py
 TEST_EXCLUDED_TS_CODES = ["002594.SZ"]
 ```
 
-定时任务的 `get_pending_stocks` 和 `get_data_completed_stocks` 查询会自动排除这些代码。
+定时任务的 `get_pending_stocks` 查询会自动排除这些代码。
 
 ## 测试原则
 
@@ -66,3 +66,11 @@ TEST_EXCLUDED_TS_CODES = ["002594.SZ"]
 2. 集成测试使用真实数据
 3. E2E 测试依赖集成测试数据
 4. 集成测试股票代码需在 `TEST_EXCLUDED_TS_CODES` 中声明
+
+## 测试数据时间范围
+
+测试数据获取时间范围由 `config.data_years` 控制（默认 20 年），测试代码从配置读取以保持一致：
+
+```python
+# backend/tests/conftest.py
+DATA_YEARS = load_config().data_years  # 从 test_config 读取

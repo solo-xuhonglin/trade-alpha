@@ -12,7 +12,7 @@ class TestAccountConfigService:
     @pytest.fixture(autouse=True)
     async def setup_teardown(self):
         """Setup and teardown for each test."""
-        self.default_account_config_name = "test_portfolio"
+        self.default_account_config_name = TEST_ACCOUNT_CONFIG_NAME
 
         yield
 

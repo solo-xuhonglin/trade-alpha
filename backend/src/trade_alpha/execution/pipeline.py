@@ -16,6 +16,7 @@ from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
+from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("execution.pipeline")
 
@@ -123,9 +124,11 @@ class ExecutionPipeline:
         # For single-stock mode: optimize by only loading top 200 stocks for cross-sectional normalization
         limit = 200 if self.single_stock_ts_code else 3000
         
+        from beanie.odm.operators.find.comparison import NotIn
+        
         all_stocks = await StockList.find(
             StockList.sync_status == "active",
-            StockList.ts_code != "002594.SZ"
+            NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
         ).sort(-StockList.total_mv).limit(limit).to_list()
         
         # Ensure target stock is included in single-stock mode

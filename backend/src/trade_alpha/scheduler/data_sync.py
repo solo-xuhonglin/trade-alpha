@@ -1,8 +1,8 @@
 """Data sync scheduler module."""
 
 import asyncio
-from datetime import datetime
-from typing import List, Tuple
+from datetime import datetime, timedelta
+from typing import List
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -12,20 +12,22 @@ from beanie.odm.operators.find.comparison import NotIn
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list
 from trade_alpha.indicators.service import calculate_all_indicators
+from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
+from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("data_sync")
-
-DATA_PERIODS: List[Tuple[str, str]] = [
-    ("20050101", datetime.now().strftime("%Y%m%d")),
-]
 
 # Max 5 requests per second, so 0.2 seconds delay per request
 API_REQUEST_DELAY = 0.2
 
-TEST_EXCLUDED_TS_CODES: List[str] = [
-    "002594.SZ",
-]
+
+def get_data_period() -> tuple[str, str]:
+    """Get data fetch period based on data_years config."""
+    config = load_config()
+    end_date = datetime.now().strftime("%Y%m%d")
+    start_date = (datetime.now() - timedelta(days=365 * config.data_years)).strftime("%Y%m%d")
+    return start_date, end_date
 
 
 async def ensure_stock_list() -> int:
@@ -55,10 +57,10 @@ async def process_single_stock(stock: StockList) -> bool:
         Whether succeeded
     """
     try:
-        for start_date, end_date in DATA_PERIODS:
-            count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
-            logger.info(f"Fetched {count} records for {stock.ts_code} ({start_date}-{end_date})")
-            await asyncio.sleep(API_REQUEST_DELAY)
+        start_date, end_date = get_data_period()
+        count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
+        logger.info(f"Fetched {count} records for {stock.ts_code} ({start_date}-{end_date})")
+        await asyncio.sleep(API_REQUEST_DELAY)
 
         await calculate_all_indicators(stock.ts_code)
         logger.info(f"Completed indicators for {stock.ts_code}")
@@ -77,7 +79,7 @@ async def run_data_sync_job():
     Process up to 300 stocks per run:
     1. Get pending stocks (up to 300)
     2. Process each stock sequentially:
-       a. Fetch 20 years of data
+       a. Fetch {DATA_YEARS} years of data
        b. Calculate indicators
        c. Update status to active
        d. Wait 0.2 seconds
