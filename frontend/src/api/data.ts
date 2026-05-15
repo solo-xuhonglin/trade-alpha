@@ -28,7 +28,7 @@ export interface Stock {
   pe?: number
   pb?: number
   updated_at?: string
-  is_downloaded: boolean
+  sync_status: string
   data_count?: number
   latest_date?: string
 }

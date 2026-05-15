@@ -53,7 +53,7 @@ class StockResponse(BaseModel):
     pe: Optional[float] = None
     pb: Optional[float] = None
     updated_at: Optional[datetime] = None
-    is_downloaded: bool = False
+    sync_status: str = "pending"
     data_count: Optional[int] = None
     latest_date: Optional[str] = None
 

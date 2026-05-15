@@ -1,51 +1,43 @@
-"""Integration tests for prediction service."""
+"""Integration tests for prediction service — shares training from test_51."""
 
 import pytest
+import pytest_asyncio
 from trade_alpha.predict import training_service
 from trade_alpha.dao import PredictionResult
+from trade_alpha.test_config import TEST_STOCK
 
 
 @pytest.mark.integration
 @pytest.mark.order(52)
 class TestPredictIntegration:
-    """Integration tests with real MongoDB."""
+    """Integration tests for prediction — uses training created by test_51."""
 
-    @pytest.fixture(autouse=True)
-    async def setup_teardown(self, test_stock):
+    @pytest_asyncio.fixture(autouse=True)
+    async def setup_teardown(self):
         """Setup and teardown for each test."""
-        self.ts_code = test_stock
-        self.start_date = "20230101"
-        self.end_date = "20231231"
+        self.ts_code = TEST_STOCK
+        self.training = await self._find_training()
 
         yield
 
         await PredictionResult.find(PredictionResult.ts_code == self.ts_code).delete()
 
-    @pytest.fixture(scope="module")
-    async def training_fixture(self, test_stock, test_model_config):
-        """Fixture to create training once for all tests."""
-        training = await training_service.create_training(
-            config_id=test_model_config.id,
-            name="test_predict_integration_training",
-            ts_codes=[test_stock],
-            start_date=self.start_date,
-            end_date=self.end_date,
-        )
-        return training
+    async def _find_training(self):
+        """Find the training created by test_51."""
+        trainings = await training_service.list_trainings()
+        for t in trainings:
+            if t.name == "test_training":
+                return t
+        pytest.skip("No test_training found — test_51 must run before test_52")
+        return None
 
     @pytest.mark.asyncio
-    async def test_predict_with_training(self, test_stock, test_model_config):
+    async def test_predict_with_training(self):
         """Test predict_with_training returns classification predictions."""
-        # Create training
-        training = await training_service.create_training(
-            config_id=test_model_config.id,
-            name="test_predict_temp",
-            ts_codes=[test_stock],
-            start_date=self.start_date,
-            end_date=self.end_date,
-        )
-        
-        result = await training_service.predict_with_training(training.id, test_stock)
+        if not self.training:
+            pytest.skip("No training found")
+
+        result = await training_service.predict_with_training(self.training.id, self.ts_code)
 
         assert "predictions" in result
         assert "probabilities" in result
@@ -57,47 +49,37 @@ class TestPredictIntegration:
         assert abs(sum(result["probabilities"]["label_3d"]) - 1.0) < 0.01
 
     @pytest.mark.asyncio
-    async def test_get_prediction_by_id(self, test_stock, test_model_config):
+    async def test_get_prediction_by_id(self):
         """Test get_prediction_by_id returns prediction with training_result_id."""
-        training = await training_service.create_training(
-            config_id=test_model_config.id,
-            name="test_get_prediction_temp",
-            ts_codes=[test_stock],
-            start_date=self.start_date,
-            end_date=self.end_date,
-        )
-        
-        await training_service.predict_with_training(training.id, test_stock)
+        if not self.training:
+            pytest.skip("No training found")
+
+        await training_service.predict_with_training(self.training.id, self.ts_code)
 
         pred_records = await PredictionResult.find(
-            PredictionResult.training_result_id == training.id,
-            PredictionResult.ts_code == test_stock
+            PredictionResult.training_result_id == self.training.id,
+            PredictionResult.ts_code == self.ts_code
         ).to_list()
         assert len(pred_records) > 0
 
         pred = await training_service.get_prediction_by_id(pred_records[0].id)
         assert pred is not None
-        assert pred.training_result_id == training.id
-        assert pred.ts_code == test_stock
+        assert pred.training_result_id == self.training.id
+        assert pred.ts_code == self.ts_code
         assert "label_3d" in pred.predictions
         assert pred.predictions["label_3d"] in [-1, 0, 1]
 
     @pytest.mark.asyncio
-    async def test_delete_prediction(self, test_stock, test_model_config):
+    async def test_delete_prediction(self):
         """Test delete_prediction removes prediction."""
-        training = await training_service.create_training(
-            config_id=test_model_config.id,
-            name="test_delete_prediction_temp",
-            ts_codes=[test_stock],
-            start_date=self.start_date,
-            end_date=self.end_date,
-        )
-        
-        await training_service.predict_with_training(training.id, test_stock)
+        if not self.training:
+            pytest.skip("No training found")
+
+        await training_service.predict_with_training(self.training.id, self.ts_code)
 
         pred_records = await PredictionResult.find(
-            PredictionResult.training_result_id == training.id,
-            PredictionResult.ts_code == test_stock
+            PredictionResult.training_result_id == self.training.id,
+            PredictionResult.ts_code == self.ts_code
         ).to_list()
         assert len(pred_records) > 0
 

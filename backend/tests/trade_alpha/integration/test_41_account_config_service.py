@@ -2,6 +2,7 @@
 
 import pytest
 from trade_alpha.account import service as account_config_service
+from trade_alpha.test_config import TEST_ACCOUNT_CONFIG_NAME
 
 
 @pytest.mark.integration

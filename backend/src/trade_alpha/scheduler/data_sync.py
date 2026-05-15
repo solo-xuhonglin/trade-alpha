@@ -20,6 +20,7 @@ logger = get_logger("data_sync")
 
 # Max 5 requests per second, so 0.2 seconds delay per request
 API_REQUEST_DELAY = 0.2
+MAX_CONCURRENT_STOCKS = 10
 
 
 def get_data_period() -> tuple[str, str]:
@@ -76,14 +77,13 @@ async def process_single_stock(stock: StockList) -> bool:
 async def run_data_sync_job():
     """Execute one data sync job.
 
-    Process up to 300 stocks per run:
+    Process up to 300 stocks per run with concurrency:
     1. Get pending stocks (up to 300)
-    2. Process each stock sequentially:
+    2. Process stocks concurrently (max 10 at a time):
        a. Fetch {DATA_YEARS} years of data
        b. Calculate indicators
        c. Update status to active
-       d. Wait 0.2 seconds
-    3. Stop on first failure
+    3. Log summary of succeeded / failed stocks
     """
     logger.info("Starting data sync job")
 
@@ -96,16 +96,21 @@ async def run_data_sync_job():
 
     logger.info(f"Found {len(pending_stocks)} stocks to process")
 
-    for stock in pending_stocks:
-        index = pending_stocks.index(stock) + 1
-        logger.info(f"Processing {stock.ts_code} ({index}/{len(pending_stocks)})")
-        success = await process_single_stock(stock)
+    sem = asyncio.Semaphore(MAX_CONCURRENT_STOCKS)
 
-        if not success:
-            logger.error(f"Stopping job due to failure on {stock.ts_code}")
-            return
+    async def process_with_semaphore(stock: StockList) -> bool:
+        async with sem:
+            return await process_single_stock(stock)
 
-    logger.info("Data sync job completed")
+    tasks = [process_with_semaphore(s) for s in pending_stocks]
+    results = await asyncio.gather(*tasks)
+
+    success_count = sum(1 for r in results if r)
+    failed_count = sum(1 for r in results if not r)
+    logger.info(
+        f"Data sync job completed: {len(pending_stocks)} stocks "
+        f"({success_count} succeeded, {failed_count} failed)"
+    )
 
 
 def create_scheduler() -> AsyncIOScheduler:

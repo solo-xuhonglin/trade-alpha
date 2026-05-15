@@ -181,7 +181,7 @@ export interface Stock {
   total_mv?: number
   pe?: number
   pb?: number
-  is_downloaded: boolean
+  sync_status: string
   data_count?: number
   latest_date?: string
 }

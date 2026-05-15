@@ -1,22 +1,23 @@
-"""Integration tests for stock list service."""
+"""Integration tests for stock list service — read-only verification."""
 
 import pytest
-from trade_alpha.data.service import fetch_and_store_stock_list
 from trade_alpha.dao import StockList
 
 
 @pytest.mark.integration
 @pytest.mark.order(31)
 class TestServiceStockList:
-    """Integration tests for stock list service."""
+    """Read-only stock list verification — data lifecycle handled by test_20 + test_25."""
 
     @pytest.mark.asyncio
-    async def test_update_stock_list(self, setup_db):
-        """Test updating stock list from Tushare."""
-        count = await fetch_and_store_stock_list()
+    async def test_stock_list_has_records(self, setup_db):
+        """Verify stock list has records (created by ensure_test_stock fixture)."""
+        stocks = await StockList.find_all().to_list()
+        assert len(stocks) > 0
 
-        assert count > 0
-
+    @pytest.mark.asyncio
+    async def test_stock_list_records_have_required_fields(self, setup_db):
+        """Verify stock list records have the required fields."""
         stocks = await StockList.find_all().to_list()
         assert len(stocks) > 0
 

@@ -35,9 +35,9 @@
         </v-toolbar>
       </template>
 
-      <template v-slot:item.is_downloaded="{ item }">
-        <v-chip :color="item.is_downloaded ? 'success' : 'default'" size="small" variant="tonal">
-          {{ item.is_downloaded ? '已下载' : '未下载' }}
+      <template v-slot:item.sync_status="{ item }">
+        <v-chip :color="item.sync_status === 'active' ? 'success' : 'default'" size="small" variant="tonal">
+          {{ item.sync_status === 'active' ? '已同步' : '待同步' }}
         </v-chip>
       </template>
       <template v-slot:item.total_mv="{ item }">
@@ -46,21 +46,21 @@
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
           <v-icon
-            v-if="!item.is_downloaded"
+            v-if="item.sync_status === 'pending'"
             color="medium-emphasis"
             icon="mdi-download"
             size="small"
             @click="openDownloadDialog(item)"
           ></v-icon>
           <v-icon
-            v-if="item.is_downloaded"
+            v-if="item.sync_status === 'active'"
             color="medium-emphasis"
             icon="mdi-eye"
             size="small"
             @click="viewChart(item)"
           ></v-icon>
           <v-icon
-            v-if="item.is_downloaded"
+            v-if="item.sync_status === 'active'"
             color="error"
             icon="mdi-delete"
             size="small"
@@ -195,7 +195,7 @@ const headers = [
   { title: '行业', key: 'industry', width: '80px' },
   { title: '市场', key: 'market', width: '70px' },
   { title: '市值', key: 'total_mv', width: '110px' },
-  { title: '状态', key: 'is_downloaded', width: '80px' },
+  { title: '状态', key: 'sync_status', width: '80px' },
   { title: '条数', key: 'data_count', width: '60px' },
   { title: '最新日期', key: 'latest_date', width: '100px' },
   { title: '操作', key: 'actions', sortable: false, width: '80px', align: 'end' },

@@ -1,47 +1,48 @@
-"""Integration tests for StockDaily Beanie model."""
+"""Integration tests for data lifecycle — Step 1: fetch daily data."""
 
 import pytest
-from trade_alpha.dao import StockDaily
+from trade_alpha.dao import StockDaily, StockList
+from trade_alpha.data.service import fetch_and_store_stock_daily
+from trade_alpha.scheduler.data_sync import get_data_period
+from trade_alpha.test_config import TEST_STOCK
 
 
 @pytest.mark.integration
 @pytest.mark.order(20)
-class TestStockDaily:
-    """Integration tests for StockDaily Beanie model."""
+class TestDataLifecycle:
+    """Data lifecycle: pending -> fetch -> indicators -> active.
+
+    Step 1: Delete daily data, set pending, fetch 20 years from Tushare.
+    """
 
     @pytest.fixture(autouse=True)
-    async def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.ts_code = "002594.SZ"
-
-        yield
-
-        await StockDaily.find(StockDaily.ts_code == self.ts_code).delete()
+    async def setup(self, ensure_test_stock):
+        """Ensure BYD stock list entry exists."""
+        self.ts_code = TEST_STOCK
 
     @pytest.mark.asyncio
-    async def test_insert_and_find(self, setup_db):
-        """Test insert and find operations."""
-        records = [
-            StockDaily(ts_code=self.ts_code, trade_date="20240101", open=10.0, close=10.5, high=10.8, low=9.9, vol=1000, amount=10000),
-            StockDaily(ts_code=self.ts_code, trade_date="20240102", open=10.5, close=11.0, high=11.2, low=10.3, vol=1200, amount=12000),
-        ]
+    async def test_delete_and_fetch_stock_daily(self):
+        """Step 1: Delete BYD daily data -> set pending -> fetch 20 years."""
+        ts_code = self.ts_code
 
-        await StockDaily.insert_many(records)
+        # Delete existing daily data
+        await StockDaily.find(StockDaily.ts_code == ts_code).delete()
 
-        found = await StockDaily.find(StockDaily.ts_code == self.ts_code).to_list()
-        assert len(found) >= 2
-        dates = [r.trade_date for r in found]
-        assert "20240101" in dates
-        assert "20240102" in dates
+        # Set sync_status = pending
+        stock = await StockList.find_one(StockList.ts_code == ts_code)
+        stock.sync_status = "pending"
+        await stock.save()
 
-    @pytest.mark.asyncio
-    async def test_delete_by_ts_code(self, setup_db):
-        """Test delete operation."""
-        record = StockDaily(ts_code=self.ts_code, trade_date="20240103", open=10.0, close=10.5, high=10.8, low=9.9, vol=1000, amount=10000)
-        await record.insert()
+        # Fetch 20 years of daily data using get_data_period
+        start_date, end_date = get_data_period()
+        count = await fetch_and_store_stock_daily(ts_code, start_date, end_date)
 
-        result = await StockDaily.find(StockDaily.ts_code == self.ts_code, StockDaily.trade_date == "20240103").delete()
-        assert result.deleted_count >= 1
+        assert count > 0, "No new daily records inserted"
 
-        found = await StockDaily.find(StockDaily.ts_code == self.ts_code, StockDaily.trade_date == "20240103").to_list()
-        assert len(found) == 0
+        # Verify data exists
+        found = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
+        assert len(found) > 0
+
+        # Verify sync_status is still pending
+        stock = await StockList.find_one(StockList.ts_code == ts_code)
+        assert stock.sync_status == "pending"

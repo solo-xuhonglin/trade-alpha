@@ -19,7 +19,7 @@
 |-------|------|------|------|
 | 1 | test_01_tushare_api.py | TestTushareAPI | 验证 Tushare API 连通性 |
 | 10 | test_10_mongodb_basic.py | TestMongoDBBasic | 验证 MongoDB 通用操作 |
-| 20 | test_20_dao_daily.py | TestStockDaily | 验证 StockDaily DAO 业务方法 |
+| 20 | test_20_dao_daily.py | TestDataLifecycle | 验证数据生命周期（pending → fetch → indicator → active） |
 | 21 | test_21_dao_stock_list.py | TestStockList | 验证 StockList DAO 业务方法 |
 | 25 | test_25_indicators_integration.py | TestIndicatorsIntegration | 验证指标计算服务 |
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
@@ -85,8 +85,10 @@ Layer 5: 训练
 
 | Fixture | 说明 | 范围 |
 |---------|------|------|
-| `test_stock` | 提供完整的比亚迪 (002594.SZ) 数据，包括日线数据、所有指标、sync_status=active | module |
+| `ensure_test_stock` | 仅确保 StockList 中有比亚迪 (002594.SZ) 条目，不碰 StockDaily 数据 | session |
 | `test_model_config` | 提供默认的模型配置 (xgboost, classification) | session |
+
+> 注意：比亚迪的日线数据和指标计算由生命周期测试（test_20 + test_25）处理，不依赖 fixture。
 
 这些 fixtures 定义在 `backend/tests/conftest.py` 中。
 
@@ -96,16 +98,16 @@ Layer 5: 训练
 |-------|---------|-------------|---------|
 | TestTushareAPI | 无 | 无需清理 | - |
 | TestMongoDBBasic | test_collection | 自动清理 | - |
-| TestStockDaily | 002594.SZ | 自动清理 | - |
-| TestStockList | 002594.SZ / 临时测试数据 | 自动清理 | - |
-| TestIndicatorsIntegration | 002594.SZ | 自动清理 | - |
-| TestServiceData | 临时测试数据 | 自动清理 | 002594.SZ |
-| TestServiceStockList | 真实股票数据 | **不清理** | 真实业务数据 |
+| TestDataLifecycle | 002594.SZ | **完整恢复（pending → fetch → indicator → active）** | - |
+| TestStockList | 真实数据（只读） | **不清理** | 真实数据 |
+| TestIndicatorsIntegration | 002594.SZ | **完整恢复（设置 active）** | 002594.SZ |
+| TestServiceData | 002594.SZ（只读） | **不清理** | 002594.SZ |
+| TestServiceStockList | 真实股票数据（只读） | **不清理** | - |
 | TestAccountConfigService | test_*_temp | 自动清理 | test_portfolio |
 | TestModelConfigService | test_*_temp | 自动清理 | test_model_config |
 | TestStrategyService | test_*_temp | 自动清理 | test_strategy |
-| TestTrainingService | test_*_temp | 自动清理 | test_training |
-| TestPredictIntegration | test_*_temp | 自动清理 | - |
+| TestTrainingService | 共享一次训练 | 自动清理 | test_training |
+| TestPredictIntegration | 共享 test_51 训练 | 自动清理 | - |
 
 ## 统一指标接口
 
@@ -118,11 +120,11 @@ Layer 5: 训练
 
 | 默认记录 | 用途 | 创建位置 |
 |---------|------|---------|
-| 002594.SZ (stock_daily) | Layer 4/5/6 测试数据 | TestServiceData.test_ensure_default_data |
+| 002594.SZ (stock_daily) | Layer 4/5/6 测试数据 | test_20 + test_25 生命周期测试 |
 | test_portfolio | Layer 6 回测账户 | TestAccountConfigService.test_ensure_default_account_config |
 | test_strategy | Layer 6 回测策略 | TestStrategyService.test_ensure_default_strategy |
 | test_model_config | Layer 5 训练配置 | TestModelConfigService.test_ensure_default_config |
-| test_training | Layer 6 回测训练结果 | TestTrainingService.test_ensure_default_training |
+| test_training | Layer 6 回测训练结果 | TestTrainingService.shared_training |
 
 ## 运行命令
 

@@ -32,7 +32,7 @@ GET /api/data/stocks
       "total_mv": 25000000.0,
       "pe": 5.5,
       "pb": 0.6,
-      "is_downloaded": true,
+      "sync_status": "active",
       "data_count": 500,
       "latest_date": "20241231"
     }

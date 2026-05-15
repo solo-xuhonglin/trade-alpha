@@ -61,7 +61,7 @@ async def list_stocks_endpoint(
             "pe": stock.pe,
             "pb": stock.pb,
             "updated_at": stock.updated_at,
-            "is_downloaded": downloaded is not None,
+            "sync_status": stock.sync_status or "pending",
             "data_count": downloaded["count"] if downloaded else None,
             "latest_date": downloaded["latest_date"] if downloaded else None,
         })
