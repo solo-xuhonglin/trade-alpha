@@ -4,9 +4,11 @@ from fastapi import APIRouter, HTTPException, Query
 from beanie import PydanticObjectId
 from typing import Optional, List
 
-from trade_alpha.dao.execution import ExecutionResult
-from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.account_config import AccountConfig
+from trade_alpha.dao.execution import ExecutionResult
+from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
+from trade_alpha.dao.execution_trade import ExecutionTrade
+from trade_alpha.dao.stock_list import StockList
 
 router = APIRouter(prefix="/backtests", tags=["backtest-records"])
 
@@ -116,6 +118,76 @@ async def get_backtest_trades(
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
+    }
+
+
+@router.get("/{result_id}/prediction-stocks")
+async def get_prediction_stocks(result_id: str):
+    """Get stocks that have prediction data in a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    result = await ExecutionResult.get(obj_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+
+    snapshot = await ExecutionDailySnapshot.find_one(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+        ExecutionDailySnapshot.predictions != {},
+    )
+    if not snapshot:
+        return {"items": []}
+
+    ts_codes = list(snapshot.predictions.keys())
+    stocks = await StockList.find(StockList.ts_code.in_(ts_codes)).to_list()
+    stock_map = {s.ts_code: s.name for s in stocks}
+
+    items = [
+        {"ts_code": ts_code, "stock_name": stock_map.get(ts_code, ts_code)}
+        for ts_code in ts_codes
+    ]
+
+    return {"items": items}
+
+
+@router.get("/{result_id}/predictions/{ts_code}")
+async def get_stock_predictions(result_id: str, ts_code: str):
+    """Get daily predictions for a specific stock in a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    result = await ExecutionResult.get(obj_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+
+    snapshots = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(ExecutionDailySnapshot.date).to_list()
+
+    stock = await StockList.find_one(StockList.ts_code == ts_code)
+    stock_name = stock.name if stock else ts_code
+
+    items = []
+    for snap in snapshots:
+        pred = snap.predictions.get(ts_code)
+        if pred is not None:
+            items.append({
+                "trade_date": snap.date,
+                "score": pred.get("score"),
+                "up_prob_3d": pred.get("up_prob_3d"),
+                "up_prob_5d": pred.get("up_prob_5d"),
+            })
+
+    return {
+        "ts_code": ts_code,
+        "stock_name": stock_name,
+        "start_date": items[0]["trade_date"] if items else None,
+        "end_date": items[-1]["trade_date"] if items else None,
+        "items": items,
     }
 
 

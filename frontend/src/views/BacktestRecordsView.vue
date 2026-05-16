@@ -34,6 +34,7 @@
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
           <v-icon color="medium-emphasis" icon="mdi-eye" size="small" @click="viewResult(item)"></v-icon>
+          <v-icon color="info" icon="mdi-chart-timeline-variant" size="small" @click="viewPredictions(item)"></v-icon>
           <v-icon color="primary" icon="mdi-format-list-bulleted" size="small" @click="viewTrades(item)"></v-icon>
           <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)"></v-icon>
         </div>
@@ -153,11 +154,14 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <PredictionChart v-model="predictionDialog" :backtest-id="predictionBacktestId" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { backtestRecordApi, type Backtest, type Trade } from '@/api/backtestRecord'
+import PredictionChart from '@/components/PredictionChart.vue'
 
 const loading = ref(false)
 const loadingDelete = ref(false)
@@ -165,9 +169,16 @@ const loadingTrades = ref(false)
 const deleteDialog = ref(false)
 const tradesDialog = ref(false)
 const resultDialog = ref(false)
+const predictionDialog = ref(false)
+const predictionBacktestId = ref('')
 const deletingItem = ref<Backtest | null>(null)
 const viewingBacktest = ref<Backtest | null>(null)
 const selectedResult = ref<Backtest | null>(null)
+
+const viewPredictions = (item: Backtest) => {
+  predictionBacktestId.value = item.id
+  predictionDialog.value = true
+}
 const backtests = ref<Backtest[]>([])
 const trades = ref<Trade[]>([])
 const totalItems = ref(0)

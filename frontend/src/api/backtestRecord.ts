@@ -51,6 +51,26 @@ export interface TradeListResponse {
   total_pages: number
 }
 
+export interface PredictionStock {
+  ts_code: string
+  stock_name: string
+}
+
+export interface PredictionItem {
+  trade_date: string
+  score: number
+  up_prob_3d: number
+  up_prob_5d: number
+}
+
+export interface PredictionResponse {
+  ts_code: string
+  stock_name: string
+  start_date: string
+  end_date: string
+  items: PredictionItem[]
+}
+
 export const backtestRecordApi = {
   get: (id: string) => api.get<Backtest>(`/backtest/results/${id}`),
 
@@ -59,6 +79,12 @@ export const backtestRecordApi = {
 
   getTrades: (id: string, page: number = 1, pageSize: number = 20) =>
     api.get<TradeListResponse>(`/backtests/${id}/trades`, { params: { page, page_size: pageSize } }),
+
+  getPredictionStocks: (id: string) =>
+    api.get<{ items: PredictionStock[] }>(`/backtests/${id}/prediction-stocks`),
+
+  getPredictions: (id: string, tsCode: string) =>
+    api.get<PredictionResponse>(`/backtests/${id}/predictions/${tsCode}`),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }
