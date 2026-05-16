@@ -131,11 +131,12 @@ async def find_stock_daily_by_ts_code(
     end_date: str = None,
 ) -> list[StockDaily]:
     """Find stock daily records by ts_code with optional date filter, sorted by trade_date ascending."""
-    query = StockDaily.find(StockDaily.ts_code == ts_code)
+    conditions = [StockDaily.ts_code == ts_code]
     if start_date:
-        query = query.filter(StockDaily.trade_date >= start_date)
+        conditions.append(StockDaily.trade_date >= start_date)
     if end_date:
-        query = query.filter(StockDaily.trade_date <= end_date)
+        conditions.append(StockDaily.trade_date <= end_date)
+    query = StockDaily.find(*conditions)
     return await query.sort(StockDaily.trade_date).to_list()
 
 

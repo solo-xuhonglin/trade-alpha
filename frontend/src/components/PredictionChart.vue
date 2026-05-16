@@ -125,6 +125,9 @@ const loadChartData = async () => {
     chartData.value = merged
     await nextTick()
     renderChart()
+  } catch (e) {
+    console.error('Failed to load chart data:', e)
+    chartData.value = []
   } finally {
     loadingChart.value = false
   }
