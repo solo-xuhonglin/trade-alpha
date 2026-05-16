@@ -223,7 +223,6 @@ class ExecutionPipeline:
                     score=r["score"],
                 )
                 for ts_code, r in pred_results.items()
-                if r["score"] > 0
             ]
             
             # Single-stock mode: filter to only the target stock
