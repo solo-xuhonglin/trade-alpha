@@ -28,7 +28,8 @@ docs/
 ├── api.md                  # API 接口文档
 ├── frontend.md             # 前端设计与架构文档
 ├── backend-integration-testing.md  # 后端集成测试文档
-└── frontend-e2e-testing.md  # 前端 E2E 测试文档
+├── frontend-e2e-testing.md  # 前端 E2E 测试文档
+└── scripts.md              # 后端脚本说明
 ```
 
 ## 提交规范

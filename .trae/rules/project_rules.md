@@ -38,6 +38,6 @@
 
 ## 脚本说明
 
-脚本统一位于 `backend/scripts/`，详见 [后端脚本说明](../backend/docs/scripts.md)。
+脚本统一位于 `backend/scripts/`，详见 [后端脚本说明](../docs/scripts.md)。
 
 > 服务管理优先使用 `service.bat` / `service.ps1`，服务状态检查优先使用 `backend/scripts/check_server.py`，避免重复实现已有功能。
