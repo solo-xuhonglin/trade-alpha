@@ -7,7 +7,7 @@
           <v-select
             v-model="form.config_id"
             :items="configOptions"
-            item-title="label"
+            item-title="title"
             item-value="value"
             label="模型配置"
           />
