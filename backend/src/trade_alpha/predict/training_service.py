@@ -37,13 +37,18 @@ def _ensure_model_dir(config_id: str) -> None:
 
 
 def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold: float) -> pd.DataFrame:
-    for horizon in horizons:
-        future_pct = (df["close"].shift(-horizon) - df["close"]) / df["close"]
-        labels = future_pct.apply(
-            lambda x: 1 if x > threshold else (-1 if x < -threshold else 0)
-        )
-        df[f"label_{horizon}d"] = labels
-    return df.iloc[:-max(horizons)]
+    label_cols = [f"label_{h}d" for h in horizons]
+    result_parts = []
+    for ts_code, group in df.groupby("ts_code"):
+        group = group.sort_values("trade_date").copy()
+        for horizon in horizons:
+            future_pct = (group["close"].shift(-horizon) - group["close"]) / group["close"]
+            group[f"label_{horizon}d"] = future_pct.map(
+                lambda x: 1 if x > threshold else (-1 if x < -threshold else 0) if pd.notna(x) else None
+            )
+        group = group.dropna(subset=label_cols)
+        result_parts.append(group)
+    return pd.concat(result_parts, ignore_index=True)
 
 
 async def create_training(
