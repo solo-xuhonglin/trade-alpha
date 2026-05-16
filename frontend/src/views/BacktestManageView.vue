@@ -3,7 +3,27 @@
     <v-card-title class="text-subtitle-1">发起回测</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="3" md="3">
+        <v-col cols="12" sm="4" md="3">
+          <v-select
+            v-model="form.training_id"
+            :items="trainingOptions"
+            item-title="label"
+            item-value="value"
+            label="训练结果"
+            clearable
+          />
+        </v-col>
+        <v-col cols="12" sm="4" md="3">
+          <v-select
+            v-model="form.account_config_id"
+            :items="accountOptions"
+            item-title="label"
+            item-value="value"
+            label="账户配置"
+            clearable
+          />
+        </v-col>
+        <v-col cols="12" sm="4" md="3">
           <v-text-field v-model="form.ts_codes" label="股票代码" placeholder="多个代码用逗号分隔" />
         </v-col>
         <v-col cols="12" sm="3" md="3">
@@ -66,6 +86,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
+import { accountConfigApi } from '@/api/account'
+import { trainingRecordApi } from '@/api/trainingRecord'
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]
 
@@ -73,6 +95,9 @@ const loading = ref(false)
 const running = ref(false)
 const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
+
+const trainingOptions = ref<{ label: string; value: string }[]>([])
+const accountOptions = ref<{ label: string; value: string }[]>([])
 
 const modeOptions = [
   { label: '组合回测', value: 'portfolio' },
@@ -160,32 +185,69 @@ const pollActiveTasks = async () => {
   }
 }
 
+const loadTrainings = async () => {
+  try {
+    const res = await trainingRecordApi.list()
+    trainingOptions.value = res.data.map(t => ({ label: `${t.name} (${t.id.slice(-6)})`, value: t.id }))
+  } catch (e) {
+    console.error('Failed to load trainings:', e)
+  }
+}
+
+const loadAccounts = async () => {
+  try {
+    const res = await accountConfigApi.list()
+    accountOptions.value = res.data.map(a => ({ label: a.name, value: a.id }))
+  } catch (e) {
+    console.error('Failed to load accounts:', e)
+  }
+}
+
 const runBacktest = async () => {
   running.value = true
   error.value = ''
 
   try {
+    if (!form.value.training_id) {
+      throw new Error('请先选择训练结果')
+    }
+    if (!form.value.account_config_id) {
+      throw new Error('请先选择账户配置')
+    }
+
     const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
 
-    const payload = {
-      account_config_id: '6a0519848fc1cd0e6f315515',
-      training_id: '6a0519848fc1cd0e6f315516',
+    const payload: Record<string, any> = {
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
       name: 'backtest',
       mode: form.value.mode,
-      ts_codes: tsCodes.length > 0 ? tsCodes : undefined,
       max_positions: form.value.max_positions,
+    }
+
+    if (form.value.training_id) {
+      payload.training_id = form.value.training_id
+    }
+    if (form.value.account_config_id) {
+      payload.account_config_id = form.value.account_config_id
+    }
+    if (tsCodes.length > 0) {
+      payload.ts_codes = tsCodes
     }
 
     await backtestApi.run(payload)
     startPolling()
+  } catch (e: any) {
+    error.value = e.message || 'Failed to create backtest task'
+    console.error('Backtest error:', e)
   } finally {
     running.value = false
   }
 }
 
 onMounted(() => {
+  loadTrainings()
+  loadAccounts()
   pollActiveTasks()
   startPolling()
 })
