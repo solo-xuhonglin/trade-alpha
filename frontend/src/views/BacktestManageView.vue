@@ -121,7 +121,7 @@ const modeOptions = [
 
 const form = ref({
   name: `backtest_${formatDateTime()}`,
-  ts_codes: '',
+  ts_codes: '002594.SZ',
   start_date: '2025-01-01',
   end_date: '2025-12-31',
   mode: 'portfolio',
