@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from beanie import PydanticObjectId
+from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -14,25 +15,29 @@ from trade_alpha.dao.task import Task, TaskStatus, TaskType
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
 
+class BacktestRunRequest(BaseModel):
+    account_config_id: str
+    training_id: str
+    start_date: str
+    end_date: str
+    name: str = "backtest"
+    mode: str = "portfolio"
+    ts_codes: Optional[List[str]] = None
+    max_positions: int = 10
+
+
 @router.post("/run")
 async def trigger_backtest(
     background_tasks: BackgroundTasks,
-    account_config_id: str,
-    training_id: str,
-    start_date: str,
-    end_date: str,
-    name: str = "backtest",
-    mode: str = "portfolio",
-    ts_codes: Optional[List[str]] = None,
-    max_positions: int = 10,
+    body: BacktestRunRequest,
 ):
     """Trigger backtest task (async)."""
     try:
-        account_config = await AccountConfig.get(PydanticObjectId(account_config_id))
+        account_config = await AccountConfig.get(PydanticObjectId(body.account_config_id))
         if not account_config:
             raise HTTPException(status_code=404, detail="Account config not found")
 
-        training = await get_training_by_id(PydanticObjectId(training_id))
+        training = await get_training_by_id(PydanticObjectId(body.training_id))
         if not training:
             raise HTTPException(status_code=404, detail="Training not found")
 
@@ -40,14 +45,14 @@ async def trigger_backtest(
             type=TaskType.BACKTEST,
             status=TaskStatus.PENDING,
             params={
-                "account_config_id": account_config_id,
-                "training_id": training_id,
-                "start_date": start_date,
-                "end_date": end_date,
-                "name": name,
-                "mode": mode,
-                "ts_codes": ts_codes,
-                "max_positions": max_positions,
+                "account_config_id": body.account_config_id,
+                "training_id": body.training_id,
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+                "name": body.name,
+                "mode": body.mode,
+                "ts_codes": body.ts_codes,
+                "max_positions": body.max_positions,
             },
             created_at=datetime.now(),
         ).save()
