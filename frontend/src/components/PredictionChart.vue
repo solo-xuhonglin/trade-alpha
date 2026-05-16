@@ -123,8 +123,6 @@ const loadChartData = async () => {
         ...predMap.get(k.trade_date),
       }))
     chartData.value = merged
-    await nextTick()
-    renderChart()
   } catch (e) {
     console.error('Failed to load chart data:', e)
     chartData.value = []
@@ -132,6 +130,13 @@ const loadChartData = async () => {
     loadingChart.value = false
   }
 }
+
+watch([chartData, loadingChart], async () => {
+  if (chartData.value.length > 0 && !loadingChart.value) {
+    await nextTick()
+    renderChart()
+  }
+})
 
 const renderChart = () => {
   if (!chartRef.value || chartData.value.length === 0) return
