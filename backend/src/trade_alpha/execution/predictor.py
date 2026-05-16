@@ -1,6 +1,6 @@
 """Predictor for backtest execution pipeline."""
 
-from typing import Dict, List
+from typing import Dict, List, Optional, TYPE_CHECKING
 import pandas as pd
 import numpy as np
 from beanie import PydanticObjectId
@@ -10,6 +10,9 @@ from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormal
 from trade_alpha.predict.models.xgboost import XGBoostClassifier
 from trade_alpha.predict.models.lstm import LSTMClassifier
 from trade_alpha.logging import get_logger
+
+if TYPE_CHECKING:
+    from trade_alpha.predict.normalizers.base import BaseNormalizer
 
 logger = get_logger("execution.predictor")
 
@@ -22,8 +25,9 @@ CLASSIFIERS = {
 class Predictor:
     """Batch prediction using trained model."""
 
-    def __init__(self, training_id: PydanticObjectId):
+    def __init__(self, training_id: PydanticObjectId, normalizer: Optional["BaseNormalizer"] = None):
         self.training_id = training_id
+        self._normalizer_override = normalizer
         self._training = None
         self._config = None
         self._classifier = None
@@ -45,11 +49,14 @@ class Predictor:
         self._classifier = CLASSIFIERS[self._config.model_type]()
         self._classifier.load(self._training.model_path)
         
-        self._normalizer = CrossSectionalNormalizer(
-            standardize_fields=self._config.standardize_fields,
-            winsorize_fields=self._config.winsorize_fields,
-            output_fields=self._config.output_fields,
-        )
+        if self._normalizer_override is not None:
+            self._normalizer = self._normalizer_override
+        else:
+            self._normalizer = CrossSectionalNormalizer(
+                standardize_fields=self._config.standardize_fields,
+                winsorize_fields=self._config.winsorize_fields,
+                output_fields=self._config.output_fields,
+            )
         
         logger.info("Model loaded successfully")
 
@@ -57,79 +64,49 @@ class Predictor:
         self, 
         day_df: pd.DataFrame, 
         ts_codes: List[str],
-        all_stock_data: pd.DataFrame,
         current_date: str
     ) -> Dict[str, Dict]:
-        """Predict using cross-sectional normalization across all stocks.
+        """Predict using cross-sectional normalization for current day only.
         
         Args:
             day_df: Current day's data for all stocks
             ts_codes: List of stock codes to predict
-            all_stock_data: DataFrame with all stock data for the backtest period
             current_date: Current date string (YYYYMMDD)
         """
         await self._ensure_model_loaded()
         
         result = {}
         
-        # Get current date from day_df
         if day_df.empty:
             return result
         
-        # Filter stock data for the lookback period ending at current date
-        stock_data = all_stock_data[
-            (all_stock_data['trade_date'] <= current_date)
-        ]
-        
-        if stock_data.empty:
-            logger.warning(f"No historical data up to {current_date}")
-            return result
-        
-        # Get unique dates for cross-sectional normalization
-        available_dates = stock_data['trade_date'].unique()
-        logger.debug(f"Cross-sectional normalization with {len(available_dates)} dates")
-        
-        # Cross-sectional normalization: for each date, normalize across all stocks
         normalizer_input = self._config.feature_fields + ['trade_date', 'ts_code']
-        available_fields = [f for f in normalizer_input if f in stock_data.columns]
-        normalized = self._normalizer.normalize(stock_data[available_fields])
+        available_fields = [f for f in normalizer_input if f in day_df.columns]
+        normalized = self._normalizer.normalize(day_df[available_fields])
         
-        # Add back identifiers for lookup
-        normalized['ts_code'] = stock_data['ts_code'].values
-        normalized['trade_date'] = stock_data['trade_date'].values
-        
-        # Get features for the current date
         target_names = [f"label_{h}d" for h in self._training.classification_horizons]
         
         for ts_code in ts_codes:
             try:
-                # Get normalized features for this stock on the current date
-                stock_norm = normalized[
-                    (normalized['ts_code'] == ts_code) & 
-                    (normalized['trade_date'] == current_date)
-                ]
+                stock_norm = normalized[normalized['ts_code'] == ts_code]
                 
                 if stock_norm.empty:
                     continue
                 
-                features = stock_norm[self._config.feature_fields].values
+                features = stock_norm[self._config.feature_fields].values[0]
                 
                 if np.isnan(features).any():
                     logger.debug(f"NaN features for {ts_code}, skipping")
                     continue
                 
-                # Predict using the trained model
-                predictions = self._classifier.predict(features, target_names)
-                probabilities = self._classifier.predict_proba(features, target_names)
+                predictions = self._classifier.predict(features.reshape(1, -1), target_names)
+                probabilities = self._classifier.predict_proba(features.reshape(1, -1), target_names)
                 
-                # Extract probability of "up" (label=1), which is index 2 in the probability array
                 up_prob_3d = probabilities.get("label_3d", [0, 0, 0])[2] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
                 up_prob_5d = probabilities.get("label_5d", [0, 0, 0])[2] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
                 
-                # Score = weighted average of probabilities
                 score = up_prob_3d * 0.4 + up_prob_5d * 0.6
                 
-                # Get close price from original day_df
                 day_row = day_df[day_df['ts_code'] == ts_code]
                 close = float(day_row.iloc[0]['close']) if not day_row.empty else 0
                 

@@ -10,6 +10,7 @@ from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, Mod
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
+from trade_alpha.predict.normalizers import CrossSectionalNormalizer
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.strategy.portfolio import PortfolioStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
@@ -53,8 +54,16 @@ class ExecutionPipeline:
         self.max_positions = max_positions
         self.single_stock_ts_code = single_stock_ts_code
 
+        from trade_alpha.predict.normalizers import CrossSectionalNormalizer
+        self._normalizer = CrossSectionalNormalizer(
+            standardize_fields=model_config.standardize_fields,
+            winsorize_fields=model_config.winsorize_fields,
+            output_fields=model_config.output_fields + ["ts_code"],
+        )
+        self._config = model_config
+
         self.data_loader = DataLoader()
-        self.predictor = Predictor(training_id)
+        self.predictor = Predictor(training_id, normalizer=self._normalizer)
         
         # Initialize strategy based on mode
         if mode == "single":
@@ -147,31 +156,6 @@ class ExecutionPipeline:
             logger.info(f"Single-stock mode: {result.ts_code} ({result.stock_name})")
         
         logger.info(f"Universe contains {len(ts_codes)} stocks (top {limit})")
-        
-        # Pre-load all stock data for cross-sectional normalization during backtest
-        logger.info("Pre-loading all stock data for cross-sectional normalization...")
-        import pandas as pd
-        from trade_alpha.dao import StockDaily
-        
-        # Load all data from training end to backtest end for normalization
-        lookback_days = 120  # Need historical data for features
-        lookback_date = (datetime.strptime(start_date, "%Y%m%d") - timedelta(days=lookback_days)).strftime("%Y%m%d")
-        
-        # Pre-load all stock data into memory for efficient cross-sectional normalization
-        from beanie.odm.operators.find.comparison import In
-        all_records = await StockDaily.find(
-            In(StockDaily.ts_code, ts_codes),
-            StockDaily.trade_date >= lookback_date,
-            StockDaily.trade_date <= end_date,
-        ).sort(StockDaily.trade_date).to_list()
-        
-        # Convert to DataFrame for efficient processing
-        if all_records:
-            self._all_stock_data = pd.DataFrame([r.model_dump() for r in all_records])
-        else:
-            self._all_stock_data = pd.DataFrame()
-        
-        logger.info(f"Loaded {len(all_records)} records for {len(ts_codes)} stocks")
 
         self.cash = self.account_config.initial_capital
         self.positions = {}
@@ -220,9 +204,9 @@ class ExecutionPipeline:
                 date = _next_date(date)
                 continue
 
-            # Use pre-loaded data for cross-sectional normalization
+            # Normalize current day's data only
             pred_results = await self.predictor.predict_batch_with_history(
-                day_df, ts_codes, self._all_stock_data, date
+                day_df, ts_codes, date
             )
             if not pred_results:
                 logger.debug(f"No predictions for {date}, skipping")
