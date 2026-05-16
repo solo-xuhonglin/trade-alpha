@@ -206,7 +206,7 @@ const pollActiveTasks = async () => {
 const loadTrainings = async () => {
   try {
     const res = await trainingRecordApi.list()
-    trainingOptions.value = res.data.map(t => ({ label: `${t.name} (${t.id.slice(-6)})`, value: t.id }))
+    trainingOptions.value = res.data.map(t => ({ label: t.name, value: t.id }))
   } catch (e) {
     console.error('Failed to load trainings:', e)
   }
