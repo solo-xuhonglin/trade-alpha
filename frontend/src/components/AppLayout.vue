@@ -8,12 +8,26 @@
     <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp" width="200">
       <v-list>
         <v-list-item
-          v-for="item in topLevelItems"
-          :key="item.path"
-          :to="item.path"
-          :prepend-icon="item.icon"
-          :title="item.title"
+          :to="'/data'"
+          prepend-icon="mdi-database"
+          title="数据管理"
         />
+
+        <v-list-group value="config">
+          <template v-slot:activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              prepend-icon="mdi-cog"
+              title="配置"
+            />
+          </template>
+          <v-list-item
+            v-for="item in configItems"
+            :key="item.path"
+            :to="item.path"
+            :title="item.title"
+          />
+        </v-list-group>
 
         <v-list-group value="training">
           <template v-slot:activator="{ props }">
@@ -65,11 +79,10 @@ const { mdAndUp } = useDisplay()
 
 const drawer = ref(true)
 
-const topLevelItems = [
-  { path: '/data', title: '数据管理', icon: 'mdi-database' },
-  { path: '/account-configs', title: '账户管理', icon: 'mdi-wallet' },
-  { path: '/strategies', title: '策略管理', icon: 'mdi-strategy' },
-  { path: '/models', title: '模型管理', icon: 'mdi-brain' },
+const configItems = [
+  { path: '/account-configs', title: '账户管理' },
+  { path: '/strategies', title: '策略管理' },
+  { path: '/models', title: '模型管理' },
 ]
 
 const trainingItems = [
