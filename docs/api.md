@@ -592,16 +592,32 @@ DELETE /api/account-configs/{account_config_id}
 POST /api/backtest/run
 ```
 
-**参数**:
-- `account_config_id` (query, required): 账户配置 ID
-- `training_id` (query, required): 训练结果 ID
-- `start_date` (query, required): 回测开始日期 (YYYYMMDD)
-- `end_date` (query, required): 回测结束日期 (YYYYMMDD)
-- `name` (query, optional): 回测名称，默认 "backtest"
-- `mode` (query, optional): 策略模式 "portfolio" 或 "single"，默认 "portfolio"
-- `ts_codes` (query, optional): 股票代码列表（JSON数组格式）
-- `top_n` (query, optional): 用于截面标准化的股票数量，默认 300
-- `max_positions` (query, optional): 最大持仓数，默认 10
+**请求体 (JSON)**:
+```json
+{
+  "account_config_id": "507f1f77bcf86cd799439013",
+  "training_id": "507f1f77bcf86cd799439014",
+  "start_date": "20250101",
+  "end_date": "20251231",
+  "name": "backtest_20260516231312",
+  "mode": "portfolio",
+  "ts_codes": ["002594.SZ"],
+  "max_positions": 10,
+  "strategy_config_id": "507f1f77bcf86cd799439015"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `account_config_id` | string | 是 | 账户配置 ID |
+| `training_id` | string | 是 | 训练结果 ID |
+| `start_date` | string | 是 | 回测开始日期 (YYYYMMDD) |
+| `end_date` | string | 是 | 回测结束日期 (YYYYMMDD) |
+| `name` | string | 否 | 回测名称，默认 `"backtest"` |
+| `mode` | string | 否 | 策略模式 `"portfolio"` 或 `"single"`，默认 `"portfolio"` |
+| `ts_codes` | string[] | 否 | 股票代码列表（单股票模式必填） |
+| `max_positions` | int | 否 | 最大持仓数，默认 10（组合模式） |
+| `strategy_config_id` | string | 否 | 策略配置 ID |
 
 **响应**:
 ```json
