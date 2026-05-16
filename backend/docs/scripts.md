@@ -14,6 +14,7 @@
 | | `clean_stock_data.py` | 清理股票数据 |
 | | `reset_business_data.py` | 重置业务数据 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
+| **测试调试** | `test_trades.py` | 检查交易记录数据 |
 
 ---
 
@@ -122,3 +123,15 @@ service.bat restart -KeepLogs
 ```
 
 > 服务管理优先使用 `service.bat` / `service.ps1`，检查服务状态优先使用 `check_server.py`。
+
+---
+
+## 测试调试
+
+### test_trades.py
+
+```bash
+python scripts/test_trades.py
+```
+
+检查数据库中的回测结果和交易记录数据，同时直接测试 API 函数。
