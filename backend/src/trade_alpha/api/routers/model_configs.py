@@ -34,7 +34,7 @@ class ConfigUpdate(BaseModel):
 async def create_config(body: ConfigCreate):
     """Create model configuration."""
     try:
-        return await config_service.create_config(
+        c = await config_service.create_config(
             name=body.name,
             model_type=body.model_type,
             feature_fields=body.feature_fields,
@@ -44,6 +44,19 @@ async def create_config(body: ConfigCreate):
             classification_horizons=body.classification_horizons,
             classification_threshold=body.classification_threshold or 0.02,
         )
+        return {
+            "id": str(c.id),
+            "name": c.name,
+            "model_type": c.model_type,
+            "feature_fields": c.feature_fields,
+            "standardize_fields": c.standardize_fields,
+            "winsorize_fields": c.winsorize_fields,
+            "output_fields": c.output_fields,
+            "classification_horizons": c.classification_horizons,
+            "classification_threshold": c.classification_threshold,
+            "created_at": c.created_at,
+            "updated_at": c.updated_at,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -51,7 +64,23 @@ async def create_config(body: ConfigCreate):
 @router.get("")
 async def list_configs(model_type: str = Query(None)):
     """List model configurations."""
-    return await config_service.list_configs(model_type=model_type)
+    configs = await config_service.list_configs(model_type=model_type)
+    return [
+        {
+            "id": str(c.id),
+            "name": c.name,
+            "model_type": c.model_type,
+            "feature_fields": c.feature_fields,
+            "standardize_fields": c.standardize_fields,
+            "winsorize_fields": c.winsorize_fields,
+            "output_fields": c.output_fields,
+            "classification_horizons": c.classification_horizons,
+            "classification_threshold": c.classification_threshold,
+            "created_at": c.created_at,
+            "updated_at": c.updated_at,
+        }
+        for c in configs
+    ]
 
 
 @router.get("/{config_id}")
@@ -62,10 +91,22 @@ async def get_config(config_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID")
 
-    config = await config_service.get_config_by_id(obj_id)
-    if not config:
+    c = await config_service.get_config_by_id(obj_id)
+    if not c:
         raise HTTPException(status_code=404, detail="Config not found")
-    return config
+    return {
+        "id": str(c.id),
+        "name": c.name,
+        "model_type": c.model_type,
+        "feature_fields": c.feature_fields,
+        "standardize_fields": c.standardize_fields,
+        "winsorize_fields": c.winsorize_fields,
+        "output_fields": c.output_fields,
+        "classification_horizons": c.classification_horizons,
+        "classification_threshold": c.classification_threshold,
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
+    }
 
 
 @router.put("/{config_id}")
@@ -81,10 +122,22 @@ async def update_config(config_id: str, body: ConfigUpdate):
         raise HTTPException(status_code=400, detail="No fields to update")
 
     try:
-        config = await config_service.update_config(obj_id, **update_data)
-        if not config:
+        c = await config_service.update_config(obj_id, **update_data)
+        if not c:
             raise HTTPException(status_code=404, detail="Config not found")
-        return config
+        return {
+            "id": str(c.id),
+            "name": c.name,
+            "model_type": c.model_type,
+            "feature_fields": c.feature_fields,
+            "standardize_fields": c.standardize_fields,
+            "winsorize_fields": c.winsorize_fields,
+            "output_fields": c.output_fields,
+            "classification_horizons": c.classification_horizons,
+            "classification_threshold": c.classification_threshold,
+            "created_at": c.created_at,
+            "updated_at": c.updated_at,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
