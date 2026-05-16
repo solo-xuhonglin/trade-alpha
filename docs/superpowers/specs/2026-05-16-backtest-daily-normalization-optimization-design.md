@@ -1,10 +1,12 @@
-# Backtest Performance Optimization - Daily Normalization
+# Backtest Performance Optimization & Normalizer Refactoring
 
 ## Overview
 
-Optimize the backtest pipeline by reducing redundant cross-sectional normalization calculations. Currently, every trading day re-normalizes all historical data, causing O(N²) complexity. This spec changes the approach to normalize only the current day's data each iteration.
+Two changes:
+1. **Backtest optimization**: Normalize only the current day's data each iteration (reduce O(N²) → O(N) complexity)
+2. **Normalizer refactoring**: Remove hardcoded excluded fields, make them configurable
 
-## Problem Analysis
+## Problem 1: Backtest Performance
 
 ### Current Flow
 
@@ -18,28 +20,66 @@ normalized = self._normalizer.normalize(stock_data[available_fields])
 
 This causes:
 - Day 1: normalizes 1 day of data
-- Day 100: normalizes 100 days of data (including redundant recalculation of days 1-99)
+- Day 100: normalizes 100 days of data (including redundant recalculation)
 - Day 500: normalizes 500 days of data
 
 ### Root Cause
 
-The `normalize()` method groups by `trade_date` and normalizes each group. If only one day's data is passed, it correctly normalizes just that day. The issue is that `day_df` (already the current day's data) is not being used directly.
+`day_df` (current day's data) already exists, but is not being used directly.
+
+## Problem 2: Hardcoded Excluded Fields
+
+In `cross_sectional.py`:
+
+```python
+# Hardcoded
+excluded_fields = {"ts_code", "trade_date"}
+output_fields = [f for f in output_fields if f not in excluded_fields]
+```
+
+This forces users to never get these fields in output, even if they want them.
 
 ## Solution
 
-### Key Insight
+### Part 1: Modify CrossSectionalNormalizer
 
-The `CrossSectionalNormalizer.normalize()` method excludes `ts_code` and `trade_date` from output:
+Add `excluded_fields` parameter to make it configurable:
 
+#### `cross_sectional.py` changes
+
+Update `__init__`:
 ```python
-excluded_fields = {"ts_code", "trade_date"}
-output_fields = [f for f in output_fields if f not in excluded_fields]
-return result_df[output_fields]
+def __init__(
+    self,
+    standardize_fields: List[str],
+    winsorize_fields: Optional[List[str]] = None,
+    winsorize_lower: float = 0.01,
+    winsorize_upper: float = 0.95,
+    output_fields: Optional[List[str]] = None,
+    excluded_fields: Optional[List[str]] = None,  # NEW
+):
+    self.standardize_fields = standardize_fields
+    self.winsorize_fields = winsorize_fields or []
+    self.winsorize_lower = winsorize_lower
+    self.winsorize_upper = winsorize_upper
+    self.output_fields = output_fields
+    self.excluded_fields = excluded_fields or {"ts_code", "trade_date"}  # Backward compatible
 ```
 
-**Solution**: Add `ts_code` to `output_fields` so it appears in the normalized output directly, eliminating the need to add it back after normalization.
+Update `normalize`:
+```python
+# Before
+excluded_fields = {"ts_code", "trade_date"}
+output_fields = [f for f in output_fields if f not in excluded_fields]
 
-### Changes
+# After
+output_fields = self.output_fields if self.output_fields else self.standardize_fields
+
+if self.excluded_fields:
+    output_fields = [f for f in output_fields if f not in self.excluded_fields]
+```
+
+### Part 2: Backtest Optimization
 
 #### 1. `pipeline.py` - Modify normalizer initialization
 
@@ -58,6 +98,7 @@ self._normalizer = CrossSectionalNormalizer(
     standardize_fields=self._config.standardize_fields,
     winsorize_fields=self._config.winsorize_fields,
     output_fields=self._config.output_fields + ["ts_code"],
+    excluded_fields={"trade_date"},  # Only exclude trade_date
 )
 ```
 
@@ -125,6 +166,10 @@ normalized = self._normalizer.normalize(day_df[available_fields])
 # ts_code is already included in normalized via output_fields
 ```
 
+### Part 3: Update other normalizer usages (if any)
+
+Check training pipeline and other usages, ensure they set `excluded_fields={"ts_code", "trade_date"}` to maintain backward compatibility.
+
 ## Performance Impact
 
 | Metric | Before | After |
@@ -139,6 +184,7 @@ N = trading days, M = number of stocks
 
 | File | Changes |
 |------|---------|
+| `backend/src/trade_alpha/predict/normalizers/cross_sectional.py` | Add excluded_fields parameter |
 | `backend/src/trade_alpha/execution/pipeline.py` | Modify normalizer init; remove all_stock_data; update call |
 | `backend/src/trade_alpha/execution/predictor.py` | Remove all_stock_data param; simplify normalize logic |
 
@@ -147,9 +193,9 @@ N = trading days, M = number of stocks
 1. Run existing integration tests to verify correctness
 2. Compare backtest results before/after (should be identical)
 3. Measure performance improvement
+4. Verify training pipeline continues to work correctly
 
-## Notes
+## Backward Compatibility
 
-- The `day_df` parameter already contains current day's data for all stocks
-- `normalize()` handles single-day DataFrame correctly via groupby
-- Adding `ts_code` to `output_fields` keeps it in the output without manual concatenation
+- Default `excluded_fields={"trade_date"}`? Or set to `{"ts_code", "trade_date"}` to maintain backward compatibility?
+- **Decision**: Default to `{"ts_code", "trade_date"}` (same as before), only backtest pipeline overrides it to `{"trade_date"}`
