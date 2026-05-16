@@ -28,10 +28,11 @@ export const trainingApi = {
   create: (data: {
     config_id: string
     name: string
-    ts_codes: string[]
+    start_rank: number
+    end_rank: number
     start_date: string
     end_date: string
-  }) => api.post<{ task_id: string; status: string; message: string }>('/trainings', data),
+  }) => api.post<{ task_id: string; status: string; message: string }>('/trainings', null, { params: data }),
 
   getTask: (task_id: string) => api.get<TrainingTaskStatus>(`/trainings/task/${task_id}`),
 

@@ -74,7 +74,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { trainingApi, type TaskStatusResponse } from '@/api/training'
 import { modelApi } from '@/api/model'
-import { dataApi } from '@/api/data'
 
 const running = ref(false)
 const configs = ref<{ id: string; name: string }[]>([])
@@ -173,21 +172,11 @@ const runTraining = async () => {
   error.value = ''
 
   try {
-    let tsCodes: string[]
-    const startRank = form.value.mv_rank_start
-    const endRank = form.value.mv_rank_end
-
-    const stocksRes = await dataApi.listStocks(1, 3000, startRank, endRank)
-    tsCodes = stocksRes.data.items.map(s => s.ts_code)
-
-    if (tsCodes.length === 0) {
-      throw new Error('No stocks found for the specified market value rank range')
-    }
-
     const payload = {
       config_id: form.value.config_id,
       name: 'training',
-      ts_codes: tsCodes,
+      start_rank: form.value.mv_rank_start,
+      end_rank: form.value.mv_rank_end,
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
     }

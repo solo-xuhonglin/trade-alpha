@@ -20,7 +20,7 @@ router = APIRouter(prefix="/data", tags=["data"])
 @router.get("/stocks", response_model=StockListResponse)
 async def list_stocks_endpoint(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    page_size: int = Query(20, ge=1, le=5000, description="Items per page"),
     start_rank: Optional[int] = Query(None, ge=1, description="Start market value rank (1-based)"),
     end_rank: Optional[int] = Query(None, ge=1, description="End market value rank (1-based)"),
 ):

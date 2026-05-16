@@ -9,6 +9,7 @@ from datetime import datetime
 
 from trade_alpha.predict import training_service
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.data.service import list_stocks_by_mv_rank
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
 
@@ -19,6 +20,8 @@ class TrainingCreate(BaseModel):
     ts_codes: List[str]
     start_date: str
     end_date: str
+    start_rank: Optional[int] = 1
+    end_rank: Optional[int] = 3000
 
 
 @router.post("")
@@ -26,15 +29,22 @@ async def trigger_training(
     background_tasks: BackgroundTasks,
     config_id: str,
     name: str,
-    ts_codes: List[str],
     start_date: str,
     end_date: str,
+    start_rank: int = Query(1, ge=1),
+    end_rank: int = Query(3000, ge=1),
 ):
-    """Trigger training task (async)."""
+    """Trigger training task (async). Resolves stocks by market value rank range internally."""
     try:
         config_obj_id = PydanticObjectId(config_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID format")
+
+    stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
+    ts_codes = [s.ts_code for s in stocks]
+
+    if not ts_codes:
+        raise HTTPException(status_code=400, detail=f"No stocks found for rank range {start_rank}-{end_rank}")
 
     task = await Task(
         type=TaskType.TRAINING,
