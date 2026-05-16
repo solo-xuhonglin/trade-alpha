@@ -50,10 +50,35 @@ async def test_api():
         traceback.print_exc()
 
 
+async def check_latest_backtest():
+    """Check trades from the latest backtest result."""
+    results = await ExecutionResult.find().sort(-ExecutionResult.created_at).limit(1).to_list()
+    if not results:
+        print("\n=== No backtest results found ===\n")
+        return
+
+    r = results[0]
+    print(f"\n=== Latest Backtest: {r.name} ===\n")
+    print(f"  Return:      {r.total_return:.2%}")
+    print(f"  Max DD:      {r.max_drawdown:.2%}")
+    print(f"  Sharpe:      {r.sharpe_ratio:.2f}")
+    print(f"  Volatility:  {r.volatility:.2%}" if r.volatility else "")
+    print(f"  Total Trades:{r.total_trades}")
+
+    trades = await ExecutionTrade.find(
+        ExecutionTrade.backtest_id == r.id
+    ).sort(ExecutionTrade.trade_date).to_list()
+
+    print(f"\n  Trades ({len(trades)}):")
+    for t in trades:
+        print(f"    {t.trade_date} {t.action.upper():4s} {t.ts_code} price={t.price:.2f} shares={t.shares}")
+
+
 async def main():
     await init_db()
     await check_trades()
     await test_api()
+    await check_latest_backtest()
 
 
 if __name__ == "__main__":
