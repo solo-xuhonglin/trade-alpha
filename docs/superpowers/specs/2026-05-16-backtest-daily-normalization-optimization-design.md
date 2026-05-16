@@ -120,9 +120,15 @@ normalized = self._normalizer.normalize(day_df[available_fields])
 # ts_code is already in output via output_fields
 ```
 
-### Part 3: Update other normalizer usages
+### Part 3: Verify training code compatibility
 
-Check training code and other usages to ensure they set `output_fields=self._config.output_fields` (without ts_code).
+Training code uses `output_fields=config.output_fields` (without ts_code), which is the default behavior after removing hardcoded exclusion. No changes needed.
+
+| Module | output_fields | ts_code in output | Behavior |
+|--------|---------------|-------------------|----------|
+| Training | `config.output_fields` | No | Unchanged |
+| Real-time prediction | `config.output_fields` | No | Unchanged |
+| Backtest | `config.output_fields + ["ts_code"]` | Yes | New behavior |
 
 ## Performance Impact
 
