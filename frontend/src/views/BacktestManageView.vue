@@ -120,7 +120,7 @@ const modeOptions = [
 ]
 
 const form = ref({
-  name: '',
+  name: `backtest_${formatDateTime()}`,
   ts_codes: '',
   start_date: '2025-01-01',
   end_date: '2025-12-31',
@@ -129,6 +129,8 @@ const form = ref({
   account_config_id: '',
   training_id: '',
 })
+
+const nameSuffix = 0
 
 const activeTaskHeaders = [
   { title: '任务ID', key: 'task_id' },

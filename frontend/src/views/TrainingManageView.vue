@@ -91,7 +91,7 @@ const formatDateTime = () => {
 
 const form = ref({
   config_id: '',
-  name: '',
+  name: `training_${formatDateTime()}`,
   mv_rank_start: 1,
   mv_rank_end: 3000,
   start_date: '2015-01-01',
