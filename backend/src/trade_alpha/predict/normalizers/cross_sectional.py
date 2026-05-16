@@ -16,7 +16,7 @@ class CrossSectionalNormalizer(BaseNormalizer):
 
     NaN values are preserved and excluded from statistics computation.
     Input must contain 'trade_date' column for grouping.
-    Output is a pure feature DataFrame without ts_code or trade_date columns.
+    Output is controlled by output_fields parameter.
 
     Note: XGBoost can handle NaN values natively, no imputation needed.
     """
@@ -76,13 +76,10 @@ class CrossSectionalNormalizer(BaseNormalizer):
             result_parts.append(group)
 
         result_df = pd.concat(result_parts, ignore_index=True)
-        
+
         output_fields = self.output_fields if self.output_fields else self.standardize_fields
-        
-        excluded_fields = {"ts_code", "trade_date"}
-        output_fields = [f for f in output_fields if f not in excluded_fields]
-        
+
         available_fields = result_df.columns.tolist()
         output_fields = [f for f in output_fields if f in available_fields]
-        
+
         return result_df[output_fields]
