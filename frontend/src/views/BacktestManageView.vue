@@ -3,17 +3,7 @@
     <v-card-title class="text-subtitle-1">发起回测</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="4" md="3">
-          <v-select
-            v-model="form.training_id"
-            :items="trainingOptions"
-            item-title="label"
-            item-value="value"
-            label="训练结果"
-            clearable
-          />
-        </v-col>
-        <v-col cols="12" sm="4" md="3">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.account_config_id"
             :items="accountOptions"
@@ -23,31 +13,49 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="4" md="3">
-          <v-text-field v-model="form.ts_codes" label="股票代码" placeholder="多个代码用逗号分隔" />
+        <v-col cols="12" sm="6" md="3">
+          <v-select
+            v-model="form.training_id"
+            :items="trainingOptions"
+            item-title="label"
+            item-value="value"
+            label="训练结果"
+            clearable
+          />
         </v-col>
-        <v-col cols="12" sm="3" md="3">
+        <v-col cols="12" sm="6" md="3">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="3" md="3">
+        <v-col cols="12" sm="6" md="3">
           <v-text-field v-model="form.end_date" label="结束日期" type="date" />
-        </v-col>
-        <v-col cols="12" sm="3" md="3">
-          <v-text-field v-model.number="form.max_positions" label="最大持仓数" type="number" />
         </v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.mode"
             :items="modeOptions"
             item-title="label"
             item-value="value"
-            label="模式"
+            label="策略配置"
           />
         </v-col>
-        <v-col cols="12" sm="6" md="4">
-          <v-btn color="primary" block @click="runBacktest" :loading="running" height="48">
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
+            v-if="form.mode === 'single'"
+            v-model="form.ts_codes"
+            label="股票代码"
+            placeholder="多个代码用逗号分隔"
+          />
+          <v-text-field
+            v-else
+            v-model.number="form.max_positions"
+            label="最大持仓数"
+            type="number"
+          />
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-btn color="primary" block @click="runBacktest" :loading="running" height="40">
             发起回测
           </v-btn>
         </v-col>
@@ -215,24 +223,23 @@ const runBacktest = async () => {
       throw new Error('请先选择账户配置')
     }
 
-    const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
-
     const payload: Record<string, any> = {
+      training_id: form.value.training_id,
+      account_config_id: form.value.account_config_id,
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
       name: 'backtest',
       mode: form.value.mode,
-      max_positions: form.value.max_positions,
     }
 
-    if (form.value.training_id) {
-      payload.training_id = form.value.training_id
-    }
-    if (form.value.account_config_id) {
-      payload.account_config_id = form.value.account_config_id
-    }
-    if (tsCodes.length > 0) {
+    if (form.value.mode === 'single') {
+      const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
+      if (tsCodes.length === 0) {
+        throw new Error('请至少输入一个股票代码')
+      }
       payload.ts_codes = tsCodes
+    } else {
+      payload.max_positions = form.value.max_positions
     }
 
     await backtestApi.run(payload)
