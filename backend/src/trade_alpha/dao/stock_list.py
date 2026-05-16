@@ -19,6 +19,8 @@ class StockList(Document):
     pb: Optional[float] = None
     updated_at: Optional[datetime] = None
     sync_status: Optional[str] = "pending"
+    data_count: Optional[int] = None
+    latest_date: Optional[str] = None
 
     class Settings:
         name = "stock_list"

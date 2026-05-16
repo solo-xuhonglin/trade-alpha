@@ -105,7 +105,21 @@ async def list_stocks_by_mv_rank(start_rank: int = 1, end_rank: int = 3000) -> L
 
 
 async def get_downloaded_summary() -> list[dict]:
-    """Get summary of downloaded data per stock."""
+    """Get summary of downloaded data per stock from StockList stored fields."""
+    stocks = await StockList.find_all().to_list()
+    return [
+        {
+            "ts_code": s.ts_code,
+            "count": s.data_count,
+            "latest_date": s.latest_date,
+        }
+        for s in stocks
+        if s.data_count is not None
+    ]
+
+
+async def update_stock_data_count():
+    """Aggregate stock_daily collection and update data_count/latest_date on StockList."""
     pipeline = [
         {"$group": {
             "_id": "$ts_code",
@@ -115,14 +129,16 @@ async def get_downloaded_summary() -> list[dict]:
     ]
     from trade_alpha.dao.mongodb import get_database
     db = await get_database()
-    result = []
+    updated = 0
     async for doc in db.stock_daily.aggregate(pipeline):
-        result.append({
-            "ts_code": doc["_id"],
-            "count": doc["count"],
-            "latest_date": doc["latest_date"]
-        })
-    return result
+        stock = await StockList.find_one(StockList.ts_code == doc["_id"])
+        if stock:
+            stock.data_count = doc["count"]
+            stock.latest_date = doc["latest_date"]
+            await stock.save()
+            updated += 1
+    logger.info(f"update_stock_data_count", f"Updated {updated} stocks")
+    return updated
 
 
 async def find_stock_daily_by_ts_code(

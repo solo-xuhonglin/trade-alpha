@@ -8,7 +8,6 @@ from trade_alpha.data.service import (
     update_stock_list,
     list_stocks,
     list_stocks_by_mv_rank,
-    get_downloaded_summary,
     find_stock_daily_by_ts_code,
     find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
@@ -37,20 +36,8 @@ async def list_stocks_endpoint(
         stocks, total = await list_stocks(page=page, page_size=page_size)
         total_pages = (total + page_size - 1) // page_size
 
-    downloaded_summary = await get_downloaded_summary()
-
-    downloaded_map = {
-        item["ts_code"]: {
-            "count": item["count"],
-            "latest_date": item["latest_date"]
-        }
-        for item in downloaded_summary
-    }
-
     items = []
     for stock in stocks:
-        ts_code = stock.ts_code
-        downloaded = downloaded_map.get(ts_code)
         items.append({
             "ts_code": stock.ts_code,
             "name": stock.name,
@@ -62,8 +49,8 @@ async def list_stocks_endpoint(
             "pb": stock.pb,
             "updated_at": stock.updated_at,
             "sync_status": stock.sync_status or "pending",
-            "data_count": downloaded["count"] if downloaded else None,
-            "latest_date": downloaded["latest_date"] if downloaded else None,
+            "data_count": stock.data_count,
+            "latest_date": stock.latest_date,
         })
 
     return StockListResponse(

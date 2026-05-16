@@ -10,7 +10,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from beanie.odm.operators.find.comparison import NotIn
 
 from trade_alpha.dao import StockList
-from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list
+from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
@@ -142,6 +142,14 @@ def create_scheduler() -> AsyncIOScheduler:
         trigger=IntervalTrigger(seconds=60),
         id="data_sync_job",
         name="Data Sync Job",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        update_stock_data_count,
+        trigger=IntervalTrigger(hours=1),
+        id="update_data_count_job",
+        name="Update Stock Data Count Job",
         replace_existing=True,
     )
 
