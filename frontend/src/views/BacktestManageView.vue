@@ -3,7 +3,10 @@
     <v-card-title class="text-subtitle-1">发起回测</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="2">
+          <v-text-field v-model="form.name" label="回测名称" />
+        </v-col>
+        <v-col cols="12" sm="6" md="2">
           <v-select
             v-model="form.account_config_id"
             :items="accountOptions"
@@ -23,7 +26,7 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="2">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
         </v-col>
         <v-col cols="12" sm="6" md="3">
@@ -113,6 +116,7 @@ const modeOptions = [
 ]
 
 const form = ref({
+  name: '',
   ts_codes: '',
   start_date: formatDate(new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)),
   end_date: formatDate(new Date()),
@@ -228,7 +232,7 @@ const runBacktest = async () => {
       account_config_id: form.value.account_config_id,
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
-      name: 'backtest',
+      name: form.value.name || 'backtest',
       mode: form.value.mode,
     }
 

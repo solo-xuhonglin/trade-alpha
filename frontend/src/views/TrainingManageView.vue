@@ -3,7 +3,7 @@
     <v-card-title class="text-subtitle-1">发起训练</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.config_id"
             :items="configOptions"
@@ -12,10 +12,13 @@
             label="模型配置"
           />
         </v-col>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="form.name" label="训练名称" />
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
           <v-text-field v-model="form.end_date" label="结束日期" type="date" />
         </v-col>
       </v-row>
@@ -82,6 +85,7 @@ const error = ref('')
 
 const form = ref({
   config_id: '',
+  name: '',
   mv_rank_start: 1,
   mv_rank_end: 3000,
   start_date: '2015-01-01',
@@ -174,7 +178,7 @@ const runTraining = async () => {
   try {
     const payload = {
       config_id: form.value.config_id,
-      name: 'training',
+      name: form.value.name || 'training',
       start_rank: form.value.mv_rank_start,
       end_rank: form.value.mv_rank_end,
       start_date: form.value.start_date.replace(/-/g, ''),
