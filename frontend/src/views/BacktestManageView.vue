@@ -31,18 +31,19 @@
         </v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="3" md="3">
           <v-select
-            v-model="form.mode"
-            :items="modeOptions"
+            v-model="form.strategy_config_id"
+            :items="strategyOptions"
             item-title="label"
             item-value="value"
             label="策略配置"
+            clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="3" md="3">
           <v-text-field
-            v-if="form.mode === 'single'"
+            v-if="currentMode === 'single'"
             v-model="form.ts_codes"
             label="股票代码"
             placeholder="多个代码用逗号分隔"
@@ -54,10 +55,10 @@
             type="number"
           />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="3" md="2">
           <v-text-field v-model="form.name" label="回测名称" />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="3" md="4">
           <v-btn color="primary" block @click="runBacktest" :loading="running" height="40">
             发起回测
           </v-btn>
@@ -95,10 +96,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
 import { accountConfigApi } from '@/api/account'
 import { trainingRecordApi } from '@/api/trainingRecord'
+import { strategyApi } from '@/api/strategy'
 
 const formatDateTime = () => {
   const now = new Date()
@@ -113,24 +115,25 @@ const error = ref('')
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const accountOptions = ref<{ label: string; value: string }[]>([])
+const strategyOptions = ref<{ label: string; value: string }[]>([])
+const strategyTypeMap = ref<Record<string, string>>({})
 
-const modeOptions = [
-  { label: '组合回测', value: 'portfolio' },
-  { label: '单股票回测', value: 'single' },
-]
+const currentMode = computed(() => {
+  const id = form.value.strategy_config_id
+  if (!id) return 'portfolio'
+  return strategyTypeMap.value[id] === 'single' ? 'single' : 'portfolio'
+})
 
 const form = ref({
   name: `backtest_${formatDateTime()}`,
   ts_codes: '002594.SZ',
   start_date: '2025-01-01',
   end_date: '2025-12-31',
-  mode: 'portfolio',
   max_positions: 10,
   account_config_id: '',
   training_id: '',
+  strategy_config_id: '',
 })
-
-const nameSuffix = 0
 
 const activeTaskHeaders = [
   { title: '任务ID', key: 'task_id' },
@@ -221,6 +224,20 @@ const loadAccounts = async () => {
   }
 }
 
+const loadStrategies = async () => {
+  try {
+    const res = await strategyApi.list()
+    const typeMap: Record<string, string> = {}
+    strategyOptions.value = res.data.map(s => {
+      typeMap[s.id] = s.type
+      return { label: s.name, value: s.id }
+    })
+    strategyTypeMap.value = typeMap
+  } catch (e) {
+    console.error('Failed to load strategies:', e)
+  }
+}
+
 const runBacktest = async () => {
   running.value = true
   error.value = ''
@@ -239,10 +256,14 @@ const runBacktest = async () => {
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
       name: form.value.name || `backtest_${formatDateTime()}`,
-      mode: form.value.mode,
+      mode: currentMode.value,
     }
 
-    if (form.value.mode === 'single') {
+    if (form.value.strategy_config_id) {
+      payload.strategy_config_id = form.value.strategy_config_id
+    }
+
+    if (currentMode.value === 'single') {
       const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
       if (tsCodes.length === 0) {
         throw new Error('请至少输入一个股票代码')
@@ -265,6 +286,7 @@ const runBacktest = async () => {
 onMounted(() => {
   loadTrainings()
   loadAccounts()
+  loadStrategies()
   pollActiveTasks()
   startPolling()
 })

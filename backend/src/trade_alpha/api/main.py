@@ -13,7 +13,7 @@ from trade_alpha.api.routers import (
     data,
     indicators,
     predict,
-    strategy,
+    strategy_config,
     account_config,
     backtest,
     backtest_records,
@@ -98,7 +98,7 @@ app.add_middleware(LoggingMiddleware)
 app.include_router(data.router, prefix="/api")
 app.include_router(indicators.router, prefix="/api")
 app.include_router(predict.router, prefix="/api")
-app.include_router(strategy.router, prefix="/api")
+app.include_router(strategy_config.router, prefix="/api")
 app.include_router(account_config.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(backtest_records.router, prefix="/api")

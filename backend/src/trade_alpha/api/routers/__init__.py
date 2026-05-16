@@ -7,8 +7,8 @@ from trade_alpha.api.routers import (
     indicators,
     model_configs,
     predict,
-    strategy,
+    strategy_config,
     trainings,
 )
 
-__all__ = ["account_config", "backtest", "data", "indicators", "model_configs", "predict", "strategy", "trainings"]
+__all__ = ["account_config", "backtest", "data", "indicators", "model_configs", "predict", "strategy_config", "trainings"]

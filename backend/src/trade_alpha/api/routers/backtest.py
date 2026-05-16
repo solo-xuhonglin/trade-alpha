@@ -8,9 +8,11 @@ from datetime import datetime
 
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.predict.training_service import get_training_by_id
+from trade_alpha.predict.config_service import get_config_by_id
 from trade_alpha.execution.pipeline import ExecutionPipeline
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.strategy.service import get_strategy_by_id
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
@@ -55,6 +57,7 @@ class BacktestRunRequest(BaseModel):
     mode: str = "portfolio"
     ts_codes: Optional[List[str]] = None
     max_positions: int = 10
+    strategy_config_id: Optional[str] = None
 
 
 @router.post("/run")
@@ -84,6 +87,7 @@ async def trigger_backtest(
                 "mode": body.mode,
                 "ts_codes": body.ts_codes,
                 "max_positions": body.max_positions,
+                "strategy_config_id": body.strategy_config_id,
             },
             created_at=datetime.now(),
         ).save()
@@ -119,9 +123,24 @@ async def run_backtest_async(task_id: str):
         params = task.params
         account_config = await AccountConfig.get(PydanticObjectId(params["account_config_id"]))
 
+        training = await get_training_by_id(PydanticObjectId(params["training_id"]))
+        if not training:
+            raise ValueError(f"Training not found: {params['training_id']}")
+        model_config = await get_config_by_id(training.config_id)
+        if not model_config:
+            raise ValueError(f"Model config not found: {training.config_id}")
+
+        strategy_config = None
+        if params.get("strategy_config_id"):
+            strategy_config = await get_strategy_by_id(PydanticObjectId(params["strategy_config_id"]))
+            if not strategy_config:
+                raise ValueError(f"Strategy config not found: {params['strategy_config_id']}")
+
         pipeline = ExecutionPipeline(
             account_config=account_config,
             training_id=PydanticObjectId(params["training_id"]),
+            model_config=model_config,
+            strategy_config=strategy_config,
             mode=params["mode"],
             ts_codes=params.get("ts_codes"),
             max_positions=params.get("max_positions", 10),
