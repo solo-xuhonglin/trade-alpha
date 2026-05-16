@@ -2,7 +2,7 @@
 
 ## 概述
 
-Trade-Alpha 前端基于 Vue 3 + Vuetify 4 实现，提供数据管理、账户管理、策略管理、模型管理、训练记录、回测、交易记录等功能。
+Trade-Alpha 前端基于 Vue 3 + Vuetify 4 实现，提供数据管理、账户管理、策略管理、模型管理、训练管理、回测管理、交易记录等功能。
 
 ## 技术栈
 
@@ -26,9 +26,12 @@ frontend/
 │   │   ├── data.ts            # 数据 API
 │   │   ├── account.ts         # 账户 API
 │   │   ├── strategy.ts        # 策略 API
-│   │   ├── backtest.ts        # 回测 API
-│   │   ├── models.ts          # 模型配置 API
-│   │   └── trainings.ts       # 训练 API
+│   │   ├── model.ts           # 模型配置 API
+│   │   ├── training.ts         # 训练管理 API
+│   │   ├── trainingRecord.ts    # 训练记录 API
+│   │   ├── backtest.ts         # 回测管理 API
+│   │   ├── backtestRecord.ts   # 回测记录 API
+│   │   └── trade.ts           # 交易记录 API
 │   ├── components/             # 公共组件
 │   │   └── AppLayout.vue      # 应用布局
 │   ├── views/                  # 页面视图
@@ -36,9 +39,11 @@ frontend/
 │   │   ├── AccountsPage.vue   # 账户管理
 │   │   ├── StrategyView.vue   # 策略管理
 │   │   ├── ModelsView.vue     # 模型管理
-│   │   ├── TrainingsView.vue  # 训练记录
-│   │   ├── BacktestView.vue   # 回测
-│   │   └── TradeListView.vue  # 交易记录
+│   │   ├── TrainingManageView.vue     # 训练管理
+│   │   ├── TrainingRecordsView.vue     # 训练记录
+│   │   ├── BacktestManageView.vue     # 回测管理
+│   │   ├── BacktestRecordsView.vue     # 回测记录
+│   │   └── TradesView.vue     # 交易记录
 │   ├── router/
 │   │   └── index.ts           # 路由配置
 │   ├── plugins/
@@ -63,16 +68,34 @@ frontend/
 │            │                                 │
 │  数据管理   │                                 │
 │  账户管理   │                                 │
-│  策略管理   │        主内容区                  │  ← router-view
-│  模型管理   │                                 │
-│  训练记录   │                                 │
-│  回测      │                                 │
-│  交易记录   │                                 │
+│  策略管理   │                                 │
+│  模型管理   │        主内容区                  │  ← router-view
+│  ▼ 训练    │                                 │
+│    训练管理 │                                 │
+│    训练记录 │                                 │
+│  ▼ 回测    │                                 │
+│    回测管理 │                                 │
+│    回测记录 │                                 │
+│    交易记录 │                                 │
 │            │                                 │
 └────────────┴─────────────────────────────────┘
      ↑
   左侧导航 (v-navigation-drawer)
 ```
+
+## 路由配置
+
+| 路由 | 页面 | 说明 |
+|------|------|------|
+| `/data` | 数据管理 | 股票列表、数据下载 |
+| `/account-configs` | 账户管理 | 账户配置 |
+| `/strategies` | 策略管理 | 策略配置 |
+| `/models` | 模型管理 | 模型配置 |
+| `/trainings/manage` | 训练管理 | 发起训练任务 |
+| `/trainings/records` | 训练记录 | 查看训练历史 |
+| `/backtest/manage` | 回测管理 | 发起回测任务 |
+| `/backtest/records` | 回测记录 | 查看回测历史 |
+| `/backtest/trades` | 交易记录 | 查看交易流水 |
 
 ## 页面设计
 
@@ -120,38 +143,73 @@ frontend/
 - 创建/编辑/删除模型配置
 - 支持 linear、xgboost、lstm 三种模型类型
 - 动态参数表单（根据模型类型显示不同参数）
-- 训练按钮：创建训练
+- 训练按钮：跳转至训练管理页面
 
 **组件**:
 - 数据表格：配置列表
 - 弹窗表单：配置编辑
-- 训练弹窗：选择股票和时间段
 
-### 5. 训练记录 `/trainings`
+### 5. 训练管理 `/trainings/manage`
+
+**功能**:
+- 选择模型配置
+- 选择股票（通过市值排名范围）
+- 设置时间范围
+- 发起训练
+- 查看运行中的任务状态
+
+**组件**:
+- 表单：选择配置和时间范围
+- 任务列表：运行中的训练任务
+
+### 6. 训练记录 `/trainings/records`
 
 **功能**:
 - 查看训练记录列表
 - 按模型配置筛选
 - 查看训练指标（MSE、MAE）
 - 预测按钮：使用训练模型预测
+- 删除训练记录
 
 **组件**:
 - 数据表格：训练记录
 - 筛选下拉：按配置筛选
 - 预测弹窗：选择股票并显示预测结果
 
-### 6. 回测 `/backtest`
+### 7. 回测管理 `/backtest/manage`
 
 **功能**:
-- 运行回测（必填：账户、策略、训练结果）
-- 查看回测结果（含配置快照、每日快照、交易记录）
-- 查看回测历史和详情
+- 选择股票
+- 设置时间范围
+- 发起回测
+- 查看运行中的任务状态
 
 **组件**:
-- 表单：回测参数（账户、策略、训练结果、股票、时间段）
-- 结果卡片：收益率、回撤、夏普比率等
+- 表单：输入参数
+- 任务列表：运行中的回测任务
+
+### 8. 回测记录 `/backtest/records`
+
+**功能**:
+- 查看回测历史列表
+- 查看回测结果详情（收益率、夏普比率等）
+- 查看交易记录
+- 删除回测记录
+
+**组件**:
 - 数据表格：回测历史
-- 详情弹窗：查看配置快照、每日账户快照、交易记录
+- 详情弹窗：回测指标
+- 交易记录弹窗
+
+### 9. 交易记录 `/backtest/trades`
+
+**功能**:
+- 查看交易流水列表
+- 按账户、策略、训练、股票筛选
+
+**组件**:
+- 数据表格：交易流水
+- 筛选下拉：多维度筛选
 
 ## API 封装
 
@@ -205,21 +263,19 @@ export const dataApi = {
 }
 ```
 
-### 使用示例
+### API 模块说明
 
-```typescript
-import { strategyApi } from '@/api/strategy'
-
-// 获取策略列表
-const strategies = await strategyApi.list()
-
-// 创建策略
-await strategyApi.create({
-  name: 'MA20策略',
-  type: 'ma',
-  config: { ma_period: 20, threshold: 0.01 }
-})
-```
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 数据 | `data.ts` | 股票列表、数据下载 |
+| 账户 | `account.ts` | 账户配置 CRUD |
+| 策略 | `strategy.ts` | 策略配置 CRUD |
+| 模型 | `model.ts` | 模型配置 CRUD |
+| 训练管理 | `training.ts` | 发起训练、任务状态 |
+| 训练记录 | `trainingRecord.ts` | 训练列表、预测、删除 |
+| 回测管理 | `backtest.ts` | 发起回测、任务状态 |
+| 回测记录 | `backtestRecord.ts` | 回测列表、详情、删除 |
+| 交易 | `trade.ts` | 交易流水列表 |
 
 ## 开发配置
 

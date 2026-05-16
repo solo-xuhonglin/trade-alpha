@@ -15,7 +15,6 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
-          <v-btn size="small" variant="tonal" color="primary" @click="openTrainingDialog(item)">训练</v-btn>
           <v-icon color="medium-emphasis" icon="mdi-pencil" size="small" @click="openDialog(item)"></v-icon>
           <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)"></v-icon>
         </div>
@@ -52,23 +51,6 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="trainingDialog" max-width="500px">
-    <v-card title="创建训练">
-      <v-card-text>
-        <v-text-field v-model="trainingForm.name" label="训练名称"></v-text-field>
-        <v-select v-model="trainingForm.ts_codes" :items="stockOptions" label="股票" multiple chips closable-chips></v-select>
-        <v-text-field v-model="trainingForm.start_date" label="开始日期" placeholder="YYYYMMDD"></v-text-field>
-        <v-text-field v-model="trainingForm.end_date" label="结束日期" placeholder="YYYYMMDD"></v-text-field>
-      </v-card-text>
-      <v-divider></v-divider>
-      <v-card-actions class="bg-surface-light">
-        <v-btn text="取消" variant="plain" @click="trainingDialog = false"></v-btn>
-        <v-spacer></v-spacer>
-        <v-btn text="开始训练" color="primary" @click="startTraining" :loading="training"></v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-
   <v-dialog v-model="deleteDialog" max-width="400px">
     <v-card subtitle="此操作不可撤销" title="确认删除">
       <template v-slot:text>
@@ -86,17 +68,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { modelsApi, type ModelConfig } from '@/api/models'
-import { dataApi } from '@/api/data'
-import { trainingsApi } from '@/api/trainings'
+import { modelApi, type ModelConfig } from '@/api/model'
 
 const loading = ref(false)
 const dialog = ref(false)
-const trainingDialog = ref(false)
 const deleteDialog = ref(false)
-const training = ref(false)
 const models = ref<ModelConfig[]>([])
-const stockOptions = ref<string[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<ModelConfig | null>(null)
 
@@ -105,13 +82,6 @@ const form = ref({
   model_type: 'linear' as 'linear' | 'xgboost' | 'lstm',
   targets: ['open', 'close'] as string[],
   params: {} as Record<string, any>,
-})
-
-const trainingForm = ref({
-  name: '',
-  ts_codes: [] as string[],
-  start_date: '20230101',
-  end_date: '20231231',
 })
 
 const defaultParams: Record<string, Record<string, any>> = {
@@ -131,16 +101,11 @@ const headers = [
 const loadModels = async () => {
   loading.value = true
   try {
-    const res = await modelsApi.list()
+    const res = await modelApi.list()
     models.value = res.data
   } finally {
     loading.value = false
   }
-}
-
-const loadStockOptions = async () => {
-  const res = await dataApi.listStocks(1, 100)
-  stockOptions.value = res.data.items.map(s => s.ts_code)
 }
 
 const openDialog = (item?: ModelConfig) => {
@@ -159,40 +124,14 @@ const openDialog = (item?: ModelConfig) => {
   dialog.value = true
 }
 
-const openTrainingDialog = (item: ModelConfig) => {
-  editingId.value = item.id
-  trainingForm.value = {
-    name: `${item.name}_training`,
-    ts_codes: [],
-    start_date: '20230101',
-    end_date: '20231231',
-  }
-  loadStockOptions()
-  trainingDialog.value = true
-}
-
 const saveConfig = async () => {
   if (editingId.value) {
-    await modelsApi.update(editingId.value, form.value)
+    await modelApi.update(editingId.value, form.value)
   } else {
-    await modelsApi.create(form.value)
+    await modelApi.create(form.value)
   }
   dialog.value = false
   await loadModels()
-}
-
-const startTraining = async () => {
-  if (!editingId.value) return
-  training.value = true
-  try {
-    await trainingsApi.create({
-      config_id: editingId.value,
-      ...trainingForm.value,
-    })
-    trainingDialog.value = false
-  } finally {
-    training.value = false
-  }
 }
 
 const confirmDelete = (item: ModelConfig) => {
@@ -202,7 +141,7 @@ const confirmDelete = (item: ModelConfig) => {
 
 const deleteConfig = async () => {
   if (!deletingItem.value) return
-  await modelsApi.delete(deletingItem.value.id)
+  await modelApi.delete(deletingItem.value.id)
   deleteDialog.value = false
   deletingItem.value = null
   await loadModels()

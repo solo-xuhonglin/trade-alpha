@@ -5,15 +5,47 @@
       <v-app-bar-title>Trade-Alpha</v-app-bar-title>
     </v-app-bar>
 
-    <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp" width="180">
+    <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp" width="200">
       <v-list>
         <v-list-item
-          v-for="item in menuItems"
+          v-for="item in topLevelItems"
           :key="item.path"
           :to="item.path"
           :prepend-icon="item.icon"
           :title="item.title"
         />
+
+        <v-list-group value="training">
+          <template v-slot:activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              prepend-icon="mdi-chart-scatter-plot"
+              title="训练"
+            />
+          </template>
+          <v-list-item
+            v-for="item in trainingItems"
+            :key="item.path"
+            :to="item.path"
+            :title="item.title"
+          />
+        </v-list-group>
+
+        <v-list-group value="backtest">
+          <template v-slot:activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              prepend-icon="mdi-chart-line"
+              title="回测"
+            />
+          </template>
+          <v-list-item
+            v-for="item in backtestItems"
+            :key="item.path"
+            :to="item.path"
+            :title="item.title"
+          />
+        </v-list-group>
       </v-list>
     </v-navigation-drawer>
 
@@ -33,13 +65,21 @@ const { mdAndUp } = useDisplay()
 
 const drawer = ref(true)
 
-const menuItems = [
+const topLevelItems = [
   { path: '/data', title: '数据管理', icon: 'mdi-database' },
   { path: '/account-configs', title: '账户管理', icon: 'mdi-wallet' },
   { path: '/strategies', title: '策略管理', icon: 'mdi-strategy' },
   { path: '/models', title: '模型管理', icon: 'mdi-brain' },
-  { path: '/trainings', title: '训练记录', icon: 'mdi-chart-scatter-plot' },
-  { path: '/backtest', title: '回测', icon: 'mdi-chart-line' },
-  { path: '/trades', title: '交易记录', icon: 'mdi-swap-horizontal' },
+]
+
+const trainingItems = [
+  { path: '/trainings/manage', title: '训练管理' },
+  { path: '/trainings/records', title: '训练记录' },
+]
+
+const backtestItems = [
+  { path: '/backtest/manage', title: '回测管理' },
+  { path: '/backtest/records', title: '回测记录' },
+  { path: '/backtest/trades', title: '交易记录' },
 ]
 </script>

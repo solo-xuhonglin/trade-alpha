@@ -27,18 +27,40 @@ const routes = [
   },
   {
     path: '/trainings',
-    name: 'Trainings',
-    component: () => import('@/views/TrainingsView.vue')
+    redirect: '/trainings/manage',
+    children: [
+      {
+        path: 'manage',
+        name: 'TrainingManage',
+        component: () => import('@/views/TrainingManageView.vue')
+      },
+      {
+        path: 'records',
+        name: 'TrainingRecords',
+        component: () => import('@/views/TrainingRecordsView.vue')
+      }
+    ]
   },
   {
     path: '/backtest',
-    name: 'Backtest',
-    component: () => import('@/views/BacktestView.vue')
-  },
-  {
-    path: '/trades',
-    name: 'Trades',
-    component: () => import('@/views/TradeListView.vue')
+    redirect: '/backtest/manage',
+    children: [
+      {
+        path: 'manage',
+        name: 'BacktestManage',
+        component: () => import('@/views/BacktestManageView.vue')
+      },
+      {
+        path: 'records',
+        name: 'BacktestRecords',
+        component: () => import('@/views/BacktestRecordsView.vue')
+      },
+      {
+        path: 'trades',
+        name: 'BacktestTrades',
+        component: () => import('@/views/TradesView.vue')
+      }
+    ]
   }
 ]
 

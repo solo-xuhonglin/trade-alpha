@@ -22,7 +22,7 @@ function Stop-Services {
 function Start-Services {
     Write-Host "  Starting backend..."
     Start-Process -WindowStyle Hidden -FilePath $PYTHON_EXE `
-        -ArgumentList "-m fastapi run -e trade_alpha.api.main:app --port 8000" `
+        -ArgumentList "-m fastapi run src/trade_alpha/api/main.py --port 8000" `
         -WorkingDirectory $BACKEND_DIR
 
     Write-Host "  Starting frontend..."

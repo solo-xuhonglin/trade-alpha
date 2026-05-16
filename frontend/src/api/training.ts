@@ -1,41 +1,16 @@
 import api from './index'
 
-export interface Training {
-  id: string
-  config_id: string
-  name: string
-  ts_codes: string[]
-  start_date: string
-  end_date: string
-  metrics: {
-    open_mse?: number
-    open_mae?: number
-    close_mse?: number
-    close_mae?: number
-    high_mse?: number
-    high_mae?: number
-    low_mse?: number
-    low_mae?: number
-    sample_count: number
-  }
-}
-
-export interface PredictResult {
-  predictions: Record<string, number>
-}
-
 export interface TrainingTaskStatus {
   task_id: string
   status: 'pending' | 'running' | 'completed' | 'failed'
   progress: number
-  training?: Training
   error_message?: string
   created_at: string
   started_at?: string
   completed_at?: string
 }
 
-export interface TrainingTaskListResponse {
+export interface TaskListResponse {
   items: {
     task_id: string
     status: string
@@ -49,14 +24,7 @@ export interface TrainingTaskListResponse {
   total_pages: number
 }
 
-export const trainingsApi = {
-  list: (configId?: string) => {
-    const params = configId ? { config_id: configId } : {}
-    return api.get<Training[]>('/trainings', { params })
-  },
-
-  get: (id: string) => api.get<Training>(`/trainings/${id}`),
-
+export const trainingApi = {
   create: (data: {
     config_id: string
     name: string
@@ -74,13 +42,6 @@ export const trainingsApi = {
     if (page) params.page = page
     if (pageSize) params.page_size = pageSize
     if (status) params.status = status
-    return api.get<TrainingTaskListResponse>('/trainings/tasks', { params })
-  },
-
-  delete: (id: string) => api.delete(`/trainings/${id}`),
-
-  predict: (id: string, tsCode?: string) => {
-    const data = tsCode ? { ts_code: tsCode } : {}
-    return api.post<PredictResult>(`/trainings/${id}/predict`, data)
+    return api.get<TaskListResponse>('/trainings/tasks', { params })
   },
 }

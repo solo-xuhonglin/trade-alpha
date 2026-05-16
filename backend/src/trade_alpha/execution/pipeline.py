@@ -172,7 +172,7 @@ class ExecutionPipeline:
         baseline_daily_prices: List[float] = []
 
         if self.single_stock_ts_code:
-            from beanie.odm.operators.find.comparison import In
+            from trade_alpha.dao import StockDaily
             baseline_records = await StockDaily.find(
                 StockDaily.ts_code == self.single_stock_ts_code,
                 StockDaily.trade_date >= start_date,

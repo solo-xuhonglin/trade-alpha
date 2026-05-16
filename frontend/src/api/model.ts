@@ -8,7 +8,7 @@ export interface ModelConfig {
   targets: string[]
 }
 
-export const modelsApi = {
+export const modelApi = {
   list: (modelType?: string) => {
     const params = modelType ? { model_type: modelType } : {}
     return api.get<ModelConfig[]>('/model-configs', { params })

@@ -50,7 +50,7 @@ async def ensure_account_config():
     return config
 
 
-async def run_single_backtest(ts_code, training_id, account_config, model_config, backtest_start, backtest_end):
+async def run_single_backtest(ts_code, training_id, account_config, model_config, backtest_start, backtest_end, name=None):
     stock = await StockList.find_one(StockList.ts_code == ts_code)
     stock_name = stock.name if stock else ts_code
 
@@ -65,6 +65,7 @@ async def run_single_backtest(ts_code, training_id, account_config, model_config
     result = await pipeline.run_backtest(
         start_date=backtest_start,
         end_date=backtest_end,
+        name=name,
     )
 
     return result, stock_name
@@ -110,6 +111,7 @@ async def main():
     parser.add_argument("--ts-code", type=str, default=None, help="Stock code (omit for batch mode)")
     parser.add_argument("--backtest-start", type=str, default="20250101")
     parser.add_argument("--backtest-end", type=str, default="20250331")
+    parser.add_argument("--name", type=str, default=None, help="Custom backtest name")
     args = parser.parse_args()
 
     await init_db()
@@ -126,9 +128,10 @@ async def main():
     if args.ts_code:
         print(f"\nRunning single backtest for {args.ts_code}...")
         start = datetime.now()
+        backtest_name = args.name or f"backtest_{args.ts_code}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         result, stock_name = await run_single_backtest(
             args.ts_code, training.id, account_config, model_config,
-            args.backtest_start, args.backtest_end,
+            args.backtest_start, args.backtest_end, backtest_name,
         )
         duration = (datetime.now() - start).total_seconds()
         print_single_result(result, stock_name, duration)
