@@ -44,28 +44,25 @@
         {{ formatMarketValue(item.total_mv) }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <div class="d-flex ga-2 justify-end">
-          <v-icon
+        <div class="d-flex ga-1 justify-end">
+          <v-btn
             v-if="item.sync_status === 'pending'"
-            color="medium-emphasis"
-            icon="mdi-download"
-            size="small"
+            size="small" variant="text"
+            prepend-icon="mdi-download"
             @click="openDownloadDialog(item)"
-          ></v-icon>
-          <v-icon
+          >下载</v-btn>
+          <v-btn
             v-if="item.sync_status === 'active'"
-            color="medium-emphasis"
-            icon="mdi-eye"
-            size="small"
+            size="small" variant="text"
+            prepend-icon="mdi-eye"
             @click="viewChart(item)"
-          ></v-icon>
-          <v-icon
+          >查看</v-btn>
+          <v-btn
             v-if="item.sync_status === 'active'"
-            color="error"
-            icon="mdi-delete"
-            size="small"
+            size="small" variant="text" color="error"
+            prepend-icon="mdi-delete"
             @click="confirmDelete(item)"
-          ></v-icon>
+          >删除</v-btn>
         </div>
       </template>
     </v-data-table-server>

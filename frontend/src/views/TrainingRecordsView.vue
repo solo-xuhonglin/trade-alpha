@@ -24,9 +24,9 @@
         <span v-if="item.metrics.close_mae !== undefined" class="ml-2">close: {{ item.metrics.close_mae?.toFixed(4) }}</span>
       </template>
       <template v-slot:item.actions="{ item }">
-        <div class="d-flex ga-2 justify-end">
-          <v-btn size="small" variant="tonal" color="primary" @click="openPredictDialog(item)">预测</v-btn>
-          <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)" />
+        <div class="d-flex ga-1 justify-end">
+          <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-chart-box-outline" @click="openPredictDialog(item)">预测</v-btn>
+          <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
     </v-data-table>

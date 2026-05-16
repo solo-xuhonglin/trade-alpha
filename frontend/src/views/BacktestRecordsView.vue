@@ -38,11 +38,11 @@
         {{ item.created_at ? item.created_at.split('T')[0] + ' ' + item.created_at.split('T')[1].split('.')[0].substring(0, 5) : '' }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <div class="d-flex ga-2 justify-end">
-          <v-icon color="medium-emphasis" icon="mdi-eye" size="small" @click="viewResult(item)"></v-icon>
-          <v-icon color="info" icon="mdi-chart-timeline-variant" size="small" @click="viewPredictions(item)"></v-icon>
-          <v-icon color="primary" icon="mdi-format-list-bulleted" size="small" @click="viewTrades(item)"></v-icon>
-          <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)"></v-icon>
+        <div class="d-flex ga-1 justify-end">
+          <v-btn size="small" variant="text" prepend-icon="mdi-eye" @click="viewResult(item)">详情</v-btn>
+          <v-btn size="small" variant="text" color="info" prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">预测</v-btn>
+          <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-btn>
+          <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
     </v-data-table-server>

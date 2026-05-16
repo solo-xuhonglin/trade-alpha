@@ -14,9 +14,9 @@
         <code>{{ JSON.stringify(item.params) }}</code>
       </template>
       <template v-slot:item.actions="{ item }">
-        <div class="d-flex ga-2 justify-end">
-          <v-icon color="medium-emphasis" icon="mdi-pencil" size="small" @click="openDialog(item)"></v-icon>
-          <v-icon color="error" icon="mdi-delete" size="small" @click="confirmDelete(item)"></v-icon>
+        <div class="d-flex ga-1 justify-end">
+          <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
+          <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
     </v-data-table>
