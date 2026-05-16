@@ -178,8 +178,8 @@ const tradesPage = ref(1)
 const tradesPageSize = ref(20)
 
 const historyHeaders = [
+  { title: '名称', key: 'name' },
   { title: '股票代码', key: 'ts_code' },
-  { title: '策略', key: 'strategy' },
   { title: '总收益', key: 'total_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
