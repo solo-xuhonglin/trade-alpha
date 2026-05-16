@@ -100,7 +100,6 @@ import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
 import { accountConfigApi } from '@/api/account'
 import { trainingRecordApi } from '@/api/trainingRecord'
 
-const formatDate = (date: Date) => date.toISOString().split('T')[0]
 const formatDateTime = () => {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
