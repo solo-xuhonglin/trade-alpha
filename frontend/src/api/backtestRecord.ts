@@ -23,6 +23,7 @@ export interface Backtest {
   excess_return?: number
   baseline_max_drawdown?: number
   avg_hold_days?: number
+  created_at?: string
 }
 
 export interface Trade {
