@@ -76,8 +76,6 @@ import { trainingApi, type TaskStatusResponse } from '@/api/training'
 import { modelApi } from '@/api/model'
 import { dataApi } from '@/api/data'
 
-const formatDate = (date: Date) => date.toISOString().split('T')[0]
-
 const running = ref(false)
 const configs = ref<{ id: string; name: string }[]>([])
 const activeTasks = ref<TaskStatusResponse[]>([])
@@ -87,8 +85,8 @@ const form = ref({
   config_id: '',
   mv_rank_start: 1,
   mv_rank_end: 3000,
-  start_date: formatDate(new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000)),
-  end_date: formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
+  start_date: '2015-01-01',
+  end_date: '2024-12-31',
 })
 
 const activeTaskHeaders = [
