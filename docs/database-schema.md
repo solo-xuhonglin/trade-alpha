@@ -322,9 +322,9 @@ MACDStrategy:
 | `classification_horizons` | array | 分类预测周期 |
 | `classification_threshold` | float | 分类阈值 |
 
-### execution_portfolio_snapshots
+### execution_daily_snapshots
 
-存储每日账户快照。
+存储每日账户快照（包含模型预测信息）。
 
 **索引**: `{backtest_id: 1}`, `{backtest_id: 1, date: 1}` 联合索引
 
@@ -342,6 +342,7 @@ MACDStrategy:
 | `mode` | string | 执行模式 ("backtest" / "live") | "backtest" |
 | `baseline_value` | float | 基线资产值 | 0.0 |
 | `baseline_hold_days` | int | 基线持仓天数 | 0 |
+| `predictions` | object | 每日模型预测 `{ts_code: {score, up_prob_3d, up_prob_5d}}` | {} |
 
 **PositionEmbed（持仓嵌入字段）**:
 
@@ -357,6 +358,11 @@ MACDStrategy:
 | `entry_3d_prob` | float | 入场3日上涨概率 |
 | `entry_5d_prob` | float | 入场5日上涨概率 |
 | `hold_days` | int | 持仓天数 |
+
+**predictions 字段说明**:
+- `score`: 综合评分，范围 [-1, 1]
+- `up_prob_3d`: 3日上涨概率，范围 [0, 1]
+- `up_prob_5d`: 5日上涨概率，范围 [0, 1]
 
 ### execution_trades
 
