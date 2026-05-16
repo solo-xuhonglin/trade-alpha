@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import { backtestRecordApi, type PredictionStock, type PredictionItem } from '@/api/backtestRecord'
 import { dataApi } from '@/api/data'
@@ -75,7 +75,17 @@ const emit = defineEmits<{
 
 const dialog = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { dialog.value = v })
-watch(dialog, (v) => { emit('update:modelValue', v) })
+watch(dialog, async (v) => {
+  emit('update:modelValue', v)
+  if (v && selectedTsCode.value && chartData.value.length > 0) {
+    if (chartInstance) {
+      chartInstance.dispose()
+      chartInstance = null
+    }
+    await nextTick()
+    renderChart()
+  }
+})
 
 const chartRef = ref<HTMLDivElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
@@ -143,6 +153,7 @@ const renderChart = () => {
 
   if (chartInstance) chartInstance.dispose()
   chartInstance = echarts.init(chartRef.value)
+  window.addEventListener('resize', handleResize)
 
   const dates = chartData.value.map(d => d.trade_date)
   const klineData = chartData.value.map(d => [d.open, d.close, d.low, d.high])
@@ -157,9 +168,9 @@ const renderChart = () => {
       data: ['K线', '预测分'],
       top: 0,
     },
-    grid: [
-      { left: '10%', right: '10%', bottom: '15%', top: '10%' },
-    ],
+    grid: {
+      left: '10%', right: '10%', bottom: '15%', top: '10%',
+    },
     xAxis: {
       type: 'category',
       data: dates,
@@ -195,9 +206,21 @@ const renderChart = () => {
   })
 }
 
+const handleResize = () => {
+  chartInstance?.resize()
+}
+
 watch(() => props.backtestId, () => {
   selectedTsCode.value = null
   chartData.value = []
   loadStocks()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 })
 </script>
