@@ -17,7 +17,8 @@
     </v-toolbar>
     <v-data-table :headers="headers" :items="trainings" :loading="loading">
       <template v-slot:item.ts_codes="{ item }">
-        {{ item.ts_codes.join(', ') }}
+        <span v-if="item.ts_codes.length > 3">{{ item.ts_codes.length }} 只</span>
+        <span v-else>{{ item.ts_codes.join(', ') }}</span>
       </template>
       <template v-slot:item.metrics="{ item }">
         <span v-if="item.metrics.open_mae !== undefined">open: {{ item.metrics.open_mae?.toFixed(4) }}</span>
