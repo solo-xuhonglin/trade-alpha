@@ -31,6 +31,9 @@
           {{ (item.total_return * 100).toFixed(2) }}%
         </span>
       </template>
+      <template v-slot:item.date_range="{ item }">
+        {{ item.start_date }} ~ {{ item.end_date }}
+      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
           <v-icon color="medium-emphasis" icon="mdi-eye" size="small" @click="viewResult(item)"></v-icon>
@@ -191,6 +194,7 @@ const tradesPageSize = ref(20)
 const historyHeaders = [
   { title: '名称', key: 'name' },
   { title: '股票代码', key: 'ts_code' },
+  { title: '回测时间', key: 'date_range' },
   { title: '总收益', key: 'total_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
