@@ -3,10 +3,7 @@
     <v-card-title class="text-subtitle-1">发起回测</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="2">
-          <v-text-field v-model="form.name" label="回测名称" />
-        </v-col>
-        <v-col cols="12" sm="6" md="2">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.account_config_id"
             :items="accountOptions"
@@ -26,7 +23,7 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="2">
+        <v-col cols="12" sm="6" md="3">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
         </v-col>
         <v-col cols="12" sm="6" md="3">
@@ -56,6 +53,9 @@
             label="最大持仓数"
             type="number"
           />
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="form.name" label="回测名称" />
         </v-col>
         <v-col cols="12" sm="6" md="3">
           <v-btn color="primary" block @click="runBacktest" :loading="running" height="40">

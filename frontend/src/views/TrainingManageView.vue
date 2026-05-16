@@ -3,7 +3,7 @@
     <v-card-title class="text-subtitle-1">发起训练</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="4">
           <v-select
             v-model="form.config_id"
             :items="configOptions"
@@ -12,13 +12,10 @@
             label="模型配置"
           />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
-          <v-text-field v-model="form.name" label="训练名称" />
-        </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="4">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="4">
           <v-text-field v-model="form.end_date" label="结束日期" type="date" />
         </v-col>
       </v-row>
@@ -32,6 +29,9 @@
               <v-text-field v-model.number="form.mv_rank_end" type="number" label="市值排名结束" min="1" />
             </v-col>
           </v-row>
+        </v-col>
+        <v-col cols="12" sm="6" md="4">
+          <v-text-field v-model="form.name" label="训练名称" />
         </v-col>
         <v-col cols="12" sm="6" md="4">
           <v-btn color="primary" block @click="runTraining" :loading="running" height="48">
