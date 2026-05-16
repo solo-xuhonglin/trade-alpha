@@ -120,7 +120,19 @@ async def get_training_task(task_id: str):
 
     training = None
     if task.result_id and task.status == TaskStatus.COMPLETED:
-        training = await training_service.get_training_by_id(PydanticObjectId(task.result_id))
+        t = await training_service.get_training_by_id(PydanticObjectId(task.result_id))
+        if t:
+            training = {
+                "id": str(t.id),
+                "config_id": str(t.config_id),
+                "name": t.name,
+                "ts_codes": t.ts_codes,
+                "start_date": t.start_date,
+                "end_date": t.end_date,
+                "metrics": t.metrics,
+                "model_path": t.model_path,
+                "created_at": t.created_at,
+            }
 
     return {
         "task_id": task_id,
@@ -229,10 +241,20 @@ async def get_training(training_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid training ID")
 
-    training = await training_service.get_training_by_id(obj_id)
-    if not training:
+    t = await training_service.get_training_by_id(obj_id)
+    if not t:
         raise HTTPException(status_code=404, detail="Training not found")
-    return training
+    return {
+        "id": str(t.id),
+        "config_id": str(t.config_id),
+        "name": t.name,
+        "ts_codes": t.ts_codes,
+        "start_date": t.start_date,
+        "end_date": t.end_date,
+        "metrics": t.metrics,
+        "model_path": t.model_path,
+        "created_at": t.created_at,
+    }
 
 
 @router.delete("/{training_id}")

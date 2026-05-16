@@ -14,13 +14,25 @@ from trade_alpha.strategy.service import (
     delete_strategy,
 )
 
+
+def _strategy_to_dict(s) -> dict:
+    return {
+        "id": str(s.id),
+        "name": s.name,
+        "type": s.type,
+        "config": s.config,
+        "created_at": s.created_at,
+    }
+
+
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
 
 @router.get("")
 async def get_strategies():
     """Get all strategies."""
-    return await list_strategies()
+    strategies = await list_strategies()
+    return [_strategy_to_dict(s) for s in strategies]
 
 
 @router.get("/{strategy_id}")
@@ -31,21 +43,22 @@ async def get_strategy(strategy_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid strategy ID")
     
-    strategy = await get_strategy_by_id(obj_id)
-    if not strategy:
+    s = await get_strategy_by_id(obj_id)
+    if not s:
         raise HTTPException(status_code=404, detail="Strategy not found")
-    return strategy
+    return _strategy_to_dict(s)
 
 
 @router.post("")
 async def create_strategy_endpoint(request: StrategyCreateRequest):
     """Create a new strategy."""
     try:
-        return await create_strategy(
+        s = await create_strategy(
             name=request.name,
             strategy_type=request.type,
             config=request.config,
         )
+        return _strategy_to_dict(s)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -59,11 +72,12 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
         raise HTTPException(status_code=400, detail="Invalid strategy ID")
     
     try:
-        return await update_strategy(
+        s = await update_strategy(
             strategy_id=obj_id,
             name=request.name,
             config=request.config,
         )
+        return _strategy_to_dict(s)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:

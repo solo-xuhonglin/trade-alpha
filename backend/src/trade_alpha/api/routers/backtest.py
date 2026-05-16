@@ -15,6 +15,37 @@ from trade_alpha.dao.task import Task, TaskStatus, TaskType
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
 
+def _execution_to_dict(r) -> dict:
+    return {
+        "id": str(r.id),
+        "account_config_id": str(r.account_config_id),
+        "training_id": str(r.training_id),
+        "name": r.name,
+        "mode": r.mode,
+        "start_date": r.start_date,
+        "end_date": r.end_date,
+        "initial_capital": r.initial_capital,
+        "final_value": r.final_value,
+        "total_return": r.total_return,
+        "max_drawdown": r.max_drawdown,
+        "win_rate": r.win_rate,
+        "total_trades": r.total_trades,
+        "total_fees": r.total_fees,
+        "ts_code": r.ts_code,
+        "stock_name": r.stock_name,
+        "baseline_return": r.baseline_return,
+        "excess_return": r.excess_return,
+        "baseline_max_drawdown": r.baseline_max_drawdown,
+        "sharpe_ratio": r.sharpe_ratio,
+        "volatility": r.volatility,
+        "avg_hold_days": r.avg_hold_days,
+        "account_snapshot": r.account_snapshot.dict() if r.account_snapshot else None,
+        "model_snapshot": r.model_snapshot.dict() if r.model_snapshot else None,
+        "created_at": r.created_at,
+        "status": r.status,
+    }
+
+
 class BacktestRunRequest(BaseModel):
     account_config_id: str
     training_id: str
@@ -135,7 +166,7 @@ async def get_backtest_task(task_id: str):
         "task_id": task_id,
         "status": task.status.value,
         "progress": task.progress,
-        "result": result.dict() if result else None,
+        "result": _execution_to_dict(result) if result else None,
         "error_message": task.error_message,
         "created_at": task.created_at,
         "started_at": task.started_at,
@@ -213,4 +244,4 @@ async def get_backtest_result(result_id: str):
     result = await ExecutionResult.get(obj_id)
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
-    return result
+    return _execution_to_dict(result)
