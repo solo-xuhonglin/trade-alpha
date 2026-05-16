@@ -35,7 +35,7 @@
         {{ item.start_date }} ~ {{ item.end_date }}
       </template>
       <template v-slot:item.created_at="{ item }">
-        {{ item.created_at ? item.created_at.split('T')[0] : '' }}
+        {{ item.created_at ? item.created_at.split('T')[0] + ' ' + item.created_at.split('T')[1].split('.')[0].substring(0, 5) : '' }}
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-2 justify-end">
