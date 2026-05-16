@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from beanie import PydanticObjectId
+from beanie.odm.operators.find.comparison import In
 from typing import Optional, List
 
 from trade_alpha.dao.account_config import AccountConfig
@@ -141,7 +142,7 @@ async def get_prediction_stocks(result_id: str):
         return {"items": []}
 
     ts_codes = list(snapshot.predictions.keys())
-    stocks = await StockList.find(StockList.ts_code.in_(ts_codes)).to_list()
+    stocks = await StockList.find(In(StockList.ts_code, ts_codes)).to_list()
     stock_map = {s.ts_code: s.name for s in stocks}
 
     items = [
