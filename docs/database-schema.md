@@ -138,6 +138,8 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `pb` | float | 市净率 |
 | `sync_status` | string | 数据同步状态 ("pending" / "active") |
 | `updated_at` | datetime | 更新时间 |
+| `data_count` | int | 已下载的日线数据条数（定时更新） |
+| `latest_date` | string | 最新交易日 (YYYYMMDD，定时更新） |
 
 #### 示例文档
 

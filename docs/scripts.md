@@ -13,6 +13,7 @@
 | | `check_stock_sync_status.py` | 检查股票同步状态 |
 | | `clean_stock_data.py` | 清理股票数据 |
 | | `reset_business_data.py` | 重置业务数据 |
+| | `backfill_data_count.py` | 回填股票日线数据条数和最新日期 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 | **测试调试** | `test_trades.py` | 检查回测结果和交易记录数据 |
 | | `check_prediction_scores.py` | 检查回测快照中的预测分数 |
@@ -97,6 +98,14 @@ python scripts/reset_business_data.py
 ```
 
 重置业务数据：清理账户配置、策略配置、模型配置、训练结果、回测结果等，保留股票数据。
+
+### backfill_data_count.py
+
+```bash
+python scripts/backfill_data_count.py
+```
+
+从 `stock_daily` 集合聚合统计每只股票的日线数据条数和最新交易日，回填到 `stock_list` 的 `data_count` 和 `latest_date` 字段。该数据由调度器每小时自动更新，此脚本用于手动触发或初始回填。
 
 ---
 
