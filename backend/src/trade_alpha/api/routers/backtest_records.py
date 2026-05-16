@@ -73,7 +73,7 @@ async def delete_backtest_result(result_id: str):
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
 
-    await ExecutionTrade.find(ExecutionTrade.result_id == obj_id).delete()
+    await ExecutionTrade.find(ExecutionTrade.backtest_id == obj_id).delete()
     await result.delete()
 
     return {"message": "Backtest result deleted"}
@@ -95,7 +95,7 @@ async def get_backtest_trades(
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
 
-    query = ExecutionTrade.find(ExecutionTrade.result_id == obj_id)
+    query = ExecutionTrade.find(ExecutionTrade.backtest_id == obj_id)
     total = await query.count()
     trades = await query.sort(ExecutionTrade.trade_date).skip((page - 1) * page_size).limit(page_size).to_list()
 
@@ -108,7 +108,7 @@ async def get_backtest_trades(
                 "shares": trade.shares,
                 "fee": trade.fee,
                 "cash_after": trade.cash_after,
-                "position_after": trade.position_after,
+                "position_after": getattr(trade, "position_after", 0),
             }
             for trade in trades
         ],
@@ -147,7 +147,7 @@ async def list_all_trades(
             if match:
                 result_ids.append(result.id)
 
-        query = ExecutionTrade.find(ExecutionTrade.result_id.in_(result_ids)) if result_ids else ExecutionTrade.find(ExecutionTrade.result_id == PydanticObjectId("000000000000000000000000"))
+        query = ExecutionTrade.find(ExecutionTrade.backtest_id.in_(result_ids)) if result_ids else ExecutionTrade.find(ExecutionTrade.backtest_id == PydanticObjectId("000000000000000000000000"))
 
     total = await query.count()
     trades = await query.sort(ExecutionTrade.trade_date).skip((page - 1) * page_size).limit(page_size).to_list()
@@ -161,7 +161,7 @@ async def list_all_trades(
                 "shares": trade.shares,
                 "fee": trade.fee,
                 "cash_after": trade.cash_after,
-                "position_after": trade.position_after,
+                "position_after": getattr(trade, "position_after", 0),
             }
             for trade in trades
         ],
