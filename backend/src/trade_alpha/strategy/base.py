@@ -5,7 +5,7 @@ import numpy as np
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
-from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
+from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.logging import get_logger
 
@@ -95,7 +95,8 @@ class PositionManager:
         positions: Dict[str, PositionEmbed],
         close_prices: Dict[str, float],
         prev_total_value: Optional[float] = None,
-    ) -> ExecutionPortfolioDaily:
+        predictions: Optional[Dict[str, Dict]] = None,
+    ) -> ExecutionDailySnapshot:
         """Create and save daily portfolio snapshot."""
         pos_list: List[PositionEmbed] = []
         total_market_value = 0.0
@@ -124,7 +125,20 @@ class PositionManager:
         if prev_total_value is not None and prev_total_value > 0:
             day_return = (total_value - prev_total_value) / prev_total_value
 
-        snapshot = ExecutionPortfolioDaily(
+        def _convert_to_native(obj):
+            """Convert numpy types to Python native types."""
+            import numpy as np
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if isinstance(obj, (np.integer, np.floating)):
+                return obj.item()
+            if isinstance(obj, dict):
+                return {k: _convert_to_native(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_convert_to_native(item) for item in obj]
+            return obj
+
+        snapshot = ExecutionDailySnapshot(
             backtest_id=backtest_id,
             date=date,
             cash=cash,
@@ -132,6 +146,7 @@ class PositionManager:
             total_market_value=total_market_value,
             total_value=total_value,
             day_return=day_return,
+            predictions=_convert_to_native(predictions) if predictions else {},
         )
         await snapshot.insert()
         return snapshot
@@ -207,7 +222,7 @@ class PositionManager:
     async def calculate_trade_metrics(
         self,
         trades: List[ExecutionTrade],
-        daily_snapshots: List[ExecutionPortfolioDaily],
+        daily_snapshots: List[ExecutionDailySnapshot],
     ) -> Dict[str, float]:
         """Calculate trading metrics including avg_hold_days."""
         if not trades:

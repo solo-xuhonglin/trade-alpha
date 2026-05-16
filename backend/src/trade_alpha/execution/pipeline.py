@@ -289,6 +289,7 @@ class ExecutionPipeline:
                 positions=self.positions,
                 close_prices=close_prices,
                 prev_total_value=self.prev_total_value,
+                predictions=pred_results,
             )
             self.prev_total_value = snapshot.total_value
             daily_values.append(snapshot.total_value)
@@ -409,9 +410,9 @@ class ExecutionPipeline:
     @staticmethod
     async def _calc_win_rate(backtest_id: PydanticObjectId) -> float:
         """Calculate win rate from daily snapshots (positive day_return ratio)."""
-        from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
-        snapshots = await ExecutionPortfolioDaily.find(
-            ExecutionPortfolioDaily.backtest_id == backtest_id
+        from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
+        snapshots = await ExecutionDailySnapshot.find(
+            ExecutionDailySnapshot.backtest_id == backtest_id
         ).to_list()
         if not snapshots:
             return 0.0

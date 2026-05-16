@@ -7,7 +7,7 @@ from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.training import TrainingResult
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.execution_trade import ExecutionTrade
-from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
+from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.prediction import PredictionResult
 from trade_alpha.dao.signal import SignalResult
 from trade_alpha.dao.stock_daily import StockDaily
@@ -30,7 +30,7 @@ __all__ = [
     "TrainingResult",
     "ExecutionResult",
     "ExecutionTrade",
-    "ExecutionPortfolioDaily",
+    "ExecutionDailySnapshot",
     "PredictionResult",
     "SignalResult",
     "StockDaily",

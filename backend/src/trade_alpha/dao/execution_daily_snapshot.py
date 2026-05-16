@@ -1,13 +1,13 @@
-"""ExecutionPortfolioDaily Document model."""
+"""ExecutionDailySnapshot Document model."""
 
-from typing import List
+from typing import Dict, List, Optional
 from pydantic import Field
 from beanie import Document, PydanticObjectId
 from trade_alpha.dao.position import PositionEmbed
 
 
-class ExecutionPortfolioDaily(Document):
-    """Execution portfolio daily snapshot document for MongoDB."""
+class ExecutionDailySnapshot(Document):
+    """Daily backtest snapshot with predictions."""
 
     backtest_id: PydanticObjectId
     date: str
@@ -19,6 +19,7 @@ class ExecutionPortfolioDaily(Document):
     mode: str = Field(default="backtest")
     baseline_value: float = 0.0
     baseline_hold_days: int = 0
+    predictions: Dict[str, Dict] = Field(default_factory=dict)
 
     class Settings:
         name = "execution_daily_snapshots"
