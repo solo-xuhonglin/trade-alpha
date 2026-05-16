@@ -196,13 +196,29 @@ async def list_training_tasks(
 @router.get("")
 async def list_trainings(config_id: str = Query(None)):
     """List trainings."""
-    if config_id:
-        try:
+    try:
+        if config_id:
             c_id = PydanticObjectId(config_id)
-            return await training_service.list_trainings(config_id=c_id)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid config ID format")
-    return await training_service.list_trainings()
+            trainings = await training_service.list_trainings(config_id=c_id)
+        else:
+            trainings = await training_service.list_trainings()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid config ID format")
+
+    return [
+        {
+            "id": str(t.id),
+            "config_id": str(t.config_id),
+            "name": t.name,
+            "ts_codes": t.ts_codes,
+            "start_date": t.start_date,
+            "end_date": t.end_date,
+            "metrics": t.metrics,
+            "model_path": t.model_path,
+            "created_at": t.created_at,
+        }
+        for t in trainings
+    ]
 
 
 @router.get("/{training_id}")

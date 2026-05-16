@@ -101,6 +101,11 @@ import { accountConfigApi } from '@/api/account'
 import { trainingRecordApi } from '@/api/trainingRecord'
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0]
+const formatDateTime = () => {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
 
 const loading = ref(false)
 const running = ref(false)
@@ -118,8 +123,8 @@ const modeOptions = [
 const form = ref({
   name: '',
   ts_codes: '',
-  start_date: formatDate(new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)),
-  end_date: formatDate(new Date()),
+  start_date: '2025-01-01',
+  end_date: '2025-12-31',
   mode: 'portfolio',
   max_positions: 10,
   account_config_id: '',
@@ -232,7 +237,7 @@ const runBacktest = async () => {
       account_config_id: form.value.account_config_id,
       start_date: form.value.start_date.replace(/-/g, ''),
       end_date: form.value.end_date.replace(/-/g, ''),
-      name: form.value.name || 'backtest',
+      name: form.value.name || `backtest_${formatDateTime()}`,
       mode: form.value.mode,
     }
 

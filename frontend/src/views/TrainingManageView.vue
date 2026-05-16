@@ -83,6 +83,12 @@ const configs = ref<{ id: string; name: string }[]>([])
 const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
 
+const formatDateTime = () => {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
+
 const form = ref({
   config_id: '',
   name: '',
@@ -178,7 +184,7 @@ const runTraining = async () => {
   try {
     const payload = {
       config_id: form.value.config_id,
-      name: form.value.name || 'training',
+      name: form.value.name || `training_${formatDateTime()}`,
       start_rank: form.value.mv_rank_start,
       end_rank: form.value.mv_rank_end,
       start_date: form.value.start_date.replace(/-/g, ''),
