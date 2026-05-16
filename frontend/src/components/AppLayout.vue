@@ -10,7 +10,7 @@
         <v-list-item
           :to="'/data'"
           prepend-icon="mdi-database"
-          title="数据管理"
+          title="数据"
         />
 
         <v-list-group value="config">
