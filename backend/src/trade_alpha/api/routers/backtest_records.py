@@ -124,7 +124,7 @@ async def get_backtest_trades(
 
 @router.get("/{result_id}/prediction-stocks")
 async def get_prediction_stocks(result_id: str):
-    """Get stocks that have prediction data in a backtest result."""
+    """Get stocks traded in a backtest result (from positions in snapshots)."""
     try:
         obj_id = PydanticObjectId(result_id)
     except Exception:
@@ -134,20 +134,26 @@ async def get_prediction_stocks(result_id: str):
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
 
-    snapshot = await ExecutionDailySnapshot.find_one(
+    snapshots = await ExecutionDailySnapshot.find(
         ExecutionDailySnapshot.backtest_id == obj_id,
-        ExecutionDailySnapshot.predictions != {},
-    )
-    if not snapshot:
+        ExecutionDailySnapshot.positions != [],
+    ).to_list()
+
+    ts_codes: set[str] = set()
+    for snap in snapshots:
+        for pos in snap.positions:
+            ts_codes.add(pos.ts_code)
+
+    if not ts_codes:
         return {"items": []}
 
-    ts_codes = list(snapshot.predictions.keys())
-    stocks = await StockList.find(In(StockList.ts_code, ts_codes)).to_list()
+    sorted_codes = sorted(ts_codes)
+    stocks = await StockList.find(In(StockList.ts_code, list(sorted_codes))).to_list()
     stock_map = {s.ts_code: s.name for s in stocks}
 
     items = [
-        {"ts_code": ts_code, "stock_name": stock_map.get(ts_code, ts_code)}
-        for ts_code in ts_codes
+        {"ts_code": code, "stock_name": stock_map.get(code, code)}
+        for code in sorted_codes
     ]
 
     return {"items": items}
