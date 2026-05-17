@@ -119,6 +119,8 @@ class Predictor:
                 result[ts_code] = {
                     "up_prob_3d": up_prob_3d,
                     "up_prob_5d": up_prob_5d,
+                    "down_prob_3d": down_prob_3d,
+                    "down_prob_5d": down_prob_5d,
                     "score": score,
                     "close": close,
                 }
@@ -159,6 +161,8 @@ class Predictor:
         return {
             "up_prob_3d": up_prob_3d,
             "up_prob_5d": up_prob_5d,
+            "down_prob_3d": down_prob_3d,
+            "down_prob_5d": down_prob_5d,
             "score": score,
             "close": float(df.iloc[-1]["close"]) if "close" in df.columns else 0,
         }
@@ -167,7 +171,7 @@ class Predictor:
         """Predict single stock."""
         stock_df = df[df["ts_code"] == ts_code]
         if stock_df.empty:
-            return {"up_prob_3d": 0, "up_prob_5d": 0, "score": 0}
+            return {"up_prob_3d": None, "up_prob_5d": None, "down_prob_3d": None, "down_prob_5d": None, "score": None}
         try:
             return await self._predict_single(stock_df, ts_code)
         except Exception as e:
