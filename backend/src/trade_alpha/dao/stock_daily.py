@@ -53,7 +53,11 @@ class StockDaily(Document):
     boll_upper: Optional[float] = None
     boll_middle: Optional[float] = None
     boll_lower: Optional[float] = None
-    
+    rsi_6: Optional[float] = None
+    rsi_12: Optional[float] = None
+    atr_14: Optional[float] = None
+    obv: Optional[float] = None
+
     class Settings:
         name = "stock_daily"
         indexes = [
