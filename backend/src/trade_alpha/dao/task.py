@@ -20,6 +20,7 @@ class Task(Document):
     type: TaskType
     status: TaskStatus = TaskStatus.PENDING
     progress: float = 0.0
+    progress_message: Optional[str] = None
     result_id: Optional[str] = None
     error_message: Optional[str] = None
     created_at: datetime = datetime.now()

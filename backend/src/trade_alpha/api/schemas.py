@@ -1,7 +1,7 @@
 """Pydantic models for API."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -14,12 +14,20 @@ class DataFetchRequest(BaseModel):
 class StrategyCreateRequest(BaseModel):
     name: str
     type: str
-    config: Dict[str, Any]
+    min_order_value: Optional[float] = 5000.0
+    stop_loss_pct: Optional[float] = -0.1
+    max_hold_days: Optional[int] = 30
+    max_positions: Optional[int] = 10
+    max_position_pct: Optional[float] = 0.3
 
 
 class StrategyUpdateRequest(BaseModel):
     name: Optional[str] = None
-    config: Optional[Dict[str, Any]] = None
+    min_order_value: Optional[float] = None
+    stop_loss_pct: Optional[float] = None
+    max_hold_days: Optional[int] = None
+    max_positions: Optional[int] = None
+    max_position_pct: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

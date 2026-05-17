@@ -77,24 +77,31 @@ async def run_training_async(task_id: str):
     if not task:
         return
 
+    async def update_progress(progress: float, message: str):
+        task.progress = progress
+        task.progress_message = message
+        await task.save()
+
     try:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
+        task.progress = 0.0
+        task.progress_message = "正在初始化..."
         await task.save()
 
         params = task.params
-        config_id = PydanticObjectId(params["config_id"])
-
         training = await training_service.create_training(
-            config_id=config_id,
+            config_id=PydanticObjectId(params["config_id"]),
             name=params["name"],
             ts_codes=params["ts_codes"],
             start_date=params["start_date"],
             end_date=params["end_date"],
+            progress_callback=update_progress,
         )
 
         task.status = TaskStatus.COMPLETED
         task.progress = 100.0
+        task.progress_message = "训练完成"
         task.result_id = str(training.id)
         task.completed_at = datetime.now()
         await task.save()
@@ -103,6 +110,7 @@ async def run_training_async(task_id: str):
         logger.error(f"Training task {task_id} failed: {e}")
         task.status = TaskStatus.FAILED
         task.error_message = str(e)
+        task.progress_message = f"训练失败: {str(e)}"
         await task.save()
 
 
@@ -138,7 +146,8 @@ async def get_training_task(task_id: str):
         "task_id": task_id,
         "status": task.status.value,
         "progress": task.progress,
-        "training": training.dict() if training else None,
+        "progress_message": task.progress_message,
+        "training": training,
         "error_message": task.error_message,
         "created_at": task.created_at,
         "started_at": task.started_at,
@@ -148,7 +157,7 @@ async def get_training_task(task_id: str):
 
 @router.delete("/task/{task_id}")
 async def cancel_training_task(task_id: str):
-    """Cancel training task."""
+    """Cancel or delete training task."""
     try:
         obj_id = PydanticObjectId(task_id)
     except Exception:
@@ -158,8 +167,12 @@ async def cancel_training_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-        raise HTTPException(status_code=400, detail="Task already completed or failed")
+    if task.status == TaskStatus.FAILED:
+        await task.delete()
+        return {"message": "Task deleted"}
+
+    if task.status == TaskStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Task already completed")
 
     task.status = TaskStatus.FAILED
     task.error_message = "Task cancelled by user"
@@ -193,6 +206,7 @@ async def list_training_tasks(
                 "task_id": str(task.id),
                 "status": task.status.value,
                 "progress": task.progress,
+                "progress_message": task.progress_message,
                 "created_at": task.created_at,
                 "completed_at": task.completed_at,
             }

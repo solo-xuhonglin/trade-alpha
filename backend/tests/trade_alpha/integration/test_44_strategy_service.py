@@ -28,11 +28,14 @@ class TestStrategyService:
         strategy = await strategy_service.create_strategy(
             name="test_create_temp",
             strategy_type="single",
-            config={"target_ts_code": "002594.SZ"},
+            min_order_value=5000,
+            stop_loss_pct=-0.1,
+            max_hold_days=30,
         )
 
         assert strategy is not None
         assert strategy.type == "single"
+        assert strategy.min_order_value == 5000
 
     @pytest.mark.asyncio
     async def test_list_strategies(self):
@@ -40,7 +43,6 @@ class TestStrategyService:
         await strategy_service.create_strategy(
             name="test_list_temp",
             strategy_type="single",
-            config={},
         )
 
         strategies = await strategy_service.list_strategies()
@@ -52,16 +54,19 @@ class TestStrategyService:
         strategy = await strategy_service.create_strategy(
             name="test_update_temp",
             strategy_type="single",
-            config={"target_ts_code": "002594.SZ"},
+            min_order_value=5000,
+            stop_loss_pct=-0.1,
         )
 
         updated = await strategy_service.update_strategy(
             strategy.id,
-            config={"target_ts_code": "000001.SZ"},
+            min_order_value=10000,
+            stop_loss_pct=-0.15,
         )
 
         assert updated is not None
-        assert updated.config["target_ts_code"] == "000001.SZ"
+        assert updated.min_order_value == 10000
+        assert updated.stop_loss_pct == -0.15
 
     @pytest.mark.asyncio
     async def test_delete_strategy(self):
@@ -69,7 +74,6 @@ class TestStrategyService:
         strategy = await strategy_service.create_strategy(
             name="test_delete_temp",
             strategy_type="single",
-            config={},
         )
 
         deleted = await strategy_service.delete_strategy(strategy.id)
@@ -89,5 +93,4 @@ class TestStrategyService:
         await strategy_service.create_strategy(
             name=self.default_strategy_name,
             strategy_type="single",
-            config={},
         )

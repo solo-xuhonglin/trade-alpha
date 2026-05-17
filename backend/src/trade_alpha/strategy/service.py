@@ -1,7 +1,7 @@
 """Strategy service module."""
 
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import StrategyConfig
 from trade_alpha.logging import get_logger
@@ -12,7 +12,11 @@ logger = get_logger("strategy_service")
 async def create_strategy(
     name: str,
     strategy_type: str,
-    config: Dict[str, Any],
+    min_order_value: float = 5000.0,
+    stop_loss_pct: float = -0.1,
+    max_hold_days: int = 30,
+    max_positions: Optional[int] = 10,
+    max_position_pct: Optional[float] = 0.3,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -24,7 +28,11 @@ async def create_strategy(
     strategy = StrategyConfig(
         name=name,
         type=strategy_type,
-        config=config,
+        min_order_value=min_order_value,
+        stop_loss_pct=stop_loss_pct,
+        max_hold_days=max_hold_days,
+        max_positions=max_positions,
+        max_position_pct=max_position_pct,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -51,7 +59,11 @@ async def list_strategies() -> List[StrategyConfig]:
 async def update_strategy(
     strategy_id: PydanticObjectId,
     name: Optional[str] = None,
-    config: Optional[Dict[str, Any]] = None,
+    min_order_value: Optional[float] = None,
+    stop_loss_pct: Optional[float] = None,
+    max_hold_days: Optional[int] = None,
+    max_positions: Optional[int] = None,
+    max_position_pct: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -64,8 +76,16 @@ async def update_strategy(
             raise ValueError(f"Strategy name already exists: {name}")
         strategy.name = name
 
-    if config is not None:
-        strategy.config = config
+    if min_order_value is not None:
+        strategy.min_order_value = min_order_value
+    if stop_loss_pct is not None:
+        strategy.stop_loss_pct = stop_loss_pct
+    if max_hold_days is not None:
+        strategy.max_hold_days = max_hold_days
+    if max_positions is not None:
+        strategy.max_positions = max_positions
+    if max_position_pct is not None:
+        strategy.max_position_pct = max_position_pct
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

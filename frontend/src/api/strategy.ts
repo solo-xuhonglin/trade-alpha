@@ -4,8 +4,13 @@ export interface Strategy {
   id: string
   name: string
   type: string
-  config: Record<string, any>
+  min_order_value: number
+  stop_loss_pct: number
+  max_hold_days: number
+  max_positions?: number
+  max_position_pct?: number
   created_at: string
+  updated_at?: string
 }
 
 export const strategyApi = {

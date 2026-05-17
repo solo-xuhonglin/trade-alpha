@@ -21,9 +21,6 @@
         </v-toolbar>
       </template>
 
-      <template v-slot:item.config="{ item }">
-        <code>{{ JSON.stringify(item.config) }}</code>
-      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
@@ -33,27 +30,69 @@
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="dialog" max-width="500px">
+  <v-dialog v-model="dialog" max-width="600px">
     <v-card
       :subtitle="editingId ? '修改策略参数' : '创建新的交易策略'"
       :title="editingId ? '编辑策略' : '新建策略'"
     >
       <template v-slot:text>
         <v-row>
-          <v-col cols="12">
+          <v-col cols="12" md="6">
             <v-text-field v-model="form.name" label="策略名称"></v-text-field>
           </v-col>
-          <v-col cols="12">
+          <v-col cols="12" md="6">
             <v-select v-model="form.type" :items="strategyTypes" label="策略类型"></v-select>
           </v-col>
-          <v-col cols="12">
-            <v-textarea
-              v-model="form.configJson"
-              label="配置参数 (JSON)"
-              hint='例如: {"max_positions": 10, "stop_loss_pct": 0.05}'
+        </v-row>
+
+        <v-divider class="my-4"></v-divider>
+
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.min_order_value"
+              type="number"
+              label="最小订单金额"
+              hint="避免买入金额过小的订单"
               persistent-hint
-              rows="6"
-            ></v-textarea>
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.stop_loss_pct"
+              type="number"
+              label="止损比例 (负数)"
+              hint="例如 -0.1 表示亏损10%止损"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.max_hold_days"
+              type="number"
+              label="最大持仓天数"
+            ></v-text-field>
+          </v-col>
+        </v-row>
+
+        <v-divider class="my-4" v-if="form.type === 'portfolio'"></v-divider>
+
+        <v-row v-if="form.type === 'portfolio'">
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.max_positions"
+              type="number"
+              label="最大持仓数"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.max_position_pct"
+              type="number"
+              label="单票最大仓位比例"
+              hint="例如 0.3 表示单票最多占30%"
+              persistent-hint
+            ></v-text-field>
           </v-col>
         </v-row>
       </template>
@@ -99,14 +138,19 @@ const strategyTypes = ['single', 'portfolio']
 const form = ref({
   name: '',
   type: 'single',
-  configJson: '{}',
-  config: {} as Record<string, any>,
+  min_order_value: 5000,
+  stop_loss_pct: -0.1,
+  max_hold_days: 30,
+  max_positions: 10,
+  max_position_pct: 0.3,
 })
 
 const headers = [
   { title: '名称', key: 'name' },
   { title: '类型', key: 'type' },
-  { title: '配置', key: 'config' },
+  { title: '最小订单', key: 'min_order_value' },
+  { title: '止损比例', key: 'stop_loss_pct' },
+  { title: '持仓天数', key: 'max_hold_days' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' },
 ]
 
@@ -126,31 +170,47 @@ const openDialog = (item?: Strategy) => {
     form.value = {
       name: item.name,
       type: item.type,
-      configJson: JSON.stringify(item.config, null, 2),
-      config: { ...item.config },
+      min_order_value: item.min_order_value,
+      stop_loss_pct: item.stop_loss_pct,
+      max_hold_days: item.max_hold_days,
+      max_positions: item.max_positions ?? 10,
+      max_position_pct: item.max_position_pct ?? 0.3,
     }
   } else {
     editingId.value = null
     form.value = {
       name: 'default_strategy',
       type: 'single',
-      configJson: '{}',
-      config: {},
+      min_order_value: 5000,
+      stop_loss_pct: -0.1,
+      max_hold_days: 30,
+      max_positions: 10,
+      max_position_pct: 0.3,
     }
   }
   dialog.value = true
 }
 
 const saveStrategy = async () => {
-  try {
-    form.value.config = JSON.parse(form.value.configJson)
-  } catch {
-    return
-  }
   if (editingId.value) {
-    await strategyApi.update(editingId.value, { name: form.value.name, config: form.value.config })
+    await strategyApi.update(editingId.value, {
+      name: form.value.name,
+      min_order_value: form.value.min_order_value,
+      stop_loss_pct: form.value.stop_loss_pct,
+      max_hold_days: form.value.max_hold_days,
+      max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
+      max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
+    })
   } else {
-    await strategyApi.create({ name: form.value.name, type: form.value.type, config: form.value.config })
+    await strategyApi.create({
+      name: form.value.name,
+      type: form.value.type,
+      min_order_value: form.value.min_order_value,
+      stop_loss_pct: form.value.stop_loss_pct,
+      max_hold_days: form.value.max_hold_days,
+      max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
+      max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
+    })
   }
   dialog.value = false
   await loadStrategies()

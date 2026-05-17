@@ -71,6 +71,18 @@
     <v-card-text class="text-white">{{ error }}</v-card-text>
   </v-card>
 
+  <v-dialog v-model="deleteDialog.show" max-width="400">
+    <v-card>
+      <v-card-title class="text-h6">确认删除</v-card-title>
+      <v-card-text>删除后任务记录将从列表中移除，是否继续？</v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="deleteDialog.show = false">取消</v-btn>
+        <v-btn color="error" variant="text" @click="confirmDelete" :loading="deleteDialog.loading">删除</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-card border rounded>
     <v-card-title>运行中的任务</v-card-title>
     <v-card-text>
@@ -84,10 +96,33 @@
           <v-chip :color="getStatusColor(item.status)" size="small">{{ getStatusText(item.status) }}</v-chip>
         </template>
         <template v-slot:item.progress="{ item }">
-          <v-progress-linear :value="item.progress" height="6" class="mt-2"></v-progress-linear>
+          <div class="d-flex flex-column">
+            <span class="text-caption text-medium-emphasis">{{ item.progress_message || `${item.progress.toFixed(1)}%` }}</span>
+            <v-progress-linear :value="item.progress" height="4" class="mt-1" />
+          </div>
         </template>
         <template v-slot:item.error_message="{ item }">
           <span class="text-error">{{ item.error_message }}</span>
+        </template>
+        <template v-slot:item.actions="{ item }">
+          <v-btn
+            v-if="item.status === 'failed'"
+            color="error"
+            variant="text"
+            size="small"
+            @click="deleteDialog.task_id = item.task_id; deleteDialog.show = true"
+          >
+            删除
+          </v-btn>
+          <v-btn
+            v-else-if="item.status === 'pending' || item.status === 'running'"
+            color="warning"
+            variant="text"
+            size="small"
+            @click="cancelTask(item.task_id)"
+          >
+            取消
+          </v-btn>
         </template>
       </v-data-table>
       <div v-else class="text-center text-medium-emphasis pa-4">暂无运行中的任务</div>
@@ -112,6 +147,7 @@ const loading = ref(false)
 const running = ref(false)
 const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
+const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const accountOptions = ref<{ label: string; value: string }[]>([])
@@ -141,6 +177,7 @@ const activeTaskHeaders = [
   { title: '进度', key: 'progress' },
   { title: '错误信息', key: 'error_message' },
   { title: '创建时间', key: 'created_at' },
+  { title: '操作', key: 'actions', sortable: false },
 ]
 
 const getStatusColor = (status: string) => {
@@ -280,6 +317,33 @@ const runBacktest = async () => {
     console.error('Backtest error:', e)
   } finally {
     running.value = false
+  }
+}
+
+const cancelTask = async (taskId: string) => {
+  try {
+    await backtestApi.cancelTask(taskId)
+    activeTasks.value = activeTasks.value.filter(t => t.task_id !== taskId)
+  } catch (e) {
+    console.error('Cancel error:', e)
+  }
+}
+
+const deleteTask = async (taskId: string) => {
+  deleteDialog.value.task_id = taskId
+  deleteDialog.value.show = true
+}
+
+const confirmDelete = async () => {
+  deleteDialog.value.loading = true
+  try {
+    await backtestApi.cancelTask(deleteDialog.value.task_id)
+    activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
+    deleteDialog.value.show = false
+  } catch (e) {
+    console.error('Delete error:', e)
+  } finally {
+    deleteDialog.value.loading = false
   }
 }
 

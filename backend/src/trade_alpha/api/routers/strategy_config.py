@@ -20,8 +20,13 @@ def _strategy_to_dict(s) -> dict:
         "id": str(s.id),
         "name": s.name,
         "type": s.type,
-        "config": s.config,
+        "min_order_value": s.min_order_value,
+        "stop_loss_pct": s.stop_loss_pct,
+        "max_hold_days": s.max_hold_days,
+        "max_positions": s.max_positions,
+        "max_position_pct": s.max_position_pct,
         "created_at": s.created_at,
+        "updated_at": s.updated_at,
     }
 
 
@@ -56,7 +61,11 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
         s = await create_strategy(
             name=request.name,
             strategy_type=request.type,
-            config=request.config,
+            min_order_value=request.min_order_value,
+            stop_loss_pct=request.stop_loss_pct,
+            max_hold_days=request.max_hold_days,
+            max_positions=request.max_positions,
+            max_position_pct=request.max_position_pct,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -75,7 +84,11 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
         s = await update_strategy(
             strategy_id=obj_id,
             name=request.name,
-            config=request.config,
+            min_order_value=request.min_order_value,
+            stop_loss_pct=request.stop_loss_pct,
+            max_hold_days=request.max_hold_days,
+            max_positions=request.max_positions,
+            max_position_pct=request.max_position_pct,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

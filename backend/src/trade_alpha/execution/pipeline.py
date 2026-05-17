@@ -18,6 +18,7 @@ from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
+from trade_alpha.utils.date_utils import get_year_months, format_progress
 
 logger = get_logger("execution.pipeline")
 
@@ -91,6 +92,7 @@ class ExecutionPipeline:
         start_date: str,
         end_date: str,
         name: Optional[str] = None,
+        progress_callback: Optional[callable] = None,
     ) -> ExecutionResult:
         """Run backtest from start_date to end_date (inclusive)."""
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -166,6 +168,11 @@ class ExecutionPipeline:
         total_trades = 0
         total_fees = 0.0
 
+        # Progress tracking by month
+        year_months = get_year_months(start_date, end_date)
+        total_months = len(year_months)
+        last_idx = 0
+
         # Load baseline prices
         baseline_start_price = None
         baseline_end_price = None
@@ -191,6 +198,16 @@ class ExecutionPipeline:
             if weekday >= 5:
                 date = _next_date(date)
                 continue
+
+            # Update progress by month
+            current_year = int(date[:4])
+            current_month = int(date[4:6]) if len(date) >= 6 else 1
+            for idx, (y, m) in enumerate(year_months):
+                if y == current_year and m == current_month and idx >= last_idx:
+                    last_idx = idx + 1
+                    if progress_callback:
+                        progress_callback(last_idx / total_months * 100, format_progress("backtest", y, m, idx=last_idx, total=total_months))
+                    break
 
             logger.debug(f"Processing {date}")
             close_prices = await self.data_loader.load_day_close(date, ts_codes)

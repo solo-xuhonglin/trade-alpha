@@ -4,6 +4,7 @@ export interface TrainingTaskStatus {
   task_id: string
   status: 'pending' | 'running' | 'completed' | 'failed'
   progress: number
+  progress_message?: string
   error_message?: string
   created_at: string
   started_at?: string
@@ -15,6 +16,7 @@ export interface TaskListResponse {
     task_id: string
     status: string
     progress: number
+    progress_message?: string
     created_at: string
     completed_at?: string
   }[]

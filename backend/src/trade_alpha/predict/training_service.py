@@ -20,6 +20,7 @@ from trade_alpha.predict.config_service import get_config_by_id
 from trade_alpha.predict.models.xgboost import XGBoostClassifier
 from trade_alpha.predict.models.lstm import LSTMClassifier
 from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
+from trade_alpha.utils.date_utils import get_year_months, format_progress
 from trade_alpha.logging import get_logger
 
 logger = get_logger("training_service")
@@ -51,22 +52,67 @@ def _create_classification_labels(df: pd.DataFrame, horizons: List[int], thresho
     return pd.concat(result_parts, ignore_index=True)
 
 
+async def _load_year_data(year: int, ts_codes: List[str], horizon: int) -> Optional[pd.DataFrame]:
+    """加载指定年份数据（含未来horizon天）"""
+    year_start = f"{year}0101"
+    year_end = f"{year}1231"
+    future_end = f"{year + (horizon + 180) // 365}1231"
+    
+    year_dfs = []
+    for ts_code in ts_codes:
+        stock = await StockList.find_one(StockList.ts_code == ts_code)
+        if not stock or stock.sync_status != "active":
+            continue
+        records = await StockDaily.find(
+            StockDaily.ts_code == ts_code,
+            StockDaily.trade_date >= year_start,
+            StockDaily.trade_date <= future_end,
+        ).sort(StockDaily.trade_date).to_list()
+        if not records:
+            continue
+        df = pd.DataFrame([r.model_dump() for r in records])
+        df["ts_code"] = ts_code
+        year_dfs.append(df)
+    
+    return pd.concat(year_dfs, ignore_index=True) if year_dfs else None
+
+
+def _normalize_data(df: pd.DataFrame, config) -> Optional[pd.DataFrame]:
+    """标准化数据"""
+    normalizer = CrossSectionalNormalizer(
+        standardize_fields=config.standardize_fields,
+        winsorize_fields=config.winsorize_fields,
+        output_fields=config.output_fields,
+    )
+    target_names = [f"label_{h}d" for h in config.classification_horizons]
+    df_norm = normalizer.normalize(df[config.feature_fields + target_names + ["trade_date", "ts_code"]])
+    available_fields = [f for f in config.feature_fields + target_names if f in df_norm.columns]
+    return df_norm.dropna(subset=available_fields)
+
+
+def _create_classifier(config) -> any:
+    """创建分类器"""
+    if config.model_type == "xgboost":
+        return XGBoostClassifier(
+            n_estimators=config.xgb_n_estimators,
+            max_depth=config.xgb_max_depth,
+            learning_rate=config.xgb_learning_rate,
+            min_child_weight=config.xgb_min_child_weight,
+            subsample=config.xgb_subsample,
+            colsample_bytree=config.xgb_colsample_bytree,
+        )
+    return CLASSIFIERS[config.model_type]()
+
+
 async def create_training(
     config_id: PydanticObjectId,
     name: str,
     ts_codes: List[str],
     start_date: str,
     end_date: str,
+    progress_callback: Optional[callable] = None,
 ) -> TrainingResult:
-    """Create training with classification labels.
-
-    使用配置的字段直接进行训练，无分支判断:
-    - feature_fields: 模型输入 X
-    - standardize_fields: 标准化器标准化
-    - winsorize_fields: 标准化器缩尾
-    - output_fields: 标准化器输出 (特征+标签，自动排除 ts_code/trade_date)
-    """
-    # 检查 name 唯一性
+    """训练流程：逐年加载→逐年计算标签→逐年标准化→一次性训练"""
     existing = await get_training_by_name(name)
     if existing:
         raise ValueError(f"Training already exists: {name}")
@@ -78,83 +124,74 @@ async def create_training(
     if config.model_type not in CLASSIFIERS:
         raise ValueError(f"Unsupported model type: {config.model_type}")
 
-    all_dfs = []
-    skipped = []
-    for ts_code in ts_codes:
-        stock = await StockList.find_one(StockList.ts_code == ts_code)
-        if not stock or stock.sync_status != "active":
-            skipped.append(ts_code)
-            logger.warning(f"Skip {ts_code}: sync_status != active, data not ready")
-            continue
+    year_months = get_year_months(start_date, end_date)
+    years = sorted(set(y for y, _ in year_months))
+    total_years = len(years)
+    total_stages = len(years) * 2 + 1
 
-        records = await StockDaily.find(
-            StockDaily.ts_code == ts_code,
-            StockDaily.trade_date >= start_date,
-            StockDaily.trade_date <= end_date,
-        ).sort(StockDaily.trade_date).to_list()
+    def update(stage_num: int, msg: str):
+        if progress_callback:
+            progress_callback(stage_num / total_stages * 100, msg)
 
-        if not records:
-            skipped.append(ts_code)
-            logger.warning(f"Skip {ts_code}: no data available")
-            continue
-
-        df = pd.DataFrame([r.model_dump() for r in records])
-        df["ts_code"] = ts_code
-        all_dfs.append(df)
-
-    if not all_dfs:
-        raise ValueError("No available data, all stocks skipped")
-
-    combined = pd.concat(all_dfs, ignore_index=True)
-    combined = combined.sort_values(["trade_date", "ts_code"])
-
-    combined = _create_classification_labels(
-        combined,
-        config.classification_horizons,
-        config.classification_threshold
-    )
-
-    normalizer = CrossSectionalNormalizer(
-        standardize_fields=config.standardize_fields,
-        winsorize_fields=config.winsorize_fields,
-        output_fields=config.output_fields,
-    )
-
+    stage = 0
+    horizon = max(config.classification_horizons)
     target_names = [f"label_{h}d" for h in config.classification_horizons]
+    all_ts_codes = []
+    all_X = []
+    all_y = []
+    all_targets = None
 
-    normalizer_input = config.feature_fields + target_names + ["trade_date", "ts_code"]
-    combined_normalized = normalizer.normalize(combined[normalizer_input])
+    for year_idx, year in enumerate(years):
+        year_num = year_idx + 1
 
-    combined_normalized = combined_normalized.dropna(subset=config.feature_fields + target_names)
+        stage += 1
+        update(stage, format_progress("load", year, idx=year_num, total=total_years))
+        year_df = await _load_year_data(year, ts_codes, horizon)
+        if year_df is None:
+            continue
 
-    if len(combined_normalized) < 20:
-        raise ValueError(f"Insufficient data ({len(combined_normalized)} < 20)")
+        stage += 1
+        update(stage, format_progress("label", year, idx=year_num, total=total_years))
+        year_df = _create_classification_labels(year_df, config.classification_horizons, config.classification_threshold)
 
-    X = combined_normalized[config.feature_fields].values
-    y = combined_normalized[target_names].values
+        year_norm = _normalize_data(year_df, config)
+        if year_norm is not None and not year_norm.empty:
+            available_features = [f for f in config.feature_fields if f in year_norm.columns]
+            available_targets = [t for t in target_names if t in year_norm.columns]
 
-    if config.model_type == "xgboost":
-        classifier = XGBoostClassifier(
-            n_estimators=config.xgb_n_estimators,
-            max_depth=config.xgb_max_depth,
-            learning_rate=config.xgb_learning_rate,
-            min_child_weight=config.xgb_min_child_weight,
-            subsample=config.xgb_subsample,
-            colsample_bytree=config.xgb_colsample_bytree,
-        )
-    else:
-        classifier = CLASSIFIERS[config.model_type]()
-    classifier.fit(X, y, target_names)
+            if all_targets is None:
+                all_targets = available_targets
+
+            all_X.append(year_norm[available_features].values)
+            all_y.append(year_norm[available_targets].values)
+
+        year_ts_codes = sorted(year_df["ts_code"].unique())
+        all_ts_codes.extend([c for c in year_ts_codes if c not in all_ts_codes])
+
+    if not all_X:
+        raise ValueError("No available data")
+
+    stage += 1
+    update(stage, "正在训练模型...")
+
+    X = np.vstack(all_X)
+    y = np.vstack(all_y) if len(all_y) > 1 else all_y[0]
+    sample_count = len(X)
+
+    classifier = _create_classifier(config)
+    classifier.fit(X, y, all_targets)
+
+    update(total_stages, format_progress("done", years[-1]))
 
     training = TrainingResult(
         config_id=config_id,
         name=name,
-        ts_codes=[c for c in ts_codes if c not in skipped],
+        ts_codes=all_ts_codes,
         start_date=start_date,
         end_date=end_date,
         feature_fields=config.feature_fields,
         classification_horizons=config.classification_horizons,
-        metrics={"sample_count": len(combined_normalized)},
+        metrics={"sample_count": sample_count},
         created_at=datetime.now(timezone.utc),
     )
     await training.insert()
@@ -166,7 +203,7 @@ async def create_training(
     training.model_path = model_path
     await training.save()
 
-    logger.info(f"Training completed: name={name} id={training.id} samples={len(combined_normalized)}")
+    logger.info(f"Training completed: name={name} id={training.id} samples={sample_count}")
     return training
 
 

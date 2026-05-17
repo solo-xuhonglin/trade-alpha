@@ -175,3 +175,11 @@ python scripts/clean_backtests.py
 ```
 
 清理数据库中所有回测结果、关联的快照和交易记录。用于在模型迭代后需要全量重跑回测的场景。
+
+### test_training_small.py
+
+```bash
+python scripts/test_training_small.py
+```
+
+用单只股票（比亚迪 `002594.SZ`）和 `test_model_config` 配置快速测试训练流程，带进度回调输出。用于训练流程的开发调试，训练结果保存为 `test_run`。

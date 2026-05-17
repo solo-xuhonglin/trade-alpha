@@ -115,9 +115,16 @@ async def run_backtest_async(task_id: str):
     if not task:
         return
 
+    async def update_progress(progress: float, message: str):
+        task.progress = progress
+        task.progress_message = message
+        await task.save()
+
     try:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
+        task.progress = 0.0
+        task.progress_message = "正在初始化..."
         await task.save()
 
         params = task.params
@@ -150,10 +157,12 @@ async def run_backtest_async(task_id: str):
             start_date=params["start_date"],
             end_date=params["end_date"],
             name=params["name"],
+            progress_callback=update_progress,
         )
 
         task.status = TaskStatus.COMPLETED
         task.progress = 100.0
+        task.progress_message = "回测完成"
         task.result_id = str(result.id)
         task.completed_at = datetime.now()
         await task.save()
@@ -162,6 +171,7 @@ async def run_backtest_async(task_id: str):
         logger.error(f"Backtest task {task_id} failed: {e}")
         task.status = TaskStatus.FAILED
         task.error_message = str(e)
+        task.progress_message = f"回测失败: {str(e)}"
         await task.save()
 
 
@@ -185,6 +195,7 @@ async def get_backtest_task(task_id: str):
         "task_id": task_id,
         "status": task.status.value,
         "progress": task.progress,
+        "progress_message": task.progress_message,
         "result": _execution_to_dict(result) if result else None,
         "error_message": task.error_message,
         "created_at": task.created_at,
@@ -195,7 +206,7 @@ async def get_backtest_task(task_id: str):
 
 @router.delete("/task/{task_id}")
 async def cancel_backtest_task(task_id: str):
-    """Cancel backtest task."""
+    """Cancel or delete backtest task."""
     try:
         obj_id = PydanticObjectId(task_id)
     except Exception:
@@ -205,8 +216,12 @@ async def cancel_backtest_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-        raise HTTPException(status_code=400, detail="Task already completed or failed")
+    if task.status == TaskStatus.FAILED:
+        await task.delete()
+        return {"message": "Task deleted"}
+
+    if task.status == TaskStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Task already completed")
 
     task.status = TaskStatus.FAILED
     task.error_message = "Task cancelled by user"
@@ -240,6 +255,7 @@ async def list_backtest_tasks(
                 "task_id": str(task.id),
                 "status": task.status.value,
                 "progress": task.progress,
+                "progress_message": task.progress_message,
                 "created_at": task.created_at,
                 "completed_at": task.completed_at,
             }

@@ -1,7 +1,7 @@
 """StrategyConfig Document model."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional
 from pydantic import Field
 from beanie import Document
 
@@ -11,7 +11,11 @@ class StrategyConfig(Document):
 
     name: str
     type: str = Field(default="single")
-    config: Dict[str, Any] = Field(default_factory=dict)
+    min_order_value: float = 5000.0
+    stop_loss_pct: float = -0.1
+    max_hold_days: int = 30
+    max_positions: Optional[int] = 10
+    max_position_pct: Optional[float] = 0.3
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
