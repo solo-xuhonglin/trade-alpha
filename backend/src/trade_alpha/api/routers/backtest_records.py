@@ -9,7 +9,9 @@ from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution_trade import ExecutionTrade
+from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
+from trade_alpha.dao.training import TrainingResult
 
 router = APIRouter(prefix="/backtests", tags=["backtest-records"])
 
@@ -178,7 +180,13 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     stock = await StockList.find_one(StockList.ts_code == ts_code)
     stock_name = stock.name if stock else ts_code
 
+    threshold = result.model_snapshot.classification_threshold if result.model_snapshot else 0.02
+
+    training = await TrainingResult.get(result.training_id)
+    horizons = training.classification_horizons if training else [3, 5]
+
     items = []
+    dates = []
     for snap in snapshots:
         pred = snap.predictions.get(ts_code)
         if pred is not None:
@@ -187,7 +195,39 @@ async def get_stock_predictions(result_id: str, ts_code: str):
                 "score": pred.get("score"),
                 "up_prob_3d": pred.get("up_prob_3d"),
                 "up_prob_5d": pred.get("up_prob_5d"),
+                "down_prob_3d": pred.get("down_prob_3d"),
+                "down_prob_5d": pred.get("down_prob_5d"),
             })
+            dates.append(snap.date)
+
+    if items and dates:
+        klines = await StockDaily.find(
+            StockDaily.ts_code == ts_code,
+            StockDaily.trade_date >= dates[0],
+        ).sort(StockDaily.trade_date).to_list()
+
+        close_map: dict[str, float] = {k.trade_date: k.close for k in klines}
+        trade_dates = [k.trade_date for k in klines]
+
+        for item in items:
+            trade_date = item["trade_date"]
+            try:
+                idx = trade_dates.index(trade_date)
+            except ValueError:
+                continue
+            close_t = close_map.get(trade_date)
+            if not close_t or close_t <= 0:
+                continue
+            for h in horizons:
+                future_idx = idx + h
+                if future_idx < len(trade_dates):
+                    future_date = trade_dates[future_idx]
+                    future_close = close_map.get(future_date)
+                    if future_close is not None:
+                        ret = (future_close - close_t) / close_t
+                        label = 1 if ret > threshold else (-1 if ret < -threshold else 0)
+                        item[f"actual_return_{h}d"] = round(ret, 6)
+                        item[f"actual_label_{h}d"] = label
 
     return {
         "ts_code": ts_code,
