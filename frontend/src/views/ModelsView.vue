@@ -144,6 +144,7 @@ const indicatorFields = [
   'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
   'kdj_k', 'kdj_d', 'kdj_j',
   'boll_upper', 'boll_middle', 'boll_lower',
+  'rsi_6', 'rsi_12', 'atr_14', 'obv',
 ]
 
 const defaultForm = {
