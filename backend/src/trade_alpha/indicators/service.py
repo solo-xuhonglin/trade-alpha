@@ -13,6 +13,7 @@ from trade_alpha.indicators.custom import (
     calculate_boll,
     calculate_rsi,
     calculate_atr,
+    calculate_obv,
 )
 from trade_alpha.logging import get_logger
 
@@ -117,14 +118,7 @@ async def calculate_all_indicators(ts_code: str) -> dict[str, int]:
 
 
 async def calculate_and_store_custom_indicators(ts_code: str) -> int:
-    """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio, kdj, boll, rsi, atr).
-
-    Args:
-        ts_code: Stock code
-
-    Returns:
-        Number of records updated
-    """
+    """Calculate additional indicators (pct_chg, bias, pct_rank, vol_ratio, kdj, boll, rsi, atr, obv)."""
     logger.info(f"Calculating additional indicators for {ts_code}")
 
     records = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
@@ -143,6 +137,7 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
     df = calculate_boll(df)
     df = calculate_rsi(df)
     df = calculate_atr(df)
+    df = calculate_obv(df)
 
     updated_count = 0
     for _, row in df.iterrows():
@@ -169,6 +164,7 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "rsi_6": row.get("rsi_6"),
             "rsi_12": row.get("rsi_12"),
             "atr_14": row.get("atr_14"),
+            "obv": row.get("obv"),
         }
         await StockDaily.find_one(
             StockDaily.ts_code == ts_code,
