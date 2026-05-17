@@ -5,7 +5,7 @@
 ```
 Tushare API（前复权日线）
   → StockDaily（MongoDB）
-    → 指标计算（26 个技术指标）
+    → 指标计算（30 个技术指标）
       → 训练：多股票加载 → 分类标签 → 横截面标准化 → XGBoost 训练 → 模型文件
         → 回测：逐日加载 → 横截面标准化 → 批量预测 → 得分排序 → 策略决策 → 撮合成交
 ```
@@ -55,6 +55,9 @@ Tushare API（前复权日线）
 | 量比 | Vol Ratio | `vol_ratio_5/10/20/60` | `vol / vol_rolling_mean(N)` |
 | KDJ | K/D/J | `kdj_k`, `kdj_d`, `kdj_j` | RSV(9) → K=SMA(3) → D=SMA(3) → J=3K-2D |
 | 布林带 | Upper/Middle/Lower | `boll_upper`, `boll_middle`, `boll_lower` | MID=MA(20), ±2×STD(20) |
+| 震荡类 | RSI6/12 | `rsi_6`, `rsi_12` | 100 - 100/(1+RS), RS=avg_gain/avg_loss |
+| 波动率类 | ATR14 | `atr_14` | TR 的 14 日平滑均值 |
+| 量能类 | OBV | `obv` | 累计价量配合指标 |
 
 ### 2.2 计算入口
 
@@ -354,7 +357,7 @@ score = score_3d × 0.4 + score_5d × 0.6
 |------|------|------|
 | 数据获取 | `data/fetcher.py` | Tushare API 调用 |
 | 数据存储 | `data/service.py` | 数据写入 MongoDB |
-| 指标计算 | `indicators/service.py` | 26 个指标统一计算入口 |
+| 指标计算 | `indicators/service.py` | 30 个指标统一计算入口 |
 | 模型配置 | `predict/config_service.py` | 配置 CRUD + 默认值 |
 | 标准化 | `predict/normalizers/cross_sectional.py` | 横截面 Z-score |
 | 标签生成 | `predict/training_service.py` | 分类标签 + 训练流程 |
