@@ -10,8 +10,22 @@
           <v-btn prepend-icon="mdi-plus" rounded="lg" text="新建配置" border @click="openDialog()"></v-btn>
         </v-toolbar>
       </template>
-      <template v-slot:item.params="{ item }">
-        <code>{{ JSON.stringify(item.params) }}</code>
+      <template v-slot:item.feature_fields="{ item }">
+        <v-chip-group>
+          <v-chip v-for="f in item.feature_fields.slice(0, 3)" :key="f" size="x-small" variant="outlined">
+            {{ f }}
+          </v-chip>
+          <v-chip v-if="item.feature_fields.length > 3" size="x-small" variant="tonal">
+            +{{ item.feature_fields.length - 3 }}
+          </v-chip>
+        </v-chip-group>
+      </template>
+      <template v-slot:item.classification_horizons="{ item }">
+        <v-chip-group>
+          <v-chip v-for="h in item.classification_horizons" :key="h" size="x-small" variant="outlined">
+            {{ h }}日
+          </v-chip>
+        </v-chip-group>
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
@@ -22,26 +36,70 @@
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="dialog" max-width="600px">
+  <v-dialog v-model="dialog" max-width="800px">
     <v-card :title="editingId ? '编辑配置' : '新建配置'">
-      <v-card-text>
-        <v-text-field v-model="form.name" label="配置名称"></v-text-field>
-        <v-select v-model="form.model_type" :items="['linear', 'xgboost', 'lstm']" label="模型类型"></v-select>
-        <v-select v-model="form.targets" :items="['open', 'close', 'high', 'low']" label="预测目标" multiple chips></v-select>
-        <template v-if="form.model_type === 'linear'">
-          <v-switch v-model="form.params.fit_intercept" label="fit_intercept" color="primary"></v-switch>
-        </template>
+      <template v-slot:text>
+        <v-row>
+          <v-col cols="12" sm="6">
+            <v-text-field v-model="form.name" label="配置名称"></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-select v-model="form.model_type" :items="['linear', 'xgboost', 'lstm']" label="模型类型"></v-select>
+          </v-col>
+        </v-row>
+
+        <v-divider class="my-3"></v-divider>
+        <div class="text-subtitle-2 text-medium-emphasis mb-2">特征与数据处理</div>
+        <v-row>
+          <v-col cols="12">
+            <v-autocomplete v-model="form.feature_fields" :items="indicatorFields" label="特征字段" multiple chips closable-chips dense></v-autocomplete>
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" sm="6">
+            <v-autocomplete v-model="form.standardize_fields" :items="indicatorFields" label="标准化字段" multiple chips closable-chips dense></v-autocomplete>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-autocomplete v-model="form.winsorize_fields" :items="indicatorFields" label="缩尾字段" multiple chips closable-chips dense></v-autocomplete>
+          </v-col>
+        </v-row>
+
+        <v-divider class="my-3"></v-divider>
+        <div class="text-subtitle-2 text-medium-emphasis mb-2">训练标签参数</div>
+        <v-row>
+          <v-col cols="12" sm="6">
+            <v-combobox v-model="form.classification_horizons" :items="[1, 2, 3, 5, 10, 20]" label="预测周期" multiple chips small-chips></v-combobox>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field v-model.number="form.classification_threshold" label="涨跌阈值" type="number" step="0.01"></v-text-field>
+          </v-col>
+        </v-row>
+
         <template v-if="form.model_type === 'xgboost'">
-          <v-text-field v-model.number="form.params.n_estimators" label="n_estimators" type="number"></v-text-field>
-          <v-text-field v-model.number="form.params.max_depth" label="max_depth" type="number"></v-text-field>
-          <v-text-field v-model.number="form.params.learning_rate" label="learning_rate" type="number" step="0.01"></v-text-field>
+          <v-divider class="my-3"></v-divider>
+          <div class="text-subtitle-2 text-medium-emphasis mb-2">XGBoost 超参数</div>
+          <v-row>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.xgb_n_estimators" label="n_estimators" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.xgb_max_depth" label="max_depth" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.xgb_learning_rate" label="learning_rate" type="number" step="0.01"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.xgb_min_child_weight" label="min_child_weight" type="number" step="0.1"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.xgb_subsample" label="subsample" type="number" step="0.1"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.xgb_colsample_bytree" label="colsample_bytree" type="number" step="0.1"></v-text-field>
+            </v-col>
+          </v-row>
         </template>
-        <template v-if="form.model_type === 'lstm'">
-          <v-text-field v-model.number="form.params.epochs" label="epochs" type="number"></v-text-field>
-          <v-text-field v-model.number="form.params.batch_size" label="batch_size" type="number"></v-text-field>
-          <v-text-field v-model.number="form.params.units" label="units" type="number"></v-text-field>
-        </template>
-      </v-card-text>
+      </template>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="dialog = false"></v-btn>
@@ -77,24 +135,41 @@ const models = ref<ModelConfig[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<ModelConfig | null>(null)
 
-const form = ref({
-  name: '',
-  model_type: 'linear' as 'linear' | 'xgboost' | 'lstm',
-  targets: ['open', 'close'] as string[],
-  params: {} as Record<string, any>,
-})
+const indicatorFields = [
+  'ma_5', 'ma_10', 'ma_20', 'ma_60',
+  'macd', 'macd_signal', 'macd_hist',
+  'pct_chg',
+  'bias_5', 'bias_10', 'bias_20', 'bias_60',
+  'close_pct_rank_5', 'close_pct_rank_10', 'close_pct_rank_20', 'close_pct_rank_60',
+  'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
+  'kdj_k', 'kdj_d', 'kdj_j',
+  'boll_upper', 'boll_middle', 'boll_lower',
+]
 
-const defaultParams: Record<string, Record<string, any>> = {
-  linear: { fit_intercept: true },
-  xgboost: { n_estimators: 100, max_depth: 5, learning_rate: 0.1 },
-  lstm: { epochs: 50, batch_size: 32, units: 64 },
+const defaultForm = {
+  name: '',
+  model_type: 'xgboost',
+  feature_fields: [...indicatorFields],
+  standardize_fields: [...indicatorFields],
+  winsorize_fields: [] as string[],
+  classification_horizons: [3, 5],
+  classification_threshold: 0.02,
+  xgb_n_estimators: 100,
+  xgb_max_depth: 6,
+  xgb_learning_rate: 0.1,
+  xgb_min_child_weight: 1,
+  xgb_subsample: 1.0,
+  xgb_colsample_bytree: 1.0,
 }
+
+const form = ref({ ...defaultForm })
 
 const headers = [
   { title: '名称', key: 'name' },
   { title: '模型类型', key: 'model_type' },
-  { title: '预测目标', key: 'targets' },
-  { title: '参数', key: 'params' },
+  { title: '特征字段', key: 'feature_fields' },
+  { title: '预测周期', key: 'classification_horizons' },
+  { title: '涨跌阈值', key: 'classification_threshold' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
@@ -111,15 +186,24 @@ const loadModels = async () => {
 const openDialog = (item?: ModelConfig) => {
   if (item) {
     editingId.value = item.id
-    form.value = { ...item }
+    form.value = {
+      name: item.name,
+      model_type: item.model_type,
+      feature_fields: [...item.feature_fields],
+      standardize_fields: [...item.standardize_fields],
+      winsorize_fields: [...item.winsorize_fields],
+      classification_horizons: [...item.classification_horizons],
+      classification_threshold: item.classification_threshold,
+      xgb_n_estimators: item.xgb_n_estimators,
+      xgb_max_depth: item.xgb_max_depth,
+      xgb_learning_rate: item.xgb_learning_rate,
+      xgb_min_child_weight: item.xgb_min_child_weight,
+      xgb_subsample: item.xgb_subsample,
+      xgb_colsample_bytree: item.xgb_colsample_bytree,
+    }
   } else {
     editingId.value = null
-    form.value = {
-      name: 'new_config',
-      model_type: 'linear',
-      targets: ['open', 'close'],
-      params: { ...defaultParams['linear'] },
-    }
+    form.value = { ...defaultForm, feature_fields: [...defaultForm.feature_fields], standardize_fields: [...defaultForm.standardize_fields] }
   }
   dialog.value = true
 }

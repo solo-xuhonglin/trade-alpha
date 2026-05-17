@@ -38,6 +38,12 @@ async def create_config(
     output_fields: Optional[List[str]] = None,
     classification_horizons: Optional[List[int]] = None,
     classification_threshold: float = 0.02,
+    xgb_n_estimators: int = 100,
+    xgb_max_depth: int = 6,
+    xgb_learning_rate: float = 0.1,
+    xgb_min_child_weight: int = 1,
+    xgb_subsample: float = 1.0,
+    xgb_colsample_bytree: float = 1.0,
 ) -> ModelConfig:
     """Create model configuration.
 
@@ -50,6 +56,12 @@ async def create_config(
         output_fields: 标准化器输出字段列表，默认feature_fields+分类标签
         classification_horizons: 分类预测周期列表，默认[3, 5]
         classification_threshold: 涨跌分类阈值，默认0.02
+        xgb_n_estimators: xgboost 树的数量，默认100
+        xgb_max_depth: xgboost 树的最大深度，默认6
+        xgb_learning_rate: xgboost 学习率，默认0.1
+        xgb_min_child_weight: xgboost 叶子节点最小权重和，默认1
+        xgb_subsample: xgboost 样本采样比例，默认1.0
+        xgb_colsample_bytree: xgboost 特征采样比例，默认1.0
     """
     if not name:
         raise ValueError("name is required")
@@ -77,6 +89,12 @@ async def create_config(
         output_fields=output_fields,
         classification_horizons=classification_horizons,
         classification_threshold=classification_threshold,
+        xgb_n_estimators=xgb_n_estimators,
+        xgb_max_depth=xgb_max_depth,
+        xgb_learning_rate=xgb_learning_rate,
+        xgb_min_child_weight=xgb_min_child_weight,
+        xgb_subsample=xgb_subsample,
+        xgb_colsample_bytree=xgb_colsample_bytree,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )

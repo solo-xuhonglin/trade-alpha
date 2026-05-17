@@ -18,6 +18,12 @@ class ConfigCreate(BaseModel):
     output_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
     classification_threshold: Optional[float] = None
+    xgb_n_estimators: Optional[int] = None
+    xgb_max_depth: Optional[int] = None
+    xgb_learning_rate: Optional[float] = None
+    xgb_min_child_weight: Optional[int] = None
+    xgb_subsample: Optional[float] = None
+    xgb_colsample_bytree: Optional[float] = None
 
 
 class ConfigUpdate(BaseModel):
@@ -28,6 +34,12 @@ class ConfigUpdate(BaseModel):
     output_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
     classification_threshold: Optional[float] = None
+    xgb_n_estimators: Optional[int] = None
+    xgb_max_depth: Optional[int] = None
+    xgb_learning_rate: Optional[float] = None
+    xgb_min_child_weight: Optional[int] = None
+    xgb_subsample: Optional[float] = None
+    xgb_colsample_bytree: Optional[float] = None
 
 
 @router.post("")
@@ -43,6 +55,12 @@ async def create_config(body: ConfigCreate):
             output_fields=body.output_fields,
             classification_horizons=body.classification_horizons,
             classification_threshold=body.classification_threshold or 0.02,
+            xgb_n_estimators=body.xgb_n_estimators or 100,
+            xgb_max_depth=body.xgb_max_depth or 6,
+            xgb_learning_rate=body.xgb_learning_rate or 0.1,
+            xgb_min_child_weight=body.xgb_min_child_weight or 1,
+            xgb_subsample=body.xgb_subsample or 1.0,
+            xgb_colsample_bytree=body.xgb_colsample_bytree or 1.0,
         )
         return {
             "id": str(c.id),
@@ -54,6 +72,12 @@ async def create_config(body: ConfigCreate):
             "output_fields": c.output_fields,
             "classification_horizons": c.classification_horizons,
             "classification_threshold": c.classification_threshold,
+            "xgb_n_estimators": c.xgb_n_estimators,
+            "xgb_max_depth": c.xgb_max_depth,
+            "xgb_learning_rate": c.xgb_learning_rate,
+            "xgb_min_child_weight": c.xgb_min_child_weight,
+            "xgb_subsample": c.xgb_subsample,
+            "xgb_colsample_bytree": c.xgb_colsample_bytree,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
         }
@@ -76,6 +100,12 @@ async def list_configs(model_type: str = Query(None)):
             "output_fields": c.output_fields,
             "classification_horizons": c.classification_horizons,
             "classification_threshold": c.classification_threshold,
+            "xgb_n_estimators": c.xgb_n_estimators,
+            "xgb_max_depth": c.xgb_max_depth,
+            "xgb_learning_rate": c.xgb_learning_rate,
+            "xgb_min_child_weight": c.xgb_min_child_weight,
+            "xgb_subsample": c.xgb_subsample,
+            "xgb_colsample_bytree": c.xgb_colsample_bytree,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
         }
@@ -104,6 +134,12 @@ async def get_config(config_id: str):
         "output_fields": c.output_fields,
         "classification_horizons": c.classification_horizons,
         "classification_threshold": c.classification_threshold,
+        "xgb_n_estimators": c.xgb_n_estimators,
+        "xgb_max_depth": c.xgb_max_depth,
+        "xgb_learning_rate": c.xgb_learning_rate,
+        "xgb_min_child_weight": c.xgb_min_child_weight,
+        "xgb_subsample": c.xgb_subsample,
+        "xgb_colsample_bytree": c.xgb_colsample_bytree,
         "created_at": c.created_at,
         "updated_at": c.updated_at,
     }
@@ -135,6 +171,12 @@ async def update_config(config_id: str, body: ConfigUpdate):
             "output_fields": c.output_fields,
             "classification_horizons": c.classification_horizons,
             "classification_threshold": c.classification_threshold,
+            "xgb_n_estimators": c.xgb_n_estimators,
+            "xgb_max_depth": c.xgb_max_depth,
+            "xgb_learning_rate": c.xgb_learning_rate,
+            "xgb_min_child_weight": c.xgb_min_child_weight,
+            "xgb_subsample": c.xgb_subsample,
+            "xgb_colsample_bytree": c.xgb_colsample_bytree,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
         }

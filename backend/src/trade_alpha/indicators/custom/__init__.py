@@ -7,6 +7,7 @@ from trade_alpha.indicators.custom.vol_ratio import calculate_vol_ratio
 from trade_alpha.indicators.custom.kdj import calculate_kdj
 from trade_alpha.indicators.custom.boll import calculate_boll
 from trade_alpha.indicators.custom.rsi import calculate_rsi
+from trade_alpha.indicators.custom.atr import calculate_atr
 
 __all__ = [
     "calculate_pct_chg",
@@ -16,4 +17,5 @@ __all__ = [
     "calculate_kdj",
     "calculate_boll",
     "calculate_rsi",
+    "calculate_atr",
 ]

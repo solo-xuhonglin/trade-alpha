@@ -3,9 +3,21 @@ import api from './index'
 export interface ModelConfig {
   id: string
   name: string
-  model_type: 'linear' | 'xgboost' | 'lstm'
-  params: Record<string, any>
-  targets: string[]
+  model_type: string
+  feature_fields: string[]
+  standardize_fields: string[]
+  winsorize_fields: string[]
+  output_fields: string[]
+  classification_horizons: number[]
+  classification_threshold: number
+  xgb_n_estimators: number
+  xgb_max_depth: number
+  xgb_learning_rate: number
+  xgb_min_child_weight: number
+  xgb_subsample: number
+  xgb_colsample_bytree: number
+  created_at?: string
+  updated_at?: string
 }
 
 export const modelApi = {

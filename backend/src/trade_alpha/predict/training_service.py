@@ -133,7 +133,17 @@ async def create_training(
     X = combined_normalized[config.feature_fields].values
     y = combined_normalized[target_names].values
 
-    classifier = CLASSIFIERS[config.model_type]()
+    if config.model_type == "xgboost":
+        classifier = XGBoostClassifier(
+            n_estimators=config.xgb_n_estimators,
+            max_depth=config.xgb_max_depth,
+            learning_rate=config.xgb_learning_rate,
+            min_child_weight=config.xgb_min_child_weight,
+            subsample=config.xgb_subsample,
+            colsample_bytree=config.xgb_colsample_bytree,
+        )
+    else:
+        classifier = CLASSIFIERS[config.model_type]()
     classifier.fit(X, y, target_names)
 
     training = TrainingResult(

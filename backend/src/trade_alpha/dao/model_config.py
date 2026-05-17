@@ -31,6 +31,12 @@ class ModelConfig(Document):
         output_fields: 标准化器输出字段列表 (特征+分类标签)
         classification_horizons: 分类预测周期列表
         classification_threshold: 涨跌分类阈值
+        xgb_n_estimators: xgboost 树的数量
+        xgb_max_depth: xgboost 树的最大深度
+        xgb_learning_rate: xgboost 学习率
+        xgb_min_child_weight: xgboost 叶子节点最小权重和
+        xgb_subsample: xgboost 样本采样比例
+        xgb_colsample_bytree: xgboost 特征采样比例
         created_at: 创建时间
         updated_at: 更新时间
     """
@@ -43,6 +49,13 @@ class ModelConfig(Document):
     output_fields: List[str] = Field(default_factory=list)
     classification_horizons: List[int] = Field(default_factory=lambda: [3, 5])
     classification_threshold: float = 0.02
+    # xgboost 超参数（仅 model_type="xgboost" 时使用）
+    xgb_n_estimators: int = 100
+    xgb_max_depth: int = 6
+    xgb_learning_rate: float = 0.1
+    xgb_min_child_weight: int = 1
+    xgb_subsample: float = 1.0
+    xgb_colsample_bytree: float = 1.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

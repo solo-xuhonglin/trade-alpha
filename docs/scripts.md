@@ -111,6 +111,18 @@ python scripts/backfill_data_count.py
 
 ## 服务管理
 
+### 前置条件
+
+使用 `service.bat` / `service.ps1` 管理服务前，需确保后端虚拟环境已创建并安装依赖：
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -e .
+```
+
+`service.ps1` 会使用 `backend\.venv\Scripts\python.exe` 启动后端。如果虚拟环境缺少依赖（如 `fastapi`），后端进程会静默失败。
+
 ### check_server.py
 
 ```bash
