@@ -225,23 +225,23 @@ const renderChart = () => {
         if (!d) return ''
         const labelText = (label: number | undefined) => {
           if (label == null) return '--'
-          if (label === 1) return '\u2191 \u6DA8'
-          if (label === -1) return '\u2193 \u8DCC'
-          return '\u2014 \u5E73'
+          if (label === 1) return '↑ 涨'
+          if (label === -1) return '↓ 跌'
+          return '— 平'
         }
         const fmtPct = (v: number | undefined) => v != null ? (v * 100).toFixed(1) + '%' : '--'
         const fmtRet = (v: number | undefined) => v != null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '--'
         return [
           `<strong>${d.trade_date}</strong>`,
-          `\u5F00:${d.open}  \u6536:${d.close}`,
-          `\u9AD8:${d.high}  \u4F4E:${d.low}`,
-          `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`,
-          `\u9884\u6D4B\u5206: ${d.score != null ? d.score.toFixed(2) : '--'}`,
-          `\u6DA8(3d):${fmtPct(d.up_prob_3d)}  \u8DCC(3d):${fmtPct(d.down_prob_3d)}`,
-          `\u6DA8(5d):${fmtPct(d.up_prob_5d)}  \u8DCC(5d):${fmtPct(d.down_prob_5d)}`,
-          `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`,
-          `\u5B9E\u96453\u65E5: ${fmtRet(d.actual_return_3d)} ${labelText(d.actual_label_3d)}`,
-          `\u5B9E\u96455\u65E5: ${fmtRet(d.actual_return_5d)} ${labelText(d.actual_label_5d)}`,
+          `开:${d.open}  收:${d.close}`,
+          `高:${d.high}  低:${d.low}`,
+          `─────────────────`,
+          `预测分: ${d.score != null ? d.score.toFixed(2) : '--'}`,
+          `涨(3d):${fmtPct(d.up_prob_3d)}  跌(3d):${fmtPct(d.down_prob_3d)}`,
+          `涨(5d):${fmtPct(d.up_prob_5d)}  跌(5d):${fmtPct(d.down_prob_5d)}`,
+          `─────────────────`,
+          `实际3日: ${fmtRet(d.actual_return_3d)} ${labelText(d.actual_label_3d)}`,
+          `实际5日: ${fmtRet(d.actual_return_5d)} ${labelText(d.actual_label_5d)}`,
         ].join('<br/>')
       },
     },
