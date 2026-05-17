@@ -3,7 +3,7 @@
     <v-card title="预测分析">
       <v-card-text>
         <v-row>
-          <v-col cols="12" sm="4">
+          <v-col cols="12" sm="3">
             <v-select
               :items="stockItems"
               item-title="label"
@@ -16,7 +16,25 @@
               return-object
             ></v-select>
           </v-col>
-          <v-col cols="12" sm="8" class="text-right">
+          <v-col cols="12" sm="6" v-if="selectedTsCode && chartData.length > 0">
+            <div class="d-flex align-center ga-6" style="height: 56px;">
+              <div class="text-caption">
+                3日方向准确率:
+                <span :class="accuracy3d && accuracy3d.pct >= 50 ? 'text-success' : 'text-error'" class="font-weight-bold">
+                  {{ accuracy3d ? accuracy3d.pct + '%' : '--' }}
+                </span>
+                <span class="text-medium-emphasis" v-if="accuracy3d"> ({{ accuracy3d.correct }}/{{ accuracy3d.total }})</span>
+              </div>
+              <div class="text-caption">
+                5日方向准确率:
+                <span :class="accuracy5d && accuracy5d.pct >= 50 ? 'text-success' : 'text-error'" class="font-weight-bold">
+                  {{ accuracy5d ? accuracy5d.pct + '%' : '--' }}
+                </span>
+                <span class="text-medium-emphasis" v-if="accuracy5d"> ({{ accuracy5d.correct }}/{{ accuracy5d.total }})</span>
+              </div>
+            </div>
+          </v-col>
+          <v-col cols="12" sm="3" class="text-right">
             <v-btn
               prepend-icon="mdi-magnify"
               text="查看K线"
@@ -59,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onUnmounted, computed } from 'vue'
 import * as echarts from 'echarts'
 import { backtestRecordApi, type PredictionStock, type PredictionItem } from '@/api/backtestRecord'
 import { dataApi } from '@/api/data'
@@ -97,6 +115,40 @@ const selectedTsCode = ref<{ label: string; ts_code: string } | null>(null)
 const predictionItems = ref<PredictionItem[]>([])
 const klineItems = ref<any[]>([])
 const chartData = ref<any[]>([])
+
+const accuracy3d = computed(() => {
+  const valid = predictionItems.value.filter(
+    p => p.actual_label_3d != null && p.actual_label_3d !== 0
+  )
+  if (valid.length === 0) return null
+  const correct = valid.filter(p => {
+    const predUp = (p.up_prob_3d ?? 0) > (p.down_prob_3d ?? 0)
+    const actualUp = p.actual_label_3d === 1
+    return predUp === actualUp
+  })
+  return {
+    pct: Math.round((correct.length / valid.length) * 100),
+    correct: correct.length,
+    total: valid.length,
+  }
+})
+
+const accuracy5d = computed(() => {
+  const valid = predictionItems.value.filter(
+    p => p.actual_label_5d != null && p.actual_label_5d !== 0
+  )
+  if (valid.length === 0) return null
+  const correct = valid.filter(p => {
+    const predUp = (p.up_prob_5d ?? 0) > (p.down_prob_5d ?? 0)
+    const actualUp = p.actual_label_5d === 1
+    return predUp === actualUp
+  })
+  return {
+    pct: Math.round((correct.length / valid.length) * 100),
+    correct: correct.length,
+    total: valid.length,
+  }
+})
 
 const loadStocks = async () => {
   if (!props.backtestId) return
@@ -158,15 +210,52 @@ const renderChart = () => {
   const dates = chartData.value.map(d => d.trade_date)
   const klineData = chartData.value.map(d => [d.open, d.close, d.low, d.high])
   const scores = chartData.value.map(d => d.score)
+  const up3d = chartData.value.map(d => d.up_prob_3d)
+  const down3d = chartData.value.map(d => d.down_prob_3d)
+  const up5d = chartData.value.map(d => d.up_prob_5d)
+  const down5d = chartData.value.map(d => d.down_prob_5d)
 
   chartInstance.setOption({
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'cross' },
+      formatter: (params: any) => {
+        if (!params || params.length === 0) return ''
+        const d = chartData.value[params[0].dataIndex]
+        if (!d) return ''
+        const labelText = (label: number | undefined) => {
+          if (label == null) return '--'
+          if (label === 1) return '\u2191 \u6DA8'
+          if (label === -1) return '\u2193 \u8DCC'
+          return '\u2014 \u5E73'
+        }
+        const fmtPct = (v: number | undefined) => v != null ? (v * 100).toFixed(1) + '%' : '--'
+        const fmtRet = (v: number | undefined) => v != null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '--'
+        return [
+          `<strong>${d.trade_date}</strong>`,
+          `\u5F00:${d.open}  \u6536:${d.close}`,
+          `\u9AD8:${d.high}  \u4F4E:${d.low}`,
+          `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`,
+          `\u9884\u6D4B\u5206: ${d.score != null ? d.score.toFixed(2) : '--'}`,
+          `\u6DA8(3d):${fmtPct(d.up_prob_3d)}  \u8DCC(3d):${fmtPct(d.down_prob_3d)}`,
+          `\u6DA8(5d):${fmtPct(d.up_prob_5d)}  \u8DCC(5d):${fmtPct(d.down_prob_5d)}`,
+          `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`,
+          `\u5B9E\u96453\u65E5: ${fmtRet(d.actual_return_3d)} ${labelText(d.actual_label_3d)}`,
+          `\u5B9E\u96455\u65E5: ${fmtRet(d.actual_return_5d)} ${labelText(d.actual_label_5d)}`,
+        ].join('<br/>')
+      },
     },
     legend: {
-      data: ['K线', '预测分'],
+      data: ['K线', '预测分', '涨(3d)', '跌(3d)', '涨(5d)', '跌(5d)'],
       top: 0,
+      selected: {
+        'K线': true,
+        '预测分': true,
+        '涨(3d)': false,
+        '跌(3d)': false,
+        '涨(5d)': false,
+        '跌(5d)': false,
+      },
     },
     grid: {
       left: '10%', right: '10%', bottom: '15%', top: '10%',
@@ -178,7 +267,7 @@ const renderChart = () => {
     },
     yAxis: [
       { type: 'value', scale: true, name: '价格' },
-      { type: 'value', scale: true, name: '预测分', min: -1, max: 1 },
+      { type: 'value', scale: true, name: '概率/分', min: -1, max: 1 },
     ],
     series: [
       {
@@ -200,6 +289,42 @@ const renderChart = () => {
         yAxisIndex: 1,
         smooth: true,
         lineStyle: { width: 2 },
+        symbol: 'none',
+      },
+      {
+        name: '涨(3d)',
+        type: 'line',
+        data: up3d,
+        yAxisIndex: 1,
+        smooth: true,
+        lineStyle: { width: 1.5, type: 'dashed', color: '#ef5350' },
+        symbol: 'none',
+      },
+      {
+        name: '跌(3d)',
+        type: 'line',
+        data: down3d,
+        yAxisIndex: 1,
+        smooth: true,
+        lineStyle: { width: 1.5, type: 'dashed', color: '#26a69a' },
+        symbol: 'none',
+      },
+      {
+        name: '涨(5d)',
+        type: 'line',
+        data: up5d,
+        yAxisIndex: 1,
+        smooth: true,
+        lineStyle: { width: 1.5, type: 'dotted', color: '#ff7043' },
+        symbol: 'none',
+      },
+      {
+        name: '跌(5d)',
+        type: 'line',
+        data: down5d,
+        yAxisIndex: 1,
+        smooth: true,
+        lineStyle: { width: 1.5, type: 'dotted', color: '#66bb6a' },
         symbol: 'none',
       },
     ],
