@@ -62,6 +62,12 @@ export interface PredictionItem {
   score: number
   up_prob_3d: number
   up_prob_5d: number
+  down_prob_3d?: number
+  down_prob_5d?: number
+  actual_return_3d?: number
+  actual_return_5d?: number
+  actual_label_3d?: number
+  actual_label_5d?: number
 }
 
 export interface PredictionResponse {
