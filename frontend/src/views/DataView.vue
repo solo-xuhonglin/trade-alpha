@@ -70,10 +70,16 @@
 
   <!-- 下载对话框 -->
   <v-dialog v-model="downloadDialog" max-width="500px">
-    <v-card
-      subtitle="选择日期范围下载数据"
-      title="下载数据"
-    >
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">下载数据</div>
+          <div class="text-subtitle-1">选择日期范围下载数据</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="downloadDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         <div class="mb-2">股票：{{ downloadingStock?.name }} ({{ downloadingStock?.ts_code }})</div>
         <v-row>
@@ -121,10 +127,16 @@
 
   <!-- 删除确认对话框 -->
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card
-      subtitle="此操作不可撤销"
-      title="确认删除"
-    >
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">确认删除</div>
+          <div class="text-subtitle-1">此操作不可撤销</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="deleteDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         确定要删除「{{ deletingStock?.name }} ({{ deletingStock?.ts_code }})」的数据吗？
       </template>
@@ -266,9 +278,11 @@ const viewChart = async (stock: Stock) => {
 
 const renderChart = () => {
   if (!chartRef.value) return
-  if (!chartInstance) {
-    chartInstance = echarts.init(chartRef.value)
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
   }
+  chartInstance = echarts.init(chartRef.value)
   const dates = stockData.value.map(d => d.trade_date)
   const data = stockData.value.map(d => [d.open, d.close, d.low, d.high])
 

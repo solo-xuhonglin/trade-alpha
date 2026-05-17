@@ -31,10 +31,16 @@
   </v-card>
 
   <v-dialog v-model="dialog" max-width="600px">
-    <v-card
-      :subtitle="editingId ? '修改策略参数' : '创建新的交易策略'"
-      :title="editingId ? '编辑策略' : '新建策略'"
-    >
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">{{ editingId ? '编辑策略' : '新建策略' }}</div>
+          <div class="text-subtitle-1">{{ editingId ? '修改策略参数' : '创建新的交易策略' }}</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="dialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         <v-row>
           <v-col cols="12" md="6">
@@ -106,10 +112,16 @@
   </v-dialog>
 
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card
-      subtitle="此操作不可撤销"
-      title="确认删除"
-    >
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">确认删除</div>
+          <div class="text-subtitle-1">此操作不可撤销</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="deleteDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         确定要删除策略「{{ deletingItem?.name }}」吗？
       </template>

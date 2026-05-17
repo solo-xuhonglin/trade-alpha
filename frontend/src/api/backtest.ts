@@ -17,6 +17,7 @@ export interface TaskListResponse {
     status: string
     progress: number
     progress_message?: string
+    error_message?: string
     created_at: string
     completed_at?: string
   }[]

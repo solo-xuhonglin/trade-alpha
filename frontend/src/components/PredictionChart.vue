@@ -1,6 +1,12 @@
 <template>
   <v-dialog v-model="dialog" max-width="1200px" persistent>
-    <v-card title="预测分析">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        预测分析
+        <v-btn icon variant="text" size="small" @click="dialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="12" sm="3">

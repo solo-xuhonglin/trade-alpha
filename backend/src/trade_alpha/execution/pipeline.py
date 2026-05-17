@@ -206,7 +206,7 @@ class ExecutionPipeline:
                 if y == current_year and m == current_month and idx >= last_idx:
                     last_idx = idx + 1
                     if progress_callback:
-                        progress_callback(last_idx / total_months * 100, format_progress("backtest", y, m, idx=last_idx, total=total_months))
+                        await progress_callback(last_idx / total_months * 100, format_progress("backtest", y, m, idx=last_idx, total=total_months))
                     break
 
             logger.debug(f"Processing {date}")

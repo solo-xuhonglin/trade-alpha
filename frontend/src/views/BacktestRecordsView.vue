@@ -39,8 +39,8 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
-          <v-btn size="small" variant="text" prepend-icon="mdi-eye" @click="viewResult(item)">详情</v-btn>
-          <v-btn size="small" variant="text" color="info" prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">预测</v-btn>
+          <v-btn size="small" variant="text" prepend-icon="mdi-eye" @click="viewResult(item)">指标</v-btn>
+          <v-btn size="small" variant="text" color="info" prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">分析</v-btn>
           <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-btn>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
@@ -49,7 +49,13 @@
   </v-card>
 
   <v-dialog v-model="resultDialog" max-width="1000px">
-    <v-card title="回测结果详情">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        回测结果详情
+        <v-btn icon variant="text" size="small" @click="resultDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <v-card-text>
         <v-row v-if="selectedResult">
           <v-col cols="6" sm="4" md="2">
@@ -115,7 +121,16 @@
   </v-dialog>
 
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card subtitle="此操作不可撤销" title="确认删除">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">确认删除</div>
+          <div class="text-subtitle-1">此操作不可撤销</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="deleteDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         确定要删除回测记录「{{ deletingItem?.id }}」吗？
       </template>
@@ -129,7 +144,13 @@
   </v-dialog>
 
   <v-dialog v-model="tradesDialog" max-width="800px">
-    <v-card title="交易记录">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        交易记录
+        <v-btn icon variant="text" size="small" @click="tradesDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <v-card-text>
         <v-data-table-server
           :headers="tradesHeaders"

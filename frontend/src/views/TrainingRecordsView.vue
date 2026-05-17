@@ -38,7 +38,13 @@
   </v-card>
 
   <v-dialog v-model="predictDialog" max-width="500px">
-    <v-card title="使用模型预测">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        使用模型预测
+        <v-btn icon variant="text" size="small" @click="predictDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <v-card-text>
         <v-select
           v-model="predictForm.ts_code"
@@ -64,7 +70,16 @@
   </v-dialog>
 
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card subtitle="此操作不可撤销" title="确认删除">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">确认删除</div>
+          <div class="text-subtitle-1">此操作不可撤销</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="deleteDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         确定要删除训练「{{ deletingItem?.name }}」吗？
       </template>

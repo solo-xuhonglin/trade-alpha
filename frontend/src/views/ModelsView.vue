@@ -37,7 +37,13 @@
   </v-card>
 
   <v-dialog v-model="dialog" max-width="800px">
-    <v-card :title="editingId ? '编辑配置' : '新建配置'">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        {{ editingId ? '编辑配置' : '新建配置' }}
+        <v-btn icon variant="text" size="small" @click="dialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         <v-row>
           <v-col cols="12" sm="6">
@@ -110,7 +116,16 @@
   </v-dialog>
 
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card subtitle="此操作不可撤销" title="确认删除">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">确认删除</div>
+          <div class="text-subtitle-1">此操作不可撤销</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="deleteDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         确定要删除配置「{{ deletingItem?.name }}」吗？
       </template>

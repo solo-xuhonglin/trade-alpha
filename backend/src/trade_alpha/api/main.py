@@ -2,6 +2,7 @@
 
 import math
 import time
+from datetime import datetime, timedelta
 from typing import Any
 from contextlib import asynccontextmanager
 
@@ -74,6 +75,20 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    # 清理卡死超过 60 秒的任务（pending 或 running）
+    from trade_alpha.dao.task import Task, TaskStatus
+    from beanie.odm.operators.find.comparison import In
+    cutoff = datetime.now() - timedelta(seconds=60)
+    stuck = await Task.find(
+        In(Task.status, [TaskStatus.PENDING, TaskStatus.RUNNING]),
+        Task.created_at < cutoff,
+    ).to_list()
+    for t in stuck:
+        t.status = TaskStatus.FAILED
+        t.error_message = "Task timed out"
+        t.progress_message = "超时(自动修复)"
+        await t.save()
 
     scheduler = DataSyncScheduler()
     scheduler.start()

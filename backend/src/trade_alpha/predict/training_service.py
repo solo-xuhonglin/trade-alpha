@@ -129,9 +129,9 @@ async def create_training(
     total_years = len(years)
     total_stages = len(years) * 2 + 1
 
-    def update(stage_num: int, msg: str):
+    async def update(stage_num: int, msg: str):
         if progress_callback:
-            progress_callback(stage_num / total_stages * 100, msg)
+            await progress_callback(stage_num / total_stages * 100, msg)
 
     stage = 0
     horizon = max(config.classification_horizons)
@@ -145,13 +145,13 @@ async def create_training(
         year_num = year_idx + 1
 
         stage += 1
-        update(stage, format_progress("load", year, idx=year_num, total=total_years))
+        await update(stage, format_progress("load", year, idx=year_num, total=total_years))
         year_df = await _load_year_data(year, ts_codes, horizon)
         if year_df is None:
             continue
 
         stage += 1
-        update(stage, format_progress("label", year, idx=year_num, total=total_years))
+        await update(stage, format_progress("label", year, idx=year_num, total=total_years))
         year_df = _create_classification_labels(year_df, config.classification_horizons, config.classification_threshold)
 
         year_norm = _normalize_data(year_df, config)
@@ -172,7 +172,7 @@ async def create_training(
         raise ValueError("No available data")
 
     stage += 1
-    update(stage, "正在训练模型...")
+    await update(stage, "正在训练模型...")
 
     X = np.vstack(all_X)
     y = np.vstack(all_y) if len(all_y) > 1 else all_y[0]
@@ -181,7 +181,7 @@ async def create_training(
     classifier = _create_classifier(config)
     classifier.fit(X, y, all_targets)
 
-    update(total_stages, format_progress("done", years[-1]))
+    await update(total_stages, format_progress("done", years[-1]))
 
     training = TrainingResult(
         config_id=config_id,

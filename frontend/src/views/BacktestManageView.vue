@@ -73,7 +73,12 @@
 
   <v-dialog v-model="deleteDialog.show" max-width="400">
     <v-card>
-      <v-card-title class="text-h6">确认删除</v-card-title>
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        确认删除
+        <v-btn icon variant="text" size="small" @click="deleteDialog.show = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <v-card-text>删除后任务记录将从列表中移除，是否继续？</v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -203,8 +208,12 @@ const getStatusText = (status: string) => {
 let pollInterval: number | null = null
 
 const startPolling = () => {
-  if (pollInterval) return
-  pollInterval = window.setInterval(pollActiveTasks, 2000)
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+  pollActiveTasks()
+  pollInterval = window.setInterval(pollActiveTasks, 3000)
 }
 
 const stopPolling = () => {
@@ -216,25 +225,11 @@ const stopPolling = () => {
 
 const pollActiveTasks = async () => {
   try {
-    const res = await backtestApi.listTasks(1, 10, 'running')
-    const pendingRes = await backtestApi.listTasks(1, 10, 'pending')
-    const failedRes = await backtestApi.listTasks(1, 10, 'failed')
+    const res = await backtestApi.listTasks(1, 20)
+    const items = res.data.items.filter(t => t.status !== 'completed')
+    activeTasks.value = items as any
 
-    const taskDetails: TaskStatusResponse[] = []
-
-    for (const task of [...res.data.items, ...pendingRes.data.items]) {
-      const detailRes = await backtestApi.getTask(task.task_id)
-      taskDetails.push(detailRes.data)
-    }
-
-    for (const task of failedRes.data.items) {
-      const detailRes = await backtestApi.getTask(task.task_id)
-      taskDetails.push(detailRes.data)
-    }
-
-    activeTasks.value = taskDetails
-
-    const hasActiveTasks = taskDetails.some(t => t.status === 'pending' || t.status === 'running')
+    const hasActiveTasks = items.some(t => t.status === 'pending' || t.status === 'running')
     if (!hasActiveTasks && pollInterval) {
       stopPolling()
     }
@@ -310,8 +305,16 @@ const runBacktest = async () => {
       payload.max_positions = form.value.max_positions
     }
 
-    await backtestApi.run(payload)
+    const res = await backtestApi.run(payload)
+    const taskId = res.data.task_id
     startPolling()
+
+    // 等待任务真正开始执行
+    while (true) {
+      const statusRes = await backtestApi.getTask(taskId)
+      if (statusRes.data.status !== 'pending') break
+      await new Promise(r => setTimeout(r, 500))
+    }
   } catch (e: any) {
     error.value = e.message || 'Failed to create backtest task'
     console.error('Backtest error:', e)
@@ -351,7 +354,6 @@ onMounted(() => {
   loadTrainings()
   loadAccounts()
   loadStrategies()
-  pollActiveTasks()
   startPolling()
 })
 

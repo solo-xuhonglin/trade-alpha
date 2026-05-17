@@ -31,10 +31,16 @@
   </v-card>
 
   <v-dialog v-model="dialog" max-width="500px">
-    <v-card
-      :subtitle="editingId ? '修改账户参数' : '创建新的交易账户'"
-      :title="editingId ? '编辑账户' : '新建账户'"
-    >
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">{{ editingId ? '编辑账户' : '新建账户' }}</div>
+          <div class="text-subtitle-1">{{ editingId ? '修改账户参数' : '创建新的交易账户' }}</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="dialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         <v-row>
           <v-col cols="12">
@@ -67,10 +73,16 @@
   </v-dialog>
 
   <v-dialog v-model="deleteDialog" max-width="400px">
-    <v-card
-      subtitle="此操作不可撤销"
-      title="确认删除"
-    >
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-h6">确认删除</div>
+          <div class="text-subtitle-1">此操作不可撤销</div>
+        </div>
+        <v-btn icon variant="text" size="small" @click="deleteDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
       <template v-slot:text>
         确定要删除账户「{{ deletingItem?.name }}」吗？
       </template>

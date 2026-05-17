@@ -256,6 +256,7 @@ async def list_backtest_tasks(
                 "status": task.status.value,
                 "progress": task.progress,
                 "progress_message": task.progress_message,
+                "error_message": task.error_message,
                 "created_at": task.created_at,
                 "completed_at": task.completed_at,
             }
