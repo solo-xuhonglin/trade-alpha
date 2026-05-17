@@ -11,6 +11,7 @@ from trade_alpha.indicators.custom import (
     calculate_vol_ratio,
     calculate_kdj,
     calculate_boll,
+    calculate_rsi,
 )
 from trade_alpha.logging import get_logger
 
@@ -139,6 +140,7 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
     df = calculate_vol_ratio(df)
     df = calculate_kdj(df)
     df = calculate_boll(df)
+    df = calculate_rsi(df)
 
     updated_count = 0
     for _, row in df.iterrows():
@@ -162,6 +164,8 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "boll_upper": row.get("boll_upper"),
             "boll_middle": row.get("boll_middle"),
             "boll_lower": row.get("boll_lower"),
+            "rsi_6": row.get("rsi_6"),
+            "rsi_12": row.get("rsi_12"),
         }
         await StockDaily.find_one(
             StockDaily.ts_code == ts_code,

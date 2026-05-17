@@ -6,6 +6,7 @@ from trade_alpha.indicators.custom.close_pct_rank import calculate_close_pct_ran
 from trade_alpha.indicators.custom.vol_ratio import calculate_vol_ratio
 from trade_alpha.indicators.custom.kdj import calculate_kdj
 from trade_alpha.indicators.custom.boll import calculate_boll
+from trade_alpha.indicators.custom.rsi import calculate_rsi
 
 __all__ = [
     "calculate_pct_chg",
@@ -14,4 +15,5 @@ __all__ = [
     "calculate_vol_ratio",
     "calculate_kdj",
     "calculate_boll",
+    "calculate_rsi",
 ]
