@@ -9,7 +9,7 @@
         <v-toolbar flat>
           <v-toolbar-title>
             <v-icon color="medium-emphasis" icon="mdi-wallet" size="x-small" start></v-icon>
-            账户管理
+            账户配置
           </v-toolbar-title>
           <v-btn
             prepend-icon="mdi-plus"
@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { accountConfigApi, type AccountConfig } from '@/api/account'
+import { accountConfigApi, type AccountConfig } from '@/api/accountConfig'
 
 const loading = ref(false)
 const dialog = ref(false)

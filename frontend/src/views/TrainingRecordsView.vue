@@ -96,7 +96,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { trainingRecordApi, type Training } from '@/api/trainingRecord'
-import { modelApi } from '@/api/model'
+import { modelConfigApi } from '@/api/modelConfig'
 import { dataApi } from '@/api/data'
 
 const loading = ref(false)
@@ -128,7 +128,7 @@ const headers = [
 const configOptions = ref<{ title: string; value: string }[]>([])
 
 const loadConfigs = async () => {
-  const res = await modelApi.list()
+  const res = await modelConfigApi.list()
   configs.value = res.data.map(c => ({ id: c.id, name: c.name }))
   configOptions.value = configs.value.map(c => ({ title: c.name, value: c.id }))
 }

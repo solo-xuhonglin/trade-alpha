@@ -13,7 +13,7 @@ export interface Strategy {
   updated_at?: string
 }
 
-export const strategyApi = {
+export const strategyConfigApi = {
   list: () => api.get<Strategy[]>('/strategies'),
   get: (id: string) => api.get<Strategy>(`/strategies/${id}`),
   create: (data: Partial<Strategy>) => api.post<Strategy>('/strategies', data),

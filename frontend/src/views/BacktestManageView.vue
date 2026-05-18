@@ -138,9 +138,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
-import { accountConfigApi } from '@/api/account'
+import { accountConfigApi } from '@/api/accountConfig'
 import { trainingRecordApi } from '@/api/trainingRecord'
-import { strategyApi } from '@/api/strategy'
+import { strategyConfigApi } from '@/api/strategyConfig'
 
 const formatDateTime = () => {
   const now = new Date()
@@ -258,7 +258,7 @@ const loadAccounts = async () => {
 
 const loadStrategies = async () => {
   try {
-    const res = await strategyApi.list()
+    const res = await strategyConfigApi.list()
     const typeMap: Record<string, string> = {}
     strategyOptions.value = res.data.map(s => {
       typeMap[s.id] = s.type

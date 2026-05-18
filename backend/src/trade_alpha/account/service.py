@@ -52,7 +52,7 @@ async def get_account_config_by_name(name: str) -> Optional[AccountConfig]:
 
 async def list_account_configs() -> List[AccountConfig]:
     """List all account configs."""
-    return await AccountConfig.find_all().to_list()
+    return await AccountConfig.find_all().sort(-AccountConfig.created_at).to_list()
 
 
 async def update_account_config(

@@ -116,7 +116,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { trainingApi, type TaskStatusResponse } from '@/api/training'
-import { modelApi } from '@/api/model'
+import { modelConfigApi } from '@/api/modelConfig'
 
 const running = ref(false)
 const configs = ref<{ id: string; name: string }[]>([])
@@ -204,7 +204,7 @@ const pollActiveTasks = async () => {
 }
 
 const loadConfigs = async () => {
-  const res = await modelApi.list()
+  const res = await modelConfigApi.list()
   configs.value = res.data.map(c => ({ id: c.id, name: c.name }))
   configOptions.value = configs.value.map(c => ({ title: c.name, value: c.id }))
 }

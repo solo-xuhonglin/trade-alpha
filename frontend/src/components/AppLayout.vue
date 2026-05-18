@@ -80,9 +80,9 @@ const { mdAndUp } = useDisplay()
 const drawer = ref(true)
 
 const configItems = [
-  { path: '/account-configs', title: '账户管理' },
-  { path: '/strategies', title: '策略管理' },
-  { path: '/models', title: '模型管理' },
+  { path: '/account-configs', title: '账户配置' },
+  { path: '/strategies', title: '策略配置' },
+  { path: '/models', title: '模型配置' },
 ]
 
 const trainingItems = [

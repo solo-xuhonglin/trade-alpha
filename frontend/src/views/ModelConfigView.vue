@@ -141,7 +141,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { modelApi, type ModelConfig } from '@/api/model'
+import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 
 const loading = ref(false)
 const dialog = ref(false)
@@ -192,7 +192,7 @@ const headers = [
 const loadModels = async () => {
   loading.value = true
   try {
-    const res = await modelApi.list()
+    const res = await modelConfigApi.list()
     models.value = res.data
   } finally {
     loading.value = false
@@ -226,9 +226,9 @@ const openDialog = (item?: ModelConfig) => {
 
 const saveConfig = async () => {
   if (editingId.value) {
-    await modelApi.update(editingId.value, form.value)
+    await modelConfigApi.update(editingId.value, form.value)
   } else {
-    await modelApi.create(form.value)
+    await modelConfigApi.create(form.value)
   }
   dialog.value = false
   await loadModels()
@@ -241,7 +241,7 @@ const confirmDelete = (item: ModelConfig) => {
 
 const deleteConfig = async () => {
   if (!deletingItem.value) return
-  await modelApi.delete(deletingItem.value.id)
+  await modelConfigApi.delete(deletingItem.value.id)
   deleteDialog.value = false
   deletingItem.value = null
   await loadModels()

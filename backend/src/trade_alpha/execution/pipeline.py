@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from trade_alpha.dao.account_config import AccountConfig
-from trade_alpha.dao.strategy import StrategyConfig
+from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade

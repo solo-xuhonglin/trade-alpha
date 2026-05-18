@@ -294,14 +294,24 @@ async def list_all_trades(
 @router.get("/trades/options")
 async def get_trade_filter_options():
     """Get filter options for trade list."""
-    account_configs = await AccountConfig.find_all().to_list()
+    from trade_alpha.dao.strategy_config import StrategyConfig
+    
+    account_configs = await AccountConfig.find_all().sort(-AccountConfig.created_at).to_list()
+    strategies = await StrategyConfig.find_all().sort(-StrategyConfig.created_at).to_list()
+    trainings = await TrainingResult.find_all().sort(-TrainingResult.created_at).to_list()
 
     return {
         "account_configs": [
             {"id": str(config.id), "name": config.name}
             for config in account_configs
         ],
-        "strategies": [],
-        "trainings": [],
+        "strategies": [
+            {"id": str(strategy.id), "name": strategy.name}
+            for strategy in strategies
+        ],
+        "trainings": [
+            {"id": str(training.id), "name": training.name}
+            for training in trainings
+        ],
         "ts_codes": [],
     }

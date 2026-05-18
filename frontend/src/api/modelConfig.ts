@@ -20,7 +20,7 @@ export interface ModelConfig {
   updated_at?: string
 }
 
-export const modelApi = {
+export const modelConfigApi = {
   list: (modelType?: string) => {
     const params = modelType ? { model_type: modelType } : {}
     return api.get<ModelConfig[]>('/model-configs', { params })

@@ -114,8 +114,8 @@ async def get_config_by_name(name: str) -> Optional[ModelConfig]:
 
 async def list_configs(model_type: str = None) -> List[ModelConfig]:
     if model_type:
-        return await ModelConfig.find(ModelConfig.model_type == model_type).to_list()
-    return await ModelConfig.find_all().to_list()
+        return await ModelConfig.find(ModelConfig.model_type == model_type).sort(-ModelConfig.created_at).to_list()
+    return await ModelConfig.find_all().sort(-ModelConfig.created_at).to_list()
 
 
 async def update_config(config_id: PydanticObjectId, **kwargs) -> Optional[ModelConfig]:

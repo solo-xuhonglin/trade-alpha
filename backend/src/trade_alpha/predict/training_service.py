@@ -217,8 +217,8 @@ async def get_training_by_name(name: str) -> Optional[TrainingResult]:
 
 async def list_trainings(config_id: PydanticObjectId = None) -> List[TrainingResult]:
     if config_id:
-        return await TrainingResult.find(TrainingResult.config_id == config_id).to_list()
-    return await TrainingResult.find_all().to_list()
+        return await TrainingResult.find(TrainingResult.config_id == config_id).sort(-TrainingResult.created_at).to_list()
+    return await TrainingResult.find_all().sort(-TrainingResult.created_at).to_list()
 
 
 async def delete_training(training_id: PydanticObjectId) -> bool:

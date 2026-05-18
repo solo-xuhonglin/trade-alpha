@@ -2,7 +2,7 @@
 
 from trade_alpha.dao.mongodb import init_db, get_db, close_db
 from trade_alpha.dao.account_config import AccountConfig
-from trade_alpha.dao.strategy import StrategyConfig
+from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.training import TrainingResult
 from trade_alpha.dao.execution import ExecutionResult

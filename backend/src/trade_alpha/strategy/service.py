@@ -53,7 +53,7 @@ async def get_strategy_by_name(name: str) -> Optional[StrategyConfig]:
 
 async def list_strategies() -> List[StrategyConfig]:
     """List all strategies."""
-    return await StrategyConfig.find_all().to_list()
+    return await StrategyConfig.find_all().sort(-StrategyConfig.created_at).to_list()
 
 
 async def update_strategy(

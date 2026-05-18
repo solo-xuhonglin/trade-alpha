@@ -10,6 +10,8 @@ export interface AccountConfig {
   sell_fee_rate: number
   stamp_tax_rate: number
   min_fee: number
+  created_at: string
+  updated_at?: string
 }
 
 export const accountConfigApi = {

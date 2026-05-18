@@ -9,7 +9,7 @@
         <v-toolbar flat>
           <v-toolbar-title>
             <v-icon color="medium-emphasis" icon="mdi-strategy" size="x-small" start></v-icon>
-            策略管理
+            策略配置
           </v-toolbar-title>
           <v-btn
             prepend-icon="mdi-plus"
@@ -137,7 +137,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { strategyApi, type Strategy } from '@/api/strategy'
+import { strategyConfigApi, type Strategy } from '@/api/strategyConfig'
 
 const loading = ref(false)
 const dialog = ref(false)
@@ -169,7 +169,7 @@ const headers = [
 const loadStrategies = async () => {
   loading.value = true
   try {
-    const res = await strategyApi.list()
+    const res = await strategyConfigApi.list()
     strategies.value = res.data
   } finally {
     loading.value = false
@@ -205,7 +205,7 @@ const openDialog = (item?: Strategy) => {
 
 const saveStrategy = async () => {
   if (editingId.value) {
-    await strategyApi.update(editingId.value, {
+    await strategyConfigApi.update(editingId.value, {
       name: form.value.name,
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
@@ -214,7 +214,7 @@ const saveStrategy = async () => {
       max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
     })
   } else {
-    await strategyApi.create({
+    await strategyConfigApi.create({
       name: form.value.name,
       type: form.value.type,
       min_order_value: form.value.min_order_value,
@@ -235,7 +235,7 @@ const confirmDelete = (item: Strategy) => {
 
 const deleteStrategy = async () => {
   if (!deletingItem.value) return
-  await strategyApi.delete(deletingItem.value.id)
+  await strategyConfigApi.delete(deletingItem.value.id)
   deleteDialog.value = false
   deletingItem.value = null
   await loadStrategies()
