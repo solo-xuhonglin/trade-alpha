@@ -105,7 +105,7 @@ def _create_classifier(config) -> any:
     return CLASSIFIERS[config.model_type]()
 
 
-def _evaluate_classifier(
+async def _evaluate_classifier(
     classifier,
     X: np.ndarray,
     y: np.ndarray,
@@ -138,16 +138,17 @@ def _evaluate_classifier(
 
     metrics = {}
 
-    def _call_progress(pct: float, msg: str):
+    async def _call_progress(pct: float, msg: str):
         if progress_callback:
             try:
-                result = progress_callback(pct, msg)
-                if asyncio.iscoroutine(result):
-                    asyncio.create_task(result)
+                if asyncio.iscoroutinefunction(progress_callback):
+                    await progress_callback(pct, msg)
+                else:
+                    progress_callback(pct, msg)
             except Exception:
                 pass
 
-    _call_progress(0, "正在计算准确率...")
+    await _call_progress(0, "正在计算准确率...")
 
     for i, target in enumerate(targets):
         y_i = y[:, i] if y.ndim > 1 else y
@@ -169,7 +170,7 @@ def _evaluate_classifier(
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     
     for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X)):
-        _call_progress((fold_idx + 1) / n_splits * 100, f"交叉验证 Fold {fold_idx + 1}/{n_splits}...")
+        await _call_progress((fold_idx + 1) / n_splits * 100, f"交叉验证 Fold {fold_idx + 1}/{n_splits}...")
         
         X_train, X_val = X[train_idx], X[val_idx]
         
@@ -284,7 +285,7 @@ async def create_training(
 
     stage += 1
     await update(stage, "正在评估模型...")
-    eval_metrics = _evaluate_classifier(
+    eval_metrics = await _evaluate_classifier(
         classifier,
         X,
         y,
