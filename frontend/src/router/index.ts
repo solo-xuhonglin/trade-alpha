@@ -13,17 +13,17 @@ const routes = [
   {
     path: '/account-configs',
     name: 'AccountConfigs',
-    component: () => import('@/views/AccountsPage.vue')
+    component: () => import('@/views/AccountConfigView.vue')
   },
   {
     path: '/strategies',
     name: 'Strategies',
-    component: () => import('@/views/StrategyView.vue')
+    component: () => import('@/views/StrategyConfigView.vue')
   },
   {
     path: '/models',
     name: 'Models',
-    component: () => import('@/views/ModelsView.vue')
+    component: () => import('@/views/ModelConfigView.vue')
   },
   {
     path: '/trainings',

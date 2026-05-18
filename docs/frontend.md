@@ -24,9 +24,9 @@ frontend/
 │   ├── api/                    # API 调用封装
 │   │   ├── index.ts           # Axios 实例配置
 │   │   ├── data.ts            # 数据 API
-│   │   ├── account.ts         # 账户 API
-│   │   ├── strategy.ts        # 策略 API
-│   │   ├── model.ts           # 模型配置 API
+│   │   ├── accountConfig.ts   # 账户配置 API
+│   │   ├── strategyConfig.ts  # 策略配置 API
+│   │   ├── modelConfig.ts     # 模型配置 API
 │   │   ├── training.ts         # 训练管理 API
 │   │   ├── trainingRecord.ts    # 训练记录 API
 │   │   ├── backtest.ts         # 回测管理 API
@@ -36,9 +36,9 @@ frontend/
 │   │   └── AppLayout.vue      # 应用布局
 │   ├── views/                  # 页面视图
 │   │   ├── DataView.vue       # 数据管理
-│   │   ├── AccountsPage.vue   # 账户管理
-│   │   ├── StrategyView.vue   # 策略管理
-│   │   ├── ModelsView.vue     # 模型管理
+│   │   ├── AccountConfigView.vue   # 账户配置
+│   │   ├── StrategyConfigView.vue  # 策略配置
+│   │   ├── ModelConfigView.vue     # 模型配置
 │   │   ├── TrainingManageView.vue     # 训练管理
 │   │   ├── TrainingRecordsView.vue     # 训练记录
 │   │   ├── BacktestManageView.vue     # 回测管理
@@ -67,9 +67,9 @@ frontend/
 ├────────────┬─────────────────────────────────┤
 │            │                                 │
 │  数据管理   │                                 │
-│  账户管理   │                                 │
-│  策略管理   │                                 │
-│  模型管理   │        主内容区                  │  ← router-view
+│  账户配置   │                                 │
+│  策略配置   │                                 │
+│  模型配置   │        主内容区                  │  ← router-view
 │  ▼ 训练    │                                 │
 │    训练管理 │                                 │
 │    训练记录 │                                 │
@@ -88,9 +88,9 @@ frontend/
 | 路由 | 页面 | 说明 |
 |------|------|------|
 | `/data` | 数据管理 | 股票列表、数据下载 |
-| `/account-configs` | 账户管理 | 账户配置 |
-| `/strategies` | 策略管理 | 策略配置 |
-| `/models` | 模型管理 | 模型配置 |
+| `/account-configs` | 账户配置 | 账户配置 |
+| `/strategies` | 策略配置 | 策略配置 |
+| `/models` | 模型配置 | 模型配置 |
 | `/trainings/manage` | 训练管理 | 发起训练任务 |
 | `/trainings/records` | 训练记录 | 查看训练历史 |
 | `/backtest/manage` | 回测管理 | 发起回测任务 |
@@ -114,7 +114,7 @@ frontend/
 - 弹窗：ECharts K 线图
 - 删除确认对话框
 
-### 2. 账户管理 `/account-configs`
+### 2. 账户配置 `/account-configs`
 
 **功能**:
 - 查看账户列表
@@ -124,7 +124,7 @@ frontend/
 - 数据表格：账户列表
 - 弹窗表单：账户编辑
 
-### 3. 策略管理 `/strategies`
+### 3. 策略配置 `/strategies`
 
 **功能**:
 - 查看策略列表
@@ -136,7 +136,7 @@ frontend/
 - 弹窗表单：策略编辑
 - 动态表单字段
 
-### 4. 模型管理 `/models`
+### 4. 模型配置 `/models`
 
 **功能**:
 - 查看模型配置列表
@@ -271,9 +271,9 @@ export const dataApi = {
 | 模块 | 文件 | 功能 |
 |------|------|------|
 | 数据 | `data.ts` | 股票列表、数据下载 |
-| 账户 | `account.ts` | 账户配置 CRUD |
-| 策略 | `strategy.ts` | 策略配置 CRUD |
-| 模型 | `model.ts` | 模型配置 CRUD |
+| 账户配置 | `accountConfig.ts` | 账户配置 CRUD |
+| 策略配置 | `strategyConfig.ts` | 策略配置 CRUD |
+| 模型配置 | `modelConfig.ts` | 模型配置 CRUD |
 | 训练管理 | `training.ts` | 发起训练、任务状态 |
 | 训练记录 | `trainingRecord.ts` | 训练列表、预测、删除 |
 | 回测管理 | `backtest.ts` | 发起回测、任务状态 |
