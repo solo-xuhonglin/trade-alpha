@@ -475,44 +475,63 @@ MACDStrategy:
 | `ts_codes` | array | 训练使用的股票代码列表 |
 | `start_date` | string | 训练开始日期 |
 | `end_date` | string | 训练结束日期 |
-| `feature_cols` | array | 特征列列表 |
-| `feature_fields` | array | 特征字段列表（分类任务） |
-| `classification_horizons` | array | 分类预测周期列表（分类任务） |
+| `feature_fields` | array | 特征字段列表 |
+| `classification_horizons` | array | 分类预测周期列表 |
 | `metrics` | object | 训练指标 |
 | `model_path` | string | 模型文件路径 |
 | `created_at` | datetime | 创建时间 |
 
-**分类任务指标示例**:
+**训练评估指标结构** (metrics):
 
 ```json
 {
-  "horizon_1": {
-    "accuracy": 0.55,
-    "precision": 0.52,
-    "recall": 0.50,
-    "f1": 0.48
+  "sample_count": 1751631,
+  "accuracy": {
+    "label_3d": 0.3912,
+    "label_5d": 0.4181
   },
-  "horizon_5": {
-    "accuracy": 0.58,
-    "precision": 0.55,
-    "recall": 0.52,
-    "f1": 0.51
+  "cv_scores": {
+    "label_3d": [0.4489, 0.4486, 0.4475, 0.4496, 0.4486],
+    "label_5d": [0.4745, 0.4748, 0.4722, 0.4752, 0.4739]
   },
-  "sample_count": 2000
+  "cv_mean": {
+    "label_3d": 0.4487,
+    "label_5d": 0.4741
+  },
+  "cv_std": {
+    "label_3d": 0.0007,
+    "label_5d": 0.0011
+  },
+  "feature_importance": {
+    "label_3d": {
+      "boll_upper": 0.178,
+      "bias_60": 0.086,
+      "pct_chg": 0.055
+    },
+    "label_5d": {
+      "ma_5": 0.057,
+      "boll_upper": 0.150,
+      "bias_60": 0.073
+    }
+  },
+  "class_distribution": {
+    "label_3d": {"-1": 0.39, "0": 0.23, "1": 0.37},
+    "label_5d": {"-1": 0.42, "0": 0.18, "1": 0.40}
+  }
 }
 ```
 
-**回归任务指标示例**:
+**指标说明**:
 
-```json
-{
-  "open_mse": 0.15,
-  "open_mae": 0.35,
-  "close_mse": 0.12,
-  "close_mae": 0.28,
-  "sample_count": 1000
-}
-```
+| 字段 | 说明 |
+|------|------|
+| `sample_count` | 训练样本总数 |
+| `accuracy` | 各目标的分类准确率 |
+| `cv_scores` | 5折交叉验证各fold的准确率 |
+| `cv_mean` | 交叉验证平均准确率 |
+| `cv_std` | 交叉验证标准差 |
+| `feature_importance` | 各特征的重要性（按目标分组） |
+| `class_distribution` | 类别分布比例（-1看跌/0震荡/1看涨） |
 
 ### tasks
 

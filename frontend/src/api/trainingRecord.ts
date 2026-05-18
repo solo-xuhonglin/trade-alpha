@@ -8,15 +8,13 @@ export interface Training {
   start_date: string
   end_date: string
   metrics: {
-    open_mse?: number
-    open_mae?: number
-    close_mse?: number
-    close_mae?: number
-    high_mse?: number
-    high_mae?: number
-    low_mse?: number
-    low_mae?: number
     sample_count: number
+    accuracy?: Record<string, number>
+    cv_mean?: Record<string, number>
+    cv_std?: Record<string, number>
+    cv_scores?: Record<string, number[]>
+    feature_importance?: Record<string, Record<string, number>>
+    class_distribution?: Record<string, Record<string, number>>
   }
 }
 

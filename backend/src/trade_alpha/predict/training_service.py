@@ -9,6 +9,7 @@
 """
 
 import os
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List, Dict
 from beanie import PydanticObjectId
@@ -104,6 +105,103 @@ def _create_classifier(config) -> any:
     return CLASSIFIERS[config.model_type]()
 
 
+def _evaluate_classifier(
+    classifier,
+    X: np.ndarray,
+    y: np.ndarray,
+    feature_names: List[str],
+    targets: List[str],
+    n_splits: int = 5,
+    progress_callback: Optional[callable] = None,
+) -> Dict:
+    """评估分类器性能，支持多目标
+
+    Args:
+        classifier: 已训练的分类器实例
+        X: 特征数据
+        y: 标签数据（二维数组，每列对应一个目标）
+        feature_names: 特征名称列表
+        targets: 目标名称列表
+        n_splits: 交叉验证折数，默认5
+        progress_callback: 进度回调函数
+
+    Returns:
+        评估指标字典，包含每个目标的：
+        - accuracy: 准确率
+        - cv_scores: 各fold的准确率列表
+        - cv_mean: 交叉验证平均准确率
+        - cv_std: 交叉验证标准差
+        - feature_importance: 特征重要性字典
+        - class_distribution: 类别分布字典
+    """
+    from sklearn.model_selection import KFold
+
+    metrics = {}
+
+    def _call_progress(pct: float, msg: str):
+        if progress_callback:
+            try:
+                result = progress_callback(pct, msg)
+                if asyncio.iscoroutine(result):
+                    asyncio.create_task(result)
+            except Exception:
+                pass
+
+    _call_progress(0, "正在计算准确率...")
+
+    for i, target in enumerate(targets):
+        y_i = y[:, i] if y.ndim > 1 else y
+        
+        y_pred = classifier.predict(X, [target])[target]
+        accuracy = np.mean(y_pred == y_i)
+        metrics.setdefault("accuracy", {})[target] = float(accuracy)
+
+        unique, counts = np.unique(y_i, return_counts=True)
+        class_dist = {str(int(k)): float(v) / len(y_i) for k, v in zip(unique, counts)}
+        metrics.setdefault("class_distribution", {})[target] = class_dist
+
+        model = classifier.models[target]
+        if hasattr(model, "feature_importances_"):
+            importances = model.feature_importances_
+            importance_dict = {f: float(imp) for f, imp in zip(feature_names, importances)}
+            metrics.setdefault("feature_importance", {})[target] = importance_dict
+
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    
+    for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X)):
+        _call_progress((fold_idx + 1) / n_splits * 100, f"交叉验证 Fold {fold_idx + 1}/{n_splits}...")
+        
+        X_train, X_val = X[train_idx], X[val_idx]
+        
+        for i, target in enumerate(targets):
+            y_train, y_val = y[train_idx, i], y[val_idx, i]
+            
+            unique_labels = sorted(set(y_train))
+            label_map = {label: j for j, label in enumerate(unique_labels)}
+            y_train_mapped = np.array([label_map[v] for v in y_train])
+            y_val_mapped = np.array([label_map[v] for v in y_val])
+            
+            model_cls = classifier.models[target].__class__
+            model = model_cls(**classifier.models[target].get_params())
+            model.fit(X_train, y_train_mapped)
+            
+            y_val_pred_mapped = model.predict(X_val)
+            y_val_pred = np.array([unique_labels[j] for j in y_val_pred_mapped])
+            fold_accuracy = float(np.mean(y_val_pred == y_val))
+            
+            if target not in metrics.get("cv_scores", {}):
+                metrics.setdefault("cv_scores", {})[target] = []
+            metrics["cv_scores"][target].append(fold_accuracy)
+
+    for target in targets:
+        if target in metrics["cv_scores"]:
+            scores = np.array(metrics["cv_scores"][target])
+            metrics.setdefault("cv_mean", {})[target] = float(scores.mean())
+            metrics.setdefault("cv_std", {})[target] = float(scores.std())
+
+    return metrics
+
+
 async def create_training(
     config_id: PydanticObjectId,
     name: str,
@@ -127,11 +225,14 @@ async def create_training(
     year_months = get_year_months(start_date, end_date)
     years = sorted(set(y for y, _ in year_months))
     total_years = len(years)
-    total_stages = len(years) * 2 + 1
+    total_stages = len(years) * 2 + 1 + 5 + 1
 
     async def update(stage_num: int, msg: str):
         if progress_callback:
-            await progress_callback(stage_num / total_stages * 100, msg)
+            if asyncio.iscoroutinefunction(progress_callback):
+                await progress_callback(stage_num / total_stages * 100, msg)
+            else:
+                progress_callback(stage_num / total_stages * 100, msg)
 
     stage = 0
     horizon = max(config.classification_horizons)
@@ -181,6 +282,18 @@ async def create_training(
     classifier = _create_classifier(config)
     classifier.fit(X, y, all_targets)
 
+    stage += 1
+    await update(stage, "正在评估模型...")
+    eval_metrics = _evaluate_classifier(
+        classifier,
+        X,
+        y,
+        config.feature_fields,
+        all_targets,
+        n_splits=5,
+        progress_callback=lambda pct, msg: update(stage + pct / 100 * 5, msg)
+    )
+
     await update(total_stages, format_progress("done", years[-1]))
 
     training = TrainingResult(
@@ -191,7 +304,7 @@ async def create_training(
         end_date=end_date,
         feature_fields=config.feature_fields,
         classification_horizons=config.classification_horizons,
-        metrics={"sample_count": sample_count},
+        metrics={"sample_count": sample_count, **eval_metrics},
         created_at=datetime.now(timezone.utc),
     )
     await training.insert()
