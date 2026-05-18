@@ -79,10 +79,11 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text>删除后任务记录将从列表中移除，是否继续？</v-card-text>
-      <v-card-actions>
-        <v-spacer />
+      <v-card-text>此操作不可撤销，确定要删除回测任务「{{ deleteDialog.task_id }}」吗？</v-card-text>
+      <v-divider />
+      <v-card-actions class="bg-surface-light">
         <v-btn variant="text" @click="deleteDialog.show = false">取消</v-btn>
+        <v-spacer />
         <v-btn color="error" variant="text" @click="confirmDelete" :loading="deleteDialog.loading">删除</v-btn>
       </v-card-actions>
     </v-card>

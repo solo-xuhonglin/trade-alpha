@@ -122,18 +122,13 @@
 
   <v-dialog v-model="deleteDialog" max-width="400px">
     <v-card>
-      <v-card-title class="d-flex justify-space-between align-center">
-        <div>
-          <div class="text-h6">确认删除</div>
-          <div class="text-subtitle-1">此操作不可撤销</div>
-        </div>
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        确认删除
         <v-btn icon variant="text" size="small" @click="deleteDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <template v-slot:text>
-        确定要删除回测记录「{{ deletingItem?.id }}」吗？
-      </template>
+      <v-card-text>此操作不可撤销，确定要删除回测记录「{{ deletingItem?.id }}」吗？</v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="deleteDialog = false"></v-btn>
