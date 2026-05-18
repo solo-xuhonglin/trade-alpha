@@ -9,7 +9,7 @@ class TestAccountPage:
     def test_navigate_to_account_page(self, goto_page):
         """Navigate to /account-configs page successfully."""
         page = goto_page("/account-configs")
-        expect(page.get_by_role("main").get_by_text("账户管理")).to_be_visible()
+        expect(page.get_by_role("main").get_by_text("账户配置")).to_be_visible()
 
     def test_account_list_loads_with_correct_headers(self, goto_page):
         """Account list displays correct column headers."""

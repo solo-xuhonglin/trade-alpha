@@ -11,7 +11,7 @@ class TestStrategyPage:
     def test_navigate_to_strategies_page(self, goto_page):
         """Test navigation to /strategies page."""
         page = goto_page("/strategies")
-        expect(page.get_by_role("main").get_by_text("策略管理")).to_be_visible()
+        expect(page.get_by_role("main").get_by_text("策略配置")).to_be_visible()
 
     def test_strategy_list_headers(self, goto_page):
         """Test that strategy table has correct headers."""

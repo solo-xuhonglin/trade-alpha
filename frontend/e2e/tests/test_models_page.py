@@ -4,7 +4,7 @@ from playwright.sync_api import Page, expect
 
 def test_models_page_loads(page: Page, goto_page):
     page = goto_page("/models")
-    expect(page.get_by_text("模型配置")).to_be_visible()
+    expect(page.get_by_role("main").get_by_text("模型配置")).to_be_visible()
 
 
 def test_models_page_has_table(page: Page, goto_page):
