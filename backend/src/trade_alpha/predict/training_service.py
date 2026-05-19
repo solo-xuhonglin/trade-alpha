@@ -21,7 +21,7 @@ from trade_alpha.predict.config_service import get_config_by_id
 from trade_alpha.predict.models.xgboost import XGBoostClassifier
 from trade_alpha.predict.models.lstm import LSTMClassifier
 from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
-from trade_alpha.utils.date_utils import get_year_months, format_progress
+from trade_alpha.utils.date_utils import get_year_months, format_progress, to_db_format
 from trade_alpha.logging import get_logger
 
 logger = get_logger("training_service")

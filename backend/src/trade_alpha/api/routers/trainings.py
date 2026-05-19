@@ -10,6 +10,7 @@ from datetime import datetime
 from trade_alpha.predict import training_service
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
 from trade_alpha.data.service import list_stocks_by_mv_rank
+from trade_alpha.utils.date_utils import to_api_format
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
 
@@ -135,8 +136,8 @@ async def get_training_task(task_id: str):
                 "config_id": str(t.config_id),
                 "name": t.name,
                 "ts_codes": t.ts_codes,
-                "start_date": t.start_date,
-                "end_date": t.end_date,
+                "start_date": to_api_format(t.start_date),
+                "end_date": to_api_format(t.end_date),
                 "metrics": t.metrics,
                 "model_path": t.model_path,
                 "created_at": t.created_at,
@@ -238,8 +239,8 @@ async def list_trainings(config_id: str = Query(None)):
             "config_id": str(t.config_id),
             "name": t.name,
             "ts_codes": t.ts_codes,
-            "start_date": t.start_date,
-            "end_date": t.end_date,
+            "start_date": to_api_format(t.start_date),
+            "end_date": to_api_format(t.end_date),
             "metrics": t.metrics,
             "model_path": t.model_path,
             "created_at": t.created_at,
@@ -264,8 +265,8 @@ async def get_training(training_id: str):
         "config_id": str(t.config_id),
         "name": t.name,
         "ts_codes": t.ts_codes,
-        "start_date": t.start_date,
-        "end_date": t.end_date,
+        "start_date": to_api_format(t.start_date),
+        "end_date": to_api_format(t.end_date),
         "metrics": t.metrics,
         "model_path": t.model_path,
         "created_at": t.created_at,

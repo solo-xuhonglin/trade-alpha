@@ -53,16 +53,16 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text class="overflow-hidden" style="max-height: 700px;">
+      <v-card-text class="overflow-hidden" style="max-height: 80vh;">
         <v-tabs v-model="detailTab" color="primary">
           <v-tab value="overview">概览</v-tab>
           <v-tab value="boxplot">箱线图</v-tab>
           <v-tab value="histogram">直方图</v-tab>
         </v-tabs>
 
-        <v-window v-model="detailTab" class="mt-4 overflow-auto" style="max-height: 600px;">
+        <v-window v-model="detailTab" class="mt-4" style="max-height: calc(100vh - 400px); overflow-y: auto;">
           <v-window-item value="overview">
-            <v-table density="compact" fixed-header height="550">
+            <v-table density="compact" fixed-header style="max-height: calc(100vh - 450px);">
               <thead>
                 <tr>
                   <th>字段</th>
@@ -101,7 +101,7 @@
               :items="Object.keys(detailResult?.boxplots || {})"
               class="mb-2"
             />
-            <div ref="boxplotChartRef" style="width: 100%; height: 500px;"></div>
+            <div ref="boxplotChartRef" style="width: 100%; height: calc(100vh - 550px); min-height: 400px;"></div>
           </v-window-item>
 
           <v-window-item value="histogram">
@@ -111,7 +111,7 @@
               :items="Object.keys(detailResult?.histograms || {})"
               class="mb-2"
             />
-            <div ref="histogramChartRef" style="width: 100%; height: 500px;"></div>
+            <div ref="histogramChartRef" style="width: 100%; height: calc(100vh - 550px); min-height: 400px;"></div>
           </v-window-item>
         </v-window>
       </v-card-text>

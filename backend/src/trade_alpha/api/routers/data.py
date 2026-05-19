@@ -12,6 +12,7 @@ from trade_alpha.data.service import (
     find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
 )
+from trade_alpha.utils.date_utils import to_db_format, to_api_format
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -42,7 +43,7 @@ async def list_stocks_endpoint(
             "ts_code": stock.ts_code,
             "name": stock.name,
             "industry": stock.industry,
-            "list_date": stock.list_date,
+            "list_date": to_api_format(stock.list_date) if stock.list_date else None,
             "market": stock.market,
             "total_mv": stock.total_mv,
             "pe": stock.pe,
@@ -50,7 +51,7 @@ async def list_stocks_endpoint(
             "updated_at": stock.updated_at,
             "sync_status": stock.sync_status or "pending",
             "data_count": stock.data_count,
-            "latest_date": stock.latest_date,
+            "latest_date": to_api_format(stock.latest_date) if stock.latest_date else None,
         })
 
     return StockListResponse(
@@ -76,7 +77,13 @@ async def get_data(
     end_date: Optional[str] = Query(None),
 ):
     """Get stock daily data by date range. Returns all records sorted by trade_date ascending."""
-    records = await find_stock_daily_by_ts_code(ts_code, start_date, end_date)
+    records = await find_stock_daily_by_ts_code(
+        ts_code, 
+        to_db_format(start_date) if start_date else None, 
+        to_db_format(end_date) if end_date else None
+    )
+    for record in records:
+        record.trade_date = to_api_format(record.trade_date)
     return records
 
 

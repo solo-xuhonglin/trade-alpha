@@ -13,6 +13,7 @@ from trade_alpha.execution.pipeline import ExecutionPipeline
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
 from trade_alpha.strategy.service import get_strategy_by_id
+from trade_alpha.utils.date_utils import to_api_format
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
@@ -24,8 +25,8 @@ def _execution_to_dict(r) -> dict:
         "training_id": str(r.training_id),
         "name": r.name,
         "mode": r.mode,
-        "start_date": r.start_date,
-        "end_date": r.end_date,
+        "start_date": to_api_format(r.start_date),
+        "end_date": to_api_format(r.end_date),
         "initial_capital": r.initial_capital,
         "final_value": r.final_value,
         "total_return": r.total_return,

@@ -4,6 +4,17 @@
 
 Trade-Alpha 是一个股票数据分析系统，支持从 Tushare 获取股票数据、存储到 MongoDB，计算技术指标，训练预测模型，运行回测，并提供 Web 界面。
 
+## 日期格式约定
+
+- **API 层统一使用 ISO 8601 格式** `YYYY-MM-DD`（如 `2024-01-01`）
+- **数据库层使用紧凑格式** `YYYYMMDD`（如 `20240101`）
+- **服务层自动处理格式转换**，通过 `date_utils.py` 中的工具函数：
+  - `to_db_format()` - 将 API 格式转换为数据库格式
+  - `to_api_format()` - 将数据库格式转换为 API 格式
+  - `get_year_months()` - 支持任意格式日期的年月计算
+
+所有前后端交互都使用 `YYYY-MM-DD` 格式，前端无需关心数据库存储格式。
+
 ## 技术架构
 
 ```
@@ -455,8 +466,8 @@ name 字段具备唯一索引，支持按名称直接查询。
 create_training(
     config_id="...",
     ts_codes=["002594.SZ", "601398.SH"],
-    start_date="20240101",
-    end_date="20241231"
+    start_date="2024-01-01",
+    end_date="2024-12-31"
 )
 ```
 

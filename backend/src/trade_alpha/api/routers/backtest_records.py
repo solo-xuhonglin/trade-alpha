@@ -12,6 +12,7 @@ from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.training import TrainingResult
+from trade_alpha.utils.date_utils import to_api_format
 
 router = APIRouter(prefix="/backtests", tags=["backtest-records"])
 
@@ -35,8 +36,8 @@ async def list_backtest_results(
             "strategy_id": None,
             "training_id": str(result.training_id) if result.training_id else None,
             "ts_code": result.ts_code,
-            "start_date": result.start_date,
-            "end_date": result.end_date,
+            "start_date": to_api_format(result.start_date),
+            "end_date": to_api_format(result.end_date),
             "initial_capital": result.initial_capital,
             "final_value": result.final_value,
             "total_return": result.total_return,

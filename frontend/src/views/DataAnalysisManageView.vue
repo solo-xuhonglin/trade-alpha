@@ -62,9 +62,12 @@
         </template>
         <template v-slot:item.progress="{ item }">
           <div class="d-flex flex-column">
-            <span class="text-caption text-medium-emphasis">{{ item.progress_message || `${item.progress?.toFixed(1)}%` }}</span>
+            <span class="text-caption text-medium-emphasis">{{ item.progress_message || '等待中' }}</span>
             <v-progress-linear :value="item.progress" height="4" class="mt-1" v-if="item.progress" />
           </div>
+        </template>
+        <template v-slot:item.created_at="{ item }">
+          <span class="text-caption">{{ new Date(item.created_at).toLocaleString() }}</span>
         </template>
       </v-data-table>
       <div v-else class="text-center text-medium-emphasis pa-4">暂无运行中的任务</div>
@@ -98,6 +101,7 @@ const form = ref({
 const indicatorFields = DEFAULT_FEATURE_FIELDS
 
 const activeTaskHeaders = [
+  { title: '名称', key: 'name' },
   { title: '任务ID', key: 'task_id' },
   { title: '状态', key: 'status' },
   { title: '进度', key: 'progress' },
@@ -143,7 +147,12 @@ const stopPolling = () => {
 }
 
 const pollActiveTasks = async () => {
-  // For now, we'll just keep it simple - in a real app, you'd have an API to list tasks
+  try {
+    const res = await dataAnalysisApi.listTasks({ page_size: 10, status: 'pending,running' })
+    activeTasks.value = res.data.items
+  } catch (e: any) {
+    console.error('Failed to poll tasks:', e)
+  }
 }
 
 const triggerAnalysis = async () => {

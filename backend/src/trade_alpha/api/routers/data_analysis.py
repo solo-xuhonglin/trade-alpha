@@ -14,6 +14,7 @@ from trade_alpha.data.analysis_service import (
     save_analysis_result,
     get_analysis_result_by_task,
 )
+from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.predict.config_service import DEFAULT_INDICATOR_FIELDS
 
 router = APIRouter(prefix="/data-analysis", tags=["data-analysis"])
@@ -35,19 +36,9 @@ async def trigger_data_analysis(
     params: DataAnalysisCreate,
 ):
     """Trigger data analysis task (async)."""
-    ts_codes = params.ts_codes or []
-    if not ts_codes:
-        stocks = await list_stocks_by_mv_rank(params.start_rank, params.end_rank)
-        ts_codes = [s.ts_code for s in stocks]
-
-    if not ts_codes:
-        raise HTTPException(status_code=400, detail="No stocks found")
-
-    feature_fields = params.feature_fields or DEFAULT_INDICATOR_FIELDS
-    
     # Generate default name
+    from datetime import datetime
     if not params.name:
-        from datetime import datetime
         now = datetime.now()
         params.name = f"analysis_{now.strftime('%Y%m%d%H%M%S')}"
 
@@ -56,10 +47,12 @@ async def trigger_data_analysis(
         status=TaskStatus.PENDING,
         params={
             "name": params.name,
-            "ts_codes": ts_codes,
+            "ts_codes": params.ts_codes,
+            "start_rank": params.start_rank,
+            "end_rank": params.end_rank,
             "start_date": params.start_date,
             "end_date": params.end_date,
-            "feature_fields": feature_fields,
+            "feature_fields": params.feature_fields,
         },
         created_at=datetime.now(),
     ).save()
@@ -95,23 +88,39 @@ async def run_data_analysis_async(task_id: str):
         await task.save()
 
         params = task.params
+        
+        # 处理ts_codes或start_rank/end_rank
+        ts_codes = params.get("ts_codes", [])
+        if not ts_codes:
+            task.progress_message = "正在查询股票列表..."
+            await task.save()
+            start_rank = params.get("start_rank", 1)
+            end_rank = params.get("end_rank", 1000)
+            stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
+            ts_codes = [s.ts_code for s in stocks]
+
+        if not ts_codes:
+            raise ValueError("No stocks found")
+            
+        feature_fields = params.get("feature_fields") or DEFAULT_INDICATOR_FIELDS
+
         result = await run_data_analysis(
-            ts_codes=params["ts_codes"],
+            ts_codes=ts_codes,
             start_date=params["start_date"],
             end_date=params["end_date"],
-            feature_fields=params["feature_fields"],
+            feature_fields=feature_fields,
             progress_callback=update_progress,
         )
 
         analysis_result_id = await save_analysis_result(
-        task_id=str(task.id),
-        name=params.get("name", ""),
-        ts_codes=params["ts_codes"],
-        start_date=params["start_date"],
-        end_date=params["end_date"],
-        feature_fields=params["feature_fields"],
-        result=result,
-    )
+            task_id=str(task.id),
+            name=params.get("name", ""),
+            ts_codes=ts_codes,
+            start_date=params["start_date"],
+            end_date=params["end_date"],
+            feature_fields=feature_fields,
+            result=result,
+        )
 
         task.status = TaskStatus.COMPLETED
         task.progress = 100.0
@@ -157,6 +166,49 @@ async def get_analysis_task(task_id: str):
         "progress": task.progress,
         "progress_message": task.progress_message,
         "result": result,
+        "created_at": task.created_at.isoformat(),
+        "started_at": task.started_at.isoformat() if task.started_at else None,
+        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+    }
+
+
+@router.get("/tasks")
+async def list_analysis_tasks(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[str] = None,
+):
+    """List analysis tasks."""
+    query = Task.find(Task.type == TaskType.DATA_ANALYSIS)
+
+    if status:
+        try:
+            query = query.find(Task.status == TaskStatus(status))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid status")
+
+    total = await query.count()
+    tasks = await query.sort(-Task.created_at).skip((page - 1) * page_size).limit(page_size).to_list()
+
+    return {
+        "items": [
+            {
+                "task_id": str(t.id),
+                "name": t.params.get("name", ""),
+                "status": t.status.value,
+                "progress": t.progress,
+                "progress_message": t.progress_message,
+                "created_at": t.created_at.isoformat(),
+                "started_at": t.started_at.isoformat() if t.started_at else None,
+                "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+                "error_message": t.error_message,
+            }
+            for t in tasks
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size,
     }
 
 
@@ -170,8 +222,8 @@ async def list_analysis_results(limit: int = Query(20, ge=1, le=100)):
             "task_id": r.task_id,
             "name": r.name,
             "ts_codes": r.ts_codes,
-            "start_date": r.start_date,
-            "end_date": r.end_date,
+            "start_date": to_api_format(r.start_date),
+            "end_date": to_api_format(r.end_date),
             "feature_fields": r.feature_fields,
             "created_at": r.created_at.isoformat(),
         }

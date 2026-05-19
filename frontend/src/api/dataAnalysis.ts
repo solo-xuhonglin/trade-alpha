@@ -48,10 +48,23 @@ export interface AnalysisResult {
 
 export interface AnalysisTaskStatus {
   task_id: string
+  name?: string
   status: string
   progress: number
   progress_message: string
   result?: AnalysisResult
+  created_at?: string
+  started_at?: string
+  completed_at?: string
+  error_message?: string
+}
+
+export interface AnalysisTaskListResponse {
+  items: AnalysisTaskStatus[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 
 export interface AnalysisCreateParams {
@@ -91,6 +104,15 @@ export const dataAnalysisApi = {
 
   async getTaskStatus(taskId: string) {
     return await apiClient.get<AnalysisTaskStatus>(`/data-analysis/task/${taskId}`)
+  },
+
+  async listTasks(params?: { page?: number; page_size?: number; status?: string }) {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.page_size) queryParams.append('page_size', params.page_size.toString())
+    if (params?.status) queryParams.append('status', params.status)
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return await apiClient.get<AnalysisTaskListResponse>(`/data-analysis/tasks${query}`)
   },
 
   async listResults(limit: number = 20) {

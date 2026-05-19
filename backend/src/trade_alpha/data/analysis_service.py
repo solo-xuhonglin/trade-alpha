@@ -5,16 +5,10 @@ import numpy as np
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Callable
 from trade_alpha.dao import StockDaily, DataAnalysisResult
+from trade_alpha.utils.date_utils import to_db_format
 from trade_alpha.logging import get_logger
 
 logger = get_logger("analysis_service")
-
-
-def format_date(date_str: str) -> str:
-    """Convert date from YYYY-MM-DD to YYYYMMDD format."""
-    if '-' in date_str:
-        return date_str.replace('-', '')
-    return date_str
 
 
 async def run_data_analysis(
@@ -31,8 +25,8 @@ async def run_data_analysis(
             await progress_callback(progress, message)
 
     # Convert date format to match database format (YYYYMMDD)
-    start_date = format_date(start_date)
-    end_date = format_date(end_date)
+    start_date = to_db_format(start_date)
+    end_date = to_db_format(end_date)
     
     await update_progress(10, "Loading data from database...")
     

@@ -8,6 +8,15 @@ Trade-Alpha 提供 RESTful API，基于 FastAPI 实现。
 - **文档**: `http://localhost:8000/docs` (Swagger UI)
 - **OpenAPI**: `http://localhost:8000/openapi.json`
 
+## 日期格式约定
+
+API 统一使用 **ISO 8601 格式** `YYYY-MM-DD`（如 `2024-01-01`）作为日期的标准格式，包括：
+- 所有请求参数中的日期字段
+- 所有响应返回中的日期字段
+- 日期相关的查询过滤参数
+
+后端内部自动处理与数据库存储格式（`YYYYMMDD`）的转换。
+
 ## 数据管理
 
 ### 获取股票列表
@@ -34,7 +43,7 @@ GET /api/data/stocks
       "pb": 0.6,
       "sync_status": "active",
       "data_count": 500,
-      "latest_date": "20241231"
+      "latest_date": "2024-12-31"
     }
   ],
   "total": 5000,
@@ -75,7 +84,7 @@ GET /api/data/{ts_code}
 [
   {
     "ts_code": "000001.SZ",
-    "trade_date": "20240102",
+    "trade_date": "2024-01-02",
     "open": 10.50,
     "high": 10.80,
     "low": 10.45,
@@ -120,8 +129,8 @@ POST /api/data
 ```json
 {
   "ts_code": "000001.SZ",
-  "start_date": "20240101",
-  "end_date": "20241231"
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31"
 }
 ```
 
@@ -205,7 +214,7 @@ GET /api/predict/{id}
   "id": "507f1f77bcf86cd799439012",
   "training_result_id": "507f1f77bcf86cd799439011",
   "ts_code": "000001.SZ",
-  "trade_date": "20241231",
+  "trade_date": "2024-12-31",
   "model": "xgboost",
   "predictions": {
     "1": 1,
@@ -348,8 +357,8 @@ GET /api/trainings
     "config_id": "507f1f77bcf86cd799439011",
     "name": "训练-2024",
     "ts_codes": ["000001.SZ", "600000.SH"],
-    "start_date": "20230101",
-    "end_date": "20231231",
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
     "metrics": {
       "open_mse": 0.15,
       "open_mae": 0.35,
@@ -373,8 +382,8 @@ POST /api/trainings
   "config_id": "507f1f77bcf86cd799439011",
   "name": "训练-2024",
   "ts_codes": ["000001.SZ", "600000.SH"],
-  "start_date": "20230101",
-  "end_date": "20231231"
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31"
 }
 ```
 
@@ -385,8 +394,8 @@ POST /api/trainings
   "config_id": "507f1f77bcf86cd799439011",
   "name": "训练-2024",
   "ts_codes": ["000001.SZ", "600000.SH"],
-  "start_date": "20230101",
-  "end_date": "20231231",
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31",
   "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
   "classification_horizons": [1, 5, 20],
   "metrics": {
@@ -428,7 +437,7 @@ POST /api/trainings/{id}/predict
 {
   "prediction_id": "507f1f77bcf86cd799439013",
   "ts_code": "000001.SZ",
-  "trade_date": "20241231",
+  "trade_date": "2024-12-31",
   "predictions": {
     "1": 1,
     "5": 0,
@@ -601,8 +610,8 @@ POST /api/backtest/run
 {
   "account_config_id": "507f1f77bcf86cd799439013",
   "training_id": "507f1f77bcf86cd799439014",
-  "start_date": "20250101",
-  "end_date": "20251231",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
   "name": "backtest_20260516231312",
   "mode": "portfolio",
   "ts_codes": ["002594.SZ"],
@@ -615,8 +624,8 @@ POST /api/backtest/run
 |------|------|------|------|
 | `account_config_id` | string | 是 | 账户配置 ID |
 | `training_id` | string | 是 | 训练结果 ID |
-| `start_date` | string | 是 | 回测开始日期 (YYYYMMDD) |
-| `end_date` | string | 是 | 回测结束日期 (YYYYMMDD) |
+| `start_date` | string | 是 | 回测开始日期 (YYYY-MM-DD) |
+| `end_date` | string | 是 | 回测结束日期 (YYYY-MM-DD) |
 | `name` | string | 否 | 回测名称，默认 `"backtest"` |
 | `mode` | string | 否 | 策略模式 `"portfolio"` 或 `"single"`，默认 `"portfolio"` |
 | `ts_codes` | string[] | 否 | 股票代码列表（单股票模式必填） |
@@ -651,7 +660,7 @@ GET /api/backtest/task/{task_id}
     "name": "backtest",
     "mode": "backtest",
     "start_date": "20240101",
-    "end_date": "20241231",
+    "end_date": "2024-12-31",
     "initial_capital": 100000.0,
     "final_value": 120000.0,
     "total_return": 0.20,
@@ -742,8 +751,8 @@ POST /api/trainings
 - `config_id` (query, required): 模型配置 ID
 - `name` (query, required): 训练名称
 - `ts_codes` (query, required): 股票代码列表（JSON数组格式）
-- `start_date` (query, required): 训练开始日期 (YYYYMMDD)
-- `end_date` (query, required): 训练结束日期 (YYYYMMDD)
+- `start_date` (query, required): 训练开始日期 (YYYY-MM-DD)
+- `end_date` (query, required): 训练结束日期 (YYYY-MM-DD)
 
 **响应**:
 ```json
@@ -771,8 +780,8 @@ GET /api/trainings/task/{task_id}
     "config_id": "507f1f77bcf86cd799439013",
     "name": "训练-2024",
     "ts_codes": ["000001.SZ", "600000.SH"],
-    "start_date": "20230101",
-    "end_date": "20231231",
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
     "metrics": {
       "horizon_3": {
         "accuracy": 0.55,
@@ -901,7 +910,7 @@ POST /api/data-analysis
   "start_rank": 1,
   "end_rank": 100,
   "start_date": "20240101",
-  "end_date": "20241231",
+  "end_date": "2024-12-31",
   "feature_fields": ["ma_5", "ma_10", "pct_chg"]
 }
 ```
@@ -912,8 +921,8 @@ POST /api/data-analysis
 | `ts_codes` | string[] | 否 | 股票代码列表，若不提供则按市值排名选择 |
 | `start_rank` | int | 否 | 市值排名起始，默认 1 |
 | `end_rank` | int | 否 | 市值排名结束，默认 1000 |
-| `start_date` | string | 是 | 开始日期 (YYYYMMDD) |
-| `end_date` | string | 是 | 结束日期 (YYYYMMDD) |
+| `start_date` | string | 是 | 开始日期 (YYYY-MM-DD) |
+| `end_date` | string | 是 | 结束日期 (YYYY-MM-DD) |
 | `feature_fields` | string[] | 否 | 特征字段列表，默认所有指标字段 |
 
 **响应**:
@@ -963,6 +972,40 @@ GET /api/data-analysis/task/{task_id}
 }
 ```
 
+### 获取数据分析任务列表
+
+```
+GET /api/data-analysis/tasks
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "task_id": "507f1f77bcf86cd799439011",
+      "name": "analysis_20260516",
+      "status": "running",
+      "progress": 45.0,
+      "progress_message": "正在统计指标...",
+      "created_at": "2024-01-01T00:00:00Z",
+      "started_at": "2024-01-01T00:00:05Z",
+      "completed_at": null,
+      "error_message": null
+    }
+  ],
+  "total": 5,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
 ### 获取数据分析结果列表
 
 ```
@@ -981,7 +1024,7 @@ GET /api/data-analysis/results
     "name": "analysis_20260516",
     "ts_codes": ["002594.SZ"],
     "start_date": "20240101",
-    "end_date": "20241231",
+    "end_date": "2024-12-31",
     "feature_fields": ["ma_5", "ma_10"],
     "created_at": "2024-01-01T00:00:00Z"
   }

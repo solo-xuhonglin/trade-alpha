@@ -2,8 +2,26 @@
 from typing import List, Tuple
 
 
+def to_db_format(date_str: str) -> str:
+    """将日期转换为数据库格式 YYYYMMDD"""
+    if '-' in date_str:
+        return date_str.replace('-', '')
+    return date_str
+
+
+def to_api_format(date_str: str) -> str:
+    """将日期转换为API格式 YYYY-MM-DD"""
+    if len(date_str) == 8 and '-' not in date_str:
+        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+    return date_str
+
+
 def get_year_months(start_date: str, end_date: str) -> List[Tuple[int, int]]:
     """获取年月列表，支持任意起止日期"""
+    # 统一转换为数据库格式
+    start_date = to_db_format(start_date)
+    end_date = to_db_format(end_date)
+    
     start_year = int(start_date[:4])
     end_year = int(end_date[:4])
     start_month = int(start_date[4:6]) if len(start_date) >= 6 else 1
