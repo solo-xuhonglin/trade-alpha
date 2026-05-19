@@ -26,54 +26,11 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 
 #### 字段说明
 
-**Tushare 原始字段**
+完整的股票字段和技术指标说明请参考 [features-indicators.md](file:///d:/projects/trade-alpha/docs/features-indicators.md)。
 
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `ts_code` | string | 股票代码 |
-| `trade_date` | string | 交易日期 |
-| `open` | float | 开盘价 |
-| `high` | float | 最高价 |
-| `low` | float | 最低价 |
-| `close` | float | 收盘价 |
-| `pre_close` | float | 昨收价 |
-| `vol` | float | 成交量 (手) |
-| `amount` | float | 成交额 (千元) |
-
-**技术指标字段**
-
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `ma_5` | float | 5日均线 |
-| `ma_10` | float | 10日均线 |
-| `ma_20` | float | 20日均线 |
-| `ma_60` | float | 60日均线 |
-| `macd` | float | MACD 柱状值 (DIF) |
-| `macd_signal` | float | MACD 信号线 |
-| `macd_hist` | float | MACD 柱状图 (MACD - Signal) |
-| `pct_chg` | float | 涨跌幅 (%) |
-| `bias_5` | float | 5日乖离率 |
-| `bias_10` | float | 10日乖离率 |
-| `bias_20` | float | 20日乖离率 |
-| `bias_60` | float | 60日乖离率 |
-| `close_pct_rank_5` | float | 5日收盘价百分位 (0~1) |
-| `close_pct_rank_10` | float | 10日收盘价百分位 (0~1) |
-| `close_pct_rank_20` | float | 20日收盘价百分位 (0~1) |
-| `close_pct_rank_60` | float | 60日收盘价百分位 (0~1) |
-| `vol_ratio_5` | float | 5日成交量相对比值 |
-| `vol_ratio_10` | float | 10日成交量相对比值 |
-| `vol_ratio_20` | float | 20日成交量相对比值 |
-| `vol_ratio_60` | float | 60日成交量相对比值 |
-| `kdj_k` | float | KDJ K值 |
-| `kdj_d` | float | KDJ D值 |
-| `kdj_j` | float | KDJ J值 |
-| `boll_upper` | float | 布林线上轨 |
-| `boll_middle` | float | 布林线中轨 |
-| `boll_lower` | float | 布林线下轨 |
-| `rsi_6` | float | RSI(6日)相对强弱指标 |
-| `rsi_12` | float | RSI(12日)相对强弱指标 |
-| `atr_14` | float | ATR(14日)平均真实波幅 |
-| `obv` | float | OBV能量潮指标 |
+**字段概览**:
+- Tushare 原始字段：ts_code, trade_date, open, high, low, close, pre_close, vol, amount
+- 技术指标字段：所有 MA、MACD、BIAS、KDJ、BOLL、RSI、ATR、OBV 等
 
 #### 示例文档
 

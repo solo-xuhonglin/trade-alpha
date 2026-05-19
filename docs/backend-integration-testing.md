@@ -126,6 +126,8 @@ Layer 5: 训练
 
 ## 指标计算说明
 
+完整的技术指标说明请参考 [features-indicators.md](file:///d:/projects/trade-alpha/docs/features-indicators.md)。
+
 当前项目支持以下指标计算：
 
 ### 基础指标

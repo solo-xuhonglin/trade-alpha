@@ -173,20 +173,22 @@ trade-alpha/
 
 ### 5. 指标模块 (indicators)
 
+完整的技术指标字段、计算方法和说明请参考 [features-indicators.md](file:///d:/projects/trade-alpha/docs/features-indicators.md)。
+
 **基础指标**:
 - `ma.py`: 均线计算 (MA)
 - `macd.py`: MACD 计算
 
 **自定义指标** (`custom/` 子目录):
-- `pct_chg.py`: 涨跌幅计算
-- `bias.py`: 乖离率计算 (依赖已计算的 MA 列)
-- `close_pct_rank.py`: N 天收盘价百分位 (rolling rank)
-- `vol_ratio.py`: 成交量相对比值
-- `kdj.py`: KDJ 随机指标 (RSV → K/D/J 迭代 SMA)
-- `boll.py`: 布林线 (中轨 ± k×标准差)
-- `rsi.py`: RSI 相对强弱指标 (rsi_6, rsi_12)
-- `atr.py`: ATR 平均真实波幅 (atr_14)
-- `obv.py`: OBV 能量潮
+- `pct_chg.py` (涨跌幅)
+- `bias.py` (乖离率)
+- `close_pct_rank.py` (收盘价百分位)
+- `vol_ratio.py` (成交量相对比值)
+- `kdj.py` (KDJ 随机指标)
+- `boll.py` (布林线)
+- `rsi.py` (RSI 相对强弱指标)
+- `atr.py` (ATR 平均真实波幅)
+- `obv.py` (OBV 能量潮)
 
 **编排服务**:
 - `service.py`: 统一入口方法
@@ -195,10 +197,6 @@ trade-alpha/
   - `calculate_and_store_custom_indicators()` — 自定义指标顺序计算与存储
   - `calculate_and_store_new_indicators()` — 新指标计算与存储 (RSI, ATR, OBV)
   - `calculate_all_indicators()` — 计算所有指标
-
-**计算顺序**: `pct_chg` → `bias` → `close_pct_rank` → `vol_ratio` → `kdj` → `boll` → `rsi` → `atr` → `obv`
-
-**存储字段**: pct_chg, bias_5/10/20/60, close_pct_rank_20, vol_ratio_5, kdj_k/d/j, boll_upper/middle/lower, rsi_6/12, atr_14, obv
 
 ### 6. 数据分析模块 (data/analysis_service)
 
