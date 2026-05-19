@@ -72,10 +72,7 @@
   <v-dialog v-model="downloadDialog" max-width="500px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
-        <div>
-          <div class="text-h6">下载数据</div>
-          <div class="text-subtitle-1">选择日期范围下载数据</div>
-        </div>
+        下载数据
         <v-btn icon variant="text" size="small" @click="downloadDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>

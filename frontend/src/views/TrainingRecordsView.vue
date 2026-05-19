@@ -94,10 +94,7 @@
   <v-dialog v-model="detailDialog" max-width="800px">
     <v-card v-if="detailItem">
       <v-card-title class="d-flex justify-space-between align-center">
-        <div>
-          <div class="text-h6">{{ detailItem.name }}</div>
-          <div class="text-subtitle-2 text-medium-emphasis">训练详情</div>
-        </div>
+        {{ detailItem.name }}
         <v-btn icon variant="text" size="small" @click="detailDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>

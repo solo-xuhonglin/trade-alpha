@@ -33,10 +33,7 @@
   <v-dialog v-model="dialog" max-width="500px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
-        <div>
-          <div class="text-h6">{{ editingId ? '编辑账户' : '新建账户' }}</div>
-          <div class="text-subtitle-1">{{ editingId ? '修改账户参数' : '创建新的交易账户' }}</div>
-        </div>
+        {{ editingId ? '编辑账户' : '新建账户' }}
         <v-btn icon variant="text" size="small" @click="dialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
