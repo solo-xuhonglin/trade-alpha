@@ -120,12 +120,9 @@ const headers = [
 
 const loadAccountConfigs = async () => {
   loading.value = true
-  try {
-    const res = await accountConfigApi.list()
-    accountConfigs.value = res.data
-  } finally {
-    loading.value = false
-  }
+  const res = await accountConfigApi.list()
+  accountConfigs.value = res.data
+  loading.value = false
 }
 
 const openDialog = (item?: AccountConfig) => {

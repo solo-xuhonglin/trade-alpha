@@ -240,97 +240,75 @@ const pollActiveTasks = async () => {
 }
 
 const loadTrainings = async () => {
-  try {
-    const res = await trainingRecordApi.list()
-    trainingOptions.value = res.data.map(t => ({ label: t.name, value: t.id }))
-  } catch (e) {
-    console.error('Failed to load trainings:', e)
-  }
+  const res = await trainingRecordApi.list()
+  trainingOptions.value = res.data.map(t => ({ label: t.name, value: t.id }))
 }
 
 const loadAccounts = async () => {
-  try {
-    const res = await accountConfigApi.list()
-    accountOptions.value = res.data.map(a => ({ label: a.name, value: a.id }))
-  } catch (e) {
-    console.error('Failed to load accounts:', e)
-  }
+  const res = await accountConfigApi.list()
+  accountOptions.value = res.data.map(a => ({ label: a.name, value: a.id }))
 }
 
 const loadStrategies = async () => {
-  try {
-    const res = await strategyConfigApi.list()
-    const typeMap: Record<string, string> = {}
-    strategyOptions.value = res.data.map(s => {
-      typeMap[s.id] = s.type
-      return { label: s.name, value: s.id }
-    })
-    strategyTypeMap.value = typeMap
-  } catch (e) {
-    console.error('Failed to load strategies:', e)
-  }
+  const res = await strategyConfigApi.list()
+  const typeMap: Record<string, string> = {}
+  strategyOptions.value = res.data.map(s => {
+    typeMap[s.id] = s.type
+    return { label: s.name, value: s.id }
+  })
+  strategyTypeMap.value = typeMap
 }
 
 const runBacktest = async () => {
   running.value = true
   error.value = ''
 
-  try {
-    if (!form.value.training_id) {
-      throw new Error('请先选择训练结果')
-    }
-    if (!form.value.account_config_id) {
-      throw new Error('请先选择账户配置')
-    }
-
-    const payload: Record<string, any> = {
-      training_id: form.value.training_id,
-      account_config_id: form.value.account_config_id,
-      start_date: form.value.start_date.replace(/-/g, ''),
-      end_date: form.value.end_date.replace(/-/g, ''),
-      name: form.value.name || `backtest_${formatDateTime()}`,
-      mode: currentMode.value,
-    }
-
-    if (form.value.strategy_config_id) {
-      payload.strategy_config_id = form.value.strategy_config_id
-    }
-
-    if (currentMode.value === 'single') {
-      const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
-      if (tsCodes.length === 0) {
-        throw new Error('请至少输入一个股票代码')
-      }
-      payload.ts_codes = tsCodes
-    } else {
-      payload.max_positions = form.value.max_positions
-    }
-
-    const res = await backtestApi.run(payload)
-    const taskId = res.data.task_id
-    startPolling()
-
-    // 等待任务真正开始执行
-    while (true) {
-      const statusRes = await backtestApi.getTask(taskId)
-      if (statusRes.data.status !== 'pending') break
-      await new Promise(r => setTimeout(r, 500))
-    }
-  } catch (e: any) {
-    error.value = e.message || 'Failed to create backtest task'
-    console.error('Backtest error:', e)
-  } finally {
-    running.value = false
+  if (!form.value.training_id) {
+    throw new Error('请先选择训练结果')
   }
+  if (!form.value.account_config_id) {
+    throw new Error('请先选择账户配置')
+  }
+
+  const payload: Record<string, any> = {
+    training_id: form.value.training_id,
+    account_config_id: form.value.account_config_id,
+    start_date: form.value.start_date.replace(/-/g, ''),
+    end_date: form.value.end_date.replace(/-/g, ''),
+    name: form.value.name || `backtest_${formatDateTime()}`,
+    mode: currentMode.value,
+  }
+
+  if (form.value.strategy_config_id) {
+    payload.strategy_config_id = form.value.strategy_config_id
+  }
+
+  if (currentMode.value === 'single') {
+    const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
+    if (tsCodes.length === 0) {
+      throw new Error('请至少输入一个股票代码')
+    }
+    payload.ts_codes = tsCodes
+  } else {
+    payload.max_positions = form.value.max_positions
+  }
+
+  const res = await backtestApi.run(payload)
+  const taskId = res.data.task_id
+  startPolling()
+
+  // 等待任务真正开始执行
+  while (true) {
+    const statusRes = await backtestApi.getTask(taskId)
+    if (statusRes.data.status !== 'pending') break
+    await new Promise(r => setTimeout(r, 500))
+  }
+  running.value = false
 }
 
 const cancelTask = async (taskId: string) => {
-  try {
-    await backtestApi.cancelTask(taskId)
-    activeTasks.value = activeTasks.value.filter(t => t.task_id !== taskId)
-  } catch (e) {
-    console.error('Cancel error:', e)
-  }
+  await backtestApi.cancelTask(taskId)
+  activeTasks.value = activeTasks.value.filter(t => t.task_id !== taskId)
 }
 
 const deleteTask = async (taskId: string) => {
@@ -340,15 +318,10 @@ const deleteTask = async (taskId: string) => {
 
 const confirmDelete = async () => {
   deleteDialog.value.loading = true
-  try {
-    await backtestApi.cancelTask(deleteDialog.value.task_id)
-    activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
-    deleteDialog.value.show = false
-  } catch (e) {
-    console.error('Delete error:', e)
-  } finally {
-    deleteDialog.value.loading = false
-  }
+  await backtestApi.cancelTask(deleteDialog.value.task_id)
+  activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
+  deleteDialog.value.show = false
+  deleteDialog.value.loading = false
 }
 
 onMounted(() => {

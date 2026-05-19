@@ -163,12 +163,9 @@ const headers = [
 
 const loadStrategies = async () => {
   loading.value = true
-  try {
-    const res = await strategyConfigApi.list()
-    strategies.value = res.data
-  } finally {
-    loading.value = false
-  }
+  const res = await strategyConfigApi.list()
+  strategies.value = res.data
+  loading.value = false
 }
 
 const openDialog = (item?: Strategy) => {

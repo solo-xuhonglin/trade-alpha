@@ -232,13 +232,10 @@ const tradesHeaders = [
 
 const loadBacktests = async () => {
   loading.value = true
-  try {
-    const res = await backtestRecordApi.list(page.value, pageSize.value)
-    backtests.value = res.data.items
-    totalItems.value = res.data.total
-  } finally {
-    loading.value = false
-  }
+  const res = await backtestRecordApi.list(page.value, pageSize.value)
+  backtests.value = res.data.items
+  totalItems.value = res.data.total
+  loading.value = false
 }
 
 const handleOptionsChange = (options: { page: number; itemsPerPage: number }) => {
@@ -268,13 +265,10 @@ const viewTrades = async (item: Backtest) => {
 const loadTrades = async () => {
   if (!viewingBacktest.value) return
   loadingTrades.value = true
-  try {
-    const res = await backtestRecordApi.getTrades(viewingBacktest.value.id, tradesPage.value, tradesPageSize.value)
-    trades.value = res.data.items
-    totalTrades.value = res.data.total
-  } finally {
-    loadingTrades.value = false
-  }
+  const res = await backtestRecordApi.getTrades(viewingBacktest.value.id, tradesPage.value, tradesPageSize.value)
+  trades.value = res.data.items
+  totalTrades.value = res.data.total
+  loadingTrades.value = false
 }
 
 const confirmDelete = (item: Backtest) => {
@@ -285,13 +279,10 @@ const confirmDelete = (item: Backtest) => {
 const deleteBacktest = async () => {
   if (!deletingItem.value) return
   loadingDelete.value = true
-  try {
-    await backtestRecordApi.delete(deletingItem.value.id)
-    deleteDialog.value = false
-    deletingItem.value = null
-    await loadBacktests()
-  } finally {
-    loadingDelete.value = false
-  }
+  await backtestRecordApi.delete(deletingItem.value.id)
+  deleteDialog.value = false
+  deletingItem.value = null
+  await loadBacktests()
+  loadingDelete.value = false
 }
 </script>

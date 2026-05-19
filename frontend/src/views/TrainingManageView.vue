@@ -214,41 +214,31 @@ const runTraining = async () => {
   running.value = true
   error.value = ''
 
-  try {
-    const payload = {
-      config_id: form.value.config_id,
-      name: form.value.name || `training_${formatDateTime()}`,
-      start_rank: form.value.mv_rank_start,
-      end_rank: form.value.mv_rank_end,
-      start_date: form.value.start_date.replace(/-/g, ''),
-      end_date: form.value.end_date.replace(/-/g, ''),
-    }
-
-    const res = await trainingApi.create(payload)
-    const taskId = res.data.task_id
-    startPolling()
-
-    // 等待任务真正开始执行
-    while (true) {
-      const statusRes = await trainingApi.getTask(taskId)
-      if (statusRes.data.status !== 'pending') break
-      await new Promise(r => setTimeout(r, 500))
-    }
-  } catch (e: any) {
-    error.value = e.message || 'Failed to create training task'
-    console.error('Training error:', e)
-  } finally {
-    running.value = false
+  const payload = {
+    config_id: form.value.config_id,
+    name: form.value.name || `training_${formatDateTime()}`,
+    start_rank: form.value.mv_rank_start,
+    end_rank: form.value.mv_rank_end,
+    start_date: form.value.start_date.replace(/-/g, ''),
+    end_date: form.value.end_date.replace(/-/g, ''),
   }
+
+  const res = await trainingApi.create(payload)
+  const taskId = res.data.task_id
+  startPolling()
+
+  // 等待任务真正开始执行
+  while (true) {
+    const statusRes = await trainingApi.getTask(taskId)
+    if (statusRes.data.status !== 'pending') break
+    await new Promise(r => setTimeout(r, 500))
+  }
+  running.value = false
 }
 
 const cancelTask = async (taskId: string) => {
-  try {
-    await trainingApi.cancelTask(taskId)
-    activeTasks.value = activeTasks.value.filter(t => t.task_id !== taskId)
-  } catch (e) {
-    console.error('Cancel error:', e)
-  }
+  await trainingApi.cancelTask(taskId)
+  activeTasks.value = activeTasks.value.filter(t => t.task_id !== taskId)
 }
 
 const deleteTask = async (taskId: string) => {
@@ -258,15 +248,10 @@ const deleteTask = async (taskId: string) => {
 
 const confirmDelete = async () => {
   deleteDialog.value.loading = true
-  try {
-    await trainingApi.cancelTask(deleteDialog.value.task_id)
-    activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
-    deleteDialog.value.show = false
-  } catch (e) {
-    console.error('Delete error:', e)
-  } finally {
-    deleteDialog.value.loading = false
-  }
+  await trainingApi.cancelTask(deleteDialog.value.task_id)
+  activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
+  deleteDialog.value.show = false
+  deleteDialog.value.loading = false
 }
 
 onMounted(() => {

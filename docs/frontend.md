@@ -51,7 +51,9 @@ frontend/
 │   ├── plugins/
 │   │   └── vuetify.ts         # Vuetify 配置
 │   ├── App.vue                 # 根组件
-│   └── main.ts                 # 入口文件
+│   ├── main.ts                 # 入口文件
+│   └── utils/
+│       └── notify.ts           # 全局通知服务
 ├── index.html
 ├── package.json
 ├── tsconfig.json
@@ -267,19 +269,106 @@ frontend/
 
 ## API 封装
 
-### 基础配置
+### 基础配置与全局错误处理
 
 ```typescript
 // src/api/index.ts
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
+import type { ApiErrorResponse } from './types'
+import { notifyService } from '@/utils/notify'
 
 const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<ApiErrorResponse>) => {
+    let errorMessage = '请求失败，请稍后重试'
+    
+    if (error.response) {
+      const { data, status } = error.response
+      
+      if (data?.error?.message) {
+        errorMessage = data.error.message
+      } else {
+        switch (status) {
+          case 400: errorMessage = '请求参数错误'; break
+          case 401: errorMessage = '未授权，请重新登录'; break
+          case 403: errorMessage = '无权限访问'; break
+          case 404: errorMessage = '资源不存在'; break
+          case 409: errorMessage = '资源冲突'; break
+          case 422: errorMessage = '数据验证失败'; break
+          case 500: errorMessage = '服务器内部错误'; break
+          default: errorMessage = `请求失败 (${status})`
+        }
+      }
+    } else if (error.request) {
+      errorMessage = '网络连接失败，请检查网络'
+    } else {
+      errorMessage = error.message || '请求失败'
+    }
+    
+    notifyService.error(errorMessage)
+    return Promise.reject(error)
+  }
+)
+
 export default api
 ```
+
+**错误响应格式**（与后端统一）：
+```typescript
+// src/api/types.ts
+export interface ApiErrorDetail {
+  code: string
+  message: string
+  fields?: Record<string, string>
+}
+
+export interface ApiErrorResponse {
+  success: false
+  error: ApiErrorDetail
+}
+
+export interface ApiSuccessResponse<T> {
+  success: true
+  data: T
+}
+```
+
+### 全局通知服务
+
+```typescript
+// src/utils/notify.ts
+export interface Notification {
+  id: number
+  message: string
+  type: 'success' | 'error' | 'info' | 'warning'
+  duration?: number
+}
+
+export const notifyService = {
+  success(message: string, duration?: number): number
+  error(message: string, duration?: number): number
+  info(message: string, duration?: number): number
+  warning(message: string, duration?: number): number
+}
+```
+
+**使用方式**：
+```typescript
+// 在组件中
+notifyService.success('操作成功')
+notifyService.error('操作失败')
+```
+
+**特性**：
+- 自动显示在页面顶部
+- 支持自动关闭（默认5秒）
+- 支持手动关闭
+- 自动处理重复消息
 
 ### 数据 API
 

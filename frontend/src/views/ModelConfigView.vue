@@ -186,12 +186,9 @@ const headers = [
 
 const loadModels = async () => {
   loading.value = true
-  try {
-    const res = await modelConfigApi.list()
-    models.value = res.data
-  } finally {
-    loading.value = false
-  }
+  const res = await modelConfigApi.list()
+  models.value = res.data
+  loading.value = false
 }
 
 const openDialog = (item?: ModelConfig) => {

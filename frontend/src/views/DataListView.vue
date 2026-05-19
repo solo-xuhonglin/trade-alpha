@@ -207,14 +207,11 @@ const headers = [
 
 const loadStocks = async () => {
   loadingList.value = true
-  try {
-    const res = await dataApi.listStocks(page.value, pageSize.value)
-    const data = res.data
-    stocks.value = data.items
-    totalItems.value = data.total
-  } finally {
-    loadingList.value = false
-  }
+  const res = await dataApi.listStocks(page.value, pageSize.value)
+  const data = res.data
+  stocks.value = data.items
+  totalItems.value = data.total
+  loadingList.value = false
 }
 
 const handleOptionsChange = (options: { page: number; itemsPerPage: number }) => {
@@ -225,12 +222,9 @@ const handleOptionsChange = (options: { page: number; itemsPerPage: number }) =>
 
 const updateStockList = async () => {
   loadingUpdate.value = true
-  try {
-    await dataApi.updateStocks()
-    await loadStocks()
-  } finally {
-    loadingUpdate.value = false
-  }
+  await dataApi.updateStocks()
+  await loadStocks()
+  loadingUpdate.value = false
 }
 
 const openDownloadDialog = (stock: Stock) => {
@@ -243,15 +237,12 @@ const openDownloadDialog = (stock: Stock) => {
 const downloadData = async () => {
   if (!downloadingStock.value) return
   loadingDownload.value = true
-  try {
-    const start = downloadStartDate.value.replace(/-/g, '')
-    const end = downloadEndDate.value.replace(/-/g, '')
-    await dataApi.fetchData(downloadingStock.value.ts_code, start, end)
-    downloadDialog.value = false
-    await loadStocks()
-  } finally {
-    loadingDownload.value = false
-  }
+  const start = downloadStartDate.value.replace(/-/g, '')
+  const end = downloadEndDate.value.replace(/-/g, '')
+  await dataApi.fetchData(downloadingStock.value.ts_code, start, end)
+  downloadDialog.value = false
+  await loadStocks()
+  loadingDownload.value = false
 }
 
 const viewChart = async (stock: Stock) => {
@@ -322,29 +313,27 @@ const onDataZoom = () => {
 const loadMoreHistory = async () => {
   if (!selectedStock.value || loadingMore.value || !hasMoreData.value) return
   loadingMore.value = true
-  try {
-    const nextPage = currentPage.value + 1
-    if (nextPage > totalPages.value) {
-      hasMoreData.value = false
-      return
-    }
-    const res = await dataApi.getDataPaginated(selectedStock.value.ts_code, nextPage, maxPageSize)
-    const newData = [...res.data.items].reverse()
-    const prevDates = stockData.value.map(d => d.trade_date)
-    stockData.value = [...newData, ...stockData.value]
-    currentPage.value = nextPage
-    hasMoreData.value = currentPage.value < totalPages.value
-
-    const dates = stockData.value.map(d => d.trade_date)
-    chartInstance?.setOption({
-      xAxis: { type: 'category', data: dates },
-      series: [{
-        data: stockData.value.map(d => [d.open, d.close, d.low, d.high]),
-      }],
-    }, true)
-  } finally {
+  const nextPage = currentPage.value + 1
+  if (nextPage > totalPages.value) {
+    hasMoreData.value = false
     loadingMore.value = false
+    return
   }
+  const res = await dataApi.getDataPaginated(selectedStock.value.ts_code, nextPage, maxPageSize)
+  const newData = [...res.data.items].reverse()
+  const prevDates = stockData.value.map(d => d.trade_date)
+  stockData.value = [...newData, ...stockData.value]
+  currentPage.value = nextPage
+  hasMoreData.value = currentPage.value < totalPages.value
+
+  const dates = stockData.value.map(d => d.trade_date)
+  chartInstance?.setOption({
+    xAxis: { type: 'category', data: dates },
+    series: [{
+      data: stockData.value.map(d => [d.open, d.close, d.low, d.high]),
+    }],
+  }, true)
+  loadingMore.value = false
 }
 
 const handleResize = () => {
@@ -359,13 +348,10 @@ const confirmDelete = (stock: Stock) => {
 const deleteStock = async () => {
   if (!deletingStock.value) return
   loadingDelete.value = true
-  try {
-    await dataApi.deleteData(deletingStock.value.ts_code)
-    deleteDialog.value = false
-    await loadStocks()
-  } finally {
-    loadingDelete.value = false
-  }
+  await dataApi.deleteData(deletingStock.value.ts_code)
+  deleteDialog.value = false
+  await loadStocks()
+  loadingDelete.value = false
 }
 
 onMounted(() => {

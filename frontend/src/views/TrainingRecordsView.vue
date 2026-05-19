@@ -268,26 +268,23 @@ const loadConfigs = async () => {
 
 const loadTrainings = async () => {
   loading.value = true
-  try {
-    const res = await trainingRecordApi.list(filterConfig.value || undefined)
-    trainings.value = res.data.map(t => {
-      const config = configs.value.find(c => c.id === t.config_id)
-      const acc3d = t.metrics.accuracy?.label_3d?.toFixed(4) || '-'
-      const cv3d = t.metrics.cv_mean?.label_3d 
-        ? `${t.metrics.cv_mean.label_3d.toFixed(4)}±${t.metrics.cv_std?.label_3d?.toFixed(4) || '0'}` 
-        : '-'
-      return {
-        ...t,
-        configName: config?.name || t.config_id,
-        date_range: `${t.start_date} ~ ${t.end_date}`,
-        sample_count: t.metrics.sample_count,
-        accuracy: acc3d,
-        cv_score: cv3d,
-      }
-    })
-  } finally {
-    loading.value = false
-  }
+  const res = await trainingRecordApi.list(filterConfig.value || undefined)
+  trainings.value = res.data.map(t => {
+    const config = configs.value.find(c => c.id === t.config_id)
+    const acc3d = t.metrics.accuracy?.label_3d?.toFixed(4) || '-'
+    const cv3d = t.metrics.cv_mean?.label_3d 
+      ? `${t.metrics.cv_mean.label_3d.toFixed(4)}±${t.metrics.cv_std?.label_3d?.toFixed(4) || '0'}` 
+      : '-'
+    return {
+      ...t,
+      configName: config?.name || t.config_id,
+      date_range: `${t.start_date} ~ ${t.end_date}`,
+      sample_count: t.metrics.sample_count,
+      accuracy: acc3d,
+      cv_score: cv3d,
+    }
+  })
+  loading.value = false
 }
 
 const loadStockOptions = async () => {
@@ -308,12 +305,9 @@ const openPredictDialog = async (item: Training) => {
 const runPredict = async () => {
   if (!deletingItem.value) return
   predicting.value = true
-  try {
-    const res = await trainingRecordApi.predict(deletingItem.value.id, predictForm.value.ts_code || undefined)
-    predictions.value = res.data.predictions
-  } finally {
-    predicting.value = false
-  }
+  const res = await trainingRecordApi.predict(deletingItem.value.id, predictForm.value.ts_code || undefined)
+  predictions.value = res.data.predictions
+  predicting.value = false
 }
 
 const confirmDelete = (item: Training) => {
