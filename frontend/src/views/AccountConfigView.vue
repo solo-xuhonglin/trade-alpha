@@ -41,7 +41,7 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <template v-slot:text>
+      <v-card-text>
         <v-row>
           <v-col cols="12">
             <v-text-field v-model="form.name" label="账户名称"></v-text-field>
@@ -62,7 +62,7 @@
             <v-text-field v-model.number="form.min_fee" label="最低手续费" type="number"></v-text-field>
           </v-col>
         </v-row>
-      </template>
+      </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="dialog = false"></v-btn>

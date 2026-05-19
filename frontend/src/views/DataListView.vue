@@ -80,7 +80,7 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <template v-slot:text>
+      <v-card-text>
         <div class="mb-2">股票：{{ downloadingStock?.name }} ({{ downloadingStock?.ts_code }})</div>
         <v-row>
           <v-col cols="12" sm="6">
@@ -98,7 +98,7 @@
             />
           </v-col>
         </v-row>
-      </template>
+      </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="downloadDialog = false"></v-btn>

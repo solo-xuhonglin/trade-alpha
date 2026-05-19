@@ -44,7 +44,7 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <template v-slot:text>
+      <v-card-text>
         <v-row>
           <v-col cols="12" sm="6">
             <v-text-field v-model="form.name" label="配置名称"></v-text-field>
@@ -105,7 +105,7 @@
             </v-col>
           </v-row>
         </template>
-      </template>
+      </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="dialog = false"></v-btn>
