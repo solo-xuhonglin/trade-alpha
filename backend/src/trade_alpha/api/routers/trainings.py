@@ -285,28 +285,3 @@ async def delete_training(training_id: str):
     if not deleted:
         raise HTTPException(status_code=404, detail="Training not found")
     return {"deleted": True}
-
-
-class PredictRequest(BaseModel):
-    ts_code: str
-
-
-@router.post("/{training_id}/predict")
-async def predict(training_id: str, body: PredictRequest):
-    """Predict using trained model."""
-    try:
-        obj_id = PydanticObjectId(training_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid training ID")
-
-    try:
-        result = await training_service.predict_with_training(obj_id, body.ts_code)
-        predictions = {}
-        for k, v in result["predictions"].items():
-            predictions[k] = int(v) if isinstance(v, (np.integer, np.int64)) else v
-        probabilities = {}
-        for k, v in result["probabilities"].items():
-            probabilities[k] = [float(x) if isinstance(x, (np.floating, np.float64)) else x for x in v]
-        return {"predictions": predictions, "probabilities": probabilities}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))

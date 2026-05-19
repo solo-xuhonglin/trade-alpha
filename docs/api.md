@@ -850,35 +850,6 @@ GET /api/trainings/{id}
 DELETE /api/trainings/{id}
 ```
 
-### 使用训练模型预测
-
-```
-POST /api/trainings/{id}/predict
-```
-
-**请求体**:
-```json
-{
-  "ts_code": "000001.SZ"
-}
-```
-
-**响应**:
-```json
-{
-  "predictions": {
-    "3": 1,
-    "5": 0
-  },
-  "probabilities": {
-    "3": [0.2, 0.5, 0.3],
-    "5": [0.3, 0.4, 0.3]
-  }
-}
-```
-
-**分类标签**: -1=下跌, 0=持平, 1=上涨
-
 ## 错误响应
 
 所有接口在出错时返回统一格式：

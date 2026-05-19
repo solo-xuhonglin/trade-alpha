@@ -18,10 +18,6 @@ export interface Training {
   }
 }
 
-export interface PredictResult {
-  predictions: Record<string, number>
-}
-
 export const trainingRecordApi = {
   list: (configId?: string) => {
     const params = configId ? { config_id: configId } : {}
@@ -31,9 +27,4 @@ export const trainingRecordApi = {
   get: (id: string) => api.get<Training>(`/trainings/${id}`),
 
   delete: (id: string) => api.delete(`/trainings/${id}`),
-
-  predict: (id: string, tsCode?: string) => {
-    const data = tsCode ? { ts_code: tsCode } : {}
-    return api.post<PredictResult>(`/trainings/${id}/predict`, data)
-  },
 }
