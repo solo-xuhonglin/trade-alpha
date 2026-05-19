@@ -15,7 +15,7 @@
         class="ml-4"
       />
     </v-toolbar>
-    <v-data-table :headers="headers" :items="trainings" :loading="loading" show-expand>
+    <v-data-table :headers="headers" :items="trainings" :loading="loading">
       <template v-slot:item.ts_codes="{ item }">
         <span v-if="item.ts_codes.length > 3">{{ item.ts_codes.length }} 只</span>
         <span v-else>{{ item.ts_codes.join(', ') }}</span>
