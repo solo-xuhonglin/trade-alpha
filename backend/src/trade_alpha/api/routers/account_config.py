@@ -1,6 +1,6 @@
 """Account config API endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from beanie import PydanticObjectId
 
 from trade_alpha.account import (
@@ -14,6 +14,7 @@ from trade_alpha.api.schemas import (
     AccountConfigCreateRequest,
     AccountConfigUpdateRequest,
 )
+from trade_alpha.api.exceptions import NotFoundException, ConflictException
 
 
 def _config_to_dict(c) -> dict:
@@ -45,7 +46,7 @@ async def get_account_config(account_config_id: PydanticObjectId):
     """Get account config by ID."""
     c = await get_account_config_by_id(account_config_id)
     if not c:
-        raise HTTPException(status_code=404, detail="Account config not found")
+        raise NotFoundException("Account config not found")
     return _config_to_dict(c)
 
 
@@ -63,7 +64,10 @@ async def create_account_config_endpoint(request: AccountConfigCreateRequest):
         )
         return _config_to_dict(c)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Name already exists is a conflict
+        if "already exists" in str(e):
+            raise ConflictException(str(e))
+        raise
 
 
 @router.put("/{account_config_id}")
@@ -72,7 +76,7 @@ async def update_account_config_endpoint(account_config_id: PydanticObjectId, re
     update_data = {k: v for k, v in request.model_dump().items() if v is not None}
     c = await update_account_config(account_config_id, **update_data)
     if not c:
-        raise HTTPException(status_code=404, detail="Account config not found")
+        raise NotFoundException("Account config not found")
     return _config_to_dict(c)
 
 
@@ -81,5 +85,5 @@ async def delete_account_config_endpoint(account_config_id: PydanticObjectId):
     """Delete account config."""
     deleted = await delete_account_config(account_config_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Account config not found")
+        raise NotFoundException("Account config not found")
     return {"message": "Account config deleted"}

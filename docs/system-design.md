@@ -383,17 +383,52 @@ name 字段具备唯一索引，支持按名称直接查询。
 - `GET /data-analysis/results`: 列出分析结果
 - `DELETE /data-analysis/results/{id}`: 删除分析结果
 
-### 12. 账户模块 (account)
+### 12. 全局异常处理器
+
+统一的异常处理机制，确保所有 API 错误响应格式一致：
+
+**错误响应格式**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Error message",
+    "fields": {
+      "field_name": "Validation error message"
+    }
+  }
+}
+```
+
+**自定义异常类** (`api/exceptions.py`):
+| 异常类 | HTTP状态码 | 错误码 | 说明 |
+|--------|-----------|--------|------|
+| `TradeAlphaException` | 500 | INTERNAL_ERROR | 基类异常 |
+| `NotFoundException` | 404 | NOT_FOUND | 资源未找到 |
+| `BadRequestException` | 400 | BAD_REQUEST | 请求参数错误 |
+| `ConflictException` | 409 | CONFLICT | 资源冲突（如重复名称） |
+| `UnauthorizedException` | 401 | UNAUTHORIZED | 未授权 |
+| `ForbiddenException` | 403 | FORBIDDEN | 禁止访问 |
+| `ValidationException` | 422 | VALIDATION_ERROR | 验证失败（支持字段级错误） |
+
+**异常处理器** (`api/error_handlers.py`):
+- `trade_alpha_exception_handler`: 处理所有自定义异常
+- `http_exception_handler`: 处理 Starlette HTTPException
+- `validation_exception_handler`: 处理 FastAPI 验证错误，自动格式化字段错误
+- `general_exception_handler`: 捕获所有未处理异常，记录日志并返回通用错误响应
+
+### 13. 账户模块 (account)
 
 - `AccountManager`: 运行时投资组合引擎（资金管理、交易执行）
 - `TradeRecord`: 交易记录（轻量 dataclass）
 - `service.py`: 账户配置持久化（AccountConfig CRUD）
 
-### 13. 回测模块 (backtest)
+### 14. 回测模块 (backtest)
 
 已重构，回测逻辑已整合到 execution 模块。
 
-### 14. 调度器模块 (scheduler)
+### 15. 调度器模块 (scheduler)
 
 数据同步定时任务，集成到 FastAPI 生命周期：
 
@@ -432,9 +467,9 @@ name 字段具备唯一索引，支持按名称直接查询。
 - 默认 3000 只股票，可通过环境变量 `TARGET_ACTIVE_STOCKS` 配置
 - 达到目标后停止自动同步
 
-### 15. API 路由（已移至上方）
+### 16. API 路由（已移至上方）
 
-### 16. 前端页面
+### 17. 前端页面
 
 | 页面 | URL | 说明 |
 |------|-----|------|

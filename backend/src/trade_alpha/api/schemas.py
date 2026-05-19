@@ -1,8 +1,29 @@
 """Pydantic models for API."""
 
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, TypeVar, Generic, Any
+from pydantic import BaseModel, Field
+
+T = TypeVar("T")
+
+
+class ErrorDetail(BaseModel):
+    """Error detail model."""
+    code: str
+    message: str
+    fields: Optional[dict[str, str]] = None
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response model."""
+    success: bool = Field(default=False)
+    error: ErrorDetail
+
+
+class SuccessResponse(BaseModel, Generic[T]):
+    """Standard success response model."""
+    success: bool = Field(default=True)
+    data: T
 
 
 class DataFetchRequest(BaseModel):

@@ -22,6 +22,7 @@ from trade_alpha.api.routers import (
     trainings,
     data_analysis,
 )
+from trade_alpha.api.error_handlers import register_exception_handlers
 from datetime import datetime
 from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
@@ -109,6 +110,7 @@ app = FastAPI(
     default_response_class=SafeJSONResponse,
 )
 
+register_exception_handlers(app)
 app.add_middleware(LoggingMiddleware)
 
 app.include_router(data.router, prefix="/api")
