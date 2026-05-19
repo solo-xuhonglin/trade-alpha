@@ -203,14 +203,14 @@ const getAccuracyColor = (acc: string | number) => {
 }
 
 const headers = [
-  { title: '名称', key: 'name', width: 180 },
-  { title: '配置', key: 'configName', width: 150 },
-  { title: '股票', key: 'ts_codes', width: 120 },
-  { title: '日期', key: 'date_range', width: 180 },
-  { title: '样本', key: 'sample_count', width: 80 },
-  { title: '准确率', key: 'accuracy', width: 90 },
-  { title: 'CV', key: 'cv_score', width: 150 },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 180 },
+  { title: '名称', key: 'name', width: 150, nowrap: true },
+  { title: '配置', key: 'configName', width: 120, nowrap: true },
+  { title: '股票', key: 'ts_codes', width: 100, nowrap: true },
+  { title: '日期', key: 'date_range', width: 170, nowrap: true },
+  { title: '样本', key: 'sample_count', width: 70, nowrap: true },
+  { title: '准确率', key: 'accuracy', width: 90, nowrap: true },
+  { title: 'CV', key: 'cv_score', width: 150, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 180, nowrap: true },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
