@@ -42,7 +42,7 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="detailDialog" max-width="800px">
+  <v-dialog v-model="detailDialog" max-width="1200px">
     <v-card v-if="detailItem">
       <v-card-title class="d-flex justify-space-between align-center">
         <div>
@@ -53,16 +53,16 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text class="overflow-hidden" style="max-height: 600px;">
+      <v-card-text class="overflow-hidden" style="max-height: 700px;">
         <v-tabs v-model="detailTab" color="primary">
           <v-tab value="overview">概览</v-tab>
           <v-tab value="boxplot">箱线图</v-tab>
           <v-tab value="histogram">直方图</v-tab>
         </v-tabs>
 
-        <v-window v-model="detailTab" class="mt-4 overflow-auto" style="max-height: 500px;">
+        <v-window v-model="detailTab" class="mt-4 overflow-auto" style="max-height: 600px;">
           <v-window-item value="overview">
-            <v-table density="compact" fixed-header height="450">
+            <v-table density="compact" fixed-header height="550">
               <thead>
                 <tr>
                   <th>字段</th>
@@ -95,7 +95,13 @@
           </v-window-item>
 
           <v-window-item value="boxplot">
-            <div ref="boxplotChartRef" style="width: 100%; height: 450px;"></div>
+            <v-select
+              v-model="boxplotField"
+              label="选择字段"
+              :items="Object.keys(detailResult?.boxplots || {})"
+              class="mb-2"
+            />
+            <div ref="boxplotChartRef" style="width: 100%; height: 500px;"></div>
           </v-window-item>
 
           <v-window-item value="histogram">
@@ -105,7 +111,7 @@
               :items="Object.keys(detailResult?.histograms || {})"
               class="mb-2"
             />
-            <div ref="histogramChartRef" style="width: 100%; height: 450px;"></div>
+            <div ref="histogramChartRef" style="width: 100%; height: 500px;"></div>
           </v-window-item>
         </v-window>
       </v-card-text>
@@ -129,6 +135,7 @@ const detailItem = ref<AnalysisRecord | null>(null)
 const detailResult = ref<AnalysisResult | null>(null)
 const detailTab = ref('overview')
 const histogramField = ref<string | null>(null)
+const boxplotField = ref<string | null>(null)
 
 const boxplotChartRef = ref<HTMLElement>()
 const histogramChartRef = ref<HTMLElement>()
@@ -188,10 +195,16 @@ const openDetailDialog = async (item: AnalysisRecord) => {
   detailItem.value = item
   detailTab.value = 'overview'
   histogramField.value = null
+  boxplotField.value = null
   try {
     const res = await dataAnalysisApi.getTaskStatus(item.task_id)
     if (res.data.result) {
       detailResult.value = res.data.result
+      const fields = Object.keys(res.data.result.boxplots)
+      if (fields.length > 0) {
+        boxplotField.value = fields[0]
+        histogramField.value = fields[0]
+      }
     }
     detailDialog.value = true
   } catch (e) {
@@ -201,24 +214,22 @@ const openDetailDialog = async (item: AnalysisRecord) => {
 }
 
 const renderBoxplot = () => {
-  if (!boxplotChartRef.value || !detailResult.value) return
+  if (!boxplotChartRef.value || !detailResult.value || !boxplotField.value || !detailResult.value.boxplots[boxplotField.value]) return
   if (boxplotChartInstance) {
     boxplotChartInstance.dispose()
     boxplotChartInstance = null
   }
   boxplotChartInstance = echarts.init(boxplotChartRef.value)
 
-  const fields = Object.keys(detailResult.value.boxplots)
-  const data = fields.map(field => {
-    const bp = detailResult.value!.boxplots[field]
-    return [bp.min, bp.q1, bp.median, bp.q3, bp.max]
-  })
-  const outliers = fields.map(field => detailResult.value!.boxplots[field].outliers)
+  const field = boxplotField.value
+  const bp = detailResult.value!.boxplots[field]
+  const data = [[bp.min, bp.q1, bp.median, bp.q3, bp.max]]
+  const outliers = bp.outliers.map(o => [0, o])
 
   boxplotChartInstance.setOption({
-    title: { text: '箱线图' },
+    title: { text: `箱线图 - ${field}` },
     tooltip: { trigger: 'item' },
-    xAxis: { type: 'category', data: fields },
+    xAxis: { type: 'category', data: [field] },
     yAxis: { type: 'value' },
     series: [
       {
@@ -229,7 +240,7 @@ const renderBoxplot = () => {
       {
         name: 'outliers',
         type: 'scatter',
-        data: outliers.map((os, i) => os.map(o => [i, o])).flat(),
+        data: outliers,
       },
     ],
   }, true)
@@ -264,7 +275,7 @@ const handleResize = () => {
 }
 
 watch([detailResult, detailTab], () => {
-  if (detailResult.value && detailTab.value === 'boxplot') {
+  if (detailResult.value && detailTab.value === 'boxplot' && boxplotField.value) {
     renderBoxplot()
   } else if (detailResult.value && detailTab.value === 'histogram' && histogramField.value) {
     renderHistogram()
@@ -274,6 +285,12 @@ watch([detailResult, detailTab], () => {
 watch(histogramField, () => {
   if (detailResult.value) {
     renderHistogram()
+  }
+})
+
+watch(boxplotField, () => {
+  if (detailResult.value) {
+    renderBoxplot()
   }
 })
 
