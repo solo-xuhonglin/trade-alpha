@@ -24,9 +24,6 @@
         <v-chip v-if="item.accuracy !== '-'" size="small" :color="getAccuracyColor(item.accuracy)">{{ item.accuracy }}</v-chip>
         <span v-else>-</span>
       </template>
-      <template v-slot:item.cv_score="{ item }">
-        <span>{{ item.cv_score }}</span>
-      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" color="info" prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-btn>
@@ -203,14 +200,13 @@ const getAccuracyColor = (acc: string | number) => {
 }
 
 const headers = [
-  { title: '名称', key: 'name', width: 150, nowrap: true },
-  { title: '配置', key: 'configName', width: 120, nowrap: true },
-  { title: '股票', key: 'ts_codes', width: 100, nowrap: true },
-  { title: '日期', key: 'date_range', width: 170, nowrap: true },
-  { title: '样本', key: 'sample_count', width: 70, nowrap: true },
-  { title: '准确率', key: 'accuracy', width: 90, nowrap: true },
-  { title: 'CV', key: 'cv_score', width: 150, nowrap: true },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 180, nowrap: true },
+  { title: '名称', key: 'name', width: 180, nowrap: true },
+  { title: '配置', key: 'configName', width: 150, nowrap: true },
+  { title: '股票', key: 'ts_codes', width: 120, nowrap: true },
+  { title: '日期', key: 'date_range', width: 190, nowrap: true },
+  { title: '样本', key: 'sample_count', width: 80, nowrap: true },
+  { title: '准确率', key: 'accuracy', width: 100, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 200, nowrap: true },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
