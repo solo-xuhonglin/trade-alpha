@@ -5,15 +5,17 @@
 ## 功能
 
 - [x] 数据层：Tushare 数据获取，MongoDB 存储
-- [x] 分析层：技术指标计算（MA、MACD）
-- [x] 预测层：价格预测（线性回归、XGBoost、LSTM）
+- [x] 分析层：技术指标计算（MA、MACD、RSI、ATR、OBV、KDJ、BOLL、BIAS等）
+- [x] 预测层：价格预测（XGBoost、LSTM）
 - [x] 训练层：样本混合训练、模型持久化
 - [x] 策略层：交易信号生成
 - [x] 账户层：资金管理、交易记录
 - [x] 回测层：策略回测、指标计算
+- [x] 数据分析层：特征统计、直方图、箱线图、缺失值分析
 - [x] API 层：FastAPI RESTful 接口
 - [x] 前端界面：Vue 3 + Vuetify 4
 - [x] 日志模块：结构化日志，请求链路追踪
+- [x] 异步任务管理：训练、回测、数据分析异步执行
 
 ## 项目结构
 
@@ -25,17 +27,15 @@ trade-alpha/
 │   │   ├── data/             # 数据获取模块
 │   │   ├── indicators/       # 技术指标模块
 │   │   ├── predict/          # 预测模块
-│   │   ├── config_service.py   # 模型配置服务
-│   │   ├── training_service.py # 训练服务
-│   │   ├── linear.py          # 线性回归
-│   │   ├── xgboost.py         # XGBoost
-│   │   └── lstm.py            # LSTM
 │   │   ├── strategy/         # 交易策略模块
-│   │   ├── portfolio/        # 账户管理模块
-│   │   ├── backtest/         # 回测模块
+│   │   ├── account/          # 账户管理模块
+│   │   ├── execution/        # 执行框架模块
+│   │   ├── data_analysis/    # 数据分析模块
+│   │   ├── scheduler/        # 定时任务模块
 │   │   ├── logging.py        # 结构化日志
 │   │   └── api/              # FastAPI 接口
 │   ├── tests/                # 测试
+│   ├── scripts/              # 工具脚本
 │   ├── main.py
 │   └── pyproject.toml
 ├── frontend/                  # 前端项目

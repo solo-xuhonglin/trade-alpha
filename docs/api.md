@@ -101,7 +101,11 @@ GET /api/data/{ts_code}
     "kdj_j": 86.78,
     "boll_upper": 11.20,
     "boll_middle": 10.55,
-    "boll_lower": 9.90
+    "boll_lower": 9.90,
+    "rsi_6": 55.23,
+    "rsi_12": 52.15,
+    "atr_14": 0.35,
+    "obv": 12500000.0
   }
 ]
 ```
@@ -880,3 +884,119 @@ POST /api/trainings/{id}/predict
 - `400`: 请求参数错误
 - `404`: 资源不存在
 - `500`: 服务器内部错误
+
+## 数据分析
+
+### 触发数据分析任务（异步）
+
+```
+POST /api/data-analysis
+```
+
+**请求体 (JSON)**:
+```json
+{
+  "name": "analysis_20260516",
+  "ts_codes": ["002594.SZ", "000001.SZ"],
+  "start_rank": 1,
+  "end_rank": 100,
+  "start_date": "20240101",
+  "end_date": "20241231",
+  "feature_fields": ["ma_5", "ma_10", "pct_chg"]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 否 | 分析名称，默认自动生成 |
+| `ts_codes` | string[] | 否 | 股票代码列表，若不提供则按市值排名选择 |
+| `start_rank` | int | 否 | 市值排名起始，默认 1 |
+| `end_rank` | int | 否 | 市值排名结束，默认 1000 |
+| `start_date` | string | 是 | 开始日期 (YYYYMMDD) |
+| `end_date` | string | 是 | 结束日期 (YYYYMMDD) |
+| `feature_fields` | string[] | 否 | 特征字段列表，默认所有指标字段 |
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "pending",
+  "message": "Data analysis task triggered"
+}
+```
+
+### 查询数据分析任务状态
+
+```
+GET /api/data-analysis/task/{task_id}
+```
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "completed",
+  "progress": 100.0,
+  "progress_message": "分析完成",
+  "result": {
+    "statistics": {
+      "ma_5": {
+        "mean": 10.5,
+        "std": 1.2,
+        "median": 10.4,
+        "q1": 9.8,
+        "q3": 11.2,
+        "min": 8.5,
+        "max": 12.5,
+        "missing_rate": 0.01,
+        "outlier_rate": 0.05
+      }
+    },
+    "histograms": {},
+    "boxplots": {},
+    "missing_data": {}
+  },
+  "error_message": null,
+  "created_at": "2024-01-01T00:00:00Z",
+  "started_at": "2024-01-01T00:00:05Z",
+  "completed_at": "2024-01-01T00:10:00Z"
+}
+```
+
+### 获取数据分析结果列表
+
+```
+GET /api/data-analysis/results
+```
+
+**参数**:
+- `limit` (query, optional): 返回数量，默认 20，最大 100
+
+**响应**:
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439011",
+    "task_id": "507f1f77bcf86cd799439012",
+    "name": "analysis_20260516",
+    "ts_codes": ["002594.SZ"],
+    "start_date": "20240101",
+    "end_date": "20241231",
+    "feature_fields": ["ma_5", "ma_10"],
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### 删除数据分析结果
+
+```
+DELETE /api/data-analysis/results/{id}
+```
+
+**响应**:
+```json
+{
+  "status": "ok"
+}
+```

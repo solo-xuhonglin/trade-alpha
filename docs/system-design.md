@@ -83,9 +83,10 @@ trade-alpha/
 │   │       ├── strategy_config.py
 │   │       ├── account_config.py
 │   │       ├── backtest.py
+│   │       ├── backtest_records.py
+│   │       ├── data_analysis.py
 │   │       ├── model_configs.py  # 模型配置 API
-│   │       ├── trainings.py     # 训练 API
-│   │       └── execution.py     # 执行框架 API
+│   │       └── trainings.py     # 训练 API
 │   ├── tests/                # 测试
 │   └── scripts/              # 脚本
 ├── frontend/                  # 前端项目
@@ -137,18 +138,22 @@ trade-alpha/
 使用 Beanie ODM 异步数据访问层：
 
 - `mongodb.py`: MongoDB 连接管理和 Beanie 初始化
-- `stock_daily.py`: 股票日线数据 Document
+- `stock_daily.py`: 股票日线数据 Document（新增 rsi_6, rsi_12, atr_14, obv 字段）
 - `stock_list.py`: 股票列表 Document（包含 sync_status 字段用于数据同步状态追踪）
 - `account_config.py`: 账户配置 Document
 - `strategy_config.py`: 策略配置 Document
 - `model_config.py`: 模型配置 Document
-- `training_result.py`: 训练结果 Document
-- `backtest_result.py`: 回测结果 Document
-- `backtest_trade.py`: 回测交易 Document
-- `backtest_portfolio_daily.py`: 每日账户快照 Document
+- `training.py`: 训练结果 Document（包含 metrics 字段）
+- `execution.py`: 执行结果 Document
+- `execution_trade.py`: 执行交易 Document
+- `execution_daily_snapshot.py`: 每日账户快照 Document
+- `execution_portfolio_daily.py`: 组合快照 Document（保持向后兼容）
 - `position.py`: 持仓嵌入模型
-- `prediction_result.py`: 预测结果 Document
-- `signal_result.py`: 交易信号 Document
+- `prediction.py`: 预测结果 Document（包含 probabilities 字段）
+- `signal.py`: 交易信号 Document
+- `order_suggestion.py`: 订单建议 Document
+- `task.py`: 异步任务 Document（包含 TaskStatus, TaskType）
+- `data_analysis_result.py`: 数据分析结果 Document
 
 ### 4. 数据模块 (data)
 
@@ -168,18 +173,38 @@ trade-alpha/
 - `vol_ratio.py`: 成交量相对比值
 - `kdj.py`: KDJ 随机指标 (RSV → K/D/J 迭代 SMA)
 - `boll.py`: 布林线 (中轨 ± k×标准差)
+- `rsi.py`: RSI 相对强弱指标 (rsi_6, rsi_12)
+- `atr.py`: ATR 平均真实波幅 (atr_14)
+- `obv.py`: OBV 能量潮
 
 **编排服务**:
 - `service.py`: 统一入口方法
   - `calculate_and_store_ma()` — 均线计算与存储
   - `calculate_and_store_macd()` — MACD 计算与存储
   - `calculate_and_store_custom_indicators()` — 自定义指标顺序计算与存储
+  - `calculate_and_store_new_indicators()` — 新指标计算与存储 (RSI, ATR, OBV)
+  - `calculate_all_indicators()` — 计算所有指标
 
-**计算顺序**: `pct_chg` → `bias` → `close_pct_rank` → `vol_ratio` → `kdj` → `boll`
+**计算顺序**: `pct_chg` → `bias` → `close_pct_rank` → `vol_ratio` → `kdj` → `boll` → `rsi` → `atr` → `obv`
 
-**存储字段**: pct_chg, bias_5/10/20/60, close_pct_rank_20, vol_ratio_5, kdj_k/d/j, boll_upper/middle/lower
+**存储字段**: pct_chg, bias_5/10/20/60, close_pct_rank_20, vol_ratio_5, kdj_k/d/j, boll_upper/middle/lower, rsi_6/12, atr_14, obv
 
-### 6. 预测模块 (predict)
+### 6. 数据分析模块 (data/analysis_service)
+
+数据特征分析模块，支持多股票数据合并分析：
+
+- `analysis_service.py`: 数据分析服务
+  - `run_data_analysis()`: 运行数据分析（统计、直方图、箱线图、缺失值分析）
+  - `save_analysis_result()`: 保存分析结果
+  - `get_analysis_result_by_task()`: 根据任务ID获取分析结果
+
+**分析内容**:
+- `statistics`: 统计量（均值、标准差、中位数、分位数、极值、缺失率、异常值率）
+- `histograms`: 特征分布直方图
+- `boxplots`: 箱线图数据（包含异常值）
+- `missing_data`: 缺失值分析
+
+### 7. 预测模块 (predict)
 
 #### models - 模型类
 
@@ -224,7 +249,7 @@ trade-alpha/
 - `predict()`: 预测股票价格并存储结果
 - `get_prediction_by_ts_code()`: 获取最新预测结果
 
-### 7. 策略模块 (strategy)
+### 8. 策略模块 (strategy)
 
 #### base.py - 策略基类 (PositionManager)
 
@@ -252,7 +277,7 @@ trade-alpha/
 **核心方法**:
 - `make_decisions()`: 基于预测概率做出买卖决策
 
-### 8. 执行模块 (execution)
+### 9. 执行模块 (execution)
 
 #### pipeline.py - 统一流程编排
 
@@ -302,18 +327,22 @@ trade-alpha/
 
 name 字段具备唯一索引，支持按名称直接查询。
 
-### 9. 任务模块 (tasks)
+### 10. 任务模块 (tasks)
 
-异步任务管理模块，支持回测和训练的异步执行。
+异步任务管理模块，支持训练、回测、数据分析的异步执行。
 
 **核心功能**:
+- 任务类型: TaskType (BACKTEST, TRAINING, DATA_ANALYSIS)
+- 任务状态: TaskStatus (PENDING, RUNNING, COMPLETED, FAILED)
 - `run_backtest_async()`: 异步执行回测
 - `run_training_async()`: 异步执行训练
+- `run_data_analysis_async()`: 异步执行数据分析
 - 任务状态跟踪: pending → running → completed/failed
 - 任务进度更新
 - 错误捕获和记录
+- 支持失败任务删除
 
-### 10. API 路由
+### 11. API 路由
 
 | 路由 | 说明 |
 |-----|------|
@@ -323,30 +352,37 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `strategy_config.py` | 策略管理 |
 | `account_config.py` | 账户管理 |
 | `backtest.py` | 回测管理（异步任务模式） |
+| `backtest_records.py` | 回测记录查询 |
+| `data_analysis.py` | 数据分析（异步任务模式） |
 | `model_configs.py` | 模型配置 CRUD |
 | `trainings.py` | 训练管理（异步任务模式） |
 
 **异步任务 API**（新增）:
-- `POST /backtest/run`: 触发回测任务
+- `POST /backtest/run`: 触发回测任务（使用JSON body）
 - `GET /backtest/task/{task_id}`: 查询回测任务状态
-- `DELETE /backtest/task/{task_id}`: 取消回测任务
+- `DELETE /backtest/task/{task_id}`: 取消/删除任务（可删除失败任务）
 - `GET /backtest/tasks`: 获取回测任务列表
+- `GET /backtest/results/{result_id}`: 获取回测结果
 - `POST /trainings`: 触发训练任务
 - `GET /trainings/task/{task_id}`: 查询训练任务状态
 - `DELETE /trainings/task/{task_id}`: 取消训练任务
 - `GET /trainings/tasks`: 获取训练任务列表
+- `POST /data-analysis`: 触发数据分析任务
+- `GET /data-analysis/task/{task_id}`: 查询分析任务状态
+- `GET /data-analysis/results`: 列出分析结果
+- `DELETE /data-analysis/results/{id}`: 删除分析结果
 
-### 9. 账户模块 (account)
+### 12. 账户模块 (account)
 
 - `AccountManager`: 运行时投资组合引擎（资金管理、交易执行）
 - `TradeRecord`: 交易记录（轻量 dataclass）
 - `service.py`: 账户配置持久化（AccountConfig CRUD）
 
-### 10. 回测模块 (backtest)
+### 13. 回测模块 (backtest)
 
 已重构，回测逻辑已整合到 execution 模块。
 
-### 11. 调度器模块 (scheduler)
+### 14. 调度器模块 (scheduler)
 
 数据同步定时任务，集成到 FastAPI 生命周期：
 
@@ -385,28 +421,18 @@ name 字段具备唯一索引，支持按名称直接查询。
 - 默认 3000 只股票，可通过环境变量 `TARGET_ACTIVE_STOCKS` 配置
 - 达到目标后停止自动同步
 
-### 12. API 路由
+### 15. API 路由（已移至上方）
 
-| 路由 | 说明 |
-|------|------|
-| `data.py` | 数据管理 |
-| `indicators.py` | 指标计算 |
-| `predict.py` | 预测 |
-| `strategy_config.py` | 策略管理 |
-| `account_config.py` | 账户管理 |
-| `backtest.py` | 回测管理 |
-| `model_configs.py` | 模型配置 CRUD |
-| `trainings.py` | 训练管理 |
-
-### 13. 前端页面
+### 16. 前端页面
 
 | 页面 | URL | 说明 |
 |------|-----|------|
 | 数据管理 | `/data` | 股票列表、K线图表 |
+| 数据分析 | `/data-analysis` | 特征分析、统计图表 |
 | 账户配置 | `/account-configs` | 账户 CRUD |
 | 策略配置 | `/strategies` | 策略 CRUD |
 | 模型配置 | `/models` | 模型配置 CRUD、训练入口 |
-| 训练记录 | `/trainings` | 训练结果列表、预测功能 |
+| 训练记录 | `/trainings` | 训练结果列表、预测功能、评估指标 |
 | 回测 | `/backtest` | 运行回测、查看历史 |
 | 交易记录 | `/trades` | 交易列表 |
 
@@ -451,14 +477,16 @@ create_training(
 ## 已实现功能
 
 - [x] 数据层：Tushare 数据获取，MongoDB 存储
-- [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_pct_rank、vol_ratio、KDJ、BOLL）
-- [x] 预测层：价格预测（XGBoost、LSTM）
-- [x] 训练层：样本混合训练、模型持久化
+- [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_pct_rank、vol_ratio、KDJ、BOLL、RSI、ATR、OBV）
+- [x] 预测层：价格预测（XGBoost、LSTM），支持下跌概率输出
+- [x] 训练层：样本混合训练、模型持久化、训练评估指标
 - [x] 执行层：统一流程编排、数据加载器、预测管理器、组合策略、单股票策略、仓位管理器
 - [x] 账户层：资金管理、交易记录
 - [x] 回测层：策略回测、基线对比、夏普比率、波动率、最大回撤、胜率等指标计算
+- [x] 数据分析层：特征统计、直方图、箱线图、缺失值分析、异步执行
 - [x] API 层：FastAPI RESTful 接口
 - [x] 前端界面：Vue 3 + Vuetify 4
 - [x] 日志系统：结构化日志，请求链路追踪
+- [x] 异步任务管理：训练、回测、数据分析异步执行，支持进度追踪和失败任务删除
 - [x] 测试：集成测试 + E2E 测试
 - [x] CLI：支持训练、组合回测、单股票回测等多种模式

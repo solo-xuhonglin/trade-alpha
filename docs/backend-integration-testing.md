@@ -24,6 +24,7 @@
 | 25 | test_25_indicators_integration.py | TestIndicatorsIntegration | 验证指标计算服务 |
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
+| 33 | test_33_service_data_analysis.py | TestServiceDataAnalysis | 验证数据分析服务 |
 | 41 | test_41_account_config_service.py | TestAccountConfigService | 验证账户管理服务 |
 | 42 | test_42_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
 | 44 | test_44_strategy_service.py | TestStrategyService | 验证策略管理服务 |
@@ -62,6 +63,12 @@ Layer 3.5: 指标计算
 ┌─────────────────────────┐
 │TestIndicatorsIntegration│
 │        (25)             │
+└─────────────────────────┘
+
+Layer 3.75: 数据分析
+┌─────────────────────────┐
+│TestServiceDataAnalysis  │
+│        (33)             │
 └─────────────────────────┘
 
 Layer 4: 基础配置 (账户/策略/模型配置)
@@ -103,6 +110,7 @@ Layer 5: 训练
 | TestIndicatorsIntegration | 002594.SZ | **完整恢复（设置 active）** | 002594.SZ |
 | TestServiceData | 002594.SZ（只读） | **不清理** | 002594.SZ |
 | TestServiceStockList | 真实股票数据（只读） | **不清理** | - |
+| TestServiceDataAnalysis | 002594.SZ | **不清理** | 002594.SZ |
 | TestAccountConfigService | test_*_temp | 自动清理 | test_portfolio |
 | TestModelConfigService | test_*_temp | 自动清理 | test_model_config |
 | TestStrategyService | test_*_temp | 自动清理 | test_strategy |
@@ -115,6 +123,25 @@ Layer 5: 训练
 - 位置：`backend/src/trade_alpha/indicators/service.py`
 - 功能：一次性计算所有指标（MA、MACD、以及自定义指标）
 - 使用：`data_sync.py` 和测试都通过此接口来计算指标
+
+## 指标计算说明
+
+当前项目支持以下指标计算：
+
+### 基础指标
+- **MA（移动平均）**：ma_5、ma_10、ma_20、ma_60
+- **MACD**：macd、macd_signal、macd_hist
+
+### 自定义指标
+- **涨跌幅**：pct_chg
+- **乖离率**：bias_5、bias_10、bias_20、bias_60
+- **收盘价百分位**：close_pct_rank_5、close_pct_rank_10、close_pct_rank_20、close_pct_rank_60
+- **成交量比率**：vol_ratio_5、vol_ratio_10、vol_ratio_20、vol_ratio_60
+- **KDJ随机指标**：kdj_k、kdj_d、kdj_j
+- **布林带**：boll_upper、boll_middle、boll_lower
+- **RSI相对强弱指标**：rsi_6、rsi_12
+- **ATR平均真实波幅**：atr_14
+- **OBV能量潮**：obv
 
 ## 默认记录说明
 

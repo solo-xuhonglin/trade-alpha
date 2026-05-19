@@ -70,6 +70,10 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `boll_upper` | float | 布林线上轨 |
 | `boll_middle` | float | 布林线中轨 |
 | `boll_lower` | float | 布林线下轨 |
+| `rsi_6` | float | RSI(6日)相对强弱指标 |
+| `rsi_12` | float | RSI(12日)相对强弱指标 |
+| `atr_14` | float | ATR(14日)平均真实波幅 |
+| `obv` | float | OBV能量潮指标 |
 
 #### 示例文档
 
@@ -109,7 +113,11 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
   "kdj_j": 86.78,
   "boll_upper": 11.20,
   "boll_middle": 10.55,
-  "boll_lower": 9.90
+  "boll_lower": 9.90,
+  "rsi_6": 55.23,
+  "rsi_12": 52.15,
+  "atr_14": 0.35,
+  "obv": 12500000.0
 }
 ```
 
@@ -535,7 +543,7 @@ MACDStrategy:
 
 ### tasks
 
-存储异步任务信息（回测和训练）。
+存储异步任务信息（回测、训练、数据分析）。
 
 **索引**: `{type: 1}`, `{type: 1, status: 1}`, `{created_at: -1}`
 
@@ -543,10 +551,11 @@ MACDStrategy:
 
 | 字段 | 类型 | 说明 | 默认值 |
 |------|------|------|-------|
-| `type` | string | 任务类型 ("backtest" / "training") | - |
+| `type` | string | 任务类型 ("backtest" / "training" / "data_analysis") | - |
 | `status` | string | 任务状态 ("pending" / "running" / "completed" / "failed") | "pending" |
 | `progress` | float | 任务进度 (0.0 - 100.0) | 0.0 |
-| `result_id` | ObjectId | 关联的结果ID (execution_result或training_result) | - |
+| `progress_message` | string | 进度描述 | - |
+| `result_id` | ObjectId | 关联的结果ID (execution_result、training_result或data_analysis_result) | - |
 | `error_message` | string | 错误信息（失败时） | - |
 | `created_at` | datetime | 创建时间 | now |
 | `started_at` | datetime | 开始时间 | - |
@@ -558,6 +567,45 @@ MACDStrategy:
 - `running`: 任务执行中
 - `completed`: 任务成功完成
 - `failed`: 任务执行失败
+
+### data_analysis_results
+
+存储数据分析结果。
+
+**索引**: `{name: 1}`, `{task_id: 1}`, `{created_at: -1}`
+
+**字段**:
+
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `name` | string | 分析名称 | - |
+| `task_id` | ObjectId | 关联的任务ID | - |
+| `ts_codes` | array | 分析的股票代码列表 | [] |
+| `start_date` | string | 分析开始日期 | - |
+| `end_date` | string | 分析结束日期 | - |
+| `feature_fields` | array | 分析的特征字段列表 | [] |
+| `statistics` | object | 统计指标 | {} |
+| `histograms` | object | 各特征直方图数据 | {} |
+| `boxplots` | object | 各特征箱线图数据 | {} |
+| `missing_data` | object | 缺失值分析 | {} |
+| `created_at` | datetime | 创建时间 | now |
+
+**statistics 结构示例**:
+```json
+{
+  "ma_5": {
+    "mean": 10.5,
+    "std": 1.2,
+    "median": 10.4,
+    "q1": 9.8,
+    "q3": 11.2,
+    "min": 8.5,
+    "max": 12.5,
+    "missing_rate": 0.01,
+    "outlier_rate": 0.05
+  }
+}
+```
 
 **params 示例（回测任务）**:
 ```json
@@ -581,5 +629,16 @@ MACDStrategy:
   "ts_codes": ["000001.SZ", "600000.SH"],
   "start_date": "20230101",
   "end_date": "20231231"
+}
+```
+
+**params 示例（数据分析任务）**:
+```json
+{
+  "name": "数据分析-2024",
+  "ts_codes": ["000001.SZ", "000002.SZ"],
+  "start_date": "20230101",
+  "end_date": "20231231",
+  "feature_fields": ["ma_5", "ma_10", "pct_chg"]
 }
 ```
