@@ -98,7 +98,7 @@
               :items="Object.keys(detailResult?.boxplots || {})"
               class="mb-2"
             />
-            <div ref="boxplotChartRef" style="width: 100%; height: calc(95vh - 300px); min-height: 600px;"></div>
+            <div ref="boxplotChartRef" style="width: 100%; height: calc(95vh - 350px); min-height: 450px;"></div>
           </v-window-item>
 
           <v-window-item value="histogram">
@@ -108,7 +108,7 @@
               :items="Object.keys(detailResult?.histograms || {})"
               class="mb-2"
             />
-            <div ref="histogramChartRef" style="width: 100%; height: calc(95vh - 300px); min-height: 600px;"></div>
+            <div ref="histogramChartRef" style="width: 100%; height: calc(95vh - 350px); min-height: 450px;"></div>
           </v-window-item>
         </v-window>
       </v-card-text>
