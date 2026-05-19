@@ -245,14 +245,14 @@ const predictForm = ref({
 })
 
 const headers = [
-  { title: '名称', key: 'name' },
-  { title: '配置', key: 'configName' },
-  { title: '股票', key: 'ts_codes' },
-  { title: '日期范围', key: 'date_range' },
-  { title: '样本数', key: 'sample_count' },
-  { title: '准确率', key: 'accuracy' },
-  { title: 'CV分数', key: 'cv_score' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
+  { title: '名称', key: 'name', width: 180 },
+  { title: '配置', key: 'configName', width: 150 },
+  { title: '股票', key: 'ts_codes', width: 120 },
+  { title: '日期', key: 'date_range', width: 180 },
+  { title: '样本', key: 'sample_count', width: 80 },
+  { title: '准确率', key: 'accuracy', width: 90 },
+  { title: 'CV', key: 'cv_score', width: 150 },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 220 },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
