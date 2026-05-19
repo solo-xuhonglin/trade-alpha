@@ -30,7 +30,6 @@
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" color="info" prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-btn>
-          <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-chart-box-outline" @click="openPredictDialog(item)">预测</v-btn>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
@@ -40,38 +39,6 @@
   <v-card v-if="error" border rounded class="mb-4" color="error">
     <v-card-text class="text-white">{{ error }}</v-card-text>
   </v-card>
-
-  <v-dialog v-model="predictDialog" max-width="500px">
-    <v-card>
-      <v-card-title class="d-flex justify-space-between align-center">
-        使用模型预测
-        <v-btn icon variant="text" size="small" @click="predictDialog = false">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-title>
-      <v-card-text>
-        <v-select
-          v-model="predictForm.ts_code"
-          :items="stockOptions"
-          label="股票代码（可选）"
-          clearable
-          hint="不选择则使用训练时的第一只股票"
-          persistent-hint
-        />
-        <v-alert v-if="predictions" type="success" class="mt-4">
-          <div v-for="(value, key) in predictions" :key="key">
-            {{ key }}: {{ value.toFixed(4) }}
-          </div>
-        </v-alert>
-      </v-card-text>
-      <v-divider />
-      <v-card-actions class="bg-surface-light">
-        <v-btn text="关闭" variant="plain" @click="predictDialog = false" />
-        <v-spacer />
-        <v-btn text="预测" color="primary" @click="runPredict" :loading="predicting" />
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
 
   <v-dialog v-model="deleteDialog" max-width="400px">
     <v-card>
@@ -207,18 +174,13 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { trainingRecordApi, type Training } from '@/api/trainingRecord'
 import { modelConfigApi } from '@/api/modelConfig'
-import { dataApi } from '@/api/data'
 
 const loading = ref(false)
-const predictDialog = ref(false)
 const deleteDialog = ref(false)
 const detailDialog = ref(false)
-const predicting = ref(false)
 const trainings = ref<(Training & { configName: string })[]>([])
 const configs = ref<{ id: string; name: string }[]>([])
 const filterConfig = ref<string | null>(null)
-const stockOptions = ref<string[]>([])
-const predictions = ref<Record<string, number> | null>(null)
 const deletingItem = ref<Training | null>(null)
 const detailItem = ref<Training | null>(null)
 const detailTab = ref('overview')
@@ -240,10 +202,6 @@ const getAccuracyColor = (acc: string | number) => {
   return 'error'
 }
 
-const predictForm = ref({
-  ts_code: null as string | null,
-})
-
 const headers = [
   { title: '名称', key: 'name', width: 180 },
   { title: '配置', key: 'configName', width: 150 },
@@ -252,7 +210,7 @@ const headers = [
   { title: '样本', key: 'sample_count', width: 80 },
   { title: '准确率', key: 'accuracy', width: 90 },
   { title: 'CV', key: 'cv_score', width: 150 },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 220 },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 180 },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
@@ -282,29 +240,6 @@ const loadTrainings = async () => {
     }
   })
   loading.value = false
-}
-
-const loadStockOptions = async () => {
-  const res = await dataApi.listStocks(1, 100)
-  stockOptions.value = res.data.items.map(s => s.ts_code)
-}
-
-const openPredictDialog = async (item: Training) => {
-  deletingItem.value = item
-  predictForm.value.ts_code = null
-  predictions.value = null
-  if (stockOptions.value.length === 0) {
-    await loadStockOptions()
-  }
-  predictDialog.value = true
-}
-
-const runPredict = async () => {
-  if (!deletingItem.value) return
-  predicting.value = true
-  const res = await trainingRecordApi.predict(deletingItem.value.id, predictForm.value.ts_code || undefined)
-  predictions.value = res.data.predictions
-  predicting.value = false
 }
 
 const confirmDelete = (item: Training) => {
