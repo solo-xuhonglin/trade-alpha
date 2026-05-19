@@ -1,0 +1,194 @@
+"""Data analysis API router with async task support."""
+
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+from beanie import PydanticObjectId
+from datetime import datetime
+
+from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.dao.data_analysis_result import DataAnalysisResult
+from trade_alpha.data.service import list_stocks_by_mv_rank
+from trade_alpha.data.analysis_service import (
+    run_data_analysis,
+    save_analysis_result,
+    get_analysis_result_by_task,
+)
+from trade_alpha.predict.config_service import DEFAULT_INDICATOR_FIELDS
+
+router = APIRouter(prefix="/data-analysis", tags=["data-analysis"])
+
+
+class DataAnalysisCreate(BaseModel):
+    name: Optional[str] = None
+    ts_codes: Optional[List[str]] = None
+    start_rank: Optional[int] = 1
+    end_rank: Optional[int] = 1000
+    start_date: str = "2020-01-01"
+    end_date: str = "2025-12-31"
+    feature_fields: Optional[List[str]] = None
+
+
+@router.post("")
+async def trigger_data_analysis(
+    background_tasks: BackgroundTasks,
+    params: DataAnalysisCreate,
+):
+    """Trigger data analysis task (async)."""
+    ts_codes = params.ts_codes or []
+    if not ts_codes:
+        stocks = await list_stocks_by_mv_rank(params.start_rank, params.end_rank)
+        ts_codes = [s.ts_code for s in stocks]
+
+    if not ts_codes:
+        raise HTTPException(status_code=400, detail="No stocks found")
+
+    feature_fields = params.feature_fields or DEFAULT_INDICATOR_FIELDS
+    
+    # Generate default name
+    if not params.name:
+        from datetime import datetime
+        now = datetime.now()
+        params.name = f"analysis_{now.strftime('%Y%m%d%H%M%S')}"
+
+    task = await Task(
+        type=TaskType.DATA_ANALYSIS,
+        status=TaskStatus.PENDING,
+        params={
+            "name": params.name,
+            "ts_codes": ts_codes,
+            "start_date": params.start_date,
+            "end_date": params.end_date,
+            "feature_fields": feature_fields,
+        },
+        created_at=datetime.now(),
+    ).save()
+
+    background_tasks.add_task(run_data_analysis_async, str(task.id))
+
+    return {
+        "task_id": str(task.id),
+        "status": task.status.value,
+        "message": "Data analysis task triggered",
+    }
+
+
+async def run_data_analysis_async(task_id: str):
+    """Execute data analysis asynchronously."""
+    from trade_alpha.logging import get_logger
+
+    logger = get_logger("data_analysis.task")
+    task = await Task.get(PydanticObjectId(task_id))
+    if not task:
+        return
+
+    async def update_progress(progress: float, message: str):
+        task.progress = progress
+        task.progress_message = message
+        await task.save()
+
+    try:
+        task.status = TaskStatus.RUNNING
+        task.started_at = datetime.now()
+        task.progress = 0.0
+        task.progress_message = "正在初始化..."
+        await task.save()
+
+        params = task.params
+        result = await run_data_analysis(
+            ts_codes=params["ts_codes"],
+            start_date=params["start_date"],
+            end_date=params["end_date"],
+            feature_fields=params["feature_fields"],
+            progress_callback=update_progress,
+        )
+
+        analysis_result_id = await save_analysis_result(
+        task_id=str(task.id),
+        name=params.get("name", ""),
+        ts_codes=params["ts_codes"],
+        start_date=params["start_date"],
+        end_date=params["end_date"],
+        feature_fields=params["feature_fields"],
+        result=result,
+    )
+
+        task.status = TaskStatus.COMPLETED
+        task.progress = 100.0
+        task.progress_message = "分析完成"
+        task.result_id = analysis_result_id
+        task.completed_at = datetime.now()
+        await task.save()
+
+    except Exception as e:
+        logger.error(f"Data analysis task {task_id} failed: {e}")
+        task.status = TaskStatus.FAILED
+        task.error_message = str(e)
+        task.progress_message = f"分析失败: {str(e)}"
+        await task.save()
+
+
+@router.get("/task/{task_id}")
+async def get_analysis_task(task_id: str):
+    """Get analysis task status and result."""
+    try:
+        obj_id = PydanticObjectId(task_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid task ID format")
+
+    task = await Task.get(obj_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    result = None
+    if task.status == TaskStatus.COMPLETED and task.result_id:
+        analysis_result = await get_analysis_result_by_task(str(task.id))
+        if analysis_result:
+            result = {
+                "statistics": analysis_result.statistics,
+                "histograms": analysis_result.histograms,
+                "boxplots": analysis_result.boxplots,
+                "missing_data": analysis_result.missing_data,
+            }
+
+    return {
+        "task_id": str(task.id),
+        "status": task.status.value,
+        "progress": task.progress,
+        "progress_message": task.progress_message,
+        "result": result,
+    }
+
+
+@router.get("/results")
+async def list_analysis_results(limit: int = Query(20, ge=1, le=100)):
+    """List analysis results."""
+    results = await DataAnalysisResult.find_all().sort(-DataAnalysisResult.created_at).limit(limit).to_list()
+    return [
+        {
+            "id": str(r.id),
+            "task_id": r.task_id,
+            "name": r.name,
+            "ts_codes": r.ts_codes,
+            "start_date": r.start_date,
+            "end_date": r.end_date,
+            "feature_fields": r.feature_fields,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in results
+    ]
+
+@router.delete("/results/{id}")
+async def delete_analysis_result(id: str):
+    """Delete analysis result by ID."""
+    try:
+        obj_id = PydanticObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+    result = await DataAnalysisResult.get(obj_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+
+    await result.delete()
+    return {"status": "ok"}

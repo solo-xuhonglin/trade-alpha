@@ -3,12 +3,28 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    redirect: '/data'
+    redirect: '/data/list'
   },
   {
     path: '/data',
-    name: 'Data',
-    component: () => import('@/views/DataView.vue')
+    redirect: '/data/list',
+    children: [
+      {
+        path: 'list',
+        name: 'DataList',
+        component: () => import('@/views/DataListView.vue')
+      },
+      {
+        path: 'analysis/manage',
+        name: 'DataAnalysisManage',
+        component: () => import('@/views/DataAnalysisManageView.vue')
+      },
+      {
+        path: 'analysis/records',
+        name: 'DataAnalysisRecords',
+        component: () => import('@/views/DataAnalysisRecordsView.vue')
+      }
+    ]
   },
   {
     path: '/account-configs',

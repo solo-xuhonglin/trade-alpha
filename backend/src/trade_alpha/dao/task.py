@@ -14,6 +14,7 @@ class TaskStatus(str, Enum):
 class TaskType(str, Enum):
     BACKTEST = "backtest"
     TRAINING = "training"
+    DATA_ANALYSIS = "data_analysis"
 
 
 class Task(Document):

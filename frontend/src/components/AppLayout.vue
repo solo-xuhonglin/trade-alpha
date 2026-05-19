@@ -7,11 +7,27 @@
 
     <v-navigation-drawer v-model="drawer" :permanent="mdAndUp" :temporary="!mdAndUp" width="200">
       <v-list>
-        <v-list-item
-          :to="'/data'"
-          prepend-icon="mdi-database"
-          title="数据"
-        />
+        <v-list-group value="data">
+          <template v-slot:activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              prepend-icon="mdi-database"
+              title="数据"
+            />
+          </template>
+          <v-list-item
+            :to="'/data/list'"
+            title="数据列表"
+          />
+          <v-list-item
+            :to="'/data/analysis/manage'"
+            title="分析管理"
+          />
+          <v-list-item
+            :to="'/data/analysis/records'"
+            title="分析记录"
+          />
+        </v-list-group>
 
         <v-list-group value="config">
           <template v-slot:activator="{ props }">

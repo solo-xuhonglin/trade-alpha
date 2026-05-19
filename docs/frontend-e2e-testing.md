@@ -16,18 +16,22 @@
 | Order | 文件 | 类名 | 说明 |
 |-------|------|------|------|
 | 1 | test_data_page.py | TestDataPage | 数据管理页面测试 |
-| 2 | test_account_page.py | TestAccountPage | 账户管理页面测试 |
-| 3 | test_strategy_page.py | TestStrategyPage | 策略管理页面测试 |
-| 4 | test_models_page.py | TestModelsPage | 模型管理页面测试 |
-| 5 | test_trainings_page.py | TestTrainingsPage | 训练记录页面测试 |
-| 6 | test_backtest_page.py | TestBacktestPage | 回测页面测试 |
-| 7 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
+| 2 | test_data_analysis_manage_page.py | TestDataAnalysisManagePage | 分析管理页面测试 |
+| 3 | test_data_analysis_records_page.py | TestDataAnalysisRecordsPage | 分析记录页面测试 |
+| 4 | test_account_page.py | TestAccountPage | 账户管理页面测试 |
+| 5 | test_strategy_page.py | TestStrategyPage | 策略管理页面测试 |
+| 6 | test_models_page.py | TestModelsPage | 模型管理页面测试 |
+| 7 | test_trainings_page.py | TestTrainingsPage | 训练记录页面测试 |
+| 8 | test_backtest_page.py | TestBacktestPage | 回测页面测试 |
+| 9 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
 
 ## 测试覆盖
 
 | 页面 | URL | 测试内容 |
 |------|-----|---------|
 | 数据管理 | `/data` | 导航、加载股票列表、验证表头、验证数据 |
+| 分析管理 | `/data/analysis/manage` | 导航、筛选区加载、指标选择、开始分析按钮 |
+| 分析记录 | `/data/analysis/records` | 导航、加载记录列表、详情按钮、删除按钮 |
 | 账户管理 | `/account-configs` | 导航、加载账户列表、验证表头、验证数据 |
 | 策略管理 | `/strategies` | 导航、加载策略列表、验证表头、验证数据 |
 | 模型管理 | `/models` | 导航、加载配置列表、验证表头、新建配置按钮 |

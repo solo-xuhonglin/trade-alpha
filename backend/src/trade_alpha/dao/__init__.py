@@ -15,12 +15,14 @@ from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.order_suggestion import OrderSuggestion
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.dao.data_analysis_result import DataAnalysisResult
 
 __all__ = [
     "OrderSuggestion",
     "Task",
     "TaskStatus",
     "TaskType",
+    "DataAnalysisResult",
     "init_db",
     "get_db",
     "close_db",
