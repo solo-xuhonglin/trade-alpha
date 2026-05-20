@@ -127,7 +127,7 @@ async def get_backtest_trades(
 
 @router.get("/{result_id}/prediction-stocks")
 async def get_prediction_stocks(result_id: str):
-    """Get stocks traded in a backtest result (from predictions in snapshots)."""
+    """Get stocks traded in a backtest result (from positions with predictions)."""
     try:
         obj_id = PydanticObjectId(result_id)
     except Exception:
@@ -139,12 +139,14 @@ async def get_prediction_stocks(result_id: str):
 
     snapshots = await ExecutionDailySnapshot.find(
         ExecutionDailySnapshot.backtest_id == obj_id,
+        ExecutionDailySnapshot.positions != [],
     ).to_list()
 
     ts_codes: set[str] = set()
     for snap in snapshots:
-        for code in snap.predictions.keys():
-            ts_codes.add(code)
+        for pos in snap.positions:
+            if pos.ts_code in snap.predictions:
+                ts_codes.add(pos.ts_code)
 
     if not ts_codes:
         return {"items": []}
