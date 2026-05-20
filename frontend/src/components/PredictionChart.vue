@@ -101,13 +101,19 @@ const dialog = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { dialog.value = v })
 watch(dialog, async (v) => {
   emit('update:modelValue', v)
-  if (v && selectedTsCode.value && chartData.value.length > 0) {
-    if (chartInstance) {
-      chartInstance.dispose()
-      chartInstance = null
+  if (v) {
+    // 第一次打开时加载股票列表
+    if (stockItems.value.length === 0) {
+      await loadStocks()
     }
-    await nextTick()
-    renderChart()
+    if (selectedTsCode.value && chartData.value.length > 0) {
+      if (chartInstance) {
+        chartInstance.dispose()
+        chartInstance = null
+      }
+      await nextTick()
+      renderChart()
+    }
   }
 })
 
