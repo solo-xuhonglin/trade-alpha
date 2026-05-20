@@ -127,7 +127,7 @@ async def get_backtest_trades(
 
 @router.get("/{result_id}/prediction-stocks")
 async def get_prediction_stocks(result_id: str):
-    """Get stocks traded in a backtest result (from positions in snapshots)."""
+    """Get stocks traded in a backtest result (from predictions in snapshots)."""
     try:
         obj_id = PydanticObjectId(result_id)
     except Exception:
@@ -139,13 +139,12 @@ async def get_prediction_stocks(result_id: str):
 
     snapshots = await ExecutionDailySnapshot.find(
         ExecutionDailySnapshot.backtest_id == obj_id,
-        ExecutionDailySnapshot.positions != [],
     ).to_list()
 
     ts_codes: set[str] = set()
     for snap in snapshots:
-        for pos in snap.positions:
-            ts_codes.add(pos.ts_code)
+        for code in snap.predictions.keys():
+            ts_codes.add(code)
 
     if not ts_codes:
         return {"items": []}
@@ -192,7 +191,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
         pred = snap.predictions.get(ts_code)
         if pred is not None:
             items.append({
-                "trade_date": snap.date,
+                "trade_date": to_api_format(snap.date),
                 "score": pred.get("score"),
                 "up_prob_3d": pred.get("up_prob_3d"),
                 "up_prob_5d": pred.get("up_prob_5d"),
@@ -211,7 +210,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
         trade_dates = [k.trade_date for k in klines]
 
         for item in items:
-            trade_date = item["trade_date"]
+            trade_date = to_db_format(item["trade_date"])
             try:
                 idx = trade_dates.index(trade_date)
             except ValueError:
