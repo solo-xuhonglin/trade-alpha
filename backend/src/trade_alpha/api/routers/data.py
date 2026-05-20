@@ -13,6 +13,7 @@ from trade_alpha.data.service import (
     delete_stock_daily_by_ts_code,
 )
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
+from trade_alpha.api.validators import TradeDateQuery
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -73,8 +74,8 @@ async def update_stocks_endpoint():
 @router.get("/{ts_code}")
 async def get_data(
     ts_code: str,
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
+    start_date: TradeDateQuery = None,
+    end_date: TradeDateQuery = None,
 ):
     """Get stock daily data by date range. Returns all records sorted by trade_date ascending."""
     records = await find_stock_daily_by_ts_code(
@@ -82,8 +83,7 @@ async def get_data(
         to_db_format(start_date) if start_date else None, 
         to_db_format(end_date) if end_date else None
     )
-    for record in records:
-        record.trade_date = to_api_format(record.trade_date)
+    # trade_date 保持数据库格式 YYYYMMDD，不转换
     return records
 
 

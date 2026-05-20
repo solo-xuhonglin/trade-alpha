@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from beanie import PydanticObjectId
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -14,6 +14,7 @@ from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
 from trade_alpha.strategy.service import get_strategy_by_id
 from trade_alpha.utils.date_utils import to_api_format
+from trade_alpha.api.validators import validate_trade_date
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
@@ -59,6 +60,11 @@ class BacktestRunRequest(BaseModel):
     ts_codes: Optional[List[str]] = None
     max_positions: int = 10
     strategy_config_id: Optional[str] = None
+    
+    @field_validator('start_date', 'end_date')
+    @classmethod
+    def validate_dates(cls, v: str) -> str:
+        return validate_trade_date(v)
 
 
 @router.post("/run")

@@ -1,19 +1,60 @@
 """日期工具函数"""
 from typing import List, Tuple
+import re
+
+
+def is_valid_api_date(date_str: str) -> bool:
+    """验证是否为有效的API日期格式 YYYY-MM-DD"""
+    if not isinstance(date_str, str):
+        return False
+    pattern = r'^\d{4}-\d{2}-\d{2}$'
+    if not re.match(pattern, date_str):
+        return False
+    # 简单的日期范围验证
+    try:
+        year, month, day = map(int, date_str.split('-'))
+        return 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31
+    except:
+        return False
+
+
+def is_valid_db_date(date_str: str) -> bool:
+    """验证是否为有效的数据库日期格式 YYYYMMDD"""
+    if not isinstance(date_str, str):
+        return False
+    pattern = r'^\d{8}$'
+    if not re.match(pattern, date_str):
+        return False
+    # 简单的日期范围验证
+    try:
+        year = int(date_str[:4])
+        month = int(date_str[4:6])
+        day = int(date_str[6:8])
+        return 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31
+    except:
+        return False
 
 
 def to_db_format(date_str: str) -> str:
     """将日期转换为数据库格式 YYYYMMDD"""
-    if '-' in date_str:
-        return date_str.replace('-', '')
-    return date_str
+    if not date_str:
+        return date_str
+    if is_valid_db_date(date_str):
+        return date_str
+    if is_valid_api_date(date_str):
+        return date_str.replace("-", "")
+    raise ValueError(f"Invalid date format: {date_str}, expected YYYY-MM-DD or YYYYMMDD")
 
 
 def to_api_format(date_str: str) -> str:
     """将日期转换为API格式 YYYY-MM-DD"""
-    if len(date_str) == 8 and '-' not in date_str:
+    if not date_str:
+        return date_str
+    if is_valid_api_date(date_str):
+        return date_str
+    if is_valid_db_date(date_str):
         return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-    return date_str
+    raise ValueError(f"Invalid date format: {date_str}, expected YYYY-MM-DD or YYYYMMDD")
 
 
 def get_year_months(start_date: str, end_date: str) -> List[Tuple[int, int]]:

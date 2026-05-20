@@ -2,7 +2,25 @@
 
 from datetime import datetime
 from typing import Optional, TypeVar, Generic, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+import re
+
+
+def _validate_trade_date(date_str: str) -> str:
+    """验证交易日期格式，仅支持 YYYYMMDD"""
+    pattern = r'^\d{8}$'
+    
+    if re.match(pattern, date_str):
+        try:
+            year = int(date_str[:4])
+            month = int(date_str[4:6])
+            day = int(date_str[6:8])
+            if 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31:
+                return date_str
+        except:
+            pass
+    
+    raise ValueError(f"Invalid trade date format: '{date_str}'. Expected YYYYMMDD")
 
 T = TypeVar("T")
 
@@ -30,6 +48,11 @@ class DataFetchRequest(BaseModel):
     ts_code: str
     start_date: str
     end_date: str
+    
+    @field_validator('start_date', 'end_date')
+    @classmethod
+    def validate_dates(cls, v: str) -> str:
+        return _validate_trade_date(v)
 
 
 class StrategyCreateRequest(BaseModel):

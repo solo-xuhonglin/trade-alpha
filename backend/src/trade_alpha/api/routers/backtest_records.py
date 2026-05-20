@@ -12,7 +12,7 @@ from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.training import TrainingResult
-from trade_alpha.utils.date_utils import to_api_format
+from trade_alpha.utils.date_utils import to_api_format, to_db_format
 
 router = APIRouter(prefix="/backtests", tags=["backtest-records"])
 
@@ -193,7 +193,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
         pred = snap.predictions.get(ts_code)
         if pred is not None:
             items.append({
-                "trade_date": to_api_format(snap.date),
+                "trade_date": snap.date,  # trade_date 保持数据库格式 YYYYMMDD，不转换
                 "score": pred.get("score"),
                 "up_prob_3d": pred.get("up_prob_3d"),
                 "up_prob_5d": pred.get("up_prob_5d"),
@@ -212,7 +212,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
         trade_dates = [k.trade_date for k in klines]
 
         for item in items:
-            trade_date = to_db_format(item["trade_date"])
+            trade_date = item["trade_date"]  # 已经是 YYYYMMDD 格式了
             try:
                 idx = trade_dates.index(trade_date)
             except ValueError:
@@ -234,8 +234,8 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     return {
         "ts_code": ts_code,
         "stock_name": stock_name,
-        "start_date": items[0]["trade_date"] if items else None,
-        "end_date": items[-1]["trade_date"] if items else None,
+        "start_date": items[0]["trade_date"] if items else None,  # 保持 YYYYMMDD 格式
+        "end_date": items[-1]["trade_date"] if items else None,  # 保持 YYYYMMDD 格式
         "items": items,
     }
 

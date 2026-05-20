@@ -1,7 +1,7 @@
 """Training API router with async task support."""
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Dict, Any, Optional
 from beanie import PydanticObjectId
 import numpy as np
@@ -11,6 +11,7 @@ from trade_alpha.predict import training_service
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
 from trade_alpha.data.service import list_stocks_by_mv_rank
 from trade_alpha.utils.date_utils import to_api_format
+from trade_alpha.api.validators import validate_trade_date, validate_date_range
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
 
@@ -23,6 +24,11 @@ class TrainingCreate(BaseModel):
     end_date: str
     start_rank: Optional[int] = 1
     end_rank: Optional[int] = 3000
+    
+    @field_validator('start_date', 'end_date')
+    @classmethod
+    def validate_dates(cls, v: str) -> str:
+        return validate_trade_date(v)
 
 
 @router.post("")
@@ -40,6 +46,13 @@ async def trigger_training(
         config_obj_id = PydanticObjectId(config_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID format")
+    
+    try:
+        validate_trade_date(start_date)
+        validate_trade_date(end_date)
+        validate_date_range(start_date, end_date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
     ts_codes = [s.ts_code for s in stocks]

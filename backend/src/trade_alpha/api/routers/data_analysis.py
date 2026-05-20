@@ -1,7 +1,7 @@
 """Data analysis API router with async task support."""
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Dict, Any, Optional
 from beanie import PydanticObjectId
 from datetime import datetime
@@ -16,6 +16,7 @@ from trade_alpha.data.analysis_service import (
 )
 from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.predict.config_service import DEFAULT_INDICATOR_FIELDS
+from trade_alpha.api.validators import validate_trade_date
 
 router = APIRouter(prefix="/data-analysis", tags=["data-analysis"])
 
@@ -28,6 +29,11 @@ class DataAnalysisCreate(BaseModel):
     start_date: str = "2020-01-01"
     end_date: str = "2025-12-31"
     feature_fields: Optional[List[str]] = None
+    
+    @field_validator('start_date', 'end_date')
+    @classmethod
+    def validate_dates(cls, v: str) -> str:
+        return validate_trade_date(v)
 
 
 @router.post("")
