@@ -7,7 +7,6 @@ export interface ModelConfig {
   feature_fields: string[]
   standardize_fields: string[]
   winsorize_fields: string[]
-  output_fields: string[]
   classification_horizons: number[]
   classification_threshold: number
   xgb_n_estimators: number

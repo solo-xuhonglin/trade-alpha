@@ -78,35 +78,48 @@ async def _load_year_data(year: int, ts_codes: List[str], horizon: int) -> Optio
     return pd.concat(year_dfs, ignore_index=True) if year_dfs else None
 
 
-def _normalize_data(df: pd.DataFrame, config) -> Optional[pd.DataFrame]:
-    """Normalize data"""
+def _normalize_data(df: pd.DataFrame, config, target_names: List[str]) -> Optional[pd.DataFrame]:
+    """Normalize data
+
+    Args:
+        df: Input DataFrame with features, labels, trade_date, ts_code
+        config: Model config
+        target_names: Target column names (not normalized)
+
+    Returns:
+        Normalized DataFrame with features and labels
+    """
     normalizer = CrossSectionalNormalizer(
         standardize_fields=config.standardize_fields,
         winsorize_fields=config.winsorize_fields,
-        output_fields=config.output_fields,
+        output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"],
     )
-    target_names = [f"label_{h}d" for h in config.classification_horizons]
-    df_norm = normalizer.normalize(df[config.feature_fields + target_names + ["trade_date", "ts_code"]])
-    available_fields = [f for f in config.feature_fields + target_names if f in df_norm.columns]
-    return df_norm.dropna(subset=available_fields)
+
+    df_norm = normalizer.normalize(df)
+
+    # Check available fields
+    available_features = [f for f in config.feature_fields if f in df_norm.columns]
+    available_targets = [t for t in target_names if t in df_norm.columns]
+    available_fields = available_features + available_targets
+
+    return df_norm.dropna(subset=available_fields) if not df_norm.empty else None
 
 
-def _analyze_normalized_data(
-    all_X: List[np.ndarray],
-    feature_fields: List[str],
-) -> Dict[str, Any]:
+def _analyze_normalized_data(all_norm_dfs: List[pd.DataFrame], feature_fields: List[str]) -> Dict[str, Any]:
     """Analyze normalized data collected during training.
 
     Args:
-        all_X: List of normalized feature arrays from each year
-        feature_fields: Feature field names
+        all_norm_dfs: List of normalized DataFrames (features + labels) from each year
+        feature_fields: Feature column names to analyze
 
     Returns:
         Analysis result dict with statistics/histograms/boxplots/missing_data
     """
     from trade_alpha.data.analysis_service import compute_field_analysis
 
-    normalized_df = pd.DataFrame(np.vstack(all_X), columns=feature_fields)
+    # Extract only feature columns for analysis
+    feature_dfs = [df[feature_fields] for df in all_norm_dfs]
+    normalized_df = pd.concat(feature_dfs, ignore_index=True)
     result = compute_field_analysis(normalized_df, feature_fields)
     for field in result["statistics"]:
         result["statistics"][field]["missing_rate"] = 0.0
@@ -263,10 +276,7 @@ async def create_training(
     stage = 0
     horizon = max(config.classification_horizons)
     target_names = [f"label_{h}d" for h in config.classification_horizons]
-    all_ts_codes = []
-    all_X = []
-    all_y = []
-    all_targets = None
+    all_norm_dfs = []
 
     for year_idx, year in enumerate(years):
         year_num = year_idx + 1
@@ -281,32 +291,25 @@ async def create_training(
         await update(stage, format_progress("label", year, idx=year_num, total=total_years))
         year_df = _create_classification_labels(year_df, config.classification_horizons, config.classification_threshold)
 
-        year_norm = _normalize_data(year_df, config)
+        year_norm = _normalize_data(year_df, config, target_names)
         if year_norm is not None and not year_norm.empty:
-            available_features = [f for f in config.feature_fields if f in year_norm.columns]
-            available_targets = [t for t in target_names if t in year_norm.columns]
+            all_norm_dfs.append(year_norm)
 
-            if all_targets is None:
-                all_targets = available_targets
-
-            all_X.append(year_norm[available_features].values)
-            all_y.append(year_norm[available_targets].values)
-
-        year_ts_codes = sorted(year_df["ts_code"].unique())
-        all_ts_codes.extend([c for c in year_ts_codes if c not in all_ts_codes])
-
-    if not all_X:
+    if not all_norm_dfs:
         raise ValueError("No available data")
 
     stage += 1
     await update(stage, "正在训练模型...")
 
-    X = np.vstack(all_X)
-    y = np.vstack(all_y) if len(all_y) > 1 else all_y[0]
+    # Extract features and targets from normalized dfs
+    available_features = [f for f in config.feature_fields if f in all_norm_dfs[0].columns]
+    available_targets = [t for t in target_names if t in all_norm_dfs[0].columns]
+    X = np.vstack([df[available_features].values for df in all_norm_dfs])
+    y = np.vstack([df[available_targets].values for df in all_norm_dfs]) if len(all_norm_dfs) > 1 else all_norm_dfs[0][available_targets].values
     sample_count = len(X)
 
     classifier = _create_classifier(config)
-    classifier.fit(X, y, all_targets)
+    classifier.fit(X, y, target_names)
 
     stage += 1
     await update(stage, "正在评估模型...")
@@ -315,21 +318,21 @@ async def create_training(
         X,
         y,
         config.feature_fields,
-        all_targets,
+        target_names,
         n_splits=5,
         progress_callback=lambda pct, msg: update(stage + pct / 100 * 5, msg)
     )
 
     stage += 1
     await update(stage, "正在分析标准化数据...")
-    training_normalized_analysis = _analyze_normalized_data(all_X, config.feature_fields)
+    training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, available_features)
 
     await update(total_stages, format_progress("done", years[-1]))
 
     training = TrainingResult(
         config_id=config_id,
         name=name,
-        ts_codes=all_ts_codes,
+        ts_codes=ts_codes,
         start_date=start_date,
         end_date=end_date,
         feature_fields=config.feature_fields,
@@ -389,7 +392,7 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     预测流程与训练保持一致，使用相同的配置字段:
     - standardize_fields: 标准化器标准化
     - winsorize_fields: 标准化器缩尾
-    - output_fields: 标准化器输出 (自动排除 ts_code/trade_date)
+    - output_fields: 标准化器输出 (特征+标签+trade_date+ts_code)
     """
     from trade_alpha.predict.config_service import get_config_by_id
 
@@ -411,14 +414,14 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     df = pd.DataFrame([r.model_dump() for r in records])
     df = df.sort_values("trade_date")
 
+    target_names = [f"label_{h}d" for h in training.classification_horizons]
     normalizer = CrossSectionalNormalizer(
         standardize_fields=config.standardize_fields,
         winsorize_fields=config.winsorize_fields,
-        output_fields=config.output_fields,
+        output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"],
     )
 
-    normalizer_input = config.feature_fields + ["trade_date", "ts_code"]
-    df_norm = normalizer.normalize(df[normalizer_input])
+    df_norm = normalizer.normalize(df)
 
     df_norm = df_norm.dropna(subset=config.feature_fields)
     if len(df_norm) == 0:
@@ -427,7 +430,6 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     classifier = CLASSIFIERS[config.model_type]()
     classifier.load(training.model_path)
 
-    target_names = [f"label_{h}d" for h in training.classification_horizons]
     features = df_norm[config.feature_fields].iloc[-1:].values
 
     predictions = classifier.predict(features, target_names)

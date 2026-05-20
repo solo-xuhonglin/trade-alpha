@@ -36,7 +36,6 @@ async def create_config(
     feature_fields: Optional[List[str]] = None,
     standardize_fields: Optional[List[str]] = None,
     winsorize_fields: Optional[List[str]] = None,
-    output_fields: Optional[List[str]] = None,
     classification_horizons: Optional[List[int]] = None,
     classification_threshold: float = 0.02,
     xgb_n_estimators: int = 100,
@@ -54,7 +53,6 @@ async def create_config(
         feature_fields: 模型输入特征字段列表，默认使用所有指标
         standardize_fields: 需要Z-score标准化的字段列表，默认与feature_fields相同
         winsorize_fields: 需要缩尾处理的字段列表，默认空列表
-        output_fields: 标准化器输出字段列表，默认feature_fields+分类标签
         classification_horizons: 分类预测周期列表，默认[3, 5]
         classification_threshold: 涨跌分类阈值，默认0.02
         xgb_n_estimators: xgboost 树的数量，默认100
@@ -74,12 +72,10 @@ async def create_config(
         raise ValueError(f"Config already exists: {name}")
 
     classification_horizons = classification_horizons or [3, 5]
-    target_names = [f"label_{h}d" for h in classification_horizons]
 
     feature_fields = feature_fields or DEFAULT_INDICATOR_FIELDS.copy()
     standardize_fields = standardize_fields or feature_fields.copy()
     winsorize_fields = winsorize_fields or []
-    output_fields = output_fields or feature_fields + target_names
 
     config = ModelConfig(
         name=name,
@@ -87,7 +83,6 @@ async def create_config(
         feature_fields=feature_fields,
         standardize_fields=standardize_fields,
         winsorize_fields=winsorize_fields,
-        output_fields=output_fields,
         classification_horizons=classification_horizons,
         classification_threshold=classification_threshold,
         xgb_n_estimators=xgb_n_estimators,

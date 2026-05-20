@@ -28,7 +28,6 @@ class ModelConfig(Document):
         feature_fields: 模型输入特征字段列表 (X数据集)
         standardize_fields: 需要Z-score标准化的字段列表
         winsorize_fields: 需要缩尾处理的字段列表
-        output_fields: 标准化器输出字段列表 (特征+分类标签)
         classification_horizons: 分类预测周期列表
         classification_threshold: 涨跌分类阈值
         xgb_n_estimators: xgboost 树的数量
@@ -46,7 +45,6 @@ class ModelConfig(Document):
     feature_fields: List[str] = Field(default_factory=list)
     standardize_fields: List[str] = Field(default_factory=list)
     winsorize_fields: List[str] = Field(default_factory=list)
-    output_fields: List[str] = Field(default_factory=list)
     classification_horizons: List[int] = Field(default_factory=lambda: [3, 5])
     classification_threshold: float = 0.02
     # xgboost 超参数（仅 model_type="xgboost" 时使用）

@@ -15,7 +15,6 @@ class ConfigCreate(BaseModel):
     feature_fields: Optional[List[str]] = None
     standardize_fields: Optional[List[str]] = None
     winsorize_fields: Optional[List[str]] = None
-    output_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
     classification_threshold: Optional[float] = None
     xgb_n_estimators: Optional[int] = None
@@ -31,7 +30,6 @@ class ConfigUpdate(BaseModel):
     feature_fields: Optional[List[str]] = None
     standardize_fields: Optional[List[str]] = None
     winsorize_fields: Optional[List[str]] = None
-    output_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
     classification_threshold: Optional[float] = None
     xgb_n_estimators: Optional[int] = None
@@ -52,7 +50,6 @@ async def create_config(body: ConfigCreate):
             feature_fields=body.feature_fields,
             standardize_fields=body.standardize_fields,
             winsorize_fields=body.winsorize_fields,
-            output_fields=body.output_fields,
             classification_horizons=body.classification_horizons,
             classification_threshold=body.classification_threshold or 0.02,
             xgb_n_estimators=body.xgb_n_estimators or 100,
@@ -69,7 +66,6 @@ async def create_config(body: ConfigCreate):
             "feature_fields": c.feature_fields,
             "standardize_fields": c.standardize_fields,
             "winsorize_fields": c.winsorize_fields,
-            "output_fields": c.output_fields,
             "classification_horizons": c.classification_horizons,
             "classification_threshold": c.classification_threshold,
             "xgb_n_estimators": c.xgb_n_estimators,
@@ -97,7 +93,6 @@ async def list_configs(model_type: str = Query(None)):
             "feature_fields": c.feature_fields,
             "standardize_fields": c.standardize_fields,
             "winsorize_fields": c.winsorize_fields,
-            "output_fields": c.output_fields,
             "classification_horizons": c.classification_horizons,
             "classification_threshold": c.classification_threshold,
             "xgb_n_estimators": c.xgb_n_estimators,
@@ -131,7 +126,6 @@ async def get_config(config_id: str):
         "feature_fields": c.feature_fields,
         "standardize_fields": c.standardize_fields,
         "winsorize_fields": c.winsorize_fields,
-        "output_fields": c.output_fields,
         "classification_horizons": c.classification_horizons,
         "classification_threshold": c.classification_threshold,
         "xgb_n_estimators": c.xgb_n_estimators,
@@ -168,7 +162,6 @@ async def update_config(config_id: str, body: ConfigUpdate):
             "feature_fields": c.feature_fields,
             "standardize_fields": c.standardize_fields,
             "winsorize_fields": c.winsorize_fields,
-            "output_fields": c.output_fields,
             "classification_horizons": c.classification_horizons,
             "classification_threshold": c.classification_threshold,
             "xgb_n_estimators": c.xgb_n_estimators,
