@@ -11,43 +11,30 @@ from trade_alpha.logging import get_logger
 logger = get_logger("analysis_service")
 
 
-async def run_data_analysis(
-    ts_codes: List[str],
-    start_date: str,
-    end_date: str,
-    feature_fields: List[str],
-    progress_callback: Optional[Callable] = None,
-) -> Dict[str, Any]:
-    """Run data analysis and return results."""
+def calculate_outlier_rate(vals: pd.Series) -> float:
+    """Calculate outlier rate using IQR method."""
+    q1 = vals.quantile(0.25)
+    q3 = vals.quantile(0.75)
+    iqr = q3 - q1
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    outlier_count = ((vals < lower) | (vals > upper)).sum()
+    return outlier_count / len(vals) if len(vals) > 0 else 0.0
 
-    async def update_progress(progress: float, message: str):
-        if progress_callback:
-            await progress_callback(progress, message)
 
-    # Convert date format to match database format (YYYYMMDD)
-    start_date = to_db_format(start_date)
-    end_date = to_db_format(end_date)
-    
-    await update_progress(10, "Loading data from database...")
-    
-    all_dfs = []
-    for ts_code in ts_codes:
-        records = await StockDaily.find(
-            StockDaily.ts_code == ts_code,
-            StockDaily.trade_date >= start_date,
-            StockDaily.trade_date <= end_date,
-        ).sort(StockDaily.trade_date).to_list()
-        if records:
-            df = pd.DataFrame([r.model_dump() for r in records])
-            df["ts_code"] = ts_code
-            all_dfs.append(df)
+def compute_field_analysis(df: pd.DataFrame, feature_fields: List[str]) -> Dict[str, Any]:
+    """Analyze fields in a DataFrame and return statistics/histograms/boxplots/missing_data.
 
-    if not all_dfs:
-        raise ValueError("No data found")
+    Pure function - no database dependency. Can be reused by both
+    run_data_analysis (raw data) and training pipeline (normalized data).
 
-    df = pd.concat(all_dfs, ignore_index=True)
-    await update_progress(30, "Calculating statistics...")
+    Args:
+        df: DataFrame containing feature_fields columns
+        feature_fields: List of field names to analyze
 
+    Returns:
+        Dict with keys: statistics, histograms, boxplots, missing_data
+    """
     statistics = {}
     histograms = {}
     boxplots = {}
@@ -73,17 +60,15 @@ async def run_data_analysis(
             "outlier_rate": float(calculate_outlier_rate(vals)),
         }
 
-        # Histogram
         try:
             counts, bins = np.histogram(vals.dropna(), bins=30)
             histograms[field] = {
                 "bins": [float(b) for b in bins],
                 "counts": [int(c) for c in counts],
             }
-        except:
+        except Exception:
             pass
 
-        # Boxplot
         q1 = vals.quantile(0.25)
         q3 = vals.quantile(0.75)
         iqr = q3 - q1
@@ -97,18 +82,14 @@ async def run_data_analysis(
             "median": float(vals.median()),
             "q3": float(q3),
             "max": float(vals.max()),
-            "outliers": [float(o) for o in outliers[:100]],  # limit outliers
+            "outliers": [float(o) for o in outliers[:100]],
         }
 
-        # Missing data
         missing_data[field] = {
             "total": len(df),
             "missing": int(df[field].isna().sum()),
             "rate": float(df[field].isna().mean()),
         }
-
-    await update_progress(60, "Generating chart data...")
-    await update_progress(90, "Saving results...")
 
     return {
         "statistics": statistics,
@@ -118,15 +99,49 @@ async def run_data_analysis(
     }
 
 
-def calculate_outlier_rate(vals: pd.Series) -> float:
-    """Calculate outlier rate using IQR method."""
-    q1 = vals.quantile(0.25)
-    q3 = vals.quantile(0.75)
-    iqr = q3 - q1
-    lower = q1 - 1.5 * iqr
-    upper = q3 + 1.5 * iqr
-    outlier_count = ((vals < lower) | (vals > upper)).sum()
-    return outlier_count / len(vals) if len(vals) > 0 else 0.0
+async def run_data_analysis(
+    ts_codes: List[str],
+    start_date: str,
+    end_date: str,
+    feature_fields: List[str],
+    progress_callback: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """Run data analysis and return results."""
+
+    async def update_progress(progress: float, message: str):
+        if progress_callback:
+            await progress_callback(progress, message)
+
+    # Convert date format to match database format (YYYYMMDD)
+    start_date = to_db_format(start_date)
+    end_date = to_db_format(end_date)
+
+    await update_progress(10, "Loading data from database...")
+
+    all_dfs = []
+    for ts_code in ts_codes:
+        records = await StockDaily.find(
+            StockDaily.ts_code == ts_code,
+            StockDaily.trade_date >= start_date,
+            StockDaily.trade_date <= end_date,
+        ).sort(StockDaily.trade_date).to_list()
+        if records:
+            df = pd.DataFrame([r.model_dump() for r in records])
+            df["ts_code"] = ts_code
+            all_dfs.append(df)
+
+    if not all_dfs:
+        raise ValueError("No data found")
+
+    df = pd.concat(all_dfs, ignore_index=True)
+    await update_progress(30, "Calculating statistics...")
+
+    result = compute_field_analysis(df, feature_fields)
+
+    await update_progress(60, "Generating chart data...")
+    await update_progress(90, "Saving results...")
+
+    return result
 
 
 async def save_analysis_result(

@@ -20,13 +20,10 @@
         <span v-if="item.ts_codes.length > 3">{{ item.ts_codes.length }} 只</span>
         <span v-else>{{ item.ts_codes.join(', ') }}</span>
       </template>
-      <template v-slot:item.accuracy="{ item }">
-        <v-chip v-if="item.accuracy !== '-'" size="small" :color="getAccuracyColor(item.accuracy)">{{ item.accuracy }}</v-chip>
-        <span v-else>-</span>
-      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" color="info" prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-btn>
+          <v-btn size="small" variant="text" color="secondary" prepend-icon="mdi-chart-box-outline" @click="openAnalysisDialog(item)">分析</v-btn>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
@@ -77,7 +74,7 @@
               <v-col cols="12" sm="4">
                 <v-card variant="outlined">
                   <v-card-text class="text-center">
-                    <div class="text-h5">{{ detailItem.metrics.sample_count?.toLocaleString() }}</div>
+                    <div class="text-h5">{{ detailItem.model_metrics.sample_count?.toLocaleString() }}</div>
                     <div class="text-caption">样本数</div>
                   </v-card-text>
                 </v-card>
@@ -85,7 +82,7 @@
               <v-col v-for="target in ['label_3d', 'label_5d']" :key="target" cols="12" sm="4">
                 <v-card variant="outlined">
                   <v-card-text class="text-center">
-                    <div class="text-h5">{{ ((detailItem.metrics.accuracy?.[target] || 0) * 100).toFixed(1) }}%</div>
+                    <div class="text-h5">{{ ((detailItem.model_metrics.accuracy?.[target] || 0) * 100).toFixed(1) }}%</div>
                     <div class="text-caption">{{ target }} 准确率</div>
                   </v-card-text>
                 </v-card>
@@ -97,7 +94,7 @@
                 <v-col v-for="target in ['label_3d', 'label_5d']" :key="target" cols="12" sm="6">
                   <div class="text-caption text-medium-emphasis mb-1">{{ target }}</div>
                   <div class="d-flex ga-2">
-                    <v-chip v-for="(ratio, cls) in detailItem.metrics.class_distribution?.[target]" :key="cls" size="small" variant="outlined">
+                    <v-chip v-for="(ratio, cls) in detailItem.model_metrics.class_distribution?.[target]" :key="cls" size="small" variant="outlined">
                       {{ cls }}: {{ ((ratio || 0) * 100).toFixed(1) }}%
                     </v-chip>
                   </div>
@@ -119,9 +116,9 @@
               <tbody>
                 <tr v-for="target in ['label_3d', 'label_5d']" :key="target">
                   <td>{{ target }}</td>
-                  <td>{{ ((detailItem.metrics.accuracy?.[target] || 0) * 100).toFixed(2) }}%</td>
-                  <td>{{ ((detailItem.metrics.cv_mean?.[target] || 0) * 100).toFixed(2) }}%</td>
-                  <td>{{ ((detailItem.metrics.cv_std?.[target] || 0) * 100).toFixed(4) }}%</td>
+                  <td>{{ ((detailItem.model_metrics.accuracy?.[target] || 0) * 100).toFixed(2) }}%</td>
+                  <td>{{ ((detailItem.model_metrics.cv_mean?.[target] || 0) * 100).toFixed(2) }}%</td>
+                  <td>{{ ((detailItem.model_metrics.cv_std?.[target] || 0) * 100).toFixed(4) }}%</td>
                 </tr>
               </tbody>
             </v-table>
@@ -139,7 +136,7 @@
                 <tr v-for="i in 5" :key="i">
                   <td>Fold {{ i }}</td>
                   <td v-for="target in ['label_3d', 'label_5d']" :key="target">
-                    {{ ((detailItem.metrics.cv_scores?.[target]?.[i-1] || 0) * 100).toFixed(2) }}%
+                    {{ ((detailItem.model_metrics.cv_scores?.[target]?.[i-1] || 0) * 100).toFixed(2) }}%
                   </td>
                 </tr>
               </tbody>
@@ -165,48 +162,50 @@
       </v-card-text>
     </v-card>
   </v-dialog>
+
+  <AnalysisDetailDialog
+    v-model:dialog="analysisDialog"
+    :title="analysisTitle"
+    :result="analysisResult"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
-import { trainingRecordApi, type Training } from '@/api/trainingRecord'
+import { trainingRecordApi, type Training, type TrainingDetail } from '@/api/trainingRecord'
 import { modelConfigApi } from '@/api/modelConfig'
+import AnalysisDetailDialog from '@/components/AnalysisDetailDialog.vue'
+import type { AnalysisResult } from '@/api/dataAnalysis'
 
 const loading = ref(false)
 const deleteDialog = ref(false)
 const detailDialog = ref(false)
+const analysisDialog = ref(false)
 const trainings = ref<(Training & { configName: string })[]>([])
 const configs = ref<{ id: string; name: string }[]>([])
 const filterConfig = ref<string | null>(null)
 const deletingItem = ref<Training | null>(null)
-const detailItem = ref<Training | null>(null)
+const detailItem = ref<TrainingDetail | null>(null)
+const analysisResult = ref<AnalysisResult | null>(null)
+const analysisTitle = ref('')
 const detailTab = ref('overview')
 const featureTarget = ref('label_3d')
 const error = ref('')
 
 const sortedFeatureImportance = computed(() => {
-  if (!detailItem.value?.metrics.feature_importance?.[featureTarget.value]) return {}
-  const fi = detailItem.value.metrics.feature_importance[featureTarget.value]
+  if (!detailItem.value?.model_metrics.feature_importance?.[featureTarget.value]) return {}
+  const fi = detailItem.value.model_metrics.feature_importance[featureTarget.value]
   return Object.fromEntries(
     Object.entries(fi).sort(([, a], [, b]) => (b as number) - (a as number))
   )
 })
-
-const getAccuracyColor = (acc: string | number) => {
-  const value = typeof acc === 'string' ? parseFloat(acc) : acc
-  if (value >= 0.5) return 'success'
-  if (value >= 0.45) return 'warning'
-  return 'error'
-}
 
 const headers = [
   { title: '名称', key: 'name', width: 180, nowrap: true },
   { title: '配置', key: 'configName', width: 150, nowrap: true },
   { title: '股票', key: 'ts_codes', width: 120, nowrap: true },
   { title: '日期', key: 'date_range', width: 190, nowrap: true },
-  { title: '样本', key: 'sample_count', width: 80, nowrap: true },
-  { title: '准确率', key: 'accuracy', width: 100, nowrap: true },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 200, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 240, nowrap: true },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
@@ -222,17 +221,10 @@ const loadTrainings = async () => {
   const res = await trainingRecordApi.list(filterConfig.value || undefined)
   trainings.value = res.data.map(t => {
     const config = configs.value.find(c => c.id === t.config_id)
-    const acc3d = t.metrics.accuracy?.label_3d?.toFixed(4) || '-'
-    const cv3d = t.metrics.cv_mean?.label_3d 
-      ? `${t.metrics.cv_mean.label_3d.toFixed(4)}±${t.metrics.cv_std?.label_3d?.toFixed(4) || '0'}` 
-      : '-'
     return {
       ...t,
       configName: config?.name || t.config_id,
       date_range: `${t.start_date} ~ ${t.end_date}`,
-      sample_count: t.metrics.sample_count,
-      accuracy: acc3d,
-      cv_score: cv3d,
     }
   })
   loading.value = false
@@ -243,11 +235,21 @@ const confirmDelete = (item: Training) => {
   deleteDialog.value = true
 }
 
-const openDetailDialog = (item: Training) => {
-  detailItem.value = item
+const openDetailDialog = async (item: Training) => {
+  const res = await trainingRecordApi.get(item.id)
+  detailItem.value = res.data
   featureTarget.value = 'label_3d'
   detailTab.value = 'overview'
   detailDialog.value = true
+}
+
+const openAnalysisDialog = async (item: Training) => {
+  const res = await trainingRecordApi.get(item.id)
+  if (res.data.normalized_data_analysis) {
+    analysisResult.value = res.data.normalized_data_analysis
+    analysisTitle.value = `${item.name} - 标准化数据分析`
+    analysisDialog.value = true
+  }
 }
 
 const deleteTraining = async () => {

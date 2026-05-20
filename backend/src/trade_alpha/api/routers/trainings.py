@@ -138,7 +138,8 @@ async def get_training_task(task_id: str):
                 "ts_codes": t.ts_codes,
                 "start_date": to_api_format(t.start_date),
                 "end_date": to_api_format(t.end_date),
-                "metrics": t.metrics,
+                "model_metrics": t.model_metrics,
+                "normalized_data_analysis": t.normalized_data_analysis,
                 "model_path": t.model_path,
                 "created_at": t.created_at,
             }
@@ -241,8 +242,6 @@ async def list_trainings(config_id: str = Query(None)):
             "ts_codes": t.ts_codes,
             "start_date": to_api_format(t.start_date),
             "end_date": to_api_format(t.end_date),
-            "metrics": t.metrics,
-            "model_path": t.model_path,
             "created_at": t.created_at,
         }
         for t in trainings
@@ -267,8 +266,8 @@ async def get_training(training_id: str):
         "ts_codes": t.ts_codes,
         "start_date": to_api_format(t.start_date),
         "end_date": to_api_format(t.end_date),
-        "metrics": t.metrics,
-        "model_path": t.model_path,
+        "model_metrics": t.model_metrics,
+        "normalized_data_analysis": t.normalized_data_analysis,
         "created_at": t.created_at,
     }
 

@@ -79,7 +79,7 @@ async def _load_year_data(year: int, ts_codes: List[str], horizon: int) -> Optio
 
 
 def _normalize_data(df: pd.DataFrame, config) -> Optional[pd.DataFrame]:
-    """标准化数据"""
+    """Normalize data"""
     normalizer = CrossSectionalNormalizer(
         standardize_fields=config.standardize_fields,
         winsorize_fields=config.winsorize_fields,
@@ -89,6 +89,31 @@ def _normalize_data(df: pd.DataFrame, config) -> Optional[pd.DataFrame]:
     df_norm = normalizer.normalize(df[config.feature_fields + target_names + ["trade_date", "ts_code"]])
     available_fields = [f for f in config.feature_fields + target_names if f in df_norm.columns]
     return df_norm.dropna(subset=available_fields)
+
+
+def _analyze_normalized_data(
+    all_X: List[np.ndarray],
+    feature_fields: List[str],
+) -> Dict[str, Any]:
+    """Analyze normalized data collected during training.
+
+    Args:
+        all_X: List of normalized feature arrays from each year
+        feature_fields: Feature field names
+
+    Returns:
+        Analysis result dict with statistics/histograms/boxplots/missing_data
+    """
+    from trade_alpha.data.analysis_service import compute_field_analysis
+
+    normalized_df = pd.DataFrame(np.vstack(all_X), columns=feature_fields)
+    result = compute_field_analysis(normalized_df, feature_fields)
+    for field in result["statistics"]:
+        result["statistics"][field]["missing_rate"] = 0.0
+    for field in result["missing_data"]:
+        result["missing_data"][field]["missing"] = 0
+        result["missing_data"][field]["rate"] = 0.0
+    return result
 
 
 def _create_classifier(config) -> any:
@@ -226,7 +251,7 @@ async def create_training(
     year_months = get_year_months(start_date, end_date)
     years = sorted(set(y for y, _ in year_months))
     total_years = len(years)
-    total_stages = len(years) * 2 + 1 + 5 + 1
+    total_stages = len(years) * 2 + 1 + 5 + 1 + 1
 
     async def update(stage_num: int, msg: str):
         if progress_callback:
@@ -295,6 +320,10 @@ async def create_training(
         progress_callback=lambda pct, msg: update(stage + pct / 100 * 5, msg)
     )
 
+    stage += 1
+    await update(stage, "正在分析标准化数据...")
+    training_normalized_analysis = _analyze_normalized_data(all_X, config.feature_fields)
+
     await update(total_stages, format_progress("done", years[-1]))
 
     training = TrainingResult(
@@ -305,7 +334,8 @@ async def create_training(
         end_date=end_date,
         feature_fields=config.feature_fields,
         classification_horizons=config.classification_horizons,
-        metrics={"sample_count": sample_count, **eval_metrics},
+        model_metrics={"sample_count": sample_count, **eval_metrics},
+        normalized_data_analysis=training_normalized_analysis,
         created_at=datetime.now(timezone.utc),
     )
     await training.insert()
