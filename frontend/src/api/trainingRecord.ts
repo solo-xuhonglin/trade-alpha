@@ -18,6 +18,8 @@ export interface Training {
   ts_codes: string[]
   start_date: string
   end_date: string
+  sample_count?: number
+  accuracy_3d?: number
   created_at: string
 }
 

@@ -20,6 +20,10 @@
         <span v-if="item.ts_codes.length > 3">{{ item.ts_codes.length }} 只</span>
         <span v-else>{{ item.ts_codes.join(', ') }}</span>
       </template>
+      <template v-slot:item.accuracy="{ item }">
+        <v-chip v-if="item.accuracy !== '-'" size="small" :color="getAccuracyColor(item.accuracy)">{{ item.accuracy }}</v-chip>
+        <span v-else>-</span>
+      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" color="info" prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-btn>
@@ -192,6 +196,13 @@ const detailTab = ref('overview')
 const featureTarget = ref('label_3d')
 const error = ref('')
 
+const getAccuracyColor = (acc: string | number) => {
+  const value = typeof acc === 'string' ? parseFloat(acc) : acc
+  if (value >= 0.5) return 'success'
+  if (value >= 0.45) return 'warning'
+  return 'error'
+}
+
 const sortedFeatureImportance = computed(() => {
   if (!detailItem.value?.model_metrics.feature_importance?.[featureTarget.value]) return {}
   const fi = detailItem.value.model_metrics.feature_importance[featureTarget.value]
@@ -205,6 +216,8 @@ const headers = [
   { title: '配置', key: 'configName', width: 150, nowrap: true },
   { title: '股票', key: 'ts_codes', width: 120, nowrap: true },
   { title: '日期', key: 'date_range', width: 190, nowrap: true },
+  { title: '样本', key: 'sample_count', width: 80, nowrap: true },
+  { title: '准确率', key: 'accuracy', width: 100, nowrap: true },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 240, nowrap: true },
 ]
 
@@ -221,10 +234,13 @@ const loadTrainings = async () => {
   const res = await trainingRecordApi.list(filterConfig.value || undefined)
   trainings.value = res.data.map(t => {
     const config = configs.value.find(c => c.id === t.config_id)
+    const acc = t.accuracy_3d ? t.accuracy_3d.toFixed(4) : '-'
     return {
       ...t,
       configName: config?.name || t.config_id,
       date_range: `${t.start_date} ~ ${t.end_date}`,
+      sample_count: t.sample_count,
+      accuracy: acc,
     }
   })
   loading.value = false
