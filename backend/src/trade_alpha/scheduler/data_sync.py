@@ -48,6 +48,28 @@ async def get_pending_stocks(limit: int = 300) -> List[StockList]:
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
+async def update_single_stock_data_count(ts_code: str) -> None:
+    """Update data_count and latest_date for a single stock."""
+    from trade_alpha.dao.mongodb import get_database
+    db = await get_database()
+    pipeline = [
+        {"$match": {"ts_code": ts_code}},
+        {"$group": {
+            "_id": "$ts_code",
+            "count": {"$sum": 1},
+            "latest_date": {"$max": "$trade_date"}
+        }}
+    ]
+    async for doc in db.stock_daily.aggregate(pipeline):
+        stock = await StockList.find_one(StockList.ts_code == ts_code)
+        if stock:
+            stock.data_count = doc["count"]
+            stock.latest_date = doc["latest_date"]
+            await stock.save()
+            logger.info(f"Updated stock {ts_code}: data_count={doc['count']}, latest_date={doc['latest_date']}")
+            break
+
+
 async def process_single_stock(stock: StockList) -> bool:
     """Process single stock: fetch data, calculate indicators, update status.
 
@@ -68,6 +90,8 @@ async def process_single_stock(stock: StockList) -> bool:
 
         stock.sync_status = "active"
         await stock.save()
+
+        await update_single_stock_data_count(stock.ts_code)
         return True
     except Exception as e:
         logger.error(f"Failed to process {stock.ts_code}: {e}")
