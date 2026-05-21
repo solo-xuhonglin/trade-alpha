@@ -168,6 +168,29 @@
 - close_location_pct = (close - low) / (high - low) * 100
 - gap_pct = (open - prev_close) / prev_close * 100
 
+#### 趋势指标
+
+| 字段名 | 说明 | 计算周期 |
+|--------|------|---------|
+| trend_arrangement_5 | 5日均线相对20日均线的偏离程度 | 5天 |
+| trend_arrangement_10 | 10日均线相对20日均线的偏离程度 | 10天 |
+| trend_arrangement_20 | 20日均线相对60日均线的偏离程度 | 20天 |
+| trend_slope_5 | 5日均线斜率 | 5天 |
+| trend_slope_10 | 10日均线斜率 | 10天 |
+| trend_slope_20 | 20日均线斜率 | 20天 |
+| trend_volume_5 | 5日价量相关程度 | 5天 |
+| trend_volume_10 | 10日价量相关程度 | 10天 |
+| trend_volume_20 | 20日价量相关程度 | 20天 |
+| trend_stability_5 | 5日趋势稳定程度 | 5天 |
+| trend_stability_10 | 10日趋势稳定程度 | 10天 |
+| trend_stability_20 | 20日趋势稳定程度 | 20天 |
+
+**计算方法**：
+- trend_arrangement_n = (ma_short / ma_long - 1) * 100
+- trend_slope_n = (ma_n - ma_n_prev) / ma_n_prev * 100
+- trend_volume_n = corr(pct_chg, vol_ratio_n) * 100
+- trend_stability_n = 100 - mean(|close - ma_n| / ma_n) * 100
+
 ## 默认配置字段
 
 ### 模型配置默认特征字段
@@ -184,7 +207,10 @@
   "kdj_k", "kdj_d", "kdj_j",
   "boll_upper", "boll_middle", "boll_lower", "boll_position",
   "rsi_6", "rsi_12",
-  "atr_14",
+  "trend_arrangement_5", "trend_arrangement_10", "trend_arrangement_20",
+  "trend_slope_5", "trend_slope_10", "trend_slope_20",
+  "trend_volume_5", "trend_volume_10", "trend_volume_20",
+  "trend_stability_5", "trend_stability_10", "trend_stability_20",
   "obv"
 ]
 ```
@@ -210,9 +236,43 @@
 7. `rsi`（RSI指标）
 8. `atr`（ATR指标）
 9. `obv`（OBV指标）
+10. `trend`（趋势指标，依赖 ma_*, pct_chg, vol_ratio_*）
 
 ## 相关文件
 
 - 指标定义：[backend/src/trade_alpha/indicators/](file:///d:/projects/trade-alpha/backend/src/trade-alpha/indicators)
 - 数据模型：[backend/src/trade_alpha/dao/stock_daily.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/dao/stock_daily.py)
 - 服务接口：[backend/src/trade_alpha/indicators/service.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/indicators/service.py)
+
+## 指标与价格绝对值关系分析
+
+本部分分析各个技术指标是否受股票价格绝对值影响。
+
+### 判定标准
+
+- **受价格绝对值影响**：指标值与股价绝对值相关，高价股和低价股的同一指标值不可直接比较
+- **不受价格绝对值影响**：指标是相对值（百分比、比例、位置），不同价格区间的股票指标值可比
+
+### 指标分类
+
+| 指标类别 | 指标 | 受价格绝对值影响 | 说明 |
+|---------|------|-----------------|------|
+| **均线指标** | `ma_5`, `ma_10`, `ma_20`, `ma_60` | 是 | 直接是收盘价的算术平均 |
+| **MACD** | `macd`, `macd_signal`, `macd_hist` | 是 | EMA差值基于价格计算 |
+| **涨跌幅** | `pct_chg` | 否 | 百分比变化 |
+| **乖离率** | `bias_5`, `bias_10`, `bias_20`, `bias_60` | 否 | (收盘价 - 均线) / 均线 × 100 |
+| **收盘价位置** | `close_position_5`, `close_position_10`, `close_position_20`, `close_position_60` | 否 | 在高低区间的百分比位置 |
+| **量比** | `vol_ratio_5`, `vol_ratio_10`, `vol_ratio_20`, `vol_ratio_60` | 否 | 成交量比例 |
+| **KDJ** | `kdj_k`, `kdj_d`, `kdj_j` | 否 | RSV = (收盘价 - 最低价)/(最高价 - 最低价) × 100 |
+| **布林带** | `boll_upper`, `boll_middle`, `boll_lower` | 是 | 基于价格和标准差 |
+| **布林位置** | `boll_position` | 否 | (收盘价 - 下轨)/(上轨 - 下轨) |
+| **RSI** | `rsi_6`, `rsi_12` | 否 | 基于涨跌幅比例 |
+| **ATR** | `atr_14` | 是 | 真实波幅平均 |
+| **OBV** | `obv` | 否 | 只看涨跌方向，加/减成交量 |
+| **K线形态** | `candle_body_pct`, `candle_upper_pct`, `candle_lower_pct`, `close_location_pct`, `gap_pct`, `gap_fill_pct` | 否 | 都是百分比或比例 |
+
+### 推荐使用建议
+
+- **特征标准化**：所有特征会通过 Z-score 标准化（基于横截面），消除量纲影响
+- **受影响指标**：`ma_*`, `macd_*`, `boll_upper`, `boll_middle`, `boll_lower`, `atr_14` 经过标准化后仍然可用
+- **不受影响指标**：相对值指标（百分比、位置类）天然适合跨股票比较
