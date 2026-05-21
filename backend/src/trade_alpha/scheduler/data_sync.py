@@ -7,7 +7,7 @@ from typing import List
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from beanie.odm.operators.find.comparison import NotIn
+from beanie.odm.operators.find.comparison import NotIn, In
 
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
@@ -41,10 +41,21 @@ async def ensure_stock_list() -> int:
 
 
 async def get_pending_stocks(limit: int = 300) -> List[StockList]:
-    """Get pending stocks sorted by market value descending."""
+    """Get pending stocks sorted by market value descending, only from top 1500 by market value."""
+    # First get top 1500 stocks by market value
+    top_1500_stocks = await StockList.find(
+        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
+    ).sort(-StockList.total_mv).limit(1500).to_list()
+    
+    if not top_1500_stocks:
+        return []
+    
+    top_1500_ts_codes = [s.ts_code for s in top_1500_stocks]
+    
+    # Then get pending stocks from the top 1500
     return await StockList.find(
         StockList.sync_status == "pending",
-        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
+        In(StockList.ts_code, top_1500_ts_codes)
     ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
