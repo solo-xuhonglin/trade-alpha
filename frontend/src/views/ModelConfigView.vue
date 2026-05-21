@@ -179,7 +179,7 @@ const priceIndependentFields = [
 ]
 
 const defaultForm = {
-  name: '默认配置',
+  name: 'default_config',
   model_type: 'xgboost',
   feature_fields: [...priceIndependentFields],
   standardize_fields: [...indicatorFields],
