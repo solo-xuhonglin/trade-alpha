@@ -300,7 +300,6 @@ GET /api/model-configs
     "feature_fields": ["ma_5", "ma_10", "ma_20"],
     "standardize_fields": ["ma_5", "ma_10"],
     "winsorize_fields": [],
-    "output_fields": ["ma_5", "ma_10", "ma_20", "label_3d", "label_5d"],
     "classification_horizons": [3, 5],
     "classification_threshold": 0.02
   }
@@ -321,7 +320,6 @@ POST /api/model-configs
   "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower"],
   "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
-  "output_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower", "label_3d", "label_5d"],
   "classification_horizons": [3, 5],
   "classification_threshold": 0.02
 }
@@ -331,14 +329,14 @@ POST /api/model-configs
 - `feature_fields`: 模型输入特征字段 (X数据集)
 - `standardize_fields`: Z-score 标准化字段
 - `winsorize_fields`: 缩尾处理字段
-- `output_fields`: 标准化器输出字段 (特征+分类标签)
 
 **默认值**:
 - 所有字段均可省略，默认值由服务端填充
 - `feature_fields`: 使用所有指标字段
 - `standardize_fields`: 与 `feature_fields` 相同
 - `winsorize_fields`: 空列表
-- `output_fields`: `feature_fields` + 分类标签
+
+**注意**：`output_fields` 由 `feature_fields` + `classification_horizons` 动态生成，无需配置。
 
 **模型类型**:
 - `xgboost`: XGBoost 分类器

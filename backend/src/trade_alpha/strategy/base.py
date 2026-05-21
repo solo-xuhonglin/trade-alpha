@@ -50,7 +50,7 @@ class PositionManager:
         orders: List[PendingOrder],
         date: str,
         close_prices: Dict[str, float],
-        backtest_id: PydanticObjectId = None,
+        backtest_id: Optional[PydanticObjectId] = None,
     ) -> Tuple[List[ExecutionTrade], float]:
         """Settle pending orders using actual close prices."""
         trades: List[ExecutionTrade] = []
@@ -127,7 +127,6 @@ class PositionManager:
 
         def _convert_to_native(obj):
             """Convert numpy types to Python native types."""
-            import numpy as np
             if isinstance(obj, np.ndarray):
                 return obj.tolist()
             if isinstance(obj, (np.integer, np.floating)):

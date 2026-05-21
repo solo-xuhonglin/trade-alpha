@@ -89,20 +89,17 @@ def _normalize_data(df: pd.DataFrame, config, target_names: List[str]) -> Option
     Returns:
         Normalized DataFrame with features and labels
     """
+    output_fields = config.feature_fields + target_names + ["trade_date", "ts_code"]
+
     normalizer = CrossSectionalNormalizer(
         standardize_fields=config.standardize_fields,
         winsorize_fields=config.winsorize_fields,
-        output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"],
+        output_fields=output_fields,
     )
 
     df_norm = normalizer.normalize(df)
 
-    # Check available fields
-    available_features = [f for f in config.feature_fields if f in df_norm.columns]
-    available_targets = [t for t in target_names if t in df_norm.columns]
-    available_fields = available_features + available_targets
-
-    return df_norm.dropna(subset=available_fields) if not df_norm.empty else None
+    return df_norm.dropna(subset=output_fields) if not df_norm.empty else None
 
 
 def _analyze_normalized_data(all_norm_dfs: List[pd.DataFrame], feature_fields: List[str]) -> Dict[str, Any]:
@@ -302,10 +299,8 @@ async def create_training(
     await update(stage, "正在训练模型...")
 
     # Extract features and targets from normalized dfs
-    available_features = [f for f in config.feature_fields if f in all_norm_dfs[0].columns]
-    available_targets = [t for t in target_names if t in all_norm_dfs[0].columns]
-    X = np.vstack([df[available_features].values for df in all_norm_dfs])
-    y = np.vstack([df[available_targets].values for df in all_norm_dfs]) if len(all_norm_dfs) > 1 else all_norm_dfs[0][available_targets].values
+    X = np.vstack([df[config.feature_fields].values for df in all_norm_dfs])
+    y = np.vstack([df[target_names].values for df in all_norm_dfs])
     sample_count = len(X)
 
     classifier = _create_classifier(config)
@@ -325,7 +320,7 @@ async def create_training(
 
     stage += 1
     await update(stage, "正在分析标准化数据...")
-    training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, available_features)
+    training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, config.feature_fields)
 
     await update(total_stages, format_progress("done", years[-1]))
 

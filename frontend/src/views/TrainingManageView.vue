@@ -227,8 +227,10 @@ const runTraining = async () => {
   const taskId = res.data.task_id
   startPolling()
 
-  // 等待任务真正开始执行
-  while (true) {
+  // 等待任务真正开始执行（60秒超时）
+  const startTime = Date.now()
+  const timeout = 60000
+  while (Date.now() - startTime < timeout) {
     const statusRes = await trainingApi.getTask(taskId)
     if (statusRes.data.status !== 'pending') break
     await new Promise(r => setTimeout(r, 500))

@@ -43,7 +43,6 @@ async def trigger_data_analysis(
 ):
     """Trigger data analysis task (async)."""
     # Generate default name
-    from datetime import datetime
     if not params.name:
         now = datetime.now()
         params.name = f"analysis_{now.strftime('%Y%m%d%H%M%S')}"

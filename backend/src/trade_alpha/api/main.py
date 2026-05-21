@@ -23,7 +23,6 @@ from trade_alpha.api.routers import (
     data_analysis,
 )
 from trade_alpha.api.error_handlers import register_exception_handlers
-from datetime import datetime
 from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
 from trade_alpha.scheduler import DataSyncScheduler

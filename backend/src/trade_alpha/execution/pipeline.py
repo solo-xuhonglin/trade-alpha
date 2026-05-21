@@ -1,6 +1,6 @@
 """Execution pipeline - main orchestrator for backtest and live trading."""
 
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from trade_alpha.dao.account_config import AccountConfig
@@ -70,7 +70,8 @@ class ExecutionPipeline:
         if mode == "single":
             # For backward compatibility, support single_stock_ts_code
             target_code = single_stock_ts_code or (ts_codes[0] if ts_codes else None)
-            assert target_code, "single mode requires ts_codes or single_stock_ts_code"
+            if not target_code:
+                raise ValueError("single mode requires ts_codes or single_stock_ts_code")
             self.strategy = SingleStockStrategy(
                 account_config=account_config,
                 target_ts_code=target_code,
@@ -92,7 +93,7 @@ class ExecutionPipeline:
         start_date: str,
         end_date: str,
         name: Optional[str] = None,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable[[float, str], None]] = None,
     ) -> ExecutionResult:
         """Run backtest from start_date to end_date (inclusive)."""
         backtest_name = name or f"backtest_{start_date}_{end_date}"

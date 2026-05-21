@@ -2,6 +2,7 @@
 
 import pandas as pd
 from datetime import datetime, timezone
+from typing import List, Tuple
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic
 from trade_alpha.dao import StockDaily, StockList
 from trade_alpha.logging import get_logger

@@ -43,8 +43,8 @@ def _execution_to_dict(r) -> dict:
         "sharpe_ratio": r.sharpe_ratio,
         "volatility": r.volatility,
         "avg_hold_days": r.avg_hold_days,
-        "account_snapshot": r.account_snapshot.dict() if r.account_snapshot else None,
-        "model_snapshot": r.model_snapshot.dict() if r.model_snapshot else None,
+        "account_snapshot": r.account_snapshot.model_dump() if r.account_snapshot else None,
+        "model_snapshot": r.model_snapshot.model_dump() if r.model_snapshot else None,
         "created_at": r.created_at,
         "status": r.status,
     }
