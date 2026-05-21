@@ -115,5 +115,4 @@ class TestModelConfigService:
         assert config.feature_fields == DEFAULT_INDICATOR_FIELDS
         assert config.standardize_fields == DEFAULT_INDICATOR_FIELDS
         assert config.winsorize_fields == []
-        assert "label_3d" in config.output_fields
-        assert "label_5d" in config.output_fields
+        assert config.classification_horizons == [3, 5]

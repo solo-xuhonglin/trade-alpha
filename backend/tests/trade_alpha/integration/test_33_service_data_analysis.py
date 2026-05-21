@@ -32,7 +32,7 @@ class TestServiceDataAnalysis:
         existing = await StockDaily.find(StockDaily.ts_code == TS_CODE).to_list()
         assert len(existing) > 0, "BYD data must exist (created by lifecycle tests)"
 
-        feature_fields = ["ma_5", "ma_10", "pct_chg", "rsi_6", "atr_14"]
+        feature_fields = ["ma_5", "ma_10", "pct_chg", "rsi_6", "boll_position"]
 
         result = await run_data_analysis(
             ts_codes=[TS_CODE],
@@ -106,7 +106,7 @@ class TestServiceDataAnalysis:
     @pytest.mark.asyncio
     async def test_analysis_result_persistence(self, setup_db, ensure_test_stock):
         """Test that analysis results are correctly persisted to database."""
-        feature_fields = ["pct_chg", "atr_14"]
+        feature_fields = ["pct_chg", "boll_position"]
 
         result = await run_data_analysis(
             ts_codes=[TS_CODE],
@@ -131,7 +131,7 @@ class TestServiceDataAnalysis:
         assert saved_result is not None
         assert saved_result.task_id == task_id
         assert saved_result.statistics["pct_chg"]["mean"] == result["statistics"]["pct_chg"]["mean"]
-        assert saved_result.statistics["atr_14"]["median"] == result["statistics"]["atr_14"]["median"]
+        assert saved_result.statistics["boll_position"]["median"] == result["statistics"]["boll_position"]["median"]
 
         await saved_result.delete()
 

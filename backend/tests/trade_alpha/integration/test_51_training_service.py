@@ -38,7 +38,7 @@ class TestTrainingService:
         """Verify training metrics."""
         training = shared_training
         assert training.model_path is not None
-        assert training.metrics["sample_count"] >= 20
+        assert training.model_metrics["sample_count"] >= 20
         assert isinstance(training.feature_fields, list)
         assert len(training.feature_fields) > 0
         assert training.classification_horizons == [3, 5]
