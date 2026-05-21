@@ -133,5 +133,10 @@ export const DEFAULT_FEATURE_FIELDS = [
   'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
   'kdj_k', 'kdj_d', 'kdj_j',
   'boll_upper', 'boll_middle', 'boll_lower', 'boll_position',
-  'rsi_6', 'rsi_12', 'atr_14', 'obv',
+  'rsi_6', 'rsi_12',
+  'trend_arrangement_5', 'trend_arrangement_10', 'trend_arrangement_20',
+  'trend_slope_5', 'trend_slope_10', 'trend_slope_20',
+  'trend_volume_5', 'trend_volume_10', 'trend_volume_20',
+  'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
+  'obv',
 ]
