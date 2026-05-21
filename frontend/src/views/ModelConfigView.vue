@@ -154,15 +154,36 @@ const indicatorFields = [
   'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
   'kdj_k', 'kdj_d', 'kdj_j',
   'boll_upper', 'boll_middle', 'boll_lower', 'boll_position',
-  'rsi_6', 'rsi_12', 'atr_14', 'obv',
+  'rsi_6', 'rsi_12',
+  'trend_arrangement_5', 'trend_arrangement_10', 'trend_arrangement_20',
+  'trend_slope_5', 'trend_slope_10', 'trend_slope_20',
+  'trend_volume_5', 'trend_volume_10', 'trend_volume_20',
+  'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
+  'obv',
+]
+
+// 与价格绝对值无关的字段（特征字段默认只选这些）
+const priceIndependentFields = [
+  'pct_chg',
+  'bias_5', 'bias_10', 'bias_20', 'bias_60',
+  'close_position_5', 'close_position_10', 'close_position_20', 'close_position_60',
+  'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
+  'kdj_k', 'kdj_d', 'kdj_j',
+  'boll_position',
+  'rsi_6', 'rsi_12',
+  'trend_arrangement_5', 'trend_arrangement_10', 'trend_arrangement_20',
+  'trend_slope_5', 'trend_slope_10', 'trend_slope_20',
+  'trend_volume_5', 'trend_volume_10', 'trend_volume_20',
+  'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
+  'obv',
 ]
 
 const defaultForm = {
-  name: '',
+  name: '默认配置',
   model_type: 'xgboost',
-  feature_fields: [...indicatorFields],
+  feature_fields: [...priceIndependentFields],
   standardize_fields: [...indicatorFields],
-  winsorize_fields: [] as string[],
+  winsorize_fields: [...indicatorFields],
   classification_horizons: [3, 5],
   classification_threshold: 0.02,
   xgb_n_estimators: 100,
@@ -211,7 +232,7 @@ const openDialog = (item?: ModelConfig) => {
     }
   } else {
     editingId.value = null
-    form.value = { ...defaultForm, feature_fields: [...defaultForm.feature_fields], standardize_fields: [...defaultForm.standardize_fields] }
+    form.value = { ...defaultForm, feature_fields: [...defaultForm.feature_fields], standardize_fields: [...defaultForm.standardize_fields], winsorize_fields: [...defaultForm.winsorize_fields] }
   }
   dialog.value = true
 }
