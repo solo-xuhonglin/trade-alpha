@@ -15,6 +15,7 @@ from trade_alpha.indicators.custom import (
     calculate_atr,
     calculate_obv,
     calculate_candle_features,
+    calculate_trend,
 )
 from trade_alpha.logging import get_logger
 
@@ -142,6 +143,7 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
     
     prev_close_series = df["close"].shift(1)
     df = calculate_candle_features(df, prev_close_series)
+    df = calculate_trend(df)
 
     updated_count = 0
     for _, row in df.iterrows():
@@ -168,7 +170,18 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "boll_position": row.get("boll_position"),
             "rsi_6": row.get("rsi_6"),
             "rsi_12": row.get("rsi_12"),
-            "atr_14": row.get("atr_14"),
+            "trend_arrangement_5": row.get("trend_arrangement_5"),
+            "trend_arrangement_10": row.get("trend_arrangement_10"),
+            "trend_arrangement_20": row.get("trend_arrangement_20"),
+            "trend_slope_5": row.get("trend_slope_5"),
+            "trend_slope_10": row.get("trend_slope_10"),
+            "trend_slope_20": row.get("trend_slope_20"),
+            "trend_volume_5": row.get("trend_volume_5"),
+            "trend_volume_10": row.get("trend_volume_10"),
+            "trend_volume_20": row.get("trend_volume_20"),
+            "trend_stability_5": row.get("trend_stability_5"),
+            "trend_stability_10": row.get("trend_stability_10"),
+            "trend_stability_20": row.get("trend_stability_20"),
             "obv": row.get("obv"),
             "candle_body_pct": row.get("candle_body_pct"),
             "candle_upper_pct": row.get("candle_upper_pct"),

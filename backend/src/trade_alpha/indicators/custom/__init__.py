@@ -10,6 +10,7 @@ from trade_alpha.indicators.custom.rsi import calculate_rsi
 from trade_alpha.indicators.custom.atr import calculate_atr
 from trade_alpha.indicators.custom.obv import calculate_obv
 from trade_alpha.indicators.custom.candle import calculate_candle_features
+from trade_alpha.indicators.custom.trend import calculate_trend
 
 __all__ = [
     "calculate_pct_chg",
@@ -22,4 +23,5 @@ __all__ = [
     "calculate_atr",
     "calculate_obv",
     "calculate_candle_features",
+    "calculate_trend",
 ]
