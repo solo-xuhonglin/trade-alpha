@@ -7,13 +7,14 @@ from trade_alpha.indicators.macd import calculate_macd
 from trade_alpha.indicators.custom import (
     calculate_pct_chg,
     calculate_bias,
-    calculate_close_pct_rank,
+    calculate_close_position,
     calculate_vol_ratio,
     calculate_kdj,
     calculate_boll,
     calculate_rsi,
     calculate_atr,
     calculate_obv,
+    calculate_candle_features,
 )
 from trade_alpha.logging import get_logger
 
@@ -131,13 +132,16 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
 
     df = calculate_pct_chg(df)
     df = calculate_bias(df, periods=[5, 10, 20, 60])
-    df = calculate_close_pct_rank(df)
+    df = calculate_close_position(df)
     df = calculate_vol_ratio(df)
     df = calculate_kdj(df)
     df = calculate_boll(df)
     df = calculate_rsi(df)
     df = calculate_atr(df)
     df = calculate_obv(df)
+    
+    prev_close_series = df["close"].shift(1)
+    df = calculate_candle_features(df, prev_close_series)
 
     updated_count = 0
     for _, row in df.iterrows():
@@ -147,10 +151,10 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "bias_10": row.get("bias_10"),
             "bias_20": row.get("bias_20"),
             "bias_60": row.get("bias_60"),
-            "close_pct_rank_5": row.get("close_pct_rank_5"),
-            "close_pct_rank_10": row.get("close_pct_rank_10"),
-            "close_pct_rank_20": row.get("close_pct_rank_20"),
-            "close_pct_rank_60": row.get("close_pct_rank_60"),
+            "close_position_5": row.get("close_position_5"),
+            "close_position_10": row.get("close_position_10"),
+            "close_position_20": row.get("close_position_20"),
+            "close_position_60": row.get("close_position_60"),
             "vol_ratio_5": row.get("vol_ratio_5"),
             "vol_ratio_10": row.get("vol_ratio_10"),
             "vol_ratio_20": row.get("vol_ratio_20"),
@@ -161,10 +165,17 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "boll_upper": row.get("boll_upper"),
             "boll_middle": row.get("boll_middle"),
             "boll_lower": row.get("boll_lower"),
+            "boll_position": row.get("boll_position"),
             "rsi_6": row.get("rsi_6"),
             "rsi_12": row.get("rsi_12"),
             "atr_14": row.get("atr_14"),
             "obv": row.get("obv"),
+            "candle_body_pct": row.get("candle_body_pct"),
+            "candle_upper_pct": row.get("candle_upper_pct"),
+            "candle_lower_pct": row.get("candle_lower_pct"),
+            "close_location_pct": row.get("close_location_pct"),
+            "gap_pct": row.get("gap_pct"),
+            "gap_fill_pct": row.get("gap_fill_pct"),
         }
         await StockDaily.find_one(
             StockDaily.ts_code == ts_code,

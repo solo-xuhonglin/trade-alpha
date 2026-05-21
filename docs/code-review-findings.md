@@ -1,6 +1,6 @@
 # 代码审查整改意见
 
-审查时间: 2026-05-20
+审查时间: 2026-05-21
 审查范围: 前后端全部代码及文档
 
 ---
@@ -33,42 +33,11 @@ output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"]
 
 **文件**: `backend/src/trade_alpha/data/service.py`
 
-**问题代码**:
-```python
-def _get_ts_codes_by_rank(...) -> Tuple[List[str], Optional[int]]:
-```
-
 **问题**: 使用了 `Tuple` 类型但未从 `typing` 导入。
 
 **整改建议**: 在文件顶部添加导入
 ```python
 from typing import List, Optional, Tuple
-```
-
----
-
-#### 【严重-3】validators.py:16-17 - 异常捕获使用裸 except
-
-**文件**: `backend/src/trade_alpha/api/validators.py`
-
-**问题代码**:
-```python
-def validate_date(date_str: str) -> str:
-    if not date_str:
-        raise ValueError("date cannot be empty")
-    try:
-        datetime.strptime(date_str, "%Y%m%d")
-        return date_str
-    except:
-        raise ValueError(f"Invalid date: {date_str}")
-```
-
-**问题**: 裸 `except:` 会捕获所有异常，包括 `KeyboardInterrupt` 和 `SystemExit`，导致程序无法正常退出。
-
-**整改建议**:
-```python
-except (ValueError, TypeError):
-    raise ValueError(f"Invalid date: {date_str}")
 ```
 
 ---
@@ -118,12 +87,7 @@ if not target_code:
 
 **文件**: `backend/src/trade_alpha/api/main.py`
 
-**问题代码**:
-```python
-from datetime import datetime, timedelta  # 第5行
-...
-from datetime import datetime  # 第26行，重复导入
-```
+**问题**: 第5行已经导入了 datetime，第26行再次导入。
 
 **整改建议**: 删除第26行的重复导入
 
@@ -133,12 +97,7 @@ from datetime import datetime  # 第26行，重复导入
 
 **文件**: `backend/src/trade_alpha/api/routers/data_analysis.py`
 
-**问题代码**:
-```python
-from datetime import datetime  # 第7行
-...
-from datetime import datetime  # 第46行，重复导入
-```
+**问题**: 第7行已经导入了 datetime，第46行再次导入。
 
 **整改建议**: 删除第46行的重复导入
 
@@ -191,38 +150,15 @@ backtest_id: Optional[PydanticObjectId] = None,
 
 **文件**: `backend/src/trade_alpha/strategy/base.py`
 
-**问题代码**:
-```python
-def _convert_to_native(obj):
-    """Convert numpy types to Python native types."""
-    import numpy as np  # 内部重复导入
-    ...
-```
-
 **问题**: `numpy` 已在文件顶部导入，函数内部不应再次导入。
 
-**整改建议**:
-```python
-def _convert_to_native(obj):
-    """Convert numpy types to Python native types."""
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    ...
-```
+**整改建议**: 移除函数内部的 `import numpy as np` 语句
 
 ---
 
 #### 【运行时-2】pipeline.py - 缺少类型注解的回调参数
 
 **文件**: `backend/src/trade_alpha/execution/pipeline.py`
-
-**问题代码**:
-```python
-async def run_backtest(
-    ...
-    progress_callback = None,
-) -> ExecutionResult:
-```
 
 **问题**: `progress_callback` 缺少类型注解。
 
@@ -283,9 +219,9 @@ async def trigger_training(
 **问题代码**:
 ```typescript
 while (true) {
-  const statusRes = await trainingApi.getTask(taskId)
-  if (statusRes.data.status !== 'pending') break
-  await new Promise(r => setTimeout(r, 500))
+  const statusRes = await trainingApi.getTask(taskId);
+  if (statusRes.data.status !== 'pending') break;
+  await new Promise(r => setTimeout(r, 500));
 }
 ```
 
@@ -296,24 +232,11 @@ while (true) {
 const startTime = Date.now();
 const timeout = 60000; // 60秒超时
 while (Date.now() - startTime < timeout) {
-  const statusRes = await trainingApi.getTask(taskId)
-  if (statusRes.data.status !== 'pending') break
-  await new Promise(r => setTimeout(r, 500))
+  const statusRes = await trainingApi.getTask(taskId);
+  if (statusRes.data.status !== 'pending') break;
+  await new Promise(r => setTimeout(r, 500));
 }
 ```
-
----
-
-#### 【接口-3】DataAnalysisManageView.vue - 日期格式处理需确认
-
-**文件**: `frontend/src/views/DataAnalysisManageView.vue`
-
-**问题**: 
-- 前端发送 `start_date`/`end_date` 为 `YYYY-MM-DD` 格式
-- 后端 `DataAnalysisCreate` 有 `@field_validator` 调用 `validate_trade_date`
-- `validate_trade_date` 会验证并转换日期
-
-**建议**: 确认 `validate_trade_date` 的实现是否正确处理 `YYYY-MM-DD` 格式
 
 ---
 
@@ -326,9 +249,9 @@ while (Date.now() - startTime < timeout) {
 **建议**: 使用 TypeScript 泛型
 ```typescript
 const props = defineProps<{
-  someProp: string
-  anotherProp?: number
-}>()
+  someProp: string;
+  anotherProp?: number;
+}>();
 ```
 
 ---
@@ -339,16 +262,9 @@ const props = defineProps<{
 
 **文件**: `docs/system-design.md`
 
-#### 问题 1: 提到的模块文件不存在
+**问题 1**: 提到的模块文件不存在
 
-| 文档描述 | 实际代码 |
-|---------|---------|
-| `linear.py` | 不存在 |
-| `xgboost.py` | 存在但包含 `XGBoostClassifier` 和 `XGBoostPredictor` |
-| `signal_generator.py` | 不存在 |
-| `position_manager.py` | 不存在（仓位管理在 `strategy/` 模块） |
-
-#### 问题 2: 描述的目录结构不准确
+**问题 2**: 描述的目录结构不准确
 
 文档描述的 predict 模块结构与实际不符：
 - `models/` 目录实际存在，包含 `__init__.py`, `xgboost.py`, `lstm.py`
@@ -363,7 +279,7 @@ const props = defineProps<{
 
 **文件**: `docs/api.md`
 
-#### 问题 1: 训练 API 接口描述错误
+**问题 1**: 训练 API 接口描述错误
 
 **文档描述**:
 ```
@@ -376,7 +292,7 @@ POST /api/trainings
 - 不接收 `ts_codes` 参数
 - 通过 `start_rank`/`end_rank` 按市值排名获取股票
 
-#### 问题 2: 数据分析 API 日期格式描述不一致
+**问题 2**: 数据分析 API 日期格式描述不一致
 
 **文档描述**: `"start_date": "20240101"`
 **实际实现**: 默认值 `"2020-01-01"` (YYYY-MM-DD 格式)
@@ -411,11 +327,6 @@ metrics = {
 ### 3.4 features-indicators.md - 链接路径错误
 
 **文件**: `docs/features-indicators.md`
-
-**问题代码**:
-```markdown
-[backend/src/trade_alpha/indicators/](file:///d:/projects/trade-alpha/backend/src/trade-alpha/indicators)
-```
 
 **问题**: 链接路径中使用了连字符 `trade-alpha`，但实际文件夹是 `trade_alpha`（下划线）
 
@@ -487,10 +398,9 @@ metrics = {
 |-------|------|---------|---------|
 | 严重 | 严重-1 | 尾部多余逗号 | training_service.py:92 |
 | 严重 | 严重-2 | 缺少 Tuple 导入 | data/service.py:91 |
-| 严重 | 严重-3 | 裸 except | validators.py:16-17 |
 | 高 | 规范-1 | 使用废弃方法 | backtest.py:46-47 |
 | 高 | 规范-2 | assert 参数校验 | pipeline.py:73 |
-| 高 | 接口-1 | 字段名不一致 | TrainingManageView.vue |
+| 高 | 接口-1 | 变量名映射修正 | TrainingManageView.vue |
 | 中 | 规范-3 | 重复导入 | main.py:26 |
 | 中 | 规范-4 | 重复导入 | data_analysis.py:46 |
 | 中 | 规范-5 | 日志格式不一致 | training_service.py:348 |
@@ -498,7 +408,6 @@ metrics = {
 | 中 | 运行时-1 | 重复导入 | strategy/base.py:128 |
 | 中 | 运行时-2 | 缺少类型注解 | pipeline.py |
 | 中 | 接口-2 | 轮询无超时 | TrainingManageView.vue:226 |
-| 低 | 接口-3 | 日期格式需确认 | DataAnalysisManageView.vue |
 | 低 | 前端-1 | 缺少 Props 类型 | 所有 Vue 组件 |
 | 低 | 文档-1 | 模块描述过时 | system-design.md |
 | 低 | 文档-2 | 接口描述错误 | api.md |
@@ -511,35 +420,32 @@ metrics = {
 
 ### 严重问题修复 (必须立即修复)
 
-- [x] 修复 training_service.py 第92行尾部逗号（已修复：2026-05-21）
-- [x] data/service.py 添加 Tuple 导入（已修复：2026-05-21）
-- [x] validators.py 改用具体异常类型（已修复：2026-05-21）
+- [ ] 修复 training_service.py 第92行尾部逗号
+- [ ] data/service.py 添加 Tuple 导入
 
 ### 高优先级问题修复
 
-- [x] backtest.py: .dict() -> .model_dump()（已修复：2026-05-21）
-- [x] pipeline.py: assert -> raise ValueError（已修复：2026-05-21）
-- [x] TrainingManageView.vue: 变量名映射修正（已修复：2026-05-21）
+- [ ] backtest.py: .dict() -> .model_dump()
+- [ ] pipeline.py: assert -> raise ValueError
+- [ ] TrainingManageView.vue: 变量名映射修正
 
 ### 中优先级问题修复
 
-- [x] main.py: 删除重复导入（已修复：2026-05-21）
-- [x] data_analysis.py: 删除重复导入（已修复：2026-05-21）
+- [ ] main.py: 删除重复导入
+- [ ] data_analysis.py: 删除重复导入
 - [ ] training_service.py: 统一日志格式
-- [x] strategy/base.py: 修正类型注解（已修复：2026-05-21）
-- [x] strategy/base.py: 移除内部重复导入（已修复：2026-05-21）
-- [x] pipeline.py: 添加 progress_callback 类型注解（已修复：2026-05-21）
-- [x] TrainingManageView.vue: 添加轮询超时（已修复：2026-05-21）
-- [x] trainings.py: 日期参数使用 TradeDateQuery 注解校验（已修复：2026-05-21）
+- [ ] strategy/base.py: 修正类型注解
+- [ ] strategy/base.py: 移除内部重复导入
+- [ ] pipeline.py: 添加 progress_callback 类型注解
+- [ ] TrainingManageView.vue: 添加轮询超时
 
 ### 低优先级问题修复
 
-- [x] DataAnalysisManageView.vue: 确认日期格式处理（已修复：2026-05-21）
 - [ ] Vue 组件: 补充 Props 类型定义
 - [ ] system-design.md: 更新模块描述
-- [x] api.md: 修正日期格式说明（已修复：2026-05-21）
+- [ ] api.md: 修正接口描述
 - [ ] database-schema.md: 补充 metrics 结构
-- [x] features-indicators.md: 链接路径正确无需修改（已确认：2026-05-21）
+- [ ] features-indicators.md: 修正链接路径
 
 ---
 
@@ -567,31 +473,6 @@ metrics = {
 
 ## 九、已修复问题记录
 
-### 2026-05-21 - 代码审查问题修复
-
-修复内容：
-
-**后端问题修复**：
-1. **training_service.py**：修复第92行尾部多余逗号，防止返回类型错误
-2. **data/service.py**：添加 `Tuple` 类型导入
-3. **backtest.py**：将 `.dict()` 替换为 `.model_dump()`（Beanie 推荐方法）
-4. **pipeline.py**：
-   - 将 `assert` 替换为 `raise ValueError`
-   - 添加 `progress_callback` 参数的类型注解 `Callable[[float, str], None]`
-5. **main.py**：删除第26行重复导入 `datetime`
-6. **data_analysis.py**：删除第46行重复导入 `datetime`
-7. **strategy/base.py**：
-   - 将 `backtest_id: PydanticObjectId = None` 修正为 `backtest_id: Optional[PydanticObjectId] = None`
-   - 删除函数内部重复导入 `numpy`
-8. **backtest_records.py**：确保预测接口日期字段保持 `YYYYMMDD` 格式
-
-**前端问题修复**：
-9. **TrainingManageView.vue**：为等待任务启动的轮询添加60秒超时保护
-
-**文档更新**：
-10. **api.md**：更新日期格式约定说明，明确两种日期格式的使用场景
-11. **code-review-findings.md**：更新修复清单并添加本次修复记录
-
 ### 2026-05-21 - 日期校验注解化
 
 修复内容：
@@ -600,3 +481,8 @@ metrics = {
    - 修改验证器抛出 `ValueError` 而非 `HTTPException`（FastAPI 会自动处理转换）
    - 增强 `validate_trade_date` 函数：支持 `YYYY-MM-DD` 和 `YYYYMMDD` 两种格式，统一转换为 `YYYYMMDD` 格式返回
 3. **schemas.py**：更新 `_validate_trade_date` 函数以支持两种日期格式
+
+已修复问题从清单中移除：
+- [严重-3] validators.py 裸异常问题
+- [中] trainings.py 日期校验非注解问题
+- [低] DataAnalysisManageView.vue 日期格式问题

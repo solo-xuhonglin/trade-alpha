@@ -14,6 +14,8 @@
 | | `clean_stock_data.py` | 清理股票数据 |
 | | `reset_business_data.py` | 重置业务数据 |
 | | `backfill_data_count.py` | 回填股票日线数据条数和最新日期 |
+| | `calculate_indicators.py` | 计算新指标（RSI、ATR、OBV）- 并行版本 |
+| | `fast_calculate_indicators.py` | 快速计算新指标（RSI、ATR、OBV）- 优化版本 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 | **测试调试** | `test_trades.py` | 检查回测结果和交易记录数据 |
 | | `check_prediction_scores.py` | 检查回测快照中的预测分数 |
@@ -106,6 +108,36 @@ python scripts/backfill_data_count.py
 ```
 
 从 `stock_daily` 集合聚合统计每只股票的日线数据条数和最新交易日，回填到 `stock_list` 的 `data_count` 和 `latest_date` 字段。该数据由调度器每小时自动更新，此脚本用于手动触发或初始回填。
+
+### calculate_indicators.py
+
+```bash
+python scripts/calculate_indicators.py
+python scripts/calculate_indicators.py --ts-codes 002594.SZ 600519.SH
+python scripts/calculate_indicators.py --limit 10 --concurrency 10
+```
+
+计算新指标（RSI、ATR、OBV）并存储到数据库，支持并行处理。该脚本调用 `indicators.service.calculate_all_indicators`，默认处理所有 `active` 状态的股票。
+
+可选参数：
+- `--ts-codes`: 指定股票代码列表
+- `--limit`: 限制处理股票数量（用于测试）
+- `--concurrency`: 并发任务数，默认 20
+
+### fast_calculate_indicators.py
+
+```bash
+python scripts/fast_calculate_indicators.py
+python scripts/fast_calculate_indicators.py --ts-codes 002594.SZ 600519.SH
+python scripts/fast_calculate_indicators.py --limit 10 --concurrency 10
+```
+
+快速计算新指标（RSI、ATR、OBV）的优化版本，直接使用 pandas 计算并分批更新数据库，不重复计算已有指标。性能优于 `calculate_indicators.py`，适合大规模批量处理。
+
+可选参数：
+- `--ts-codes`: 指定股票代码列表
+- `--limit`: 限制处理股票数量（用于测试）
+- `--concurrency`: 并发任务数，默认 20
 
 ---
 

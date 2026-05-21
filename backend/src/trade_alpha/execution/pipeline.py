@@ -56,10 +56,12 @@ class ExecutionPipeline:
         self.single_stock_ts_code = single_stock_ts_code
 
         from trade_alpha.predict.normalizers import CrossSectionalNormalizer
+        target_names = [f"label_{h}d" for h in model_config.classification_horizons]
+        output_fields = model_config.feature_fields + target_names + ["ts_code"]
         self._normalizer = CrossSectionalNormalizer(
             standardize_fields=model_config.standardize_fields,
             winsorize_fields=model_config.winsorize_fields,
-            output_fields=model_config.output_fields + ["ts_code"],
+            output_fields=output_fields,
         )
         self._config = model_config
 

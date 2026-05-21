@@ -1,34 +1,17 @@
 """Training API router with async task support."""
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
-from pydantic import BaseModel, field_validator
-from typing import List, Dict, Any, Optional
+from typing import Optional
 from beanie import PydanticObjectId
-import numpy as np
 from datetime import datetime
 
 from trade_alpha.predict import training_service
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
 from trade_alpha.data.service import list_stocks_by_mv_rank
 from trade_alpha.utils.date_utils import to_api_format
-from trade_alpha.api.validators import validate_trade_date, validate_date_range
+from trade_alpha.api.validators import validate_date_range, TradeDateQuery
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
-
-
-class TrainingCreate(BaseModel):
-    config_id: str
-    name: str
-    ts_codes: List[str]
-    start_date: str
-    end_date: str
-    start_rank: Optional[int] = 1
-    end_rank: Optional[int] = 3000
-    
-    @field_validator('start_date', 'end_date')
-    @classmethod
-    def validate_dates(cls, v: str) -> str:
-        return validate_trade_date(v)
 
 
 @router.post("")
@@ -36,8 +19,8 @@ async def trigger_training(
     background_tasks: BackgroundTasks,
     config_id: str,
     name: str,
-    start_date: str,
-    end_date: str,
+    start_date: TradeDateQuery,
+    end_date: TradeDateQuery,
     start_rank: int = Query(1, ge=1),
     end_rank: int = Query(3000, ge=1),
 ):
@@ -48,8 +31,6 @@ async def trigger_training(
         raise HTTPException(status_code=400, detail="Invalid config ID format")
     
     try:
-        validate_trade_date(start_date)
-        validate_trade_date(end_date)
         validate_date_range(start_date, end_date)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

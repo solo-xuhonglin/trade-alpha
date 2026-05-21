@@ -61,16 +61,18 @@
 - pct_chg = (close - pre_close) / pre_close * 100
 - bias_n = (close - ma_n) / ma_n * 100
 
-#### 收盘价百分位
+#### 收盘价位置
 
 | 字段名 | 说明 | 计算周期 |
 |--------|------|---------|
-| close_pct_rank_5 | 5日收盘价百分位 | 5天 |
-| close_pct_rank_10 | 10日收盘价百分位 | 10天 |
-| close_pct_rank_20 | 20日收盘价百分位 | 20天 |
-| close_pct_rank_60 | 60日收盘价百分位 | 60天 |
+| close_position_5 | 5日收盘价位置 | 5天 |
+| close_position_10 | 10日收盘价位置 | 10天 |
+| close_position_20 | 20日收盘价位置 | 20天 |
+| close_position_60 | 60日收盘价位置 | 60天 |
 
-**计算方法**：在过去n天收盘价中，当前收盘价的排名百分比（0-1之间）
+**计算方法**：当前收盘价在过去n天最高价和最低价之间的百分比位置（0-100之间）
+- close_position_n = (close - min_low_n) / (max_high_n - min_low_n) * 100
+- 其中 min_low_n 为过去n天最低价，max_high_n 为过去n天最高价
 
 #### 成交量比率
 
@@ -105,12 +107,14 @@
 | boll_upper | 布林带上轨 |
 | boll_middle | 布林带中轨 |
 | boll_lower | 布林带下轨 |
+| boll_position | 收盘价在布林带中的位置 |
 
 **计算方法**（参数n=20, k=2）：
 - boll_middle = MA_20
 - std = 20日收盘价标准差
 - boll_upper = MA_20 + k * std
 - boll_lower = MA_20 - k * std
+- boll_position = (close - boll_lower) / (boll_upper - boll_lower)
 
 #### RSI 相对强弱指标
 
@@ -146,6 +150,24 @@
 - 如果当日收盘价 < 前收盘价：OBV = 前OBV - 当日成交量
 - 如果当日收盘价 == 前收盘价：OBV = 前OBV
 
+#### K线形态指标
+
+| 字段名 | 说明 | 范围 |
+|--------|------|------|
+| candle_body_pct | 实体长度占当日振幅百分比 | [0, 100] |
+| candle_upper_pct | 上影线长度占当日振幅百分比 | [0, 100] |
+| candle_lower_pct | 下影线长度占当日振幅百分比 | [0, 100] |
+| close_location_pct | 收盘价在当日区间的位置百分比 | [0, 100] |
+| gap_pct | 跳空幅度（正为向上，负为向下） | (-∞, +∞) |
+| gap_fill_pct | 跳空回补程度 | [0, 100] |
+
+**计算方法**：
+- candle_body_pct = abs(close - open) / (high - low) * 100
+- candle_upper_pct = (high - max(open, close)) / (high - low) * 100
+- candle_lower_pct = (min(open, close) - low) / (high - low) * 100
+- close_location_pct = (close - low) / (high - low) * 100
+- gap_pct = (open - prev_close) / prev_close * 100
+
 ## 默认配置字段
 
 ### 模型配置默认特征字段
@@ -157,10 +179,10 @@
   "macd", "macd_signal", "macd_hist",
   "pct_chg",
   "bias_5", "bias_10", "bias_20", "bias_60",
-  "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60",
+  "close_position_5", "close_position_10", "close_position_20", "close_position_60",
   "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60",
   "kdj_k", "kdj_d", "kdj_j",
-  "boll_upper", "boll_middle", "boll_lower",
+  "boll_upper", "boll_middle", "boll_lower", "boll_position",
   "rsi_6", "rsi_12",
   "atr_14",
   "obv"
@@ -181,7 +203,7 @@
 
 1. `pct_chg`（涨跌幅）
 2. `bias`（乖离率，依赖 MA）
-3. `close_pct_rank`（收盘价百分位）
+3. `close_position`（收盘价位置）
 4. `vol_ratio`（成交量比率）
 5. `kdj`（KDJ指标）
 6. `boll`（布林带）

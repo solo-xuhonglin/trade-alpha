@@ -57,10 +57,10 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
   "bias_10": 1.23,
   "bias_20": 1.90,
   "bias_60": 4.37,
-  "close_pct_rank_5": 0.60,
-  "close_pct_rank_10": 0.70,
-  "close_pct_rank_20": 0.85,
-  "close_pct_rank_60": 0.90,
+  "close_position_5": 60.0,
+  "close_position_10": 70.0,
+  "close_position_20": 85.0,
+  "close_position_60": 90.0,
   "vol_ratio_5": 1.25,
   "vol_ratio_10": 1.15,
   "vol_ratio_20": 1.08,
@@ -71,6 +71,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
   "boll_upper": 11.20,
   "boll_middle": 10.55,
   "boll_lower": 9.90,
+  "boll_position": 0.78,
   "rsi_6": 55.23,
   "rsi_12": 52.15,
   "atr_14": 0.35,
@@ -399,7 +400,6 @@ MACDStrategy:
 | `feature_fields` | array | 模型输入特征字段列表 (X数据集) |
 | `standardize_fields` | array | Z-score 标准化的字段列表 (通常与feature_fields相同) |
 | `winsorize_fields` | array | 缩尾处理的字段列表 (通常为空) |
-| `output_fields` | array | 标准化器输出字段列表 (feature_fields+分类标签) |
 | `classification_horizons` | array | 分类预测周期列表 |
 | `classification_threshold` | float | 涨跌分类阈值 |
 | `created_at` | datetime | 创建时间 |
@@ -410,10 +410,9 @@ MACDStrategy:
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower"],
+  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_position_5", "close_position_10", "close_position_20", "close_position_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower", "boll_position"],
   "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
-  "output_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower", "label_3d", "label_5d"],
   "classification_horizons": [3, 5],
   "classification_threshold": 0.02
 }
@@ -423,7 +422,6 @@ MACDStrategy:
 - `feature_fields`: 默认使用所有指标字段
 - `standardize_fields`: 默认与 `feature_fields` 相同
 - `winsorize_fields`: 默认空列表
-- `output_fields`: 默认 `feature_fields` + 分类标签
 
 ### training_results
 

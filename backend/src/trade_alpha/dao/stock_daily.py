@@ -39,10 +39,10 @@ class StockDaily(Document):
     bias_10: Optional[float] = None
     bias_20: Optional[float] = None
     bias_60: Optional[float] = None
-    close_pct_rank_5: Optional[float] = None
-    close_pct_rank_10: Optional[float] = None
-    close_pct_rank_20: Optional[float] = None
-    close_pct_rank_60: Optional[float] = None
+    close_position_5: Optional[float] = None
+    close_position_10: Optional[float] = None
+    close_position_20: Optional[float] = None
+    close_position_60: Optional[float] = None
     vol_ratio_5: Optional[float] = None
     vol_ratio_10: Optional[float] = None
     vol_ratio_20: Optional[float] = None
@@ -53,10 +53,17 @@ class StockDaily(Document):
     boll_upper: Optional[float] = None
     boll_middle: Optional[float] = None
     boll_lower: Optional[float] = None
+    boll_position: Optional[float] = None
     rsi_6: Optional[float] = None
     rsi_12: Optional[float] = None
     atr_14: Optional[float] = None
     obv: Optional[float] = None
+    candle_body_pct: Optional[float] = None
+    candle_upper_pct: Optional[float] = None
+    candle_lower_pct: Optional[float] = None
+    close_location_pct: Optional[float] = None
+    gap_pct: Optional[float] = None
+    gap_fill_pct: Optional[float] = None
 
     class Settings:
         name = "stock_daily"

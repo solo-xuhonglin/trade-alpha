@@ -25,7 +25,7 @@ class CrossSectionalNormalizer(BaseNormalizer):
         self,
         standardize_fields: List[str],
         winsorize_fields: Optional[List[str]] = None,
-        winsorize_lower: float = 0.01,
+        winsorize_lower: float = 0.05,
         winsorize_upper: float = 0.95,
         output_fields: Optional[List[str]] = None,
     ):

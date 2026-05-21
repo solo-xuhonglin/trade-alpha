@@ -117,7 +117,7 @@ trade-alpha/
 - `MONGODB_URI`: MongoDB 连接地址
 - `MONGODB_DB`: 数据库名称
 - `LOG_LEVEL`: 日志级别（默认 DEBUG）
-- `data_years`: 数据同步年数（默认 20）
+- `data_years`: 数据同步年数（默认 12）
 
 ### 2. 测试配置模块 (test_config)
 
@@ -182,13 +182,14 @@ trade-alpha/
 **自定义指标** (`custom/` 子目录):
 - `pct_chg.py` (涨跌幅)
 - `bias.py` (乖离率)
-- `close_pct_rank.py` (收盘价百分位)
+- `close_position.py` (收盘价位置百分比)
 - `vol_ratio.py` (成交量相对比值)
 - `kdj.py` (KDJ 随机指标)
 - `boll.py` (布林线)
 - `rsi.py` (RSI 相对强弱指标)
 - `atr.py` (ATR 平均真实波幅)
 - `obv.py` (OBV 能量潮)
+- `candle.py` (K线形态指标)
 
 **编排服务**:
 - `service.py`: 统一入口方法
@@ -226,7 +227,7 @@ trade-alpha/
 
 - `BaseNormalizer`: 标准化器抽象基类
 - `SlidingWindowNormalizer`: 滑动窗口标准化（用于 LSTM 等时序模型）
-- `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型，支持 `output_fields` 指定输出特征）
+- `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型）
 - `NormalizerRegistry`: 标准化器注册表
 
 #### config_service - 模型配置
@@ -509,19 +510,20 @@ create_training(
 模型配置支持分类任务参数：
 ```python
 {
-    "feature_fields": ["ma_5", "ma_10", "ma_20", "pct_chg", ...],  # 模型输入特征
+    "feature_fields": ["ma_5", "ma_10", "ma_20", ...],  # 模型输入特征
     "standardize_fields": ["ma_5", "ma_10", ...],  # Z-score 标准化字段
     "winsorize_fields": [],  # 缩尾处理字段
-    "output_fields": ["ma_5", "ma_10", ..., "label_3d", "label_5d"],  # 标准化器输出
     "classification_horizons": [3, 5],  # 预测未来 N 天涨跌
     "classification_threshold": 0.02,  # 涨跌阈值
 }
 ```
 
+**注意**：`output_fields` 由 `feature_fields` + `classification_horizons` 动态生成，无需存储。
+
 ## 已实现功能
 
 - [x] 数据层：Tushare 数据获取，MongoDB 存储
-- [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_pct_rank、vol_ratio、KDJ、BOLL、RSI、ATR、OBV）
+- [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_position、vol_ratio、KDJ、BOLL、RSI、ATR、OBV、candle）
 - [x] 预测层：价格预测（XGBoost、LSTM），支持下跌概率输出
 - [x] 训练层：样本混合训练、模型持久化、训练评估指标
 - [x] 执行层：统一流程编排、数据加载器、预测管理器、组合策略、单股票策略、仓位管理器

@@ -128,7 +128,7 @@ label =  0   otherwise                     # 平
      对每个字段：z = (x - mean) / std
      同一天的所有股票一起计算 mean 和 std
 
-输出：output_fields（feature_fields + target_names）
+输出：feature_fields + target_names
 ```
 
 ### 4.3 关键特性
@@ -143,7 +143,8 @@ label =  0   otherwise                     # 平
 |------|--------|------|
 | `standardize_fields` | 等于 `feature_fields` | 需要 Z-score 的字段 |
 | `winsorize_fields` | `[]`（空） | 需要缩尾的字段 |
-| `output_fields` | `feature_fields + target_names` | 标准化器输出字段 |
+
+**注意**：输出字段由 `feature_fields` + `classification_horizons` 动态生成。
 
 ---
 
@@ -193,7 +194,6 @@ label =  1  → 内部索引 2  → proba[2] = P(涨)
 5. CrossSectionalNormalizer 标准化：
    - 输入：feature_fields + target_names + [trade_date, ts_code]
    - 按 trade_date 分组做横截面 Z-score
-   - 输出：output_fields
 6. dropna → X(feature_fields) + y(target_names)
 7. XGBoostClassifier.fit(X, y)
 8. 保存模型到 models/{config_id}/{training_id}.pkl

@@ -22,10 +22,10 @@ DEFAULT_INDICATOR_FIELDS = [
     "macd", "macd_signal", "macd_hist",
     "pct_chg",
     "bias_5", "bias_10", "bias_20", "bias_60",
-    "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60",
+    "close_position_5", "close_position_10", "close_position_20", "close_position_60",
     "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60",
     "kdj_k", "kdj_d", "kdj_j",
-    "boll_upper", "boll_middle", "boll_lower",
+    "boll_upper", "boll_middle", "boll_lower", "boll_position",
     "rsi_6", "rsi_12", "atr_14", "obv",
 ]
 

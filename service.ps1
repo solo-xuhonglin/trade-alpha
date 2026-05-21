@@ -8,7 +8,7 @@ $ROOT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BACKEND_DIR = Join-Path $ROOT_DIR "backend"
 $FRONTEND_DIR = Join-Path $ROOT_DIR "frontend"
 $LOG_FILE = Join-Path $ROOT_DIR "logs\trade_alpha.log"
-$PYTHON_EXE = Join-Path $BACKEND_DIR ".venv\Scripts\python.exe"
+$PYTHON_EXE = "python"
 
 function Stop-Services {
     Write-Host "  Stopping services..."
