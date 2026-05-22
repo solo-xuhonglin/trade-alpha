@@ -28,8 +28,10 @@
 | 41 | test_41_account_config_service.py | TestAccountConfigService | 验证账户管理服务 |
 | 42 | test_42_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
 | 44 | test_44_strategy_service.py | TestStrategyService | 验证策略管理服务 |
-| 51 | test_51_training_service.py | TestTrainingService | 验证训练服务 |
-| 52 | test_52_predict_integration.py | TestPredictIntegration | 验证预测集成 |
+| 51 | test_51_training_xgboost.py | TestTrainingService | 验证 XGBoost 训练服务 |
+| 52 | test_52_predict_xgboost.py | TestPredictIntegration | 验证 XGBoost 预测集成 |
+| 53 | test_53_training_lstm.py | TestTrainingServiceLSTM | 验证 LSTM 训练服务 |
+| 54 | test_54_predict_lstm.py | TestPredictIntegrationLSTM | 验证 LSTM 预测集成 |
 
 ## 依赖关系
 
@@ -79,10 +81,16 @@ Layer 4: 基础配置 (账户/策略/模型配置)
 
 Layer 5: 训练
                                     ┌─────────────────────────┐
-                                    │ TestTrainingService(51) │  ← 依赖 ModelConfig
+                                    │TestTrainingService(51)  │  ← XGBoost
                                     └─────────────────────────┘
                                     ┌─────────────────────────┐
                                     │TestPredictIntegration(52)│
+                                    └─────────────────────────┘
+                                    ┌─────────────────────────┐
+                                    │TestTrainingServiceLSTM(53)│  ← LSTM
+                                    └─────────────────────────┘
+                                    ┌─────────────────────────┐
+                                    │TestPredictIntegrationLSTM(54)│
                                     └─────────────────────────┘
 ```
 
@@ -93,11 +101,23 @@ Layer 5: 训练
 | Fixture | 说明 | 范围 |
 |---------|------|------|
 | `ensure_test_stock` | 仅确保 StockList 中有比亚迪 (002594.SZ) 条目，不碰 StockDaily 数据 | session |
-| `test_model_config` | 提供默认的模型配置 (xgboost, classification) | session |
+| `test_model_config` | 提供默认的 XGBoost 模型配置 | session |
+| `test_lstm_config` | 提供默认的 LSTM 模型配置 | session |
 
 > 注意：比亚迪的日线数据和指标计算由生命周期测试（test_20 + test_25）处理，不依赖 fixture。
 
 这些 fixtures 定义在 `backend/tests/conftest.py` 中。
+
+## XGBoost vs LSTM 模型差异
+
+| 特性 | XGBoost | LSTM |
+|------|---------|------|
+| 标准化器 | CrossSectionalNormalizer | SlidingWindowNormalizer |
+| 配置参数前缀 | xgb_* | lstm_* |
+| 超参数 | n_estimators, max_depth, etc | hidden_size, num_layers, epochs, etc |
+| 测试 epochs | 默认配置 | 5（快速测试） |
+| 序列要求 | 无 | lstm_sequence_length |
+| 滑动窗口 | 无 | lstm_window_size |
 
 ## 执行影响
 
@@ -116,6 +136,8 @@ Layer 5: 训练
 | TestStrategyService | test_*_temp | 自动清理 | test_strategy |
 | TestTrainingService | 共享一次训练 | 自动清理 | test_training |
 | TestPredictIntegration | 共享 test_51 训练 | 自动清理 | - |
+| TestTrainingServiceLSTM | 共享一次 LSTM 训练 | 自动清理 | test_lstm_training |
+| TestPredictIntegrationLSTM | 共享 test_53 训练 | 自动清理 | - |
 
 ## 统一指标接口
 
@@ -154,6 +176,8 @@ Layer 5: 训练
 | test_strategy | Layer 6 回测策略 | TestStrategyService.test_ensure_default_strategy |
 | test_model_config | Layer 5 训练配置 | TestModelConfigService.test_ensure_default_config |
 | test_training | Layer 6 回测训练结果 | TestTrainingService.shared_training |
+| test_lstm_config | Layer 5 LSTM 训练配置 | conftest.py test_lstm_config fixture |
+| test_lstm_training | Layer 5 LSTM 训练结果 | TestTrainingServiceLSTM.shared_training |
 
 ## 运行命令
 
@@ -172,6 +196,12 @@ pytest tests/trade_alpha/integration/ -v -k "test_2 or test_3"  # Layer 3
 pytest tests/trade_alpha/integration/ -v -k "test_4"  # Layer 4
 pytest tests/trade_alpha/integration/ -v -k "test_5"  # Layer 5
 pytest tests/trade_alpha/integration/ -v -k "test_6"  # Layer 6
+
+# 运行 XGBoost 相关测试
+pytest tests/trade_alpha/integration/test_51_training_xgboost.py tests/trade_alpha/integration/test_52_predict_xgboost.py -v
+
+# 运行 LSTM 相关测试
+pytest tests/trade_alpha/integration/test_53_training_lstm.py tests/trade_alpha/integration/test_54_predict_lstm.py -v
 ```
 
 ## 扩展指南
@@ -182,3 +212,4 @@ pytest tests/trade_alpha/integration/ -v -k "test_6"  # Layer 6
 - 新增 Portfolio/Strategy/ModelConfig 测试放在 41-49
 - 新增 Training 测试放在 51-59
 - 新增 Backtest 测试放在 60-69
+- 新增模型类型测试（如 Transformer）可参考 LSTM 测试结构，使用 55-59 编号

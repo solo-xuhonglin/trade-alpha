@@ -47,10 +47,10 @@
       <v-card-text>
         <v-row>
           <v-col cols="12" sm="6">
-            <v-text-field v-model="form.name" label="配置名称"></v-text-field>
+            <v-select v-model="form.model_type" :items="['xgboost', 'lstm']" label="模型类型"></v-select>
           </v-col>
           <v-col cols="12" sm="6">
-            <v-select v-model="form.model_type" :items="['linear', 'xgboost', 'lstm']" label="模型类型"></v-select>
+            <v-text-field v-model="form.name" label="配置名称"></v-text-field>
           </v-col>
         </v-row>
 
@@ -105,6 +105,34 @@
             </v-col>
           </v-row>
         </template>
+
+        <template v-if="form.model_type === 'lstm'">
+          <v-divider class="my-3"></v-divider>
+          <div class="text-subtitle-2 text-medium-emphasis mb-2">LSTM 超参数</div>
+          <v-row>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_hidden_size" label="hidden_size" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_num_layers" label="num_layers" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_dropout" label="dropout" type="number" step="0.1"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_epochs" label="epochs" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length（序列长度和标准化窗口）" type="number"></v-text-field>
+            </v-col>
+          </v-row>
+        </template>
       </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
@@ -135,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 
 const loading = ref(false)
@@ -178,20 +206,39 @@ const priceIndependentFields = [
   'obv',
 ]
 
+// LSTM 推荐特征字段（时序模型更适合精简核心特征）
+const lstmRecommendedFeatureFields = [
+  'macd', 'macd_signal', 'macd_hist',
+  'rsi_6', 'rsi_12',
+  'bias_5', 'bias_10', 'bias_20',
+  'boll_position',
+  'kdj_k', 'kdj_d', 'kdj_j',
+  'vol_ratio_5', 'vol_ratio_10',
+  'trend_slope_5', 'trend_slope_10',
+  'trend_volume_5', 'trend_volume_10',
+]
+
 const defaultForm = {
-  name: 'default_config',
+  name: 'xgboost_config',
   model_type: 'xgboost',
   feature_fields: [...priceIndependentFields],
   standardize_fields: [...indicatorFields],
   winsorize_fields: [...indicatorFields],
   classification_horizons: [3, 5],
-  classification_threshold: 0.02,
+  classification_threshold: 0.01,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
   xgb_min_child_weight: 1,
   xgb_subsample: 1.0,
   xgb_colsample_bytree: 1.0,
+  lstm_hidden_size: 64,
+  lstm_num_layers: 2,
+  lstm_dropout: 0.1,
+  lstm_epochs: 25,
+  lstm_batch_size: 256,
+  lstm_learning_rate: 0.001,
+  lstm_sequence_length: 60,
 }
 
 const form = ref({ ...defaultForm })
@@ -204,6 +251,50 @@ const headers = [
   { title: '涨跌阈值', key: 'classification_threshold' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
+
+const generateDefaultName = (modelType: string) => {
+  const timestamp = new Date().toISOString().slice(0, 10)
+  return `${modelType}_config_${timestamp}`
+}
+
+// XGBoost 推荐参数
+const xgbRecommendedParams = {
+  feature_fields: [...priceIndependentFields],
+  standardize_fields: [...indicatorFields],
+  winsorize_fields: [...indicatorFields],
+  xgb_n_estimators: 100,
+  xgb_max_depth: 6,
+  xgb_learning_rate: 0.1,
+  xgb_min_child_weight: 1,
+  xgb_subsample: 1.0,
+  xgb_colsample_bytree: 1.0,
+}
+
+// LSTM 推荐参数（使用精简的时序特征）
+const lstmRecommendedParams = {
+  feature_fields: [...lstmRecommendedFeatureFields],
+  standardize_fields: [...indicatorFields],
+  winsorize_fields: [...indicatorFields],
+  lstm_hidden_size: 64,
+  lstm_num_layers: 2,
+  lstm_dropout: 0.1,
+  lstm_epochs: 25,
+  lstm_batch_size: 256,
+  lstm_learning_rate: 0.001,
+  lstm_sequence_length: 60,
+}
+
+// 监听模型类型变化，新建时自动更新推荐参数
+watch(() => form.value.model_type, (newType) => {
+  if (!editingId.value) { // 只有新建时才自动更新
+    form.value.name = generateDefaultName(newType)
+    if (newType === 'xgboost') {
+      Object.assign(form.value, xgbRecommendedParams)
+    } else if (newType === 'lstm') {
+      Object.assign(form.value, lstmRecommendedParams)
+    }
+  }
+})
 
 const loadModels = async () => {
   loading.value = true
@@ -229,10 +320,23 @@ const openDialog = (item?: ModelConfig) => {
       xgb_min_child_weight: item.xgb_min_child_weight,
       xgb_subsample: item.xgb_subsample,
       xgb_colsample_bytree: item.xgb_colsample_bytree,
+      lstm_hidden_size: (item as any).lstm_hidden_size || 64,
+      lstm_num_layers: (item as any).lstm_num_layers || 2,
+      lstm_dropout: (item as any).lstm_dropout || 0.1,
+      lstm_epochs: (item as any).lstm_epochs || 25,
+      lstm_batch_size: (item as any).lstm_batch_size || 256,
+      lstm_learning_rate: (item as any).lstm_learning_rate || 0.001,
+      lstm_sequence_length: (item as any).lstm_sequence_length || 60,
     }
   } else {
     editingId.value = null
-    form.value = { ...defaultForm, feature_fields: [...defaultForm.feature_fields], standardize_fields: [...defaultForm.standardize_fields], winsorize_fields: [...defaultForm.winsorize_fields] }
+    form.value = { 
+      ...defaultForm, 
+      name: generateDefaultName(defaultForm.model_type),
+      feature_fields: [...defaultForm.feature_fields], 
+      standardize_fields: [...defaultForm.standardize_fields], 
+      winsorize_fields: [...defaultForm.winsorize_fields] 
+    }
   }
   dialog.value = true
 }

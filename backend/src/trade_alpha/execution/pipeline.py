@@ -62,7 +62,7 @@ class ExecutionPipeline:
         if model_config.model_type == "lstm":
             from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
             self._normalizer = SlidingWindowNormalizer(
-                window_size=model_config.lstm_window_size or 60,
+                window_size=model_config.lstm_sequence_length,  # 统一使用 sequence_length
                 standardize_fields=model_config.standardize_fields,
                 winsorize_fields=model_config.winsorize_fields,
                 output_fields=output_fields,

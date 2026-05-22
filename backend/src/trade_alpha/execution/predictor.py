@@ -85,16 +85,15 @@ class Predictor:
         
         # LSTM 需要历史序列数据
         if self._config.model_type == "lstm":
-            # 获取序列长度
+            # 统一使用 lstm_sequence_length 作为序列长度
             seq_len = getattr(self._classifier, "sequence_length", 10)
-            window_size = getattr(self._config, "lstm_window_size", 60)
             
-            # 加载历史数据
+            # 加载历史数据（多加载一些以防数据缺失）
             history_df = day_df
             if self._data_loader:
                 try:
                     history_df = await self._data_loader.load_history_data(
-                        current_date, ts_codes, max(window_size, seq_len)
+                        current_date, ts_codes, seq_len + 10  # 多加载10天buffer
                     )
                 except Exception as e:
                     logger.warning(f"Failed to load history data for LSTM: {e}")

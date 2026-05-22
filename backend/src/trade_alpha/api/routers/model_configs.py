@@ -23,6 +23,13 @@ class ConfigCreate(BaseModel):
     xgb_min_child_weight: Optional[int] = None
     xgb_subsample: Optional[float] = None
     xgb_colsample_bytree: Optional[float] = None
+    lstm_hidden_size: Optional[int] = None
+    lstm_num_layers: Optional[int] = None
+    lstm_dropout: Optional[float] = None
+    lstm_epochs: Optional[int] = None
+    lstm_batch_size: Optional[int] = None
+    lstm_learning_rate: Optional[float] = None
+    lstm_sequence_length: Optional[int] = None
 
 
 class ConfigUpdate(BaseModel):
@@ -38,6 +45,42 @@ class ConfigUpdate(BaseModel):
     xgb_min_child_weight: Optional[int] = None
     xgb_subsample: Optional[float] = None
     xgb_colsample_bytree: Optional[float] = None
+    lstm_hidden_size: Optional[int] = None
+    lstm_num_layers: Optional[int] = None
+    lstm_dropout: Optional[float] = None
+    lstm_epochs: Optional[int] = None
+    lstm_batch_size: Optional[int] = None
+    lstm_learning_rate: Optional[float] = None
+    lstm_sequence_length: Optional[int] = None
+
+
+def config_to_dict(c):
+    """Convert ModelConfig to dict."""
+    return {
+        "id": str(c.id),
+        "name": c.name,
+        "model_type": c.model_type,
+        "feature_fields": c.feature_fields,
+        "standardize_fields": c.standardize_fields,
+        "winsorize_fields": c.winsorize_fields,
+        "classification_horizons": c.classification_horizons,
+        "classification_threshold": c.classification_threshold,
+        "xgb_n_estimators": c.xgb_n_estimators,
+        "xgb_max_depth": c.xgb_max_depth,
+        "xgb_learning_rate": c.xgb_learning_rate,
+        "xgb_min_child_weight": c.xgb_min_child_weight,
+        "xgb_subsample": c.xgb_subsample,
+        "xgb_colsample_bytree": c.xgb_colsample_bytree,
+        "lstm_hidden_size": c.lstm_hidden_size,
+        "lstm_num_layers": c.lstm_num_layers,
+        "lstm_dropout": c.lstm_dropout,
+        "lstm_epochs": c.lstm_epochs,
+        "lstm_batch_size": c.lstm_batch_size,
+        "lstm_learning_rate": c.lstm_learning_rate,
+        "lstm_sequence_length": c.lstm_sequence_length,
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
+    }
 
 
 @router.post("")
@@ -58,25 +101,15 @@ async def create_config(body: ConfigCreate):
             xgb_min_child_weight=body.xgb_min_child_weight or 1,
             xgb_subsample=body.xgb_subsample or 1.0,
             xgb_colsample_bytree=body.xgb_colsample_bytree or 1.0,
+            lstm_hidden_size=body.lstm_hidden_size or 64,
+            lstm_num_layers=body.lstm_num_layers or 2,
+            lstm_dropout=body.lstm_dropout or 0.1,
+            lstm_epochs=body.lstm_epochs or 50,
+            lstm_batch_size=body.lstm_batch_size or 32,
+            lstm_learning_rate=body.lstm_learning_rate or 0.001,
+            lstm_sequence_length=body.lstm_sequence_length or 60,
         )
-        return {
-            "id": str(c.id),
-            "name": c.name,
-            "model_type": c.model_type,
-            "feature_fields": c.feature_fields,
-            "standardize_fields": c.standardize_fields,
-            "winsorize_fields": c.winsorize_fields,
-            "classification_horizons": c.classification_horizons,
-            "classification_threshold": c.classification_threshold,
-            "xgb_n_estimators": c.xgb_n_estimators,
-            "xgb_max_depth": c.xgb_max_depth,
-            "xgb_learning_rate": c.xgb_learning_rate,
-            "xgb_min_child_weight": c.xgb_min_child_weight,
-            "xgb_subsample": c.xgb_subsample,
-            "xgb_colsample_bytree": c.xgb_colsample_bytree,
-            "created_at": c.created_at,
-            "updated_at": c.updated_at,
-        }
+        return config_to_dict(c)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -85,27 +118,7 @@ async def create_config(body: ConfigCreate):
 async def list_configs(model_type: str = Query(None)):
     """List model configurations."""
     configs = await config_service.list_configs(model_type=model_type)
-    return [
-        {
-            "id": str(c.id),
-            "name": c.name,
-            "model_type": c.model_type,
-            "feature_fields": c.feature_fields,
-            "standardize_fields": c.standardize_fields,
-            "winsorize_fields": c.winsorize_fields,
-            "classification_horizons": c.classification_horizons,
-            "classification_threshold": c.classification_threshold,
-            "xgb_n_estimators": c.xgb_n_estimators,
-            "xgb_max_depth": c.xgb_max_depth,
-            "xgb_learning_rate": c.xgb_learning_rate,
-            "xgb_min_child_weight": c.xgb_min_child_weight,
-            "xgb_subsample": c.xgb_subsample,
-            "xgb_colsample_bytree": c.xgb_colsample_bytree,
-            "created_at": c.created_at,
-            "updated_at": c.updated_at,
-        }
-        for c in configs
-    ]
+    return [config_to_dict(c) for c in configs]
 
 
 @router.get("/{config_id}")
@@ -119,24 +132,7 @@ async def get_config(config_id: str):
     c = await config_service.get_config_by_id(obj_id)
     if not c:
         raise HTTPException(status_code=404, detail="Config not found")
-    return {
-        "id": str(c.id),
-        "name": c.name,
-        "model_type": c.model_type,
-        "feature_fields": c.feature_fields,
-        "standardize_fields": c.standardize_fields,
-        "winsorize_fields": c.winsorize_fields,
-        "classification_horizons": c.classification_horizons,
-        "classification_threshold": c.classification_threshold,
-        "xgb_n_estimators": c.xgb_n_estimators,
-        "xgb_max_depth": c.xgb_max_depth,
-        "xgb_learning_rate": c.xgb_learning_rate,
-        "xgb_min_child_weight": c.xgb_min_child_weight,
-        "xgb_subsample": c.xgb_subsample,
-        "xgb_colsample_bytree": c.xgb_colsample_bytree,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-    }
+    return config_to_dict(c)
 
 
 @router.put("/{config_id}")
@@ -155,24 +151,7 @@ async def update_config(config_id: str, body: ConfigUpdate):
         c = await config_service.update_config(obj_id, **update_data)
         if not c:
             raise HTTPException(status_code=404, detail="Config not found")
-        return {
-            "id": str(c.id),
-            "name": c.name,
-            "model_type": c.model_type,
-            "feature_fields": c.feature_fields,
-            "standardize_fields": c.standardize_fields,
-            "winsorize_fields": c.winsorize_fields,
-            "classification_horizons": c.classification_horizons,
-            "classification_threshold": c.classification_threshold,
-            "xgb_n_estimators": c.xgb_n_estimators,
-            "xgb_max_depth": c.xgb_max_depth,
-            "xgb_learning_rate": c.xgb_learning_rate,
-            "xgb_min_child_weight": c.xgb_min_child_weight,
-            "xgb_subsample": c.xgb_subsample,
-            "xgb_colsample_bytree": c.xgb_colsample_bytree,
-            "created_at": c.created_at,
-            "updated_at": c.updated_at,
-        }
+        return config_to_dict(c)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

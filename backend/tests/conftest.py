@@ -58,3 +58,48 @@ async def test_model_config():
         classification_threshold=0.02,
     )
     return config
+
+
+@pytest_asyncio.fixture(scope="session")
+async def test_lstm_config():
+    """Fixture for test LSTM model config."""
+    lstm_config_name = "test_lstm_config"
+    config = await config_service.get_config_by_name(lstm_config_name)
+    if config:
+        await config.delete()
+
+    config = await config_service.create_config(
+        name=lstm_config_name,
+        model_type="lstm",
+        feature_fields=[
+            "ma_5", "ma_10", "ma_20",
+            "macd", "macd_signal", "macd_hist",
+            "pct_chg",
+            "kdj_k", "kdj_d", "kdj_j",
+            "rsi_6", "rsi_12"
+        ],
+        standardize_fields=[
+            "ma_5", "ma_10", "ma_20",
+            "macd", "macd_signal", "macd_hist",
+            "pct_chg",
+            "kdj_k", "kdj_d", "kdj_j",
+            "rsi_6", "rsi_12"
+        ],
+        winsorize_fields=[
+            "ma_5", "ma_10", "ma_20",
+            "macd", "macd_signal", "macd_hist",
+            "pct_chg",
+            "kdj_k", "kdj_d", "kdj_j",
+            "rsi_6", "rsi_12"
+        ],
+        classification_horizons=[3, 5],
+        classification_threshold=0.02,
+        lstm_hidden_size=64,
+        lstm_num_layers=2,
+        lstm_dropout=0.2,
+        lstm_epochs=5,
+        lstm_batch_size=32,
+        lstm_learning_rate=0.001,
+        lstm_sequence_length=10
+    )
+    return config

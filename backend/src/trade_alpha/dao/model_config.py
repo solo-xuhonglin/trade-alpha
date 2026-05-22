@@ -36,6 +36,14 @@ class ModelConfig(Document):
         xgb_min_child_weight: xgboost 叶子节点最小权重和
         xgb_subsample: xgboost 样本采样比例
         xgb_colsample_bytree: xgboost 特征采样比例
+        lstm_hidden_size: lstm 隐藏层大小
+        lstm_num_layers: lstm 层数
+        lstm_dropout: lstm dropout 比例
+        lstm_epochs: lstm 训练轮数
+        lstm_batch_size: lstm 批次大小
+        lstm_learning_rate: lstm 学习率
+        lstm_sequence_length: lstm 序列长度
+        lstm_window_size: lstm 滑动窗口标准化窗口大小
         created_at: 创建时间
         updated_at: 更新时间
     """
@@ -54,6 +62,14 @@ class ModelConfig(Document):
     xgb_min_child_weight: int = 1
     xgb_subsample: float = 1.0
     xgb_colsample_bytree: float = 1.0
+    # lstm 超参数（仅 model_type="lstm" 时使用）
+    lstm_hidden_size: int = 64
+    lstm_num_layers: int = 2
+    lstm_dropout: float = 0.1
+    lstm_epochs: int = 50
+    lstm_batch_size: int = 32
+    lstm_learning_rate: float = 0.001
+    lstm_sequence_length: int = 60  # 序列长度（用于模型输入和滑动窗口标准化）
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

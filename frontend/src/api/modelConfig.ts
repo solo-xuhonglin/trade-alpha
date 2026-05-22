@@ -15,6 +15,13 @@ export interface ModelConfig {
   xgb_min_child_weight: number
   xgb_subsample: number
   xgb_colsample_bytree: number
+  lstm_hidden_size: number
+  lstm_num_layers: number
+  lstm_dropout: number
+  lstm_epochs: number
+  lstm_batch_size: number
+  lstm_learning_rate: number
+  lstm_sequence_length: number
   created_at?: string
   updated_at?: string
 }

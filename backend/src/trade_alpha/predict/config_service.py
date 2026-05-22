@@ -49,6 +49,13 @@ async def create_config(
     xgb_min_child_weight: int = 1,
     xgb_subsample: float = 1.0,
     xgb_colsample_bytree: float = 1.0,
+    lstm_hidden_size: int = 64,
+    lstm_num_layers: int = 2,
+    lstm_dropout: float = 0.1,
+    lstm_epochs: int = 25,
+    lstm_batch_size: int = 256,
+    lstm_learning_rate: float = 0.001,
+    lstm_sequence_length: int = 60,
 ) -> ModelConfig:
     """Create model configuration.
 
@@ -66,6 +73,13 @@ async def create_config(
         xgb_min_child_weight: xgboost 叶子节点最小权重和，默认1
         xgb_subsample: xgboost 样本采样比例，默认1.0
         xgb_colsample_bytree: xgboost 特征采样比例，默认1.0
+        lstm_hidden_size: lstm 隐藏层大小，默认64
+        lstm_num_layers: lstm 层数，默认2
+        lstm_dropout: lstm dropout 比例，默认0.1
+        lstm_epochs: lstm 训练轮数，默认50
+        lstm_batch_size: lstm 批次大小，默认32
+        lstm_learning_rate: lstm 学习率，默认0.001
+        lstm_sequence_length: lstm 序列长度（用于模型输入和滑动窗口标准化），默认60
     """
     if not name:
         raise ValueError("name is required")
@@ -96,6 +110,13 @@ async def create_config(
         xgb_min_child_weight=xgb_min_child_weight,
         xgb_subsample=xgb_subsample,
         xgb_colsample_bytree=xgb_colsample_bytree,
+        lstm_hidden_size=lstm_hidden_size,
+        lstm_num_layers=lstm_num_layers,
+        lstm_dropout=lstm_dropout,
+        lstm_epochs=lstm_epochs,
+        lstm_batch_size=lstm_batch_size,
+        lstm_learning_rate=lstm_learning_rate,
+        lstm_sequence_length=lstm_sequence_length,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )

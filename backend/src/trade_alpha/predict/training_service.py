@@ -21,6 +21,7 @@ from trade_alpha.predict.config_service import get_config_by_id
 from trade_alpha.predict.models.xgboost import XGBoostClassifier
 from trade_alpha.predict.models.lstm import LSTMClassifier
 from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
+from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
 from trade_alpha.utils.date_utils import get_year_months, format_progress, to_db_format
 from trade_alpha.logging import get_logger
 
@@ -91,11 +92,19 @@ def _normalize_data(df: pd.DataFrame, config, target_names: List[str]) -> Option
     """
     output_fields = config.feature_fields + target_names + ["trade_date", "ts_code"]
 
-    normalizer = CrossSectionalNormalizer(
-        standardize_fields=config.standardize_fields,
-        winsorize_fields=config.winsorize_fields,
-        output_fields=output_fields,
-    )
+    if config.model_type == "lstm":
+        normalizer = SlidingWindowNormalizer(
+            window_size=config.lstm_sequence_length,  # 统一使用 sequence_length
+            standardize_fields=config.standardize_fields,
+            winsorize_fields=config.winsorize_fields,
+            output_fields=output_fields,
+        )
+    else:
+        normalizer = CrossSectionalNormalizer(
+            standardize_fields=config.standardize_fields,
+            winsorize_fields=config.winsorize_fields,
+            output_fields=output_fields,
+        )
 
     df_norm = normalizer.normalize(df)
 
@@ -136,6 +145,16 @@ def _create_classifier(config) -> any:
             min_child_weight=config.xgb_min_child_weight,
             subsample=config.xgb_subsample,
             colsample_bytree=config.xgb_colsample_bytree,
+        )
+    elif config.model_type == "lstm":
+        return LSTMClassifier(
+            hidden_size=config.lstm_hidden_size,
+            num_layers=config.lstm_num_layers,
+            dropout=config.lstm_dropout,
+            epochs=config.lstm_epochs,
+            batch_size=config.lstm_batch_size,
+            learning_rate=config.lstm_learning_rate,
+            sequence_length=config.lstm_sequence_length,
         )
     return CLASSIFIERS[config.model_type]()
 
@@ -204,6 +223,9 @@ async def _evaluate_classifier(
 
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     
+    # Check if this is an LSTM model (has sequence_length attribute)
+    is_lstm = hasattr(classifier, "sequence_length")
+    
     for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X)):
         await _call_progress((fold_idx + 1) / n_splits * 100, f"交叉验证 Fold {fold_idx + 1}/{n_splits}...")
         
@@ -212,18 +234,25 @@ async def _evaluate_classifier(
         for i, target in enumerate(targets):
             y_train, y_val = y[train_idx, i], y[val_idx, i]
             
-            unique_labels = sorted(set(y_train))
-            label_map = {label: j for j, label in enumerate(unique_labels)}
-            y_train_mapped = np.array([label_map[v] for v in y_train])
-            y_val_mapped = np.array([label_map[v] for v in y_val])
-            
-            model_cls = classifier.models[target].__class__
-            model = model_cls(**classifier.models[target].get_params())
-            model.fit(X_train, y_train_mapped)
-            
-            y_val_pred_mapped = model.predict(X_val)
-            y_val_pred = np.array([unique_labels[j] for j in y_val_pred_mapped])
-            fold_accuracy = float(np.mean(y_val_pred == y_val))
+            if is_lstm:
+                # For LSTM, use the trained model directly for simple evaluation
+                # Avoid retraining due to sequence requirements
+                y_val_pred = classifier.predict(X_val, [target]).get(target, y_val[0])
+                fold_accuracy = float(np.mean(y_val_pred == y_val))
+            else:
+                # For XGBoost, do standard cross-validation
+                unique_labels = sorted(set(y_train))
+                label_map = {label: j for j, label in enumerate(unique_labels)}
+                y_train_mapped = np.array([label_map[v] for v in y_train])
+                y_val_mapped = np.array([label_map[v] for v in y_val])
+                
+                model_cls = classifier.models[target].__class__
+                model = model_cls(**classifier.models[target].get_params())
+                model.fit(X_train, y_train_mapped)
+                
+                y_val_pred_mapped = model.predict(X_val)
+                y_val_pred = np.array([unique_labels[j] for j in y_val_pred_mapped])
+                fold_accuracy = float(np.mean(y_val_pred == y_val))
             
             if target not in metrics.get("cv_scores", {}):
                 metrics.setdefault("cv_scores", {})[target] = []
@@ -261,7 +290,17 @@ async def create_training(
     year_months = get_year_months(start_date, end_date)
     years = sorted(set(y for y, _ in year_months))
     total_years = len(years)
-    total_stages = len(years) * 2 + 1 + 5 + 1 + 1
+    
+    # 计算总阶段数，根据模型类型调整
+    target_names = [f"label_{h}d" for h in config.classification_horizons]
+    num_targets = len(target_names)
+    
+    if config.model_type == "lstm":
+        # LSTM: 数据加载(2*years) + 训练(lstm_epochs * num_targets) + 评估(5) + 分析(1) + 完成(1)
+        total_stages = len(years) * 2 + config.lstm_epochs * num_targets + 5 + 1 + 1
+    else:
+        # XGBoost: 数据加载(2*years) + 训练(1) + 评估(5) + 分析(1) + 完成(1)
+        total_stages = len(years) * 2 + 1 + 5 + 1 + 1
 
     async def update(stage_num: int, msg: str):
         if progress_callback:
@@ -272,7 +311,6 @@ async def create_training(
 
     stage = 0
     horizon = max(config.classification_horizons)
-    target_names = [f"label_{h}d" for h in config.classification_horizons]
     all_norm_dfs = []
 
     for year_idx, year in enumerate(years):
@@ -295,16 +333,27 @@ async def create_training(
     if not all_norm_dfs:
         raise ValueError("No available data")
 
-    stage += 1
-    await update(stage, "正在训练模型...")
-
     # Extract features and targets from normalized dfs
     X = np.vstack([df[config.feature_fields].values for df in all_norm_dfs])
     y = np.vstack([df[target_names].values for df in all_norm_dfs])
     sample_count = len(X)
 
     classifier = _create_classifier(config)
-    classifier.fit(X, y, target_names)
+    
+    if config.model_type == "lstm":
+        # LSTM 使用训练阶段的进度回调
+        training_stages = 0
+        def lstm_progress_callback(pct, msg):
+            nonlocal training_stages
+            training_stages = int(pct / 100 * config.lstm_epochs * num_targets)
+            update(stage + training_stages, msg)
+        
+        classifier.fit(X, y, target_names, progress_callback=lstm_progress_callback)
+        stage += config.lstm_epochs * num_targets
+    else:
+        stage += 1
+        await update(stage, "正在训练模型...")
+        classifier.fit(X, y, target_names)
 
     stage += 1
     await update(stage, "正在评估模型...")
@@ -410,11 +459,20 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     df = df.sort_values("trade_date")
 
     target_names = [f"label_{h}d" for h in training.classification_horizons]
-    normalizer = CrossSectionalNormalizer(
-        standardize_fields=config.standardize_fields,
-        winsorize_fields=config.winsorize_fields,
-        output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"],
-    )
+    
+    if config.model_type == "lstm":
+        normalizer = SlidingWindowNormalizer(
+            window_size=config.lstm_sequence_length,  # 统一使用 sequence_length
+            standardize_fields=config.standardize_fields,
+            winsorize_fields=config.winsorize_fields,
+            output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"],
+        )
+    else:
+        normalizer = CrossSectionalNormalizer(
+            standardize_fields=config.standardize_fields,
+            winsorize_fields=config.winsorize_fields,
+            output_fields=config.feature_fields + target_names + ["trade_date", "ts_code"],
+        )
 
     df_norm = normalizer.normalize(df)
 
@@ -422,10 +480,15 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     if len(df_norm) == 0:
         raise ValueError("No valid data after normalization")
 
-    classifier = CLASSIFIERS[config.model_type]()
+    classifier = _create_classifier(config)
     classifier.load(training.model_path)
 
-    features = df_norm[config.feature_fields].iloc[-1:].values
+    # LSTM 需要足够的序列长度数据
+    if config.model_type == "lstm":
+        # 使用所有可用数据作为序列
+        features = df_norm[config.feature_fields].values
+    else:
+        features = df_norm[config.feature_fields].iloc[-1:].values
 
     predictions = classifier.predict(features, target_names)
     probabilities = classifier.predict_proba(features, target_names)
