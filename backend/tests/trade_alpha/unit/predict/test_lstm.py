@@ -1,7 +1,7 @@
 """Tests for LSTMClassifier."""
 import pytest
 import numpy as np
-from trade_alpha.predict.models.lstm import LSTMClassifier
+from trade_alpha.models.classifiers.lstm import LSTMClassifier
 
 
 def test_lstm_classifier_fit_predict():

@@ -6,7 +6,7 @@ import pytest_asyncio
 from trade_alpha.dao.mongodb import init_db, close_db
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import fetch_and_store_stock_list
-from trade_alpha.predict import config_service
+from trade_alpha.models import training
 from trade_alpha.test_config import TEST_STOCK, TEST_MODEL_CONFIG_NAME
 
 
@@ -47,11 +47,11 @@ async def test_model_config():
     Creates or ensures default model config exists.
     """
     default_config_name = TEST_MODEL_CONFIG_NAME
-    config = await config_service.get_config_by_name(default_config_name)
+    config = await training.get_config_by_name(default_config_name)
     if config:
         await config.delete()
 
-    config = await config_service.create_config(
+    config = await training.create_config(
         name=default_config_name,
         model_type="xgboost",
         classification_horizons=[3, 5],
@@ -64,11 +64,11 @@ async def test_model_config():
 async def test_lstm_config():
     """Fixture for test LSTM model config."""
     lstm_config_name = "test_lstm_config"
-    config = await config_service.get_config_by_name(lstm_config_name)
+    config = await training.get_config_by_name(lstm_config_name)
     if config:
         await config.delete()
 
-    config = await config_service.create_config(
+    config = await training.create_config(
         name=lstm_config_name,
         model_type="lstm",
         feature_fields=[

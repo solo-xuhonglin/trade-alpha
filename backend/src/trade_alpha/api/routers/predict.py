@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 from beanie import PydanticObjectId
-from trade_alpha.predict import training_service
+from trade_alpha.models import training
 
 router = APIRouter(prefix="/predict", tags=["predict"])
 
@@ -15,7 +15,7 @@ async def get_prediction(prediction_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid prediction ID")
 
-    prediction = await training_service.get_prediction_by_id(obj_id)
+    prediction = await training.get_prediction_by_id(obj_id)
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
@@ -30,7 +30,7 @@ async def delete_prediction(prediction_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid prediction ID")
 
-    deleted = await training_service.delete_prediction(obj_id)
+    deleted = await training.delete_prediction(obj_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Prediction not found")
 

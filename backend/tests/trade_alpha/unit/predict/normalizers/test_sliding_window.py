@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
+from trade_alpha.models.normalizers.sliding_window import SlidingWindowNormalizer
 
 
 def test_normalize_basic():

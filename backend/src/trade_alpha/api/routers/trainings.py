@@ -5,7 +5,7 @@ from typing import Optional
 from beanie import PydanticObjectId
 from datetime import datetime
 
-from trade_alpha.predict import training_service
+from trade_alpha.models import training
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
 from trade_alpha.data.service import list_stocks_by_mv_rank
 from trade_alpha.utils.date_utils import to_api_format
@@ -85,7 +85,7 @@ async def run_training_async(task_id: str):
         await task.save()
 
         params = task.params
-        training = await training_service.create_training(
+        training_result = await training.create_training(
             config_id=PydanticObjectId(params["config_id"]),
             name=params["name"],
             ts_codes=params["ts_codes"],
@@ -123,7 +123,7 @@ async def get_training_task(task_id: str):
 
     training = None
     if task.result_id and task.status == TaskStatus.COMPLETED:
-        t = await training_service.get_training_by_id(PydanticObjectId(task.result_id))
+        t = await training.get_training_by_id(PydanticObjectId(task.result_id))
         if t:
             training = {
                 "id": str(t.id),
@@ -222,9 +222,9 @@ async def list_trainings(config_id: str = Query(None)):
     try:
         if config_id:
             c_id = PydanticObjectId(config_id)
-            trainings = await training_service.list_trainings(config_id=c_id)
+            trainings = await training.list_trainings(config_id=c_id)
         else:
-            trainings = await training_service.list_trainings()
+            trainings = await training.list_trainings()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID format")
 
@@ -252,7 +252,7 @@ async def get_training(training_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid training ID")
 
-    t = await training_service.get_training_by_id(obj_id)
+    t = await training.get_training_by_id(obj_id)
     if not t:
         raise HTTPException(status_code=404, detail="Training not found")
     return {
@@ -276,7 +276,7 @@ async def delete_training(training_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid training ID")
 
-    deleted = await training_service.delete_training(obj_id)
+    deleted = await training.delete_training(obj_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Training not found")
     return {"deleted": True}

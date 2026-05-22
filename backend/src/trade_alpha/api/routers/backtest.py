@@ -7,8 +7,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from trade_alpha.dao.account_config import AccountConfig
-from trade_alpha.predict.training_service import get_training_by_id
-from trade_alpha.predict.config_service import get_config_by_id
+from trade_alpha.models import training as training_module
 from trade_alpha.execution.pipeline import ExecutionPipeline
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.task import Task, TaskStatus, TaskType
@@ -78,7 +77,7 @@ async def trigger_backtest(
         if not account_config:
             raise HTTPException(status_code=404, detail="Account config not found")
 
-        training = await get_training_by_id(PydanticObjectId(body.training_id))
+        training = await training_module.get_training_by_id(PydanticObjectId(body.training_id))
         if not training:
             raise HTTPException(status_code=404, detail="Training not found")
 
@@ -137,10 +136,10 @@ async def run_backtest_async(task_id: str):
         params = task.params
         account_config = await AccountConfig.get(PydanticObjectId(params["account_config_id"]))
 
-        training = await get_training_by_id(PydanticObjectId(params["training_id"]))
+        training = await training_module.get_training_by_id(PydanticObjectId(params["training_id"]))
         if not training:
             raise ValueError(f"Training not found: {params['training_id']}")
-        model_config = await get_config_by_id(training.config_id)
+        model_config = await training_module.get_config_by_id(training.config_id)
         if not model_config:
             raise ValueError(f"Model config not found: {training.config_id}")
 

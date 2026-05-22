@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 import xgboost as xgb
 from typing import List, Dict
-from trade_alpha.predict.models.base import BaseClassifier, BasePredictor
+from .base import BaseClassifier, BasePredictor
 
 
 class XGBoostClassifier(BaseClassifier):

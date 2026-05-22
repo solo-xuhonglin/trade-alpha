@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
+from trade_alpha.models.normalizers.cross_sectional import CrossSectionalNormalizer
 
 
 def test_normalize_basic():

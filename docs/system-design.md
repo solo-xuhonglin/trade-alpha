@@ -54,20 +54,24 @@ trade-alpha/
 │   │   ├── dao/              # 数据访问层
 │   │   ├── data/             # 数据获取模块
 │   │   ├── indicators/        # 技术指标模块
-│   │   ├── predict/          # 预测模块
-│   │   │   ├── models/              # 模型类
-│   │   │   │   ├── base.py          # BasePredictor 基类
-│   │   │   │   ├── linear.py        # LinearPredictor
-│   │   │   │   ├── xgboost.py       # XGBoostPredictor
-│   │   │   │   └── lstm.py          # LSTMPredictor
-│   │   │   ├── normalizers/         # 标准化器
-│   │   │   │   ├── base.py              # BaseNormalizer 基类
-│   │   │   │   ├── sliding_window.py    # 滑动窗口标准化
-│   │   │   │   ├── cross_sectional.py   # 截面标准化
-│   │   │   │   └── registry.py          # 标准化器注册表
-│   │   │   ├── config_service.py   # 模型配置服务
-│   │   │   ├── service.py           # 预测服务
-│   │   │   └── training_service.py  # 训练服务
+│   │   ├── models/              # 模型模块
+│   │   │   ├── adapters/        # 模型适配器层
+│   │   │   │   ├── base.py     # 适配器基类
+│   │   │   │   ├── registry.py # 适配器注册器
+│   │   │   │   ├── xgboost/    # XGBoost 适配器
+│   │   │   │   └── lstm/       # LSTM 适配器
+│   │   │   ├── classifiers/    # 模型分类器
+│   │   │   │   ├── base.py     # BaseClassifier 基类
+│   │   │   │   ├── xgboost.py  # XGBoost 分类器
+│   │   │   │   └── lstm.py     # LSTM 分类器
+│   │   │   ├── normalizers/    # 标准化器
+│   │   │   │   ├── base.py                # BaseNormalizer 基类
+│   │   │   │   ├── sliding_window.py      # 滑动窗口标准化
+│   │   │   │   ├── cross_sectional.py     # 截面标准化
+│   │   │   │   └── registry.py            # 标准化器注册表
+│   │   │   └── training/       # 训练和配置服务
+│   │   │       ├── config.py   # 模型配置服务
+│   │   │       └── trainer.py  # 训练服务
 │   │   ├── strategy/          # 交易策略模块
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py        # 策略基类 (PositionManager)
@@ -214,12 +218,34 @@ trade-alpha/
 - `boxplots`: 箱线图数据（包含异常值）
 - `missing_data`: 缺失值分析
 
-### 7. 预测模块 (predict)
+### 7. 模型模块 (models)
 
-#### models - 模型类
+#### adapters - 模型适配器层
 
-- `BasePredictor`: 预测器抽象基类，定义 `fit()`, `predict()`, `save()`, `load()` 接口
-- `LinearPredictor`: 线性回归预测器（回归任务）
+采用适配器模式，隔离不同模型类型的特定逻辑，消除代码中的模型类型判断：
+
+- `BaseTrainerAdapter`: 训练适配器抽象基类
+  - `create_normalizer()`: 创建适合该模型的标准化器
+  - `create_classifier()`: 创建分类器实例
+  - `get_total_training_stages()`: 计算总训练阶段数
+  - `train_with_progress()`: 带进度回调的训练方法
+
+- `BaseExecutorAdapter`: 执行适配器抽象基类
+  - `create_normalizer()`: 创建适合该模型的标准化器
+  - `load_prediction_data()`: 加载预测所需的数据
+  - `prepare_features()`: 为单只股票准备模型输入特征
+
+- `XGBoostTrainerAdapter` / `XGBoostExecutorAdapter`: XGBoost 模型适配器
+- `LSTMTrainerAdapter` / `LSTMExecutorAdapter`: LSTM 模型适配器
+
+**架构优势**:
+- 新增模型类型只需实现适配器，无需修改现有代码
+- 训练和执行逻辑完全分离
+- 易于测试和维护
+
+#### classifiers - 模型分类器
+
+- `BaseClassifier`: 分类器抽象基类，定义 `fit()`, `predict()`, `predict_proba()`, `save()`, `load()` 接口
 - `XGBoostClassifier`: XGBoost 分类器（分类任务，支持多 horizons）
 - `LSTMClassifier`: LSTM 神经网络分类器（分类任务，支持多 horizons）
 
@@ -230,22 +256,22 @@ trade-alpha/
 - `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型）
 - `NormalizerRegistry`: 标准化器注册表
 
-#### config_service - 模型配置
+#### training - 训练和配置
 
-- `create_config()`: 创建模型配置
-- `get_config_by_id()` / `get_config_by_name()`: 获取配置
-- `list_configs()`: 列出配置
-- `update_config()`: 更新配置
-- `delete_config()`: 删除配置（级联删除训练记录）
+- `config.py`: 模型配置服务
+  - `create_config()`: 创建模型配置
+  - `get_config_by_id()` / `get_config_by_name()`: 获取配置
+  - `list_configs()`: 列出配置
+  - `update_config()`: 更新配置
+  - `delete_config()`: 删除配置（级联删除训练记录）
 
-#### training_service - 训练服务
-
-- `create_training()`: 创建训练（支持多股票样本混合，name 唯一约束）
-- `get_training_by_id()`: 获取训练记录
-- `get_training_by_name()`: 按名称获取训练记录
-- `list_trainings()`: 列出训练记录
-- `delete_training()`: 删除训练（删除模型文件）
-- `predict_with_training()`: 使用训练模型预测
+- `trainer.py`: 训练服务
+  - `create_training()`: 创建训练（支持多股票样本混合，name 唯一约束）
+  - `get_training_by_id()`: 获取训练记录
+  - `get_training_by_name()`: 按名称获取训练记录
+  - `list_trainings()`: 列出训练记录
+  - `delete_training()`: 删除训练（删除模型文件）
+  - `predict_with_training()`: 使用训练模型预测
 
 **样本混合策略**: 支持多只股票数据合并训练，提高模型泛化能力
 
@@ -253,11 +279,6 @@ trade-alpha/
 - `-1`: 下跌
 - `0`: 持平
 - `1`: 上涨
-
-#### service - 预测服务
-
-- `predict()`: 预测股票价格并存储结果
-- `get_prediction_by_ts_code()`: 获取最新预测结果
 
 ### 8. 策略模块 (strategy)
 

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from beanie import PydanticObjectId
-from trade_alpha.predict import config_service
+from trade_alpha.models import training
 
 router = APIRouter(prefix="/model-configs", tags=["model-configs"])
 
@@ -87,7 +87,7 @@ def config_to_dict(c):
 async def create_config(body: ConfigCreate):
     """Create model configuration."""
     try:
-        c = await config_service.create_config(
+        c = await training.create_config(
             name=body.name,
             model_type=body.model_type,
             feature_fields=body.feature_fields,
@@ -104,8 +104,8 @@ async def create_config(body: ConfigCreate):
             lstm_hidden_size=body.lstm_hidden_size or 64,
             lstm_num_layers=body.lstm_num_layers or 2,
             lstm_dropout=body.lstm_dropout or 0.1,
-            lstm_epochs=body.lstm_epochs or 50,
-            lstm_batch_size=body.lstm_batch_size or 32,
+            lstm_epochs=body.lstm_epochs or 25,
+            lstm_batch_size=body.lstm_batch_size or 256,
             lstm_learning_rate=body.lstm_learning_rate or 0.001,
             lstm_sequence_length=body.lstm_sequence_length or 60,
         )
@@ -117,7 +117,7 @@ async def create_config(body: ConfigCreate):
 @router.get("")
 async def list_configs(model_type: str = Query(None)):
     """List model configurations."""
-    configs = await config_service.list_configs(model_type=model_type)
+    configs = await training.list_configs(model_type=model_type)
     return [config_to_dict(c) for c in configs]
 
 
@@ -129,7 +129,7 @@ async def get_config(config_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID")
 
-    c = await config_service.get_config_by_id(obj_id)
+    c = await training.get_config_by_id(obj_id)
     if not c:
         raise HTTPException(status_code=404, detail="Config not found")
     return config_to_dict(c)
@@ -148,7 +148,7 @@ async def update_config(config_id: str, body: ConfigUpdate):
         raise HTTPException(status_code=400, detail="No fields to update")
 
     try:
-        c = await config_service.update_config(obj_id, **update_data)
+        c = await training.update_config(obj_id, **update_data)
         if not c:
             raise HTTPException(status_code=404, detail="Config not found")
         return config_to_dict(c)
@@ -164,7 +164,7 @@ async def delete_config(config_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID")
 
-    deleted = await config_service.delete_config(obj_id)
+    deleted = await training.delete_config(obj_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Config not found")
     return {"deleted": True}

@@ -1,8 +1,8 @@
 """Tests for XGBoostClassifier."""
 import pytest
 import numpy as np
-from trade_alpha.predict.models.base import BaseClassifier
-from trade_alpha.predict.models.xgboost import XGBoostClassifier
+from trade_alpha.models.classifiers.base import BaseClassifier
+from trade_alpha.models.classifiers.xgboost import XGBoostClassifier
 
 
 def test_xgboost_classifier_inheritance():

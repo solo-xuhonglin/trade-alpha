@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from typing import List, Dict, Optional, Callable
-from trade_alpha.predict.models.base import BaseClassifier
+from .base import BaseClassifier
 
 
 class LSTMModel(nn.Module):

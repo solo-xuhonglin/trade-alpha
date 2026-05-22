@@ -10,7 +10,7 @@ from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, Mod
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
-from trade_alpha.predict.normalizers import CrossSectionalNormalizer
+from trade_alpha.models.normalizers import CrossSectionalNormalizer
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.strategy.portfolio import PortfolioStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
@@ -55,29 +55,11 @@ class ExecutionPipeline:
         self.max_positions = max_positions
         self.single_stock_ts_code = single_stock_ts_code
 
-        target_names = [f"label_{h}d" for h in model_config.classification_horizons]
-        output_fields = model_config.feature_fields + target_names + ["ts_code"]
-        
-        # 根据模型类型选择标准化器
-        if model_config.model_type == "lstm":
-            from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
-            self._normalizer = SlidingWindowNormalizer(
-                window_size=model_config.lstm_sequence_length,  # 统一使用 sequence_length
-                standardize_fields=model_config.standardize_fields,
-                winsorize_fields=model_config.winsorize_fields,
-                output_fields=output_fields,
-            )
-        else:
-            from trade_alpha.predict.normalizers import CrossSectionalNormalizer
-            self._normalizer = CrossSectionalNormalizer(
-                standardize_fields=model_config.standardize_fields,
-                winsorize_fields=model_config.winsorize_fields,
-                output_fields=output_fields,
-            )
         self._config = model_config
 
         self.data_loader = DataLoader()
-        self.predictor = Predictor(training_id, normalizer=self._normalizer, data_loader=self.data_loader)
+        # 让 Predictor 自己通过适配器创建标准化器，不再传递 normalizer
+        self.predictor = Predictor(training_id, normalizer=None, data_loader=self.data_loader)
         
         # Initialize strategy based on mode
         if mode == "single":

@@ -2,9 +2,9 @@
 
 from typing import Dict, List, Type
 
-from trade_alpha.predict.normalizers.base import BaseNormalizer
-from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
-from trade_alpha.predict.normalizers.cross_sectional import CrossSectionalNormalizer
+from .base import BaseNormalizer
+from .sliding_window import SlidingWindowNormalizer
+from .cross_sectional import CrossSectionalNormalizer
 
 
 class NormalizerRegistry:

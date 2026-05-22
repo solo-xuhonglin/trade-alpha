@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Optional
 
-from trade_alpha.predict.normalizers.base import BaseNormalizer
+from .base import BaseNormalizer
 
 
 class CrossSectionalNormalizer(BaseNormalizer):

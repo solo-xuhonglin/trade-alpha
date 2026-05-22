@@ -8,6 +8,7 @@ from trade_alpha.account.service import (
     update_account_config,
     delete_account_config,
 )
+from trade_alpha.account.account_manager import AccountManager, TradeRecord
 
 __all__ = [
     "AccountConfig",
@@ -16,4 +17,6 @@ __all__ = [
     "list_account_configs",
     "update_account_config",
     "delete_account_config",
+    "AccountManager",
+    "TradeRecord",
 ]
