@@ -55,18 +55,29 @@ class ExecutionPipeline:
         self.max_positions = max_positions
         self.single_stock_ts_code = single_stock_ts_code
 
-        from trade_alpha.predict.normalizers import CrossSectionalNormalizer
         target_names = [f"label_{h}d" for h in model_config.classification_horizons]
         output_fields = model_config.feature_fields + target_names + ["ts_code"]
-        self._normalizer = CrossSectionalNormalizer(
-            standardize_fields=model_config.standardize_fields,
-            winsorize_fields=model_config.winsorize_fields,
-            output_fields=output_fields,
-        )
+        
+        # 根据模型类型选择标准化器
+        if model_config.model_type == "lstm":
+            from trade_alpha.predict.normalizers.sliding_window import SlidingWindowNormalizer
+            self._normalizer = SlidingWindowNormalizer(
+                window_size=model_config.lstm_window_size or 60,
+                standardize_fields=model_config.standardize_fields,
+                winsorize_fields=model_config.winsorize_fields,
+                output_fields=output_fields,
+            )
+        else:
+            from trade_alpha.predict.normalizers import CrossSectionalNormalizer
+            self._normalizer = CrossSectionalNormalizer(
+                standardize_fields=model_config.standardize_fields,
+                winsorize_fields=model_config.winsorize_fields,
+                output_fields=output_fields,
+            )
         self._config = model_config
 
         self.data_loader = DataLoader()
-        self.predictor = Predictor(training_id, normalizer=self._normalizer)
+        self.predictor = Predictor(training_id, normalizer=self._normalizer, data_loader=self.data_loader)
         
         # Initialize strategy based on mode
         if mode == "single":

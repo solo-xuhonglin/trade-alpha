@@ -1,7 +1,8 @@
 """DataLoader for backtest execution pipeline."""
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 import pandas as pd
+from datetime import datetime, timedelta
 from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockList, StockDaily
 from trade_alpha.logging import get_logger
@@ -39,6 +40,25 @@ class DataLoader:
             return pd.DataFrame()
         df = pd.DataFrame([r.model_dump() for r in records])
         df = df.sort_values("ts_code")
+        return df
+
+    async def load_history_data(self, end_date: str, ts_codes: List[str], days: int) -> pd.DataFrame:
+        """Load historical data for multiple stocks (including end_date往前推 days 天"""
+        # 计算起始日期
+        end_dt = datetime.strptime(end_date, "%Y%m%d")
+        start_dt = end_dt - timedelta(days=days * 2)  # 多加载一些以防周末
+        start_date = start_dt.strftime("%Y%m%d")
+        
+        records = await StockDaily.find(
+            StockDaily.trade_date >= start_date,
+            StockDaily.trade_date <= end_date,
+            In(StockDaily.ts_code, ts_codes),
+        ).sort(StockDaily.ts_code, StockDaily.trade_date).to_list()
+        
+        if not records:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame([r.model_dump() for r in records])
         return df
 
     async def load_day_low(self, date: str, ts_codes: List[str]) -> Dict[str, float]:

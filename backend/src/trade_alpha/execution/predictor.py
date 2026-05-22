@@ -25,13 +25,14 @@ CLASSIFIERS = {
 class Predictor:
     """Batch prediction using trained model."""
 
-    def __init__(self, training_id: PydanticObjectId, normalizer: Optional["BaseNormalizer"] = None):
+    def __init__(self, training_id: PydanticObjectId, normalizer: Optional["BaseNormalizer"] = None, data_loader=None):
         self.training_id = training_id
         self._normalizer_override = normalizer
         self._training = None
         self._config = None
         self._classifier = None
         self._normalizer = None
+        self._data_loader = data_loader
 
     async def _ensure_model_loaded(self):
         """Lazy load model and config."""
@@ -66,7 +67,7 @@ class Predictor:
         ts_codes: List[str],
         current_date: str
     ) -> Dict[str, Dict]:
-        """Predict using cross-sectional normalization for current day only.
+        """Predict using appropriate normalization based on model type.
         
         Args:
             day_df: Current day's data for all stocks
@@ -80,53 +81,127 @@ class Predictor:
         if day_df.empty:
             return result
         
-        normalizer_input = self._config.feature_fields + ['trade_date', 'ts_code']
-        available_fields = [f for f in normalizer_input if f in day_df.columns]
-        normalized = self._normalizer.normalize(day_df[available_fields])
-        
         target_names = [f"label_{h}d" for h in self._training.classification_horizons]
         
-        for ts_code in ts_codes:
-            try:
-                stock_norm = normalized[normalized['ts_code'] == ts_code]
-                
-                if stock_norm.empty:
+        # LSTM 需要历史序列数据
+        if self._config.model_type == "lstm":
+            # 获取序列长度
+            seq_len = getattr(self._classifier, "sequence_length", 10)
+            window_size = getattr(self._config, "lstm_window_size", 60)
+            
+            # 加载历史数据
+            history_df = day_df
+            if self._data_loader:
+                try:
+                    history_df = await self._data_loader.load_history_data(
+                        current_date, ts_codes, max(window_size, seq_len)
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to load history data for LSTM: {e}")
+            
+            if history_df.empty:
+                return result
+            
+            # 标准化
+            normalizer_input = self._config.feature_fields + ['trade_date', 'ts_code']
+            available_fields = [f for f in normalizer_input if f in history_df.columns]
+            normalized = self._normalizer.normalize(history_df[available_fields])
+            
+            for ts_code in ts_codes:
+                try:
+                    stock_norm = normalized[normalized['ts_code'] == ts_code].sort_values('trade_date')
+                    
+                    if len(stock_norm) < seq_len:
+                        continue
+                    
+                    features = stock_norm[self._config.feature_fields].values
+                    
+                    if np.isnan(features).any():
+                        logger.debug(f"NaN features for {ts_code}, skipping")
+                        continue
+                    
+                    # 取最后 seq_len 天的数据
+                    features_seq = features[-seq_len:]
+                    
+                    predictions = self._classifier.predict(features_seq, target_names)
+                    probabilities = self._classifier.predict_proba(features_seq, target_names)
+                    
+                    if not predictions or not probabilities:
+                        continue
+                    
+                    up_prob_3d = probabilities.get("label_3d", [0, 0, 0])[2] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
+                    up_prob_5d = probabilities.get("label_5d", [0, 0, 0])[2] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
+
+                    down_prob_3d = probabilities.get("label_3d", [0, 0, 0])[0] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
+                    down_prob_5d = probabilities.get("label_5d", [0, 0, 0])[0] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
+
+                    score_3d = up_prob_3d - down_prob_3d
+                    score_5d = up_prob_5d - down_prob_5d
+
+                    score = score_3d * 0.4 + score_5d * 0.6
+                    
+                    day_row = day_df[day_df['ts_code'] == ts_code]
+                    close = float(day_row.iloc[0]['close']) if not day_row.empty else 0
+                    
+                    result[ts_code] = {
+                        "up_prob_3d": up_prob_3d,
+                        "up_prob_5d": up_prob_5d,
+                        "down_prob_3d": down_prob_3d,
+                        "down_prob_5d": down_prob_5d,
+                        "score": score,
+                        "close": close,
+                    }
+                except Exception as e:
+                    logger.warning(f"Predict failed for {ts_code}: {e}")
                     continue
-                
-                features = stock_norm[self._config.feature_fields].values[0]
-                
-                if np.isnan(features).any():
-                    logger.debug(f"NaN features for {ts_code}, skipping")
+        
+        # XGBoost 使用原有逻辑
+        else:
+            normalizer_input = self._config.feature_fields + ['trade_date', 'ts_code']
+            available_fields = [f for f in normalizer_input if f in day_df.columns]
+            normalized = self._normalizer.normalize(day_df[available_fields])
+            
+            for ts_code in ts_codes:
+                try:
+                    stock_norm = normalized[normalized['ts_code'] == ts_code]
+                    
+                    if stock_norm.empty:
+                        continue
+                    
+                    features = stock_norm[self._config.feature_fields].values[0]
+                    
+                    if np.isnan(features).any():
+                        logger.debug(f"NaN features for {ts_code}, skipping")
+                        continue
+                    
+                    predictions = self._classifier.predict(features.reshape(1, -1), target_names)
+                    probabilities = self._classifier.predict_proba(features.reshape(1, -1), target_names)
+                    
+                    up_prob_3d = probabilities.get("label_3d", [0, 0, 0])[2] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
+                    up_prob_5d = probabilities.get("label_5d", [0, 0, 0])[2] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
+
+                    down_prob_3d = probabilities.get("label_3d", [0, 0, 0])[0] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
+                    down_prob_5d = probabilities.get("label_5d", [0, 0, 0])[0] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
+
+                    score_3d = up_prob_3d - down_prob_3d
+                    score_5d = up_prob_5d - down_prob_5d
+
+                    score = score_3d * 0.4 + score_5d * 0.6
+                    
+                    day_row = day_df[day_df['ts_code'] == ts_code]
+                    close = float(day_row.iloc[0]['close']) if not day_row.empty else 0
+                    
+                    result[ts_code] = {
+                        "up_prob_3d": up_prob_3d,
+                        "up_prob_5d": up_prob_5d,
+                        "down_prob_3d": down_prob_3d,
+                        "down_prob_5d": down_prob_5d,
+                        "score": score,
+                        "close": close,
+                    }
+                except Exception as e:
+                    logger.warning(f"Predict failed for {ts_code}: {e}")
                     continue
-                
-                predictions = self._classifier.predict(features.reshape(1, -1), target_names)
-                probabilities = self._classifier.predict_proba(features.reshape(1, -1), target_names)
-                
-                up_prob_3d = probabilities.get("label_3d", [0, 0, 0])[2] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
-                up_prob_5d = probabilities.get("label_5d", [0, 0, 0])[2] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
-
-                down_prob_3d = probabilities.get("label_3d", [0, 0, 0])[0] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
-                down_prob_5d = probabilities.get("label_5d", [0, 0, 0])[0] if isinstance(probabilities.get("label_5d"), list) and len(probabilities["label_5d"]) == 3 else 0
-
-                score_3d = up_prob_3d - down_prob_3d
-                score_5d = up_prob_5d - down_prob_5d
-
-                score = score_3d * 0.4 + score_5d * 0.6
-                
-                day_row = day_df[day_df['ts_code'] == ts_code]
-                close = float(day_row.iloc[0]['close']) if not day_row.empty else 0
-                
-                result[ts_code] = {
-                    "up_prob_3d": up_prob_3d,
-                    "up_prob_5d": up_prob_5d,
-                    "down_prob_3d": down_prob_3d,
-                    "down_prob_5d": down_prob_5d,
-                    "score": score,
-                    "close": close,
-                }
-            except Exception as e:
-                logger.warning(f"Predict failed for {ts_code}: {e}")
-                continue
         
         return result
 
