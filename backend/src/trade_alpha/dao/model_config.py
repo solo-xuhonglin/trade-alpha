@@ -65,11 +65,13 @@ class ModelConfig(Document):
     # lstm 超参数（仅 model_type="lstm" 时使用）
     lstm_hidden_size: int = 64
     lstm_num_layers: int = 2
-    lstm_dropout: float = 0.1
+    lstm_dropout: float = 0.2  # 从 0.1 调整为 0.2
     lstm_epochs: int = 50
     lstm_batch_size: int = 32
     lstm_learning_rate: float = 0.001
     lstm_sequence_length: int = 60  # 序列长度（用于模型输入和滑动窗口标准化）
+    label_smoothing: float = 0.1  # 标签平滑系数
+    early_stopping_patience: int = 5  # 早停耐心值
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

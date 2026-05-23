@@ -68,8 +68,8 @@
         <v-tabs v-model="detailTab" color="primary">
           <v-tab value="overview">概览</v-tab>
           <v-tab value="accuracy">准确率</v-tab>
-          <v-tab value="loss">训练Loss</v-tab>
-          <v-tab value="features">特征重要性</v-tab>
+          <v-tab v-if="detailItem.model_type === 'lstm'" value="loss">训练Loss</v-tab>
+          <v-tab v-if="detailItem.model_type === 'xgboost'" value="features">特征重要性</v-tab>
         </v-tabs>
 
         <v-window v-model="detailTab" class="mt-4 overflow-auto" style="max-height: 380px;">
@@ -83,6 +83,28 @@
                   </v-card-text>
                 </v-card>
               </v-col>
+              
+              <v-col v-if="detailItem.model_type === 'lstm'" cols="12" sm="4">
+                <v-card variant="outlined">
+                  <v-card-text class="text-center">
+                    <div class="text-h5">
+                      <span v-if="detailItem.model_metrics.early_stopped">
+                        早停于第 {{ detailItem.model_metrics.actual_epochs }} 轮
+                      </span>
+                      <span v-else>
+                        {{ detailItem.model_metrics.actual_epochs || 25 }} 轮
+                      </span>
+                    </div>
+                    <div class="text-caption">
+                      <span v-if="detailItem.model_metrics.early_stopped">
+                        最佳: 第 {{ detailItem.model_metrics.best_epoch }} 轮
+                      </span>
+                      <span v-else>训练完成</span>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              
               <v-col v-for="target in ['label_3d', 'label_5d']" :key="target" cols="12" sm="4">
                 <v-card variant="outlined">
                   <v-card-text class="text-center">
@@ -131,7 +153,10 @@
                 Final Loss: {{ detailItem.model_metrics.final_train_loss?.toFixed(4) }}
               </div>
               <div v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx">
-                Epoch {{ idx + 1 }}: {{ loss.toFixed(4) }}
+                Epoch {{ idx + 1 }}: Train={{ loss.toFixed(4) }}
+                <span v-if="detailItem.model_metrics.val_loss_per_epoch?.[idx]">
+                  Val={{ detailItem.model_metrics.val_loss_per_epoch[idx].toFixed(4) }}
+                </span>
               </div>
             </div>
             <div v-else class="text-caption text-medium-emphasis">

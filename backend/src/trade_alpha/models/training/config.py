@@ -51,11 +51,13 @@ async def create_config(
     xgb_colsample_bytree: float = 1.0,
     lstm_hidden_size: int = 64,
     lstm_num_layers: int = 2,
-    lstm_dropout: float = 0.1,
+    lstm_dropout: float = 0.2,
     lstm_epochs: int = 25,
     lstm_batch_size: int = 256,
     lstm_learning_rate: float = 0.001,
     lstm_sequence_length: int = 60,
+    label_smoothing: float = 0.1,
+    early_stopping_patience: int = 5,
 ) -> ModelConfig:
     """Create model configuration.
 
@@ -75,11 +77,13 @@ async def create_config(
         xgb_colsample_bytree: XGBoost colsample ratio, defaults to 1.0
         lstm_hidden_size: LSTM hidden layer size, defaults to 64
         lstm_num_layers: LSTM number of layers, defaults to 2
-        lstm_dropout: LSTM dropout ratio, defaults to 0.1
+        lstm_dropout: LSTM dropout ratio, defaults to 0.2
         lstm_epochs: LSTM training epochs, defaults to 25
         lstm_batch_size: LSTM batch size, defaults to 256
         lstm_learning_rate: LSTM learning rate, defaults to 0.001
         lstm_sequence_length: LSTM input sequence length, defaults to 60
+        label_smoothing: Label smoothing coefficient, defaults to 0.1
+        early_stopping_patience: Early stopping patience, defaults to 5
     """
     if not name:
         raise ValueError("name is required")
@@ -117,6 +121,8 @@ async def create_config(
         lstm_batch_size=lstm_batch_size,
         lstm_learning_rate=lstm_learning_rate,
         lstm_sequence_length=lstm_sequence_length,
+        label_smoothing=label_smoothing,
+        early_stopping_patience=early_stopping_patience,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )

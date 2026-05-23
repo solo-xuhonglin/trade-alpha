@@ -229,10 +229,16 @@ async def get_training(training_id: str):
     t = await training.get_training_by_id(obj_id)
     if not t:
         raise HTTPException(status_code=404, detail="Training not found")
+    
+    # 获取配置以获取 model_type
+    config = await training.get_config_by_id(t.config_id)
+    model_type = config.model_type if config else None
+    
     return {
         "id": str(t.id),
         "config_id": str(t.config_id),
         "name": t.name,
+        "model_type": model_type,
         "ts_codes": t.ts_codes,
         "start_date": to_api_format(t.start_date),
         "end_date": to_api_format(t.end_date),

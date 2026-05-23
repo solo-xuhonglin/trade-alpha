@@ -9,7 +9,7 @@ from trade_alpha.models.base import BaseClassifier
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_class=3, dropout=0.1):
+    def __init__(self, input_size, hidden_size, num_layers, num_class=3, dropout=0.2):
         super().__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True,
                             dropout=dropout if num_layers > 1 else 0)
@@ -17,7 +17,8 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         out, _ = self.lstm(x)
-        return torch.softmax(self.fc(out[:, -1, :]), dim=1)
+        # 输出 logits，不做 softmax，因为 CrossEntropyLoss 内部会处理
+        return self.fc(out[:, -1, :])
 
 
 class LSTMClassifier(BaseClassifier):
@@ -84,9 +85,21 @@ class LSTMClassifier(BaseClassifier):
         valid_mask = ~np.isnan(y_2d).any(axis=1)
         X_3d, y_2d = X_3d[valid_mask], y_2d[valid_mask]
 
+        # 划分训练集和验证集 (80% / 20%)
+        num_samples = len(X_3d)
+        train_size = int(num_samples * 0.8)
+        indices = np.random.permutation(num_samples)
+        train_indices = indices[:train_size]
+        val_indices = indices[train_size:]
+
         await TaskService.update_progress(task_id, 60, "正在训练模型...")
 
         all_epoch_losses = []
+        all_val_losses = []
+        actual_epochs = 0
+        early_stopped = False
+        best_epoch = 0
+
         for target_idx, target in enumerate(target_names):
             y_i = y_2d[:, target_idx].astype(int)
             unique_labels = sorted(set(y_i))
@@ -94,42 +107,105 @@ class LSTMClassifier(BaseClassifier):
             reverse_map = {label: j for j, label in label_map.items()}
             y_mapped = np.array([reverse_map[v] for v in y_i])
 
+            # 划分数据
+            X_train, X_val = X_3d[train_indices], X_3d[val_indices]
+            y_train, y_val = y_mapped[train_indices], y_mapped[val_indices]
+
             model = LSTMModel(self.input_size, config.lstm_hidden_size, config.lstm_num_layers,
                               len(label_map), config.lstm_dropout).to(device)
-            criterion = nn.CrossEntropyLoss()
-            optimizer = torch.optim.Adam(model.parameters(), lr=config.lstm_learning_rate)
-
-            X_tensor = torch.FloatTensor(X_3d).to(device)
-            y_tensor = torch.LongTensor(y_mapped).to(device)
-            loader = torch.utils.data.DataLoader(
-                torch.utils.data.TensorDataset(X_tensor, y_tensor),
-                batch_size=config.lstm_batch_size, shuffle=True,
+            
+            # 添加标签平滑
+            criterion = nn.CrossEntropyLoss(label_smoothing=getattr(config, 'label_smoothing', 0.1))
+            # 添加 L2 正则化
+            optimizer = torch.optim.Adam(
+                model.parameters(), 
+                lr=config.lstm_learning_rate,
+                weight_decay=1e-4  # L2 正则化
             )
 
-            model.train()
-            for _ in range(config.lstm_epochs):
-                for batch_X, batch_y in loader:
+            X_train_tensor = torch.FloatTensor(X_train).to(device)
+            y_train_tensor = torch.LongTensor(y_train).to(device)
+            X_val_tensor = torch.FloatTensor(X_val).to(device)
+            y_val_tensor = torch.LongTensor(y_val).to(device)
+            
+            train_loader = torch.utils.data.DataLoader(
+                torch.utils.data.TensorDataset(X_train_tensor, y_train_tensor),
+                batch_size=config.lstm_batch_size, shuffle=True,
+            )
+            
+            # 早停相关变量
+            best_val_loss = float('inf')
+            patience_counter = 0
+            patience = getattr(config, 'early_stopping_patience', 5)
+            best_model_state = None
+
+            epoch_losses = []
+            val_epoch_losses = []
+
+            for epoch in range(config.lstm_epochs):
+                # 训练
+                model.train()
+                epoch_train_loss = 0.0
+                num_batches = 0
+                for batch_X, batch_y in train_loader:
                     optimizer.zero_grad()
-                    criterion(model(batch_X), batch_y).backward()
+                    logits = model(batch_X)
+                    loss = criterion(logits, batch_y)
+                    loss.backward()
                     optimizer.step()
-
-            model.eval()
-            epoch_loss = 0.0
-            num_batches = 0
-            for batch_X, batch_y in loader:
-                with torch.no_grad():
-                    epoch_loss += criterion(model(batch_X), batch_y).item()
+                    epoch_train_loss += loss.item()
                     num_batches += 1
+                avg_train_loss = epoch_train_loss / max(num_batches, 1)
+                epoch_losses.append(avg_train_loss)
 
-            all_epoch_losses.append(epoch_loss / max(num_batches, 1))
+                # 验证
+                model.eval()
+                with torch.no_grad():
+                    val_logits = model(X_val_tensor)
+                    val_loss = criterion(val_logits, y_val_tensor).item()
+                    val_epoch_losses.append(val_loss)
+
+                # 早停检查
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    patience_counter = 0
+                    best_model_state = model.state_dict().copy()
+                    best_epoch = epoch + 1
+                else:
+                    patience_counter += 1
+
+                # 更新进度消息
+                if patience_counter > 0:
+                    msg = f"正在训练 {target}，Epoch {epoch + 1}/{config.lstm_epochs}，Train Loss: {avg_train_loss:.4f}，Val Loss: {val_loss:.4f}，等待早停 {patience_counter}/{patience}"
+                else:
+                    msg = f"正在训练 {target}，Epoch {epoch + 1}/{config.lstm_epochs}，Train Loss: {avg_train_loss:.4f}，Val Loss: {val_loss:.4f}（最佳）"
+                await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, msg)
+
+                if patience_counter >= patience:
+                    early_stopped = True
+                    await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, f"{target} 早停于 Epoch {epoch + 1}")
+                    break
+
+            # 恢复最佳模型
+            if best_model_state is not None:
+                model.load_state_dict(best_model_state)
+
+            actual_epochs = len(epoch_losses)
+            all_epoch_losses.append(epoch_losses[-1])
+            all_val_losses.append(val_epoch_losses[-1])
+
             self.models[target] = model.cpu()
             self._label_mapping[target] = label_map
 
         await TaskService.update_progress(task_id, 80, "正在评估模型...")
         metrics = {
             "final_train_loss": all_epoch_losses[-1] if all_epoch_losses else None,
-            "loss_per_epoch": all_epoch_losses,
+            "loss_per_epoch": epoch_losses,  # 最后一个目标的训练 loss 记录
+            "val_loss_per_epoch": val_epoch_losses,  # 最后一个目标的验证 loss 记录
             "sample_count": len(X_3d),
+            "actual_epochs": actual_epochs,
+            "early_stopped": early_stopped,
+            "best_epoch": best_epoch,
         }
 
         for target_idx, target in enumerate(target_names):
@@ -137,7 +213,8 @@ class LSTMClassifier(BaseClassifier):
             model = self.models[target].eval()
             with torch.no_grad():
                 X_eval = torch.FloatTensor(X_3d).cpu()
-                y_pred_idx = model(X_eval).argmax(dim=1).numpy()
+                logits = model(X_eval)
+                y_pred_idx = logits.argmax(dim=1).numpy()
             label_map = self._label_mapping[target]
             y_pred = np.array([label_map[p] for p in y_pred_idx])
             accuracy = float(np.mean(y_pred == y_true))
@@ -164,7 +241,8 @@ class LSTMClassifier(BaseClassifier):
                 continue
             self.models[target].eval()
             with torch.no_grad():
-                pred_idx = self.models[target](X_tensor)[0].argmax().item()
+                logits = self.models[target](X_tensor)
+                pred_idx = logits.argmax(dim=1)[0].item()
                 result[target] = self._label_mapping[target][pred_idx]
         return result
 
@@ -183,7 +261,8 @@ class LSTMClassifier(BaseClassifier):
                 continue
             self.models[target].eval()
             with torch.no_grad():
-                proba_mapped = self.models[target](X_tensor)[0].numpy()
+                logits = self.models[target](X_tensor)
+                proba_mapped = torch.softmax(logits, dim=1)[0].numpy()  # 在这里做 softmax
                 label_map = self._label_mapping[target]
                 proba = [0.0, 0.0, 0.0]
                 for j, label in label_map.items():

@@ -6,8 +6,12 @@ export interface TrainingMetrics {
   accuracy?: Record<string, number>
   final_train_loss?: number
   loss_per_epoch?: number[]
+  val_loss_per_epoch?: number[]
   feature_importance?: Record<string, Record<string, number>>
   class_distribution?: Record<string, Record<string, number>>
+  actual_epochs?: number
+  early_stopped?: boolean
+  best_epoch?: number
 }
 
 export interface Training {
@@ -24,6 +28,7 @@ export interface Training {
 }
 
 export interface TrainingDetail extends Training {
+  model_type?: string
   model_metrics: TrainingMetrics
   normalized_data_analysis: AnalysisResult | null
 }

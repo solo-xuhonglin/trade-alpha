@@ -30,6 +30,8 @@ class ConfigCreate(BaseModel):
     lstm_batch_size: Optional[int] = None
     lstm_learning_rate: Optional[float] = None
     lstm_sequence_length: Optional[int] = None
+    label_smoothing: Optional[float] = None
+    early_stopping_patience: Optional[int] = None
 
 
 class ConfigUpdate(BaseModel):
@@ -52,6 +54,8 @@ class ConfigUpdate(BaseModel):
     lstm_batch_size: Optional[int] = None
     lstm_learning_rate: Optional[float] = None
     lstm_sequence_length: Optional[int] = None
+    label_smoothing: Optional[float] = None
+    early_stopping_patience: Optional[int] = None
 
 
 def config_to_dict(c):
@@ -78,6 +82,8 @@ def config_to_dict(c):
         "lstm_batch_size": c.lstm_batch_size,
         "lstm_learning_rate": c.lstm_learning_rate,
         "lstm_sequence_length": c.lstm_sequence_length,
+        "label_smoothing": c.label_smoothing,
+        "early_stopping_patience": c.early_stopping_patience,
         "created_at": c.created_at,
         "updated_at": c.updated_at,
     }
@@ -103,11 +109,13 @@ async def create_config(body: ConfigCreate):
             xgb_colsample_bytree=body.xgb_colsample_bytree or 1.0,
             lstm_hidden_size=body.lstm_hidden_size or 64,
             lstm_num_layers=body.lstm_num_layers or 2,
-            lstm_dropout=body.lstm_dropout or 0.1,
+            lstm_dropout=body.lstm_dropout or 0.2,
             lstm_epochs=body.lstm_epochs or 25,
             lstm_batch_size=body.lstm_batch_size or 256,
             lstm_learning_rate=body.lstm_learning_rate or 0.001,
             lstm_sequence_length=body.lstm_sequence_length or 60,
+            label_smoothing=body.label_smoothing or 0.1,
+            early_stopping_patience=body.early_stopping_patience or 5,
         )
         return config_to_dict(c)
     except ValueError as e:
