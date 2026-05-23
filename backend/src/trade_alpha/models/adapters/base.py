@@ -32,43 +32,17 @@ class BaseTrainerAdapter(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_total_training_stages(self, config, num_years: int, num_targets: int) -> int:
-        """计算总训练阶段数，用于进度显示
-
-        Args:
-            config: ModelConfig对象
-            num_years: 年数
-            num_targets: 目标数量
-
-        Returns:
-            总阶段数
-        """
-        pass
-
-    @abstractmethod
-    def train_with_progress(
-        self,
-        classifier,
-        X: np.ndarray,
-        y: np.ndarray,
-        target_names: List[str],
-        stage_offset: int,
-        total_stages: int,
-        update_callback
-    ):
-        """训练模型，带进度回调
-
+    def train(self, classifier, X: np.ndarray, y: np.ndarray, target_names: List[str], progress_callback=None):
+        """训练模型（可选的进度回调）
+        
         Args:
             classifier: 分类器实例
             X: 特征数据
             y: 标签数据
             target_names: 目标列名列表
-            stage_offset: 阶段偏移量
-            total_stages: 总阶段数
-            update_callback: 进度更新回调函数
+            progress_callback: 可选的进度回调函数
         """
-        pass
+        classifier.fit(X, y, target_names)
 
 
 class BaseExecutorAdapter(ABC):
