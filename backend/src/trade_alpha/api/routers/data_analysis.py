@@ -2,11 +2,12 @@
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, field_validator
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from beanie import PydanticObjectId
 from datetime import datetime
 
-from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.dao.task import TaskStatus, TaskType
+from trade_alpha.services.task_service import TaskService
 from trade_alpha.dao.data_analysis_result import DataAnalysisResult
 from trade_alpha.data.service import list_stocks_by_mv_rank
 from trade_alpha.data.analysis_service import (
@@ -42,25 +43,19 @@ async def trigger_data_analysis(
     params: DataAnalysisCreate,
 ):
     """Trigger data analysis task (async)."""
-    # Generate default name
     if not params.name:
         now = datetime.now()
         params.name = f"analysis_{now.strftime('%Y%m%d%H%M%S')}"
 
-    task = await Task(
-        type=TaskType.DATA_ANALYSIS,
-        status=TaskStatus.PENDING,
-        params={
-            "name": params.name,
-            "ts_codes": params.ts_codes,
-            "start_rank": params.start_rank,
-            "end_rank": params.end_rank,
-            "start_date": params.start_date,
-            "end_date": params.end_date,
-            "feature_fields": params.feature_fields,
-        },
-        created_at=datetime.now(),
-    ).save()
+    task = await TaskService.create_task(TaskType.DATA_ANALYSIS, {
+        "name": params.name,
+        "ts_codes": params.ts_codes,
+        "start_rank": params.start_rank,
+        "end_rank": params.end_rank,
+        "start_date": params.start_date,
+        "end_date": params.end_date,
+        "feature_fields": params.feature_fields,
+    })
 
     background_tasks.add_task(run_data_analysis_async, str(task.id))
 
@@ -76,31 +71,26 @@ async def run_data_analysis_async(task_id: str):
     from trade_alpha.logging import get_logger
 
     logger = get_logger("data_analysis.task")
-    task = await Task.get(PydanticObjectId(task_id))
+    task = await TaskService.get_task(PydanticObjectId(task_id))
     if not task:
         return
 
     try:
-        task.status = TaskStatus.RUNNING
-        task.started_at = datetime.now()
-        task.progress = 0.0
-        task.progress_message = "正在初始化..."
-        await task.save()
+        await TaskService.start_task(task.id)
 
         params = task.params
         
-        # 处理ts_codes或start_rank/end_rank
         ts_codes = params.get("ts_codes", [])
         if not ts_codes:
-            task.progress_message = "正在查询股票列表..."
-            await task.save()
+            await TaskService.update_progress(task.id, 5.0, "正在查询股票列表...")
             start_rank = params.get("start_rank", 1)
             end_rank = params.get("end_rank", 1000)
             stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
             ts_codes = [s.ts_code for s in stocks]
 
         if not ts_codes:
-            raise ValueError("No stocks found")
+            await TaskService.fail_task(task.id, "No stocks found")
+            return
             
         feature_fields = params.get("feature_fields") or DEFAULT_INDICATOR_FIELDS
 
@@ -122,19 +112,11 @@ async def run_data_analysis_async(task_id: str):
             result=result,
         )
 
-        task.status = TaskStatus.COMPLETED
-        task.progress = 100.0
-        task.progress_message = "分析完成"
-        task.result_id = analysis_result_id
-        task.completed_at = datetime.now()
-        await task.save()
+        await TaskService.complete_task(task.id, analysis_result_id)
 
     except Exception as e:
         logger.error(f"Data analysis task {task_id} failed: {e}")
-        task.status = TaskStatus.FAILED
-        task.error_message = str(e)
-        task.progress_message = f"分析失败: {str(e)}"
-        await task.save()
+        await TaskService.fail_task(task.id, str(e))
 
 
 @router.get("/task/{task_id}")
@@ -145,7 +127,7 @@ async def get_analysis_task(task_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid task ID format")
 
-    task = await Task.get(obj_id)
+    task = await TaskService.get_task(obj_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -179,16 +161,19 @@ async def list_analysis_tasks(
     status: Optional[str] = None,
 ):
     """List analysis tasks."""
-    query = Task.find(Task.type == TaskType.DATA_ANALYSIS)
-
+    task_status = None
     if status:
         try:
-            query = query.find(Task.status == TaskStatus(status))
+            task_status = TaskStatus(status)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid status")
 
-    total = await query.count()
-    tasks = await query.sort(-Task.created_at).skip((page - 1) * page_size).limit(page_size).to_list()
+    result = await TaskService.list_tasks(
+        task_type=TaskType.DATA_ANALYSIS,
+        status=task_status,
+        page=page,
+        page_size=page_size,
+    )
 
     return {
         "items": [
@@ -203,12 +188,12 @@ async def list_analysis_tasks(
                 "completed_at": t.completed_at.isoformat() if t.completed_at else None,
                 "error_message": t.error_message,
             }
-            for t in tasks
+            for t in result["items"]
         ],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size,
+        "total": result["total"],
+        "page": result["page"],
+        "page_size": result["page_size"],
+        "total_pages": result["total_pages"],
     }
 
 
