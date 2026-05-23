@@ -440,11 +440,11 @@ MACDStrategy:
 | `end_date` | string | 训练结束日期 |
 | `feature_fields` | array | 特征字段列表 |
 | `classification_horizons` | array | 分类预测周期列表 |
-| `metrics` | object | 训练指标 |
+| `model_metrics` | object | 训练指标 |
 | `model_path` | string | 模型文件路径 |
 | `created_at` | datetime | 创建时间 |
 
-**训练评估指标结构** (metrics):
+**指标说明**:
 
 ```json
 {
@@ -496,9 +496,10 @@ MACDStrategy:
 | 字段 | 类型 | 说明 | 默认值 |
 |------|------|------|-------|
 | `type` | string | 任务类型 ("backtest" / "training" / "data_analysis") | - |
-| `status` | string | 任务状态 ("pending" / "running" / "completed" / "failed") | "pending" |
+| `status` | string | 任务状态 ("pending" / "running" / "completed" / "failed" / "cancelled") | "pending" |
 | `progress` | float | 任务进度 (0.0 - 100.0) | 0.0 |
 | `progress_message` | string | 进度描述 | - |
+| `pid` | int | 子进程 PID（用于进程管理和停止/恢复） | - |
 | `result_id` | ObjectId | 关联的结果ID (execution_result、training_result或data_analysis_result) | - |
 | `error_message` | string | 错误信息（失败时） | - |
 | `created_at` | datetime | 创建时间 | now |
@@ -511,6 +512,7 @@ MACDStrategy:
 - `running`: 任务执行中
 - `completed`: 任务成功完成
 - `failed`: 任务执行失败
+- `cancelled`: 任务被手动停止
 
 ### data_analysis_results
 

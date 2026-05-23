@@ -55,23 +55,13 @@ trade-alpha/
 │   │   ├── data/             # 数据获取模块
 │   │   ├── indicators/        # 技术指标模块
 │   │   ├── models/              # 模型模块
-│   │   │   ├── adapters/        # 模型适配器层
-│   │   │   │   ├── base.py     # 适配器基类
-│   │   │   │   ├── registry.py # 适配器注册器
-│   │   │   │   ├── xgboost/    # XGBoost 适配器
-│   │   │   │   └── lstm/       # LSTM 适配器
-│   │   │   ├── classifiers/    # 模型分类器
-│   │   │   │   ├── base.py     # BaseClassifier 基类
-│   │   │   │   ├── xgboost.py  # XGBoost 分类器
-│   │   │   │   └── lstm.py     # LSTM 分类器
-│   │   │   ├── normalizers/    # 标准化器
-│   │   │   │   ├── base.py                # BaseNormalizer 基类
-│   │   │   │   ├── sliding_window.py      # 滑动窗口标准化
-│   │   │   │   ├── cross_sectional.py     # 截面标准化
-│   │   │   │   └── registry.py            # 标准化器注册表
-│   │   │   └── training/       # 训练和配置服务
-│   │   │       ├── config.py   # 模型配置服务
-│   │   │       └── trainer.py  # 训练服务
+│   │   │   ├── base.py          # BaseClassifier 基类
+│   │   │   ├── xgboost/         # XGBoost 模型（分类器 + 标准化器）
+│   │   │   ├── lstm/            # LSTM 模型（分类器 + 标准化器）
+│   │   │   └── training/        # 训练和配置服务
+│   │   │       ├── config.py    # 模型配置 CRUD
+│   │   │       ├── trainer.py   # 训练编排
+│   │   │       └── helpers.py   # 共享训练辅助函数
 │   │   ├── strategy/          # 交易策略模块
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py        # 策略基类 (PositionManager)
@@ -165,7 +155,7 @@ trade-alpha/
 - `account_config.py`: 账户配置 Document
 - `strategy_config.py`: 策略配置 Document
 - `model_config.py`: 模型配置 Document
-- `training.py`: 训练结果 Document（包含 metrics 字段）
+- `training.py`: 训练结果 Document（包含 model_metrics 字段）
 - `execution.py`: 执行结果 Document
 - `execution_trade.py`: 执行交易 Document
 - `execution_daily_snapshot.py`: 每日账户快照 Document
@@ -228,65 +218,58 @@ trade-alpha/
 
 ### 7. 模型模块 (models)
 
-#### adapters - 模型适配器层
+采用自包含模型架构，每个模型类型拥有独立的目录（分类器 + 标准化器），消除了适配器中间层。
 
-采用适配器模式，隔离不同模型类型的特定逻辑，消除代码中的模型类型判断：
+**模块结构**:
 
-- `BaseTrainerAdapter`: 训练适配器抽象基类
-  - `create_normalizer()`: 创建适合该模型的标准化器
-  - `create_classifier()`: 创建分类器实例
-  - `get_total_training_stages()`: 计算总训练阶段数
-  - `train_with_progress()`: 带进度回调的训练方法
+| 文件/目录 | 说明 |
+|-----------|------|
+| `base.py` | `BaseClassifier` 抽象基类，定义 `train()`, `predict()`, `predict_proba()`, `save()`, `load()` 接口 |
+| `xgboost/` | XGBoost 模型：`classifier.py`（分类器）+ `normalizer.py`（截面标准化器） |
+| `lstm/` | LSTM 模型：`classifier.py`（分类器）+ `normalizer.py`（滑动窗口标准化器） |
+| `training/config.py` | 模型配置 CRUD（`create_config`, `get_config_*`, `list_configs`, `update_config`, `delete_config`） |
+| `training/trainer.py` | 训练编排，根据 `config.model_type` 路由到对应模型 |
+| `training/helpers.py` | 共享训练辅助函数（标签生成、交叉验证） |
 
-- `BaseExecutorAdapter`: 执行适配器抽象基类
-  - `create_normalizer()`: 创建适合该模型的标准化器
-  - `load_prediction_data()`: 加载预测所需的数据
-  - `prepare_features()`: 为单只股票准备模型输入特征
+#### 训练流程
 
-- `XGBoostTrainerAdapter` / `XGBoostExecutorAdapter`: XGBoost 模型适配器
-- `LSTMTrainerAdapter` / `LSTMExecutorAdapter`: LSTM 模型适配器
+`create_training()` 根据 `config.model_type` 动态创建模型实例：
 
-**架构优势**:
-- 新增模型类型只需实现适配器，无需修改现有代码
-- 训练和执行逻辑完全分离
-- 易于测试和维护
+```python
+if config.model_type == "xgboost":
+    classifier = XGBoostClassifier(config)
+elif config.model_type == "lstm":
+    classifier = LSTMClassifier(config)
+```
 
-#### classifiers - 模型分类器
+调用 `classifier.train()` 后，训练指标通过 `model_metrics` 字段存入 `TrainingResult`。
 
-- `BaseClassifier`: 分类器抽象基类，定义 `fit()`, `predict()`, `predict_proba()`, `save()`, `load()` 接口
-- `XGBoostClassifier`: XGBoost 分类器（分类任务，支持多 horizons）
-- `LSTMClassifier`: LSTM 神经网络分类器（分类任务，支持多 horizons）
+#### 标准化方式
 
-#### normalizers - 标准化器
+| 模型 | 标准化 | 分组依据 | 说明 |
+|------|--------|---------|------|
+| XGBoost | 截面 Z-score | 按 `trade_date` 分组 | 同一交易日所有股票一起标准化，保留相对排序 |
+| LSTM | 滑动窗口 Z-score | 按序列窗口（默认60天） | 窗口内独立标准化，关注时序形态模式 |
 
-- `BaseNormalizer`: 标准化器抽象基类
-- `SlidingWindowNormalizer`: 滑动窗口标准化（用于 LSTM 等时序模型）
-- `CrossSectionalNormalizer`: 截面标准化（用于 XGBoost 等截面模型）
-- `NormalizerRegistry`: 标准化器注册表
+#### 分类标签
 
-#### training - 训练和配置
-
-- `config.py`: 模型配置服务
-  - `create_config()`: 创建模型配置
-  - `get_config_by_id()` / `get_config_by_name()`: 获取配置
-  - `list_configs()`: 列出配置
-  - `update_config()`: 更新配置
-  - `delete_config()`: 删除配置（级联删除训练记录）
-
-- `trainer.py`: 训练服务
-  - `create_training()`: 创建训练（支持多股票样本混合，name 唯一约束）
-  - `get_training_by_id()`: 获取训练记录
-  - `get_training_by_name()`: 按名称获取训练记录
-  - `list_trainings()`: 列出训练记录
-  - `delete_training()`: 删除训练（删除模型文件）
-  - `predict_with_training()`: 使用训练模型预测
-
-**样本混合策略**: 支持多只股票数据合并训练，提高模型泛化能力
-
-**分类标签**: 分类任务使用 -1/0/1 三类标签
+分类任务使用 -1/0/1 三类标签：
 - `-1`: 下跌
 - `0`: 持平
 - `1`: 上涨
+
+#### 训练评估指标
+
+存储在 `TrainingResult.model_metrics` 中：
+
+| 字段 | 说明 |
+|------|------|
+| `sample_count` | 训练样本总数 |
+| `accuracy` | 各目标（label_3d/label_5d）的分类准确率 |
+| `final_train_loss` | LSTM 最终训练 loss（仅 LSTM 模型） |
+| `loss_per_epoch` | LSTM 每 epoch 的 loss 列表（仅 LSTM 模型） |
+| `feature_importance` | 各特征的重要性（XGBoost 按分裂增益，按目标分组） |
+| `class_distribution` | 类别分布比例（-1看跌/0震荡/1看涨） |
 
 ### 8. 策略模块 (strategy)
 
