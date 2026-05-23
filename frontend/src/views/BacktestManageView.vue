@@ -130,6 +130,9 @@
             <v-progress-linear :value="item.progress" height="4" class="mt-1" />
           </div>
         </template>
+        <template v-slot:item.created_at="{ item }">
+          {{ formatDate(item.created_at) }}
+        </template>
         <template v-slot:item.error_message="{ item }">
           <span class="text-error">{{ item.error_message }}</span>
         </template>
@@ -189,6 +192,13 @@ const form = ref({
   training_id: '',
   strategy_config_id: '',
 })
+
+const formatDate = (val: string | undefined) => {
+  if (!val) return ''
+  const d = val.split('T')[0]
+  const t = val.split('T')[1]?.split('.')[0]?.substring(0, 5)
+  return t ? `${d} ${t}` : d
+}
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const trainingModelTypeMap = ref<Record<string, string>>({})
