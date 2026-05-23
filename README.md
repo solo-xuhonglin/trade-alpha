@@ -26,14 +26,13 @@ trade-alpha/
 │   │   ├── dao/              # 数据访问层 (MongoDB)
 │   │   ├── data/             # 数据获取模块
 │   │   ├── indicators/       # 技术指标模块
-│   │   ├── predict/          # 预测模块
+│   │   ├── models/           # 机器学习模型 (XGBoost, LSTM)
 │   │   ├── strategy/         # 交易策略模块
 │   │   ├── account/          # 账户管理模块
 │   │   ├── execution/        # 执行框架模块
-│   │   ├── data_analysis/    # 数据分析模块
 │   │   ├── scheduler/        # 定时任务模块
-│   │   ├── logging.py        # 结构化日志
-│   │   └── api/              # FastAPI 接口
+│   │   ├── api/              # FastAPI 接口
+│   │   └── logging.py        # 结构化日志
 │   ├── tests/                # 测试
 │   ├── scripts/              # 工具脚本
 │   ├── main.py
@@ -85,100 +84,84 @@ cd frontend
 npm run dev
 ```
 
-## 使用示例
+## 使用指南
 
-```python
-# 获取并存储股票数据
-from trade_alpha.data import fetch_and_store
-fetch_and_store("000001.SZ", "20240101", "20241231")
+通过前端 Web 界面（http://localhost:3000）完成完整的股票分析和回测流程：
 
-# 计算并存储均线
-from trade_alpha.indicators import calculate_and_store_ma
-calculate_and_store_ma("000001.SZ", periods=[5, 10, 20, 60])
+### 1. 数据管理 `/data`
 
-# 计算并存储 MACD
-from trade_alpha.indicators import calculate_and_store_macd
-calculate_and_store_macd("000001.SZ")
+启动后自动从 Tushare 同步 A 股股票列表和数据。如需手动操作：
+- **更新股票列表**：点击"更新股票列表"获取最新 A 股数据
+- **下载数据**：选中股票，设置日期范围，点击下载
+- **查看 K 线**：点击股票行查看 K 线图
+- **删除数据**：选中不需要的股票数据删除
 
-# 预测价格
-from trade_alpha.predict import predict
-predict("000001.SZ", targets=["open", "close", "high", "low"])
+### 2. 数据分析 `/data-analysis`
 
-# 生成交易信号
-from trade_alpha.strategy import generate_signal
-signal = generate_signal("000001.SZ", strategy="price")
-print(f"Action: {signal['action']}, Current: {signal['current_price']}")
+对已下载的股票数据做特征分析：
+- **发起分析任务**：选择股票范围（按市值排名或指定代码）、时间范围和特征字段
+- **查看结果**：任务完成后查看统计指标（均值/标准差/分位数/缺失率）、直方图、箱线图
+- **管理**：查看历史结果列表，支持删除不需要的结果
 
-# 运行回测
-from trade_alpha.backtest import run_backtest
-result = run_backtest("000001.SZ", "20240101", "20241231", strategy="price")
-print(f"总收益率: {result.total_return:.2%}, 最大回撤: {result.max_drawdown:.2%}")
-```
+### 3. 账户配置 `/account-configs`
 
-## 命令行使用
+配置回测使用的账户参数：
+- 设置初始资金、买入费率、卖出费率、印花税率、最低手续费
+- 支持多个账户配置，回测时选择使用
 
-main.py 提供训练和回测功能，支持多种运行模式：
+### 4. 策略配置 `/strategies`
 
-```bash
-cd backend
-```
+配置回测使用的交易策略：
+- 创建不同策略类型（组合策略 / 单股票策略）
+- 动态设置策略参数（评分阈值、止损、持仓限制等）
+- 回测时选择对应的策略配置
 
-### 1. 完整流程（训练 + 综合回测）
+### 5. 模型配置 `/models`
 
-```bash
-python main.py --mode=full
-```
+配置预测模型参数：
+- 支持 **XGBoost** 和 **LSTM** 两种模型类型
+- 配置特征字段、分类预测周期（3日/5日）、涨跌分类阈值
+- 根据模型类型动态调整参数（LSTM 需设置序列长度）
+- 配置完成后点击"训练"跳转至训练页
 
-### 2. 仅训练模型
+### 6. 训练管理 `/trainings/manage`
 
-```bash
-python main.py --mode=train
-```
+发起训练任务：
+- 选择已创建的模型配置
+- 选择训练股票（通过市值排名范围，默认 1-1000 只）
+- 设置训练时间范围和名称
+- 提交后实时查看任务进度
 
-### 3. 使用已有模型进行综合回测
+### 7. 训练记录 `/trainings/records`
 
-```bash
-python main.py --mode=portfolio --training-id=<training_id>
-```
+查看和管理训练结果：
+- 按模型配置筛选训练历史
+- 查看训练指标（样本数、准确率、特征重要性、类别分布）
+- **LSTM 模型**额外显示 Final Loss 和每 Epoch Loss
+- 点击"预测"使用训练好的模型对指定股票进行预测
+- 查看预测结果（各周期的预测类别和上涨概率）
 
-### 4. 单股票回测（带基线对比）
+### 8. 回测管理 `/backtest/manage`
 
-```bash
-python main.py --mode=single --ts-code=600519.SH --training-id=<training_id>
-```
+发起回测任务：
+- 选择账户配置、训练结果、策略配置
+- 自动推断策略模式（组合策略 / 单股票策略）
+- 设置时间范围和回测名称
+- 组合模式设置最大持仓数，单股票模式输入股票代码
 
-### 5. 批量单股票回测
+### 9. 回测记录 `/backtest/records`
 
-```bash
-python main.py --mode=single-batch --training-id=<training_id>
-```
+查看回测结果：
+- 总收益率、夏普比率、最大回撤、波动率、胜率等核心指标
+- 基线对比（买入持有策略的收益率和最大回撤）
+- 超额收益分析
+- 查看详细交易记录
 
-### 参数说明
+### 10. 交易记录 `/backtest/trades`
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--mode` | 运行模式：full/train/portfolio/single/single-batch | full |
-| `--training-id` | 已有的训练ID（用于回测模式） | - |
-| `--ts-code` | 股票代码（单股票模式） | - |
-| `--train-start` | 训练开始日期 | 20160101 |
-| `--train-end` | 训练结束日期 | 20241231 |
-| `--backtest-start` | 回测开始日期 | 20250101 |
-| `--backtest-end` | 回测结束日期 | 20250331 |
-| `--max-positions` | 最大持仓数 | 10 |
-
-### 回测结果字段说明
-
-| 字段 | 说明 |
-|------|------|
-| Total Return | 总收益率 |
-| Max Drawdown | 最大回撤 |
-| Sharpe Ratio | 夏普比率 |
-| Volatility | 年化波动率 |
-| Avg Hold Days | 平均持仓天数 |
-| Win Rate | 胜率 |
-| Total Trades | 总交易次数 |
-| Baseline Return | 基线收益率（买入持有） |
-| Excess Return | 超额收益（策略 - 基线） |
+查看所有交易流水：
+- 按账户、策略、训练、股票多维度筛选
+- 每笔交易的买卖方向、价格、股数、手续费、评分等信息
 
 ## 开发
 

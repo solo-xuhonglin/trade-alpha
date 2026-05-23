@@ -12,7 +12,7 @@
         :items="filterOptions.account_configs"
         item-title="name"
         item-value="id"
-        label="账户"
+        label="账户配置"
         density="compact"
         variant="outlined"
         hide-details
@@ -22,11 +22,11 @@
       ></v-select>
 
       <v-select
-        v-model="filters.strategy_id"
-        :items="filterOptions.strategies"
+        v-model="filters.backtest_id"
+        :items="filterOptions.backtests"
         item-title="name"
         item-value="id"
-        label="策略"
+        label="回测"
         density="compact"
         variant="outlined"
         hide-details
@@ -111,19 +111,21 @@ const pageSize = ref(20)
 
 const filterOptions = ref<{
   account_configs: Array<{ id: string; name: string }>
-  strategies: Array<{ id: string; name: string }>
   trainings: Array<{ id: string; name: string }>
   ts_codes: string[]
+  backtests: Array<{ id: string; name: string }>
+  model_types: string[]
 }>({
   account_configs: [],
-  strategies: [],
   trainings: [],
-  ts_codes: []
+  ts_codes: [],
+  backtests: [],
+  model_types: []
 })
 
 const filters = ref({
   account_config_id: null as string | null,
-  strategy_id: null as string | null,
+  backtest_id: null as string | null,
   training_id: null as string | null,
   ts_code: null as string | null
 })
@@ -152,7 +154,7 @@ const loadTrades = async () => {
   try {
     const filterParams = {
       account_config_id: filters.value.account_config_id || undefined,
-      strategy_id: filters.value.strategy_id || undefined,
+      backtest_id: filters.value.backtest_id || undefined,
       training_id: filters.value.training_id || undefined,
       ts_code: filters.value.ts_code || undefined
     }

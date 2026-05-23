@@ -245,28 +245,35 @@ async def list_all_trades(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     account_config_id: Optional[str] = None,
-    strategy_id: Optional[str] = None,
+    backtest_id: Optional[str] = None,
     training_id: Optional[str] = None,
     ts_code: Optional[str] = None,
 ):
     """List all trades with optional filters."""
     query = ExecutionTrade.find_all()
 
-    if account_config_id or strategy_id or training_id or ts_code:
-        result_ids = []
-        result_query = ExecutionResult.find_all()
-        results = await result_query.to_list()
+    if account_config_id or backtest_id or training_id or ts_code:
+        filters = {}
+        if account_config_id:
+            try:
+                filters["account_config_id"] = PydanticObjectId(account_config_id)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid account config ID")
+        if backtest_id:
+            try:
+                filters["_id"] = PydanticObjectId(backtest_id)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid backtest ID")
+        if training_id:
+            try:
+                filters["training_id"] = PydanticObjectId(training_id)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid training ID")
+        if ts_code:
+            filters["ts_code"] = ts_code
 
-        for result in results:
-            match = True
-            if account_config_id and str(result.account_config_id) != account_config_id:
-                match = False
-            if training_id and str(result.training_id) != training_id:
-                match = False
-            if ts_code and result.ts_code != ts_code:
-                match = False
-            if match:
-                result_ids.append(result.id)
+        results = await ExecutionResult.find(filters).project(ExecutionResult.id).to_list()
+        result_ids = [r.id for r in results]
 
         query = ExecutionTrade.find(ExecutionTrade.backtest_id.in_(result_ids)) if result_ids else ExecutionTrade.find(ExecutionTrade.backtest_id == PydanticObjectId("000000000000000000000000"))
 
@@ -296,24 +303,46 @@ async def list_all_trades(
 @router.get("/trades/options")
 async def get_trade_filter_options():
     """Get filter options for trade list."""
-    from trade_alpha.dao.strategy_config import StrategyConfig
-    
+    # Collect account configs: from live collection + from execution results (handles deleted configs)
     account_configs = await AccountConfig.find_all().sort(-AccountConfig.created_at).to_list()
-    strategies = await StrategyConfig.find_all().sort(-StrategyConfig.created_at).to_list()
+    account_map = {str(c.id): c.name for c in account_configs}
+    exec_account_ids = await ExecutionResult.distinct("account_config_id", {"account_config_id": {"$ne": None}})
+    for aid in exec_account_ids:
+        aid_str = str(aid) if hasattr(aid, "__str__") else str(aid)
+        if aid_str not in account_map:
+            account_map[aid_str] = aid_str
+
+    # Collect trainings from execution results (handles deleted trainings)
     trainings = await TrainingResult.find_all().sort(-TrainingResult.created_at).to_list()
+    training_map = {str(t.id): t.name for t in trainings}
+    exec_training_ids = await ExecutionResult.distinct("training_id", {"training_id": {"$ne": None}})
+    for tid in exec_training_ids:
+        tid_str = str(tid) if hasattr(tid, "__str__") else str(tid)
+        if tid_str not in training_map:
+            training_map[tid_str] = tid_str
+
+    # Get actual ts_codes from execution results
+    ts_codes = await ExecutionResult.distinct("ts_code", {"ts_code": {"$ne": None, "$ne": ""}})
+
+    # Get execution results as backtest filter options
+    backtests = await ExecutionResult.find_all().sort(-ExecutionResult.created_at).to_list()
+
+    # Get model types from model_snapshot
+    model_types = await ExecutionResult.distinct("model_snapshot.model_type")
 
     return {
         "account_configs": [
-            {"id": str(config.id), "name": config.name}
-            for config in account_configs
-        ],
-        "strategies": [
-            {"id": str(strategy.id), "name": strategy.name}
-            for strategy in strategies
+            {"id": id, "name": name}
+            for id, name in account_map.items()
         ],
         "trainings": [
-            {"id": str(training.id), "name": training.name}
-            for training in trainings
+            {"id": id, "name": name}
+            for id, name in training_map.items()
         ],
-        "ts_codes": [],
+        "ts_codes": sorted(ts_codes),
+        "backtests": [
+            {"id": str(b.id), "name": b.name}
+            for b in backtests
+        ],
+        "model_types": model_types,
     }
