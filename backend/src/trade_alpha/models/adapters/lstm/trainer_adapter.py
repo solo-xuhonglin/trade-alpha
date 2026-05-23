@@ -1,5 +1,4 @@
-from typing import List
-import numpy as np
+from typing import List, Optional, Callable
 from ..base import BaseTrainerAdapter
 from ...classifiers.lstm import LSTMClassifier
 from ...normalizers.sliding_window import SlidingWindowNormalizer
@@ -28,24 +27,6 @@ class LSTMTrainerAdapter(BaseTrainerAdapter):
             sequence_length=config.lstm_sequence_length,
         )
 
-    def get_total_training_stages(self, config, num_years: int, num_targets: int) -> int:
-        # LSTM: 数据加载(2*years) + 训练(lstm_epochs * num_targets) + 评估(5) + 分析(1) + 完成(1)
-        return num_years * 2 + config.lstm_epochs * num_targets + 5 + 1 + 1
-
-    def train_with_progress(
-        self,
-        classifier,
-        X: np.ndarray,
-        y: np.ndarray,
-        target_names: List[str],
-        stage_offset: int,
-        total_stages: int,
-        update_callback
-    ):
-        num_targets = len(target_names)
-
-        def lstm_progress_callback(pct, msg):
-            training_stages = int(pct / 100 * classifier.epochs * num_targets)
-            update_callback(stage_offset + training_stages, msg)
-
-        classifier.fit(X, y, target_names, progress_callback=lstm_progress_callback)
+    def train(self, classifier, X, y, target_names: List[str], progress_callback: Optional[Callable] = None):
+        """训练 LSTM 模型"""
+        classifier.fit(X, y, target_names, progress_callback=progress_callback)
