@@ -2,7 +2,7 @@ import api from './index'
 
 export interface TrainingTaskStatus {
   task_id: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
   progress: number
   progress_message?: string
   error_message?: string
@@ -39,7 +39,9 @@ export const trainingApi = {
 
   getTask: (task_id: string) => api.get<TrainingTaskStatus>(`/trainings/task/${task_id}`),
 
-  cancelTask: (task_id: string) => api.delete(`/trainings/task/${task_id}`),
+  stopTask: (task_id: string, force = false) => api.post(`/trainings/task/${task_id}/stop?force=${force}`),
+
+  deleteTask: (task_id: string) => api.delete(`/trainings/task/${task_id}`),
 
   listTasks: (page?: number, pageSize?: number, status?: string) => {
     const params: Record<string, any> = {}

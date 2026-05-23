@@ -1,13 +1,13 @@
 """Training API router with async task support."""
 
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from beanie import PydanticObjectId
 from datetime import datetime
 
 from trade_alpha.models import training
-from trade_alpha.dao.task import TaskStatus, TaskType
-from trade_alpha.services.task_service import TaskService
+from trade_alpha.task.dao import TaskStatus, TaskType
+from trade_alpha.task.service import TaskService
 from trade_alpha.data.service import list_stocks_by_mv_rank
 from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.api.validators import validate_date_range, TradeDateQuery
@@ -17,7 +17,6 @@ router = APIRouter(prefix="/trainings", tags=["trainings"])
 
 @router.post("")
 async def trigger_training(
-    background_tasks: BackgroundTasks,
     config_id: str,
     name: str,
     start_date: TradeDateQuery,
@@ -25,7 +24,10 @@ async def trigger_training(
     start_rank: int = Query(1, ge=1),
     end_rank: int = Query(3000, ge=1),
 ):
-    """Trigger training task (async). Resolves stocks by market value rank range internally."""
+    """Trigger training task in subprocess."""
+    import subprocess
+    import sys
+
     try:
         config_obj_id = PydanticObjectId(config_id)
     except Exception:
@@ -50,42 +52,23 @@ async def trigger_training(
         "end_date": end_date,
     })
 
-    background_tasks.add_task(run_training_async, str(task.id))
+    proc = subprocess.Popen(
+        [
+            sys.executable, "-m", "trade_alpha.task.run_task",
+            "--task-id", str(task.id),
+            "--task-type", "training",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+
+    await TaskService.start_task(task.id, proc.pid)
 
     return {
         "task_id": str(task.id),
         "status": task.status.value,
         "message": "Training task triggered",
     }
-
-
-async def run_training_async(task_id: str):
-    """Execute training asynchronously."""
-    from trade_alpha.logging import get_logger
-
-    logger = get_logger("training.task")
-    task = await TaskService.get_task(PydanticObjectId(task_id))
-    if not task:
-        return
-
-    try:
-        await TaskService.start_task(task.id)
-
-        params = task.params
-        training_result = await training.create_training(
-            config_id=PydanticObjectId(params["config_id"]),
-            name=params["name"],
-            ts_codes=params["ts_codes"],
-            start_date=params["start_date"],
-            end_date=params["end_date"],
-            task_id=task.id,
-        )
-
-        await TaskService.complete_task(task.id, str(training_result.id))
-
-    except Exception as e:
-        logger.error(f"Training task {task_id} failed: {e}")
-        await TaskService.fail_task(task.id, str(e))
 
 
 @router.get("/task/{task_id}")
@@ -130,28 +113,33 @@ async def get_training_task(task_id: str):
     }
 
 
-@router.delete("/task/{task_id}")
-async def cancel_training_task(task_id: str):
-    """Cancel or delete training task."""
+@router.post("/task/{task_id}/stop")
+async def stop_training_task(task_id: str, force: bool = False):
+    """Stop a running training task."""
     try:
         obj_id = PydanticObjectId(task_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    task = await TaskService.get_task(obj_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        task = await TaskService.stop_task(obj_id, force)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    if task.status == TaskStatus.FAILED:
-        await task.delete()
-        return {"message": "Task deleted"}
+    return {"message": "Task stopped", "status": task.status.value}
 
-    if task.status == TaskStatus.COMPLETED:
-        raise HTTPException(status_code=400, detail="Task already completed")
 
-    await TaskService.fail_task(task.id, "Task cancelled by user")
+@router.delete("/task/{task_id}")
+async def delete_training_task(task_id: str):
+    """Delete a failed or completed training task."""
+    try:
+        obj_id = PydanticObjectId(task_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    return {"message": "Task cancelled"}
+    await TaskService.delete_task(obj_id)
+
+    return {"message": "Task deleted"}
 
 
 @router.get("/tasks")

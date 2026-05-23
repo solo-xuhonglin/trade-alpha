@@ -1,10 +1,12 @@
 """Task service for async task management."""
 
+import os
+import signal
 from typing import Optional, Dict, Any
 from datetime import datetime
 from beanie import PydanticObjectId
 
-from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.task.dao import Task, TaskStatus, TaskType
 from trade_alpha.logging import get_logger
 
 logger = get_logger("task_service")
@@ -27,8 +29,8 @@ class TaskService:
         return task
 
     @staticmethod
-    async def start_task(task_id: PydanticObjectId) -> Task:
-        """Mark task as RUNNING."""
+    async def start_task(task_id: PydanticObjectId, pid: int) -> Task:
+        """Mark task as RUNNING and record PID."""
         task = await Task.get(task_id)
         if not task:
             raise ValueError(f"Task not found: {task_id}")
@@ -36,8 +38,9 @@ class TaskService:
         task.started_at = datetime.now()
         task.progress = 0.0
         task.progress_message = "正在初始化..."
+        task.pid = pid
         await task.save()
-        logger.info(f"Task started: {task_id}")
+        logger.info(f"Task started: {task_id} pid={pid}")
         return task
 
     @staticmethod
@@ -68,6 +71,38 @@ class TaskService:
         await task.save()
         logger.error(f"Task failed: {task_id} error={error_message}")
         return task
+
+    @staticmethod
+    async def stop_task(task_id: PydanticObjectId, force: bool = False) -> Task:
+        """Stop a running task."""
+        task = await Task.get(task_id)
+        if not task:
+            raise ValueError(f"Task not found: {task_id}")
+
+        if task.status != TaskStatus.RUNNING:
+            raise ValueError(f"Task is not running: {task.status}")
+
+        if force and task.pid:
+            logger.info(f"Force stopping task {task_id} (PID={task.pid})")
+            try:
+                os.kill(task.pid, signal.SIGTERM)
+            except OSError:
+                logger.warning(f"Process {task.pid} already terminated")
+
+        task.status = TaskStatus.CANCELLED
+        task.completed_at = datetime.now()
+        await task.save()
+        logger.info(f"Task {task_id} cancelled (force={force})")
+        return task
+
+    @staticmethod
+    async def delete_task(task_id: PydanticObjectId) -> None:
+        """Delete a task."""
+        task = await Task.get(task_id)
+        if not task:
+            raise ValueError(f"Task not found: {task_id}")
+        await task.delete()
+        logger.info(f"Task deleted: {task_id}")
 
     @staticmethod
     async def update_progress(task_id: PydanticObjectId, progress: float, message: str) -> None:

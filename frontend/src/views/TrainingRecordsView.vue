@@ -68,7 +68,7 @@
         <v-tabs v-model="detailTab" color="primary">
           <v-tab value="overview">概览</v-tab>
           <v-tab value="accuracy">准确率</v-tab>
-          <v-tab value="cv">交叉验证</v-tab>
+          <v-tab value="loss">训练Loss</v-tab>
           <v-tab value="features">特征重要性</v-tab>
         </v-tabs>
 
@@ -113,38 +113,30 @@
                 <tr>
                   <th>目标</th>
                   <th>训练准确率</th>
-                  <th>CV均值</th>
-                  <th>CV标准差</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="target in ['label_3d', 'label_5d']" :key="target">
                   <td>{{ target }}</td>
                   <td>{{ ((detailItem.model_metrics.accuracy?.[target] || 0) * 100).toFixed(2) }}%</td>
-                  <td>{{ ((detailItem.model_metrics.cv_mean?.[target] || 0) * 100).toFixed(2) }}%</td>
-                  <td>{{ ((detailItem.model_metrics.cv_std?.[target] || 0) * 100).toFixed(4) }}%</td>
                 </tr>
               </tbody>
             </v-table>
           </v-window-item>
 
-          <v-window-item value="cv">
-            <v-table density="compact">
-              <thead>
-                <tr>
-                  <th>Fold</th>
-                  <th v-for="target in ['label_3d', 'label_5d']" :key="target">{{ target }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="i in 5" :key="i">
-                  <td>Fold {{ i }}</td>
-                  <td v-for="target in ['label_3d', 'label_5d']" :key="target">
-                    {{ ((detailItem.model_metrics.cv_scores?.[target]?.[i-1] || 0) * 100).toFixed(2) }}%
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
+          <v-window-item value="loss">
+            <div v-if="detailItem.model_metrics.loss_per_epoch">
+              <div class="text-subtitle-2 mb-2">训练 Loss</div>
+              <div class="text-caption mb-1">
+                Final Loss: {{ detailItem.model_metrics.final_train_loss?.toFixed(4) }}
+              </div>
+              <div v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx">
+                Epoch {{ idx + 1 }}: {{ loss.toFixed(4) }}
+              </div>
+            </div>
+            <div v-else class="text-caption text-medium-emphasis">
+              仅 LSTM 模型记录训练 Loss
+            </div>
           </v-window-item>
 
           <v-window-item value="features">

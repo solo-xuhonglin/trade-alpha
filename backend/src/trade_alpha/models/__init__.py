@@ -1,6 +1,7 @@
-# 导出主要接口
-from .adapters import get_trainer_adapter, get_executor_adapter
-from .training.trainer import (
+"""Models module."""
+from trade_alpha.models.base import BaseClassifier
+
+from trade_alpha.models.training.trainer import (
     create_training,
     get_training_by_id,
     get_training_by_name,
@@ -11,7 +12,7 @@ from .training.trainer import (
     get_prediction_by_id,
     delete_prediction,
 )
-from .training.config import (
+from trade_alpha.models.training.config import (
     create_config,
     get_config_by_id,
     get_config_by_name,
@@ -21,8 +22,7 @@ from .training.config import (
 )
 
 __all__ = [
-    "get_trainer_adapter",
-    "get_executor_adapter",
+    "BaseClassifier",
     "create_training",
     "get_training_by_id",
     "get_training_by_name",

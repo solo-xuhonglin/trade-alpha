@@ -2,7 +2,7 @@
 
 import math
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 from contextlib import asynccontextmanager
 
@@ -73,23 +73,42 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+async def recover_orphaned_tasks():
+    """Check for orphaned RUNNING tasks and mark them as FAILED."""
+    from trade_alpha.task.dao import Task, TaskStatus
+    import os
+
+    running_tasks = await Task.find(Task.status == TaskStatus.RUNNING).to_list()
+    recovered_count = 0
+
+    for task in running_tasks:
+        if task.pid:
+            try:
+                os.kill(task.pid, 0)
+                logger.info(f"Task {task.id} (PID={task.pid}) is still running")
+            except (ProcessLookupError, OSError):
+                task.status = TaskStatus.FAILED
+                task.error_message = "Process died during service restart"
+                task.completed_at = datetime.now()
+                await task.save()
+                logger.warning(f"Orphaned task {task.id} marked as FAILED")
+                recovered_count += 1
+        else:
+            task.status = TaskStatus.FAILED
+            task.error_message = "Task marked as failed during restart (no PID)"
+            task.completed_at = datetime.now()
+            await task.save()
+            logger.warning(f"Task {task.id} marked as FAILED (no PID)")
+            recovered_count += 1
+
+    if recovered_count > 0:
+        logger.info(f"Recovered {recovered_count} orphaned tasks")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-
-    # 清理卡死超过 60 秒的任务（pending 或 running）
-    from trade_alpha.dao.task import Task, TaskStatus
-    from beanie.odm.operators.find.comparison import In
-    cutoff = datetime.now() - timedelta(seconds=60)
-    stuck = await Task.find(
-        In(Task.status, [TaskStatus.PENDING, TaskStatus.RUNNING]),
-        Task.created_at < cutoff,
-    ).to_list()
-    for t in stuck:
-        t.status = TaskStatus.FAILED
-        t.error_message = "Task timed out"
-        t.progress_message = "超时(自动修复)"
-        await t.save()
+    await recover_orphaned_tasks()
 
     scheduler = DataSyncScheduler()
     scheduler.start()

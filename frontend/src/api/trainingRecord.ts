@@ -4,9 +4,8 @@ import type { AnalysisResult } from './dataAnalysis'
 export interface TrainingMetrics {
   sample_count: number
   accuracy?: Record<string, number>
-  cv_mean?: Record<string, number>
-  cv_std?: Record<string, number>
-  cv_scores?: Record<string, number[]>
+  final_train_loss?: number
+  loss_per_epoch?: number[]
   feature_importance?: Record<string, Record<string, number>>
   class_distribution?: Record<string, Record<string, number>>
 }

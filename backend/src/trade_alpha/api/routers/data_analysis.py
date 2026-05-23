@@ -6,8 +6,8 @@ from typing import List, Optional
 from beanie import PydanticObjectId
 from datetime import datetime
 
-from trade_alpha.dao.task import TaskStatus, TaskType
-from trade_alpha.services.task_service import TaskService
+from trade_alpha.task.dao import TaskStatus, TaskType
+from trade_alpha.task.service import TaskService
 from trade_alpha.dao.data_analysis_result import DataAnalysisResult
 from trade_alpha.data.service import list_stocks_by_mv_rank
 from trade_alpha.data.analysis_service import (

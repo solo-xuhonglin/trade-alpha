@@ -2,8 +2,8 @@
 
 import pytest
 from beanie import PydanticObjectId
-from trade_alpha.dao.task import TaskStatus, TaskType
-from trade_alpha.services.task_service import TaskService
+from trade_alpha.task.dao import TaskStatus, TaskType
+from trade_alpha.task.service import TaskService
 
 
 @pytest.mark.integration
@@ -53,10 +53,11 @@ class TestTaskService:
         """Test starting a task."""
         task_id = await self._create_test_task()
 
-        task = await TaskService.start_task(task_id)
+        task = await TaskService.start_task(task_id, pid=12345)
 
         assert task is not None
         assert task.status == TaskStatus.RUNNING
+        assert task.pid == 12345
         assert task.started_at is not None
         assert task.progress == 0.0
 
@@ -65,7 +66,7 @@ class TestTaskService:
         """Test starting a non-existent task raises error."""
         fake_id = PydanticObjectId()
         with pytest.raises(ValueError, match="Task not found"):
-            await TaskService.start_task(fake_id)
+            await TaskService.start_task(fake_id, pid=12345)
 
     @pytest.mark.asyncio
     async def test_complete_task(self):
@@ -174,7 +175,7 @@ class TestTaskService:
     async def test_list_tasks_filter_by_status(self):
         """Test listing tasks filtered by status."""
         task_id = await self._create_test_task(TaskType.TRAINING)
-        await TaskService.start_task(task_id)
+        await TaskService.start_task(task_id, pid=12345)
 
         result = await TaskService.list_tasks(status=TaskStatus.RUNNING)
 

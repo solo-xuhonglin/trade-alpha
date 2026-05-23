@@ -91,6 +91,13 @@ trade-alpha/
 │   │   │   └── service.py          # 执行结果查询服务
 │   │   ├── scheduler/          # 定时任务模块
 │   │   │   └── data_sync.py       # 数据同步定时任务
+│   │   ├── task/               # 异步任务模块（子进程执行）
+│   │   │   ├── dao.py              # 任务 Document + TaskStatus/TaskType
+│   │   │   ├── service.py          # 任务生命周期管理
+│   │   │   ├── runner.py           # BaseRunner 抽象基类
+│   │   │   ├── run_task.py         # 子进程入口
+│   │   │   ├── training_runner.py  # 训练 Runner
+│   │   │   └── backtest_runner.py  # 回测 Runner
 │   │   └── api/routers/       # API 路由
 │   │       ├── data.py
 │   │       ├── indicators.py
@@ -167,8 +174,9 @@ trade-alpha/
 - `prediction.py`: 预测结果 Document（包含 probabilities 字段）
 - `signal.py`: 交易信号 Document
 - `order_suggestion.py`: 订单建议 Document
-- `task.py`: 异步任务 Document（包含 TaskStatus, TaskType）
 - `data_analysis_result.py`: 数据分析结果 Document
+
+*注：`Task` Document 已移至独立 `task/dao.py` 模块（见第10节任务模块）*
 
 ### 4. 数据模块 (data)
 
@@ -358,20 +366,58 @@ trade-alpha/
 
 name 字段具备唯一索引，支持按名称直接查询。
 
-### 10. 任务模块 (tasks)
+### 10. 任务模块 (task)
 
-异步任务管理模块，支持训练、回测、数据分析的异步执行。
+异步任务管理模块，通过子进程（subprocess）独立执行训练、回测等耗时任务，避免阻塞 API 进程。
 
-**核心功能**:
-- 任务类型: TaskType (BACKTEST, TRAINING, DATA_ANALYSIS)
-- 任务状态: TaskStatus (PENDING, RUNNING, COMPLETED, FAILED)
-- `run_backtest_async()`: 异步执行回测
-- `run_training_async()`: 异步执行训练
-- `run_data_analysis_async()`: 异步执行数据分析
-- 任务状态跟踪: pending → running → completed/failed
-- 任务进度更新
-- 错误捕获和记录
-- 支持失败任务删除
+**模块结构** (`trade_alpha/task/`):
+
+| 文件 | 说明 |
+|------|------|
+| `dao.py` | `Task` Document 定义、`TaskStatus` / `TaskType` 枚举 |
+| `service.py` | 任务生命周期管理（创建、启动、完成、失败、停止、进度更新） |
+| `runner.py` | `BaseRunner` 抽象基类，提供子进程中取消检查、进度更新 |
+| `run_task.py` | 子进程 CLI 入口：`python -m trade_alpha.task.run_task --task-id <id> --task-type <type>` |
+| `training_runner.py` | `TrainingRunner` — 训练任务的具体执行逻辑 |
+| `backtest_runner.py` | `BacktestRunner` — 回测任务的具体执行逻辑 |
+
+**任务状态**:
+
+| 状态 | 说明 |
+|------|------|
+| `PENDING` | 已创建，待执行 |
+| `RUNNING` | 执行中（关联 `pid` 字段） |
+| `COMPLETED` | 完成（关联 `result_id`） |
+| `FAILED` | 失败（记录 `error_message`） |
+| `CANCELLED` | 已手动停止 |
+
+状态流转: `pending → running → completed / failed / cancelled`
+
+**子进程执行流程**:
+
+1. API 路由调用 `TaskService.create_task()` 创建 `PENDING` 任务
+2. 通过 `subprocess.Popen()` 启动子进程，执行 `python -m trade_alpha.task.run_task --task-id <id> --task-type <type>`
+3. API 路由调用 `TaskService.start_task()` 标记为 `RUNNING` 并记录 PID
+4. 子进程中 `BaseRunner` 继承类执行具体逻辑，支持：
+   - `check_cancelled()` — 定期检查任务是否被取消，若取消则优雅退出
+   - `update_progress()` — 更新进度百分比和消息
+5. 执行成功调用 `complete_task()`，失败调用 `fail_task()`
+
+**停止机制**:
+
+- API 接收 `POST /trainings/task/{task_id}/stop` 或 `POST /backtest/task/{task_id}/stop`
+- `TaskService.stop_task()` 将状态标记为 `CANCELLED`
+- 子进程中的 `check_cancelled()` 检测到非 `RUNNING` 状态后自行退出
+- 支持 `force=true` 参数，标记取消的同时发送 `SIGTERM` 终止操作系统进程
+
+**重启恢复机制**:
+
+- 服务启动时，`lifespan` 中调用 `recover_orphaned_tasks()`
+- 扫描遗留的 `RUNNING` 任务，检查对应 PID 是否存活：
+  - 若进程已不存在 → 标记为 `FAILED`，记录 `"Process died during service restart"`
+  - 若无 PID 记录 → 标记为 `FAILED`，记录 `"Task marked as failed during restart (no PID)"`
+  - 若进程仍存活 → 保留 `RUNNING` 状态，等待子进程自行完成
+- 避免任务状态永久卡在 `RUNNING`
 
 ### 11. API 路由
 
@@ -388,20 +434,35 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `model_configs.py` | 模型配置 CRUD |
 | `trainings.py` | 训练管理（异步任务模式） |
 
-**异步任务 API**（新增）:
-- `POST /backtest/run`: 触发回测任务（使用JSON body）
-- `GET /backtest/task/{task_id}`: 查询回测任务状态
-- `DELETE /backtest/task/{task_id}`: 取消/删除任务（可删除失败任务）
-- `GET /backtest/tasks`: 获取回测任务列表
-- `GET /backtest/results/{result_id}`: 获取回测结果
-- `POST /trainings`: 触发训练任务
-- `GET /trainings/task/{task_id}`: 查询训练任务状态
-- `DELETE /trainings/task/{task_id}`: 取消训练任务
-- `GET /trainings/tasks`: 获取训练任务列表
-- `POST /data-analysis`: 触发数据分析任务
-- `GET /data-analysis/task/{task_id}`: 查询分析任务状态
-- `GET /data-analysis/results`: 列出分析结果
-- `DELETE /data-analysis/results/{id}`: 删除分析结果
+**异步任务 API**（基于 subprocess 执行）:
+
+导入路径：`trade_alpha.task.dao`（`Task`, `TaskStatus`, `TaskType`）、`trade_alpha.task.service`（`TaskService`）
+
+| 方法 | 路由 | 说明 |
+|------|------|------|
+| `POST` | `/backtest/run` | 触发回测任务（subprocess Popen 启动） |
+| `GET` | `/backtest/task/{task_id}` | 查询回测任务状态 |
+| `POST` | `/backtest/task/{task_id}/stop` | 停止回测任务（可选 force 参数发 SIGTERM） |
+| `GET` | `/backtest/tasks` | 获取回测任务列表 |
+| `GET` | `/backtest/results/{result_id}` | 获取回测结果 |
+| `POST` | `/trainings` | 触发训练任务（subprocess Popen 启动） |
+| `GET` | `/trainings/task/{task_id}` | 查询训练任务状态 |
+| `POST` | `/trainings/task/{task_id}/stop` | 停止训练任务 |
+| `GET` | `/trainings/tasks` | 获取训练任务列表 |
+| `POST` | `/data-analysis` | 触发数据分析任务 |
+| `GET` | `/data-analysis/task/{task_id}` | 查询分析任务状态 |
+| `GET` | `/data-analysis/results` | 列出分析结果 |
+| `DELETE` | `/data-analysis/results/{id}` | 删除分析结果 |
+
+**执行方式对比**：
+
+| 旧实现（BackgroundTasks） | 新实现（subprocess） |
+|---------------------------|---------------------|
+| 在 API 进程内异步执行 | 独立子进程 `subprocess.Popen` |
+| 阻塞 API worker 线程 | 不阻塞 API 进程 |
+| 无进程隔离 | 进程隔离，崩溃不影响 API |
+| 无法管理独立生命周期 | 支持 PID 追踪、SIGTERM 停止 |
+| 重启后任务丢失 | 重启后 `recover_orphaned_tasks()` 恢复 |
 
 ### 12. 全局异常处理器
 

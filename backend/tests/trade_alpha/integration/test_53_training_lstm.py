@@ -2,7 +2,7 @@
 
 import pytest
 import pytest_asyncio
-from trade_alpha.predict import config_service, training_service
+from trade_alpha.models.training import config, trainer
 from trade_alpha.test_config import TEST_STOCK
 
 
@@ -14,11 +14,11 @@ class TestTrainingServiceLSTM:
     @pytest_asyncio.fixture(scope="class")
     async def shared_training(self, test_lstm_config, ensure_test_stock):
         """Create LSTM training once for all tests in this class."""
-        existing = await training_service.get_training_by_name("test_lstm_training")
+        existing = await trainer.get_training_by_name("test_lstm_training")
         if existing:
-            await training_service.delete_training(existing.id)
+            await trainer.delete_training(existing.id)
 
-        training = await training_service.create_training(
+        training = await trainer.create_training(
             config_id=test_lstm_config.id,
             name="test_lstm_training",
             ts_codes=[TEST_STOCK],
@@ -27,11 +27,11 @@ class TestTrainingServiceLSTM:
         )
         yield training
 
-        trainings = await training_service.list_trainings(config_id=test_lstm_config.id)
+        trainings = await trainer.list_trainings(config_id=test_lstm_config.id)
         for t in trainings:
             if t.name == "test_lstm_training":
                 continue
-            await training_service.delete_training(t.id)
+            await trainer.delete_training(t.id)
 
     @pytest.mark.asyncio
     async def test_lstm_training_metrics(self, test_lstm_config, shared_training):
@@ -42,12 +42,17 @@ class TestTrainingServiceLSTM:
         assert isinstance(training.feature_fields, list)
         assert len(training.feature_fields) > 0
         assert training.classification_horizons == [3, 5]
+        assert "final_train_loss" in training.model_metrics
+        assert "loss_per_epoch" in training.model_metrics
+        assert training.model_metrics["final_train_loss"] is not None
+        assert isinstance(training.model_metrics["loss_per_epoch"], list)
+        assert len(training.model_metrics["loss_per_epoch"]) > 0
 
     @pytest.mark.asyncio
     async def test_lstm_prediction(self, test_lstm_config, shared_training):
         """Verify LSTM prediction results."""
         training = shared_training
-        result = await training_service.predict_with_training(training.id, TEST_STOCK)
+        result = await trainer.predict_with_training(training.id, TEST_STOCK)
 
         assert "predictions" in result
         assert "probabilities" in result
@@ -72,17 +77,17 @@ class TestTrainingServiceLSTM:
     @pytest.mark.asyncio
     async def test_list_trainings(self, test_lstm_config, shared_training):
         """Verify listing trainings for LSTM."""
-        trainings = await training_service.list_trainings()
+        trainings = await trainer.list_trainings()
         assert len(trainings) > 0
 
-        trainings = await training_service.list_trainings(config_id=test_lstm_config.id)
+        trainings = await trainer.list_trainings(config_id=test_lstm_config.id)
         assert all(t.config_id == test_lstm_config.id for t in trainings)
 
     @pytest.mark.asyncio
     async def test_delete_training(self, test_lstm_config, shared_training):
         """Verify deleting LSTM training."""
         # Create a temporary training for delete test
-        training = await training_service.create_training(
+        training = await trainer.create_training(
             config_id=test_lstm_config.id,
             name="test_delete_temp_lstm",
             ts_codes=[TEST_STOCK],
@@ -90,8 +95,8 @@ class TestTrainingServiceLSTM:
             end_date="20231231",
         )
 
-        deleted = await training_service.delete_training(training.id)
+        deleted = await trainer.delete_training(training.id)
         assert deleted is True
 
-        result = await training_service.get_training_by_id(training.id)
+        result = await trainer.get_training_by_id(training.id)
         assert result is None

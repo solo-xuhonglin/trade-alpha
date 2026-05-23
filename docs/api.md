@@ -623,7 +623,11 @@ DELETE /api/account-configs/{account_config_id}
 
 ## 回测管理
 
-### 触发回测任务（异步）
+### 触发回测任务（subprocess 异步执行）
+
+通过 `subprocess.Popen` 启动独立子进程执行回测，不阻塞 API 进程。
+
+后端导入路径：`trade_alpha.task.dao`（`Task`, `TaskStatus`, `TaskType`）、`trade_alpha.task.service`（`TaskService`）
 
 ```
 POST /api/backtest/run
@@ -711,17 +715,22 @@ GET /api/backtest/task/{task_id}
 - `running`: 任务执行中
 - `completed`: 任务完成
 - `failed`: 任务失败
+- `cancelled`: 已手动停止
 
-### 取消回测任务
+### 停止回测任务
 
 ```
-DELETE /api/backtest/task/{task_id}
+POST /api/backtest/task/{task_id}/stop
 ```
+
+**参数**:
+- `force` (query, optional, default `false`): 是否强制终止子进程（发送 SIGTERM）
 
 **响应**:
 ```json
 {
-  "message": "Task cancelled"
+  "message": "Task stopped",
+  "status": "cancelled"
 }
 ```
 
@@ -734,7 +743,7 @@ GET /api/backtest/tasks
 **参数**:
 - `page` (query, optional): 页码，默认 1
 - `page_size` (query, optional): 每页数量，默认 20
-- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"
+- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"/"cancelled"
 
 **响应**:
 ```json
@@ -765,7 +774,11 @@ GET /api/backtest/results/{result_id}
 
 ## 训练管理
 
-### 触发训练任务（异步）
+### 触发训练任务（subprocess 异步执行）
+
+通过 `subprocess.Popen` 启动独立子进程执行训练，不阻塞 API 进程。
+
+后端导入路径：`trade_alpha.task.dao`（`Task`, `TaskStatus`, `TaskType`）、`trade_alpha.task.service`（`TaskService`）
 
 ```
 POST /api/trainings
@@ -830,16 +843,20 @@ GET /api/trainings/task/{task_id}
 }
 ```
 
-### 取消训练任务
+### 停止训练任务
 
 ```
-DELETE /api/trainings/task/{task_id}
+POST /api/trainings/task/{task_id}/stop
 ```
+
+**参数**:
+- `force` (query, optional, default `false`): 是否强制终止子进程（发送 SIGTERM）
 
 **响应**:
 ```json
 {
-  "message": "Task cancelled"
+  "message": "Task stopped",
+  "status": "cancelled"
 }
 ```
 
@@ -976,7 +993,7 @@ GET /api/data-analysis/tasks
 **参数**:
 - `page` (query, optional): 页码，默认 1
 - `page_size` (query, optional): 每页数量，默认 20
-- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"
+- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"/"cancelled"
 
 **响应**:
 ```json

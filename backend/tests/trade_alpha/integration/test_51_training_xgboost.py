@@ -2,7 +2,7 @@
 
 import pytest
 import pytest_asyncio
-from trade_alpha.predict import config_service, training_service
+from trade_alpha.models.training import config, trainer
 from trade_alpha.test_config import TEST_STOCK
 
 
@@ -14,11 +14,11 @@ class TestTrainingService:
     @pytest_asyncio.fixture(scope="class")
     async def shared_training(self, test_model_config, ensure_test_stock):
         """Create training once for all tests in this class."""
-        existing = await training_service.get_training_by_name("test_training")
+        existing = await trainer.get_training_by_name("test_training")
         if existing:
-            await training_service.delete_training(existing.id)
+            await trainer.delete_training(existing.id)
 
-        training = await training_service.create_training(
+        training = await trainer.create_training(
             config_id=test_model_config.id,
             name="test_training",
             ts_codes=[TEST_STOCK],
@@ -27,11 +27,11 @@ class TestTrainingService:
         )
         yield training
 
-        trainings = await training_service.list_trainings(config_id=test_model_config.id)
+        trainings = await trainer.list_trainings(config_id=test_model_config.id)
         for t in trainings:
             if t.name == "test_training":
                 continue
-            await training_service.delete_training(t.id)
+            await trainer.delete_training(t.id)
 
     @pytest.mark.asyncio
     async def test_training_metrics(self, test_model_config, shared_training):
@@ -47,7 +47,7 @@ class TestTrainingService:
     async def test_prediction(self, test_model_config, shared_training):
         """Verify prediction results."""
         training = shared_training
-        result = await training_service.predict_with_training(training.id, TEST_STOCK)
+        result = await trainer.predict_with_training(training.id, TEST_STOCK)
 
         assert "predictions" in result
         assert "probabilities" in result
@@ -72,17 +72,17 @@ class TestTrainingService:
     @pytest.mark.asyncio
     async def test_list_trainings(self, test_model_config, shared_training):
         """Verify listing trainings."""
-        trainings = await training_service.list_trainings()
+        trainings = await trainer.list_trainings()
         assert len(trainings) > 0
 
-        trainings = await training_service.list_trainings(config_id=test_model_config.id)
+        trainings = await trainer.list_trainings(config_id=test_model_config.id)
         assert all(t.config_id == test_model_config.id for t in trainings)
 
     @pytest.mark.asyncio
     async def test_delete_training(self, test_model_config, shared_training):
         """Verify deleting training."""
         # Create a temporary training for delete test
-        training = await training_service.create_training(
+        training = await trainer.create_training(
             config_id=test_model_config.id,
             name="test_delete_temp",
             ts_codes=[TEST_STOCK],
@@ -90,16 +90,16 @@ class TestTrainingService:
             end_date="20231231",
         )
 
-        deleted = await training_service.delete_training(training.id)
+        deleted = await trainer.delete_training(training.id)
         assert deleted is True
 
-        result = await training_service.get_training_by_id(training.id)
+        result = await trainer.get_training_by_id(training.id)
         assert result is None
 
     @pytest.mark.asyncio
     async def test_ensure_default_training(self, test_model_config, shared_training):
         """Ensure default training exists for Layer 6 tests."""
-        trainings = await training_service.list_trainings(config_id=test_model_config.id)
+        trainings = await trainer.list_trainings(config_id=test_model_config.id)
         for t in trainings:
             if t.name == "test_training":
                 return

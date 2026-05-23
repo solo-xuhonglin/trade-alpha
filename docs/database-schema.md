@@ -453,18 +453,8 @@ MACDStrategy:
     "label_3d": 0.3912,
     "label_5d": 0.4181
   },
-  "cv_scores": {
-    "label_3d": [0.4489, 0.4486, 0.4475, 0.4496, 0.4486],
-    "label_5d": [0.4745, 0.4748, 0.4722, 0.4752, 0.4739]
-  },
-  "cv_mean": {
-    "label_3d": 0.4487,
-    "label_5d": 0.4741
-  },
-  "cv_std": {
-    "label_3d": 0.0007,
-    "label_5d": 0.0011
-  },
+  "final_train_loss": 0.2341,
+  "loss_per_epoch": [0.4521, 0.3823, 0.3156, 0.2789, 0.2341],
   "feature_importance": {
     "label_3d": {
       "boll_upper": 0.178,
@@ -490,9 +480,8 @@ MACDStrategy:
 |------|------|
 | `sample_count` | 训练样本总数 |
 | `accuracy` | 各目标的分类准确率 |
-| `cv_scores` | 5折交叉验证各fold的准确率 |
-| `cv_mean` | 交叉验证平均准确率 |
-| `cv_std` | 交叉验证标准差 |
+| `final_train_loss` | LSTM 最终训练 loss（仅 LSTM 模型） |
+| `loss_per_epoch` | LSTM 每 epoch 的 loss 列表（仅 LSTM 模型） |
 | `feature_importance` | 各特征的重要性（按目标分组） |
 | `class_distribution` | 类别分布比例（-1看跌/0震荡/1看涨） |
 

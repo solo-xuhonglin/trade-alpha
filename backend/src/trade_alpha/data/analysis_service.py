@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from beanie import PydanticObjectId
 from trade_alpha.dao import StockDaily, DataAnalysisResult
-from trade_alpha.services.task_service import TaskService
+from trade_alpha.task.service import TaskService
 from trade_alpha.utils.date_utils import to_db_format
 from trade_alpha.logging import get_logger
 

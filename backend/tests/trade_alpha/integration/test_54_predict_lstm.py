@@ -2,7 +2,7 @@
 
 import pytest
 import pytest_asyncio
-from trade_alpha.predict import training_service
+from trade_alpha.models.training import trainer
 from trade_alpha.dao import PredictionResult
 from trade_alpha.test_config import TEST_STOCK
 
@@ -24,7 +24,7 @@ class TestPredictIntegrationLSTM:
 
     async def _find_training(self):
         """Find the LSTM training created by test_53."""
-        trainings = await training_service.list_trainings()
+        trainings = await trainer.list_trainings()
         for t in trainings:
             if t.name == "test_lstm_training":
                 return t
@@ -37,7 +37,7 @@ class TestPredictIntegrationLSTM:
         if not self.training:
             pytest.skip("No LSTM training found")
 
-        result = await training_service.predict_with_training(self.training.id, self.ts_code)
+        result = await trainer.predict_with_training(self.training.id, self.ts_code)
 
         assert "predictions" in result
         assert "probabilities" in result
@@ -54,7 +54,7 @@ class TestPredictIntegrationLSTM:
         if not self.training:
             pytest.skip("No LSTM training found")
 
-        await training_service.predict_with_training(self.training.id, self.ts_code)
+        await trainer.predict_with_training(self.training.id, self.ts_code)
 
         pred_records = await PredictionResult.find(
             PredictionResult.training_result_id == self.training.id,
@@ -62,7 +62,7 @@ class TestPredictIntegrationLSTM:
         ).to_list()
         assert len(pred_records) > 0
 
-        pred = await training_service.get_prediction_by_id(pred_records[0].id)
+        pred = await trainer.get_prediction_by_id(pred_records[0].id)
         assert pred is not None
         assert pred.training_result_id == self.training.id
         assert pred.ts_code == self.ts_code
@@ -75,7 +75,7 @@ class TestPredictIntegrationLSTM:
         if not self.training:
             pytest.skip("No LSTM training found")
 
-        await training_service.predict_with_training(self.training.id, self.ts_code)
+        await trainer.predict_with_training(self.training.id, self.ts_code)
 
         pred_records = await PredictionResult.find(
             PredictionResult.training_result_id == self.training.id,
@@ -84,8 +84,8 @@ class TestPredictIntegrationLSTM:
         assert len(pred_records) > 0
 
         pred_id = pred_records[0].id
-        deleted = await training_service.delete_prediction(pred_id)
+        deleted = await trainer.delete_prediction(pred_id)
         assert deleted is True
 
-        pred = await training_service.get_prediction_by_id(pred_id)
+        pred = await trainer.get_prediction_by_id(pred_id)
         assert pred is None

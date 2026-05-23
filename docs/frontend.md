@@ -211,17 +211,16 @@ frontend/
 **训练评估指标**:
 - `sample_count`：训练样本数
 - `accuracy`：各目标（label_3d/label_5d）的分类准确率
-- `cv_mean`：5折交叉验证平均准确率
-- `cv_std`：交叉验证标准差
-- `cv_scores`：各fold的准确率列表
+- `final_train_loss`：LSTM 最终训练 loss（仅 LSTM 模型）
+- `loss_per_epoch`：LSTM 每 epoch 的 loss 列表（仅 LSTM 模型）
 - `feature_importance`：各特征的重要性排名
 - `class_distribution`：类别（-1/0/1）的分布比例
 
-**详情面板**（4个标签页）:
+**详情面板**（3个标签页）:
 - **概览**：样本数、准确率卡片、类别分布
-- **准确率**：训练准确率、CV均值、CV标准差表格
-- **交叉验证**：5个Fold的分数表格
+- **准确率**：训练准确率表格
 - **特征重要性**：所有特征的重要性进度条（按重要性排序）
+- **训练Loss**：仅 LSTM 模型显示，Final Loss 和每个 Epoch 的 Loss 列表
 
 **组件**:
 - 数据表格：训练记录

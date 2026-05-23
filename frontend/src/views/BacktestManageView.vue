@@ -89,6 +89,27 @@
     </v-card>
   </v-dialog>
 
+  <v-dialog v-model="stopDialog.show" max-width="400">
+    <v-card>
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        确认停止任务
+        <v-btn icon variant="text" size="small" @click="stopDialog.show = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <div class="mb-3">确定要停止回测任务「{{ stopDialog.task_id }}」吗？</div>
+        <v-checkbox v-model="stopDialog.force" label="强制停止（终止进程）" color="error" hide-details />
+      </v-card-text>
+      <v-divider />
+      <v-card-actions class="bg-surface-light">
+        <v-btn variant="text" @click="stopDialog.show = false">取消</v-btn>
+        <v-spacer />
+        <v-btn color="warning" variant="text" @click="confirmStop" :loading="stopDialog.loading">确定停止</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-card border rounded>
     <v-card-title>运行中的任务</v-card-title>
     <v-card-text>
@@ -112,7 +133,7 @@
         </template>
         <template v-slot:item.actions="{ item }">
           <v-btn
-            v-if="item.status === 'failed'"
+            v-if="item.status === 'failed' || item.status === 'cancelled' || item.status === 'completed'"
             color="error"
             variant="text"
             size="small"
@@ -121,13 +142,13 @@
             删除
           </v-btn>
           <v-btn
-            v-else-if="item.status === 'pending' || item.status === 'running'"
+            v-else-if="item.status === 'running'"
             color="warning"
             variant="text"
             size="small"
-            @click="cancelTask(item.task_id)"
+            @click="stopDialog.task_id = item.task_id; stopDialog.force = false; stopDialog.show = true"
           >
-            取消
+            停止
           </v-btn>
         </template>
       </v-data-table>
@@ -154,6 +175,7 @@ const running = ref(false)
 const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
+const stopDialog = ref({ show: false, loading: false, task_id: '', force: false })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const accountOptions = ref<{ label: string; value: string }[]>([])
@@ -192,6 +214,7 @@ const getStatusColor = (status: string) => {
     case 'running': return 'warning'
     case 'completed': return 'success'
     case 'failed': return 'error'
+    case 'cancelled': return 'grey'
     default: return ''
   }
 }
@@ -202,6 +225,7 @@ const getStatusText = (status: string) => {
     case 'running': return '运行中'
     case 'completed': return '已完成'
     case 'failed': return '失败'
+    case 'cancelled': return '已取消'
     default: return status
   }
 }
@@ -306,9 +330,16 @@ const runBacktest = async () => {
   running.value = false
 }
 
-const cancelTask = async (taskId: string) => {
-  await backtestApi.cancelTask(taskId)
+const stopTask = async (taskId: string, force: boolean) => {
+  await backtestApi.stopTask(taskId, force)
   activeTasks.value = activeTasks.value.filter(t => t.task_id !== taskId)
+}
+
+const confirmStop = async () => {
+  stopDialog.value.loading = true
+  await stopTask(stopDialog.value.task_id, stopDialog.value.force)
+  stopDialog.value.show = false
+  stopDialog.value.loading = false
 }
 
 const deleteTask = async (taskId: string) => {
@@ -318,7 +349,7 @@ const deleteTask = async (taskId: string) => {
 
 const confirmDelete = async () => {
   deleteDialog.value.loading = true
-  await backtestApi.cancelTask(deleteDialog.value.task_id)
+  await backtestApi.deleteTask(deleteDialog.value.task_id)
   activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
   deleteDialog.value.show = false
   deleteDialog.value.loading = false

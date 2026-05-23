@@ -8,10 +8,9 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
-from trade_alpha.services.task_service import TaskService
+from trade_alpha.task.service import TaskService
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
-from trade_alpha.models.normalizers import CrossSectionalNormalizer
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.strategy.portfolio import PortfolioStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy

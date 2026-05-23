@@ -1,3 +1,5 @@
+"""Task Document definition."""
+
 from enum import Enum
 from beanie import Document
 from datetime import datetime
@@ -9,6 +11,7 @@ class TaskStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class TaskType(str, Enum):
@@ -28,6 +31,7 @@ class Task(Document):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     params: Dict[str, Any] = {}
+    pid: Optional[int] = None
 
     class Settings:
         name = "tasks"

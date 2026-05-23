@@ -1,6 +1,6 @@
 """Backtest API router with async task support."""
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from beanie import PydanticObjectId
 from pydantic import BaseModel, field_validator
 from typing import Optional, List
@@ -10,8 +10,8 @@ from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.models import training as training_module
 from trade_alpha.execution.pipeline import ExecutionPipeline
 from trade_alpha.dao.execution import ExecutionResult
-from trade_alpha.dao.task import TaskStatus, TaskType
-from trade_alpha.services.task_service import TaskService
+from trade_alpha.task.dao import TaskStatus, TaskType
+from trade_alpha.task.service import TaskService
 from trade_alpha.strategy.service import get_strategy_by_id
 from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.api.validators import validate_trade_date
@@ -68,11 +68,11 @@ class BacktestRunRequest(BaseModel):
 
 
 @router.post("/run")
-async def trigger_backtest(
-    background_tasks: BackgroundTasks,
-    body: BacktestRunRequest,
-):
-    """Trigger backtest task (async)."""
+async def trigger_backtest(body: BacktestRunRequest):
+    """Trigger backtest task in subprocess."""
+    import subprocess
+    import sys
+
     try:
         account_config = await AccountConfig.get(PydanticObjectId(body.account_config_id))
         if not account_config:
@@ -94,7 +94,17 @@ async def trigger_backtest(
             "strategy_config_id": body.strategy_config_id,
         })
 
-        background_tasks.add_task(run_backtest_async, str(task.id))
+        proc = subprocess.Popen(
+            [
+                sys.executable, "-m", "trade_alpha.task.run_task",
+                "--task-id", str(task.id),
+                "--task-type", "backtest",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+
+        await TaskService.start_task(task.id, proc.pid)
 
         return {
             "task_id": str(task.id),
@@ -106,62 +116,6 @@ async def trigger_backtest(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-async def run_backtest_async(task_id: str):
-    """Execute backtest asynchronously."""
-    from trade_alpha.logging import get_logger
-
-    logger = get_logger("backtest.task")
-    task = await TaskService.get_task(PydanticObjectId(task_id))
-    if not task:
-        return
-
-    try:
-        await TaskService.start_task(task.id)
-
-        params = task.params
-        account_config = await AccountConfig.get(PydanticObjectId(params["account_config_id"]))
-
-        training = await training_module.get_training_by_id(PydanticObjectId(params["training_id"]))
-        if not training:
-            await TaskService.fail_task(task.id, f"Training not found: {params['training_id']}")
-            return
-        
-        model_config = await training_module.get_config_by_id(training.config_id)
-        if not model_config:
-            await TaskService.fail_task(task.id, f"Model config not found: {training.config_id}")
-            return
-
-        strategy_config = None
-        if params.get("strategy_config_id"):
-            strategy_config = await get_strategy_by_id(PydanticObjectId(params["strategy_config_id"]))
-            if not strategy_config:
-                await TaskService.fail_task(task.id, f"Strategy config not found: {params['strategy_config_id']}")
-                return
-
-        pipeline = ExecutionPipeline(
-            account_config=account_config,
-            training_id=PydanticObjectId(params["training_id"]),
-            model_config=model_config,
-            strategy_config=strategy_config,
-            mode=params["mode"],
-            ts_codes=params.get("ts_codes"),
-            max_positions=params.get("max_positions", 10),
-        )
-
-        result = await pipeline.run_backtest(
-            start_date=params["start_date"],
-            end_date=params["end_date"],
-            name=params["name"],
-            task_id=task.id,
-        )
-
-        await TaskService.complete_task(task.id, str(result.id))
-
-    except Exception as e:
-        logger.error(f"Backtest task {task_id} failed: {e}")
-        await TaskService.fail_task(task.id, str(e))
 
 
 @router.get("/task/{task_id}")
@@ -193,28 +147,33 @@ async def get_backtest_task(task_id: str):
     }
 
 
-@router.delete("/task/{task_id}")
-async def cancel_backtest_task(task_id: str):
-    """Cancel or delete backtest task."""
+@router.post("/task/{task_id}/stop")
+async def stop_backtest_task(task_id: str, force: bool = False):
+    """Stop a running backtest task."""
     try:
         obj_id = PydanticObjectId(task_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    task = await TaskService.get_task(obj_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        task = await TaskService.stop_task(obj_id, force)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    if task.status == TaskStatus.FAILED:
-        await task.delete()
-        return {"message": "Task deleted"}
+    return {"message": "Task stopped", "status": task.status.value}
 
-    if task.status == TaskStatus.COMPLETED:
-        raise HTTPException(status_code=400, detail="Task already completed")
 
-    await TaskService.fail_task(task.id, "Task cancelled by user")
+@router.delete("/task/{task_id}")
+async def delete_backtest_task(task_id: str):
+    """Delete a failed or completed backtest task."""
+    try:
+        obj_id = PydanticObjectId(task_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    return {"message": "Task cancelled"}
+    await TaskService.delete_task(obj_id)
+
+    return {"message": "Task deleted"}
 
 
 @router.get("/tasks")

@@ -39,7 +39,6 @@ class TestServiceDataAnalysis:
             start_date="20200101",
             end_date="20251231",
             feature_fields=feature_fields,
-            progress_callback=None,
         )
 
         assert "statistics" in result
@@ -79,7 +78,6 @@ class TestServiceDataAnalysis:
             start_date="20200101",
             end_date="20251231",
             feature_fields=feature_fields,
-            progress_callback=None,
         )
 
         task_id = "test_task_123"
@@ -113,7 +111,6 @@ class TestServiceDataAnalysis:
             start_date="20200101",
             end_date="20251231",
             feature_fields=feature_fields,
-            progress_callback=None,
         )
 
         task_id = "test_persist_456"
