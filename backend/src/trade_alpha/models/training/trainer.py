@@ -10,8 +10,9 @@ import numpy as np
 
 from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult
 from .config import get_config_by_id
+from .stages import DATA_LOAD, LABEL_CALC, TRAINING, EVALUATE, ANALYSIS, DONE
 from ..adapters.registry import get_trainer_adapter
-from trade_alpha.utils.date_utils import get_year_months, format_progress, to_db_format
+from trade_alpha.utils.date_utils import get_year_months, to_db_format
 from trade_alpha.logging import get_logger
 
 logger = get_logger("models.training.trainer")
@@ -184,38 +185,29 @@ async def create_training(
 
     year_months = get_year_months(start_date, end_date)
     years = sorted(set(y for y, _ in year_months))
-    num_years = len(years)
 
     target_names = [f"label_{h}d" for h in config.classification_horizons]
-    num_targets = len(target_names)
 
-    total_stages = adapter.get_total_training_stages(config, num_years, num_targets)
-
-    async def update(stage_num: int, msg: str):
+    async def update_progress(stage, detail: str = ""):
+        msg = f"{stage.message}{detail}" if detail else stage.message
         if progress_callback:
             if asyncio.iscoroutinefunction(progress_callback):
-                await progress_callback(stage_num / total_stages * 100, msg)
+                await progress_callback(stage.pct, msg)
             else:
-                progress_callback(stage_num / total_stages * 100, msg)
+                progress_callback(stage.pct, msg)
 
-    stage = 0
     horizon = max(config.classification_horizons)
     all_norm_dfs = []
 
-    # 创建标准化器
     normalizer = adapter.create_normalizer(config, target_names)
 
     for year_idx, year in enumerate(years):
-        year_num = year_idx + 1
-
-        stage += 1
-        await update(stage, format_progress("load", year, idx=year_num, total=num_years))
+        await update_progress(DATA_LOAD, f"{year}年")
         year_df = await _load_year_data(year, ts_codes, horizon)
         if year_df is None:
             continue
 
-        stage += 1
-        await update(stage, format_progress("label", year, idx=year_num, total=num_years))
+        await update_progress(LABEL_CALC, f"{year}年")
         year_df = _create_classification_labels(year_df, config.classification_horizons, config.classification_threshold)
 
         year_norm = normalizer.normalize(year_df)
@@ -226,23 +218,16 @@ async def create_training(
     if not all_norm_dfs:
         raise ValueError("No available data")
 
-    # Extract features and targets from normalized dfs
     X = np.vstack([df[config.feature_fields].values for df in all_norm_dfs])
     y = np.vstack([df[target_names].values for df in all_norm_dfs])
     sample_count = len(X)
 
     classifier = adapter.create_classifier(config)
 
-    # 使用适配器的训练方法
-    adapter.train_with_progress(
-        classifier, X, y, target_names,
-        stage, total_stages, update
-    )
+    await update_progress(TRAINING)
+    classifier.fit(X, y, target_names)
 
-    stage = total_stages - 5 - 1 - 1  # 减去评估、分析、完成的阶段
-
-    stage += 1
-    await update(stage, "正在评估模型...")
+    await update_progress(EVALUATE)
     eval_metrics = await _evaluate_classifier(
         classifier,
         X,
@@ -250,14 +235,12 @@ async def create_training(
         config.feature_fields,
         target_names,
         n_splits=5,
-        progress_callback=lambda pct, msg: update(stage + pct / 100 * 5, msg)
     )
 
-    stage += 1
-    await update(stage, "正在分析标准化数据...")
+    await update_progress(ANALYSIS)
     training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, config.feature_fields)
 
-    await update(total_stages, format_progress("done", years[-1]))
+    await update_progress(DONE)
 
     training = TrainingResult(
         config_id=config_id,
