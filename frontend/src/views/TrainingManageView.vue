@@ -141,7 +141,7 @@ import { trainingApi, type TaskStatusResponse } from '@/api/training'
 import { modelConfigApi } from '@/api/modelConfig'
 
 const running = ref(false)
-const configs = ref<{ id: string; name: string }[]>([])
+const configs = ref<{ id: string; name: string; model_type: string }[]>([])
 const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
@@ -173,14 +173,14 @@ const activeTaskHeaders = [
 
 const configOptions = ref<{ title: string; value: string }[]>([])
 
-const configNameMap = ref<Record<string, string>>({})
+const configModelTypeMap = ref<Record<string, string>>({})
 
 watch(() => form.value.config_id, (newId) => {
-  if (newId && configNameMap.value[newId]) {
+  if (newId && configModelTypeMap.value[newId]) {
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
-    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
-    form.value.name = `${configNameMap.value[newId]}_${ts}`
+    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`
+    form.value.name = `training_${configModelTypeMap.value[newId]}_${ts}`
   }
 })
 
@@ -241,9 +241,9 @@ const pollActiveTasks = async () => {
 
 const loadConfigs = async () => {
   const res = await modelConfigApi.list()
-  configs.value = res.data.map(c => ({ id: c.id, name: c.name }))
-  configOptions.value = configs.value.map(c => ({ title: c.name, value: c.id }))
-  configNameMap.value = Object.fromEntries(configs.value.map(c => [c.id, c.name]))
+  configs.value = res.data.map(c => ({ id: c.id, name: c.name, model_type: c.model_type }))
+  configOptions.value = configs.value.map(c => ({ title: c.model_type, value: c.id }))
+  configModelTypeMap.value = Object.fromEntries(res.data.map(c => [c.id, c.model_type]))
 }
 
 const runTraining = async () => {

@@ -178,7 +178,7 @@ const deleteDialog = ref(false)
 const detailDialog = ref(false)
 const analysisDialog = ref(false)
 const trainings = ref<(Training & { configName: string })[]>([])
-const configs = ref<{ id: string; name: string }[]>([])
+const configs = ref<{ id: string; name: string; model_type: string }[]>([])
 const filterConfig = ref<string | null>(null)
 const deletingItem = ref<Training | null>(null)
 const detailItem = ref<TrainingDetail | null>(null)
@@ -217,8 +217,8 @@ const configOptions = ref<{ title: string; value: string }[]>([])
 
 const loadConfigs = async () => {
   const res = await modelConfigApi.list()
-  configs.value = res.data.map(c => ({ id: c.id, name: c.name }))
-  configOptions.value = configs.value.map(c => ({ title: c.name, value: c.id }))
+  configs.value = res.data.map(c => ({ id: c.id, name: c.name, model_type: c.model_type }))
+  configOptions.value = configs.value.map(c => ({ title: c.model_type, value: c.id }))
 }
 
 const loadTrainings = async () => {

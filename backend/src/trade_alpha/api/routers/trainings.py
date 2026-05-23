@@ -195,20 +195,27 @@ async def list_trainings(config_id: str = Query(None)):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid config ID format")
 
-    return [
-        {
+    results = []
+    config_cache = {}
+    for t in trainings:
+        cid = str(t.config_id)
+        if cid not in config_cache:
+            config = await training.get_config_by_id(t.config_id)
+            config_cache[cid] = config.model_type if config else None
+        results.append({
             "id": str(t.id),
             "config_id": str(t.config_id),
             "name": t.name,
+            "model_type": config_cache[cid],
             "ts_codes": t.ts_codes,
             "start_date": to_api_format(t.start_date),
             "end_date": to_api_format(t.end_date),
             "sample_count": t.model_metrics.get("sample_count"),
             "accuracy_3d": t.model_metrics.get("accuracy", {}).get("label_3d"),
             "created_at": t.created_at,
-        }
-        for t in trainings
-    ]
+        })
+
+    return results
 
 
 @router.get("/{training_id}")

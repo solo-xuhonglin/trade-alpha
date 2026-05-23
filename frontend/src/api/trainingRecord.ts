@@ -14,6 +14,7 @@ export interface Training {
   id: string
   config_id: string
   name: string
+  model_type?: string
   ts_codes: string[]
   start_date: string
   end_date: string

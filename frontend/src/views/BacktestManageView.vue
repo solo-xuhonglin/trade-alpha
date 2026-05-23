@@ -167,7 +167,7 @@ import { strategyConfigApi } from '@/api/strategyConfig'
 const formatDateTime = () => {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`
 }
 
 const loading = ref(false)
@@ -177,26 +177,8 @@ const error = ref('')
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 const stopDialog = ref({ show: false, loading: false, task_id: '', force: false })
 
-const trainingOptions = ref<{ label: string; value: string }[]>([])
-const trainingNameMap = ref<Record<string, string>>({})
-const accountOptions = ref<{ label: string; value: string }[]>([])
-const strategyOptions = ref<{ label: string; value: string }[]>([])
-const strategyTypeMap = ref<Record<string, string>>({})
-
-watch(() => form.value.training_id, (newId) => {
-  if (newId && trainingNameMap.value[newId]) {
-    form.value.name = `backtest_${trainingNameMap.value[newId]}`
-  }
-})
-
-const currentMode = computed(() => {
-  const id = form.value.strategy_config_id
-  if (!id) return 'portfolio'
-  return strategyTypeMap.value[id] === 'single' ? 'single' : 'portfolio'
-})
-
 const form = ref({
-  name: `backtest_${formatDateTime()}`,
+  name: '',
   ts_codes: '002594.SZ',
   start_date: '2025-01-01',
   end_date: '2025-12-31',
@@ -204,6 +186,27 @@ const form = ref({
   account_config_id: '',
   training_id: '',
   strategy_config_id: '',
+})
+
+const trainingOptions = ref<{ label: string; value: string }[]>([])
+const trainingModelTypeMap = ref<Record<string, string>>({})
+const accountOptions = ref<{ label: string; value: string }[]>([])
+const strategyOptions = ref<{ label: string; value: string }[]>([])
+const strategyTypeMap = ref<Record<string, string>>({})
+
+const currentMode = computed(() => {
+  const id = form.value.strategy_config_id
+  if (!id) return 'portfolio'
+  return strategyTypeMap.value[id] === 'single' ? 'single' : 'portfolio'
+})
+
+watch(() => form.value.training_id, (newId) => {
+  if (newId && trainingModelTypeMap.value[newId]) {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`
+    form.value.name = `backtest_${trainingModelTypeMap.value[newId]}_${ts}`
+  }
 })
 
 const activeTaskHeaders = [
@@ -273,7 +276,7 @@ const pollActiveTasks = async () => {
 const loadTrainings = async () => {
   const res = await trainingRecordApi.list()
   trainingOptions.value = res.data.map(t => ({ label: t.name, value: t.id }))
-  trainingNameMap.value = Object.fromEntries(res.data.map(t => [t.id, t.name]))
+  trainingModelTypeMap.value = Object.fromEntries(res.data.map(t => [t.id, t.model_type || '']))
 }
 
 const loadAccounts = async () => {
