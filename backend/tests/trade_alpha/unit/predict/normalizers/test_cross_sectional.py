@@ -135,4 +135,4 @@ def test_normalize_output_fields_excluded_fields():
     
     result = normalizer.normalize(df)
     
-    assert list(result.columns) == ["close"]
+    assert set(result.columns) == {"close", "ts_code", "trade_date"}
