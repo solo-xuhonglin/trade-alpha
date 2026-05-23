@@ -1,4 +1,4 @@
-"""简化后的预测器 - 移除适配器，按模型类型分流。"""
+"""Predictor - dispatches to model-specific prediction logic."""
 
 from typing import Dict, List
 import pandas as pd

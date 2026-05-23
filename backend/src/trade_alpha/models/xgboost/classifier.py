@@ -18,7 +18,7 @@ class XGBoostClassifier(BaseClassifier):
         return "xgboost"
 
     async def train(self, ts_codes, start_date, end_date, task_id=None):
-        """自闭环训练：加载数据 → 截面标准化 → 训练XGBoost。"""
+        """Self-contained training: load data, cross-sectional normalize, train XGBoost."""
         from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
         from trade_alpha.task.service import TaskService
         from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data, _evaluate_classifier

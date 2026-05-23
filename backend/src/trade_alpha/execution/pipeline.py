@@ -58,7 +58,6 @@ class ExecutionPipeline:
         self._config = model_config
 
         self.data_loader = DataLoader()
-        # 让 Predictor 自己通过适配器创建标准化器，不再传递 normalizer
         self.predictor = Predictor(training_id, normalizer=None, data_loader=self.data_loader)
         
         # Initialize strategy based on mode

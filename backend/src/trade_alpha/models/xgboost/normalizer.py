@@ -13,7 +13,7 @@ def normalize(
     winsorize_lower: float = 0.05,
     winsorize_upper: float = 0.95,
 ) -> pd.DataFrame:
-    """按 trade_date 分组做 Z-score 标准化。"""
+    """Z-score normalize by trade_date group (cross-sectional)."""
     if df.empty:
         return pd.DataFrame(columns=feature_fields)
 

@@ -11,9 +11,10 @@ def create_sequences(
     target_names: List[str],
     sequence_length: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """构造重叠序列 → 序列内标准化。
+    """Create overlapping sequences and Z-score normalize each one internally.
 
-    对每只股票：排序 → 构造重叠序列 → 该序列自身 Z-score → 返回 3D。
+    For each stock: sort by date, create overlapping windows,
+    normalize each window using its own mean/std, return 3D tensor.
     """
     X_list, y_list = [], []
 

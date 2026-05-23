@@ -23,10 +23,10 @@ def _create_classification_labels(df: pd.DataFrame, horizons: List[int], thresho
 
 
 async def _load_year_data(year: int, ts_codes: List[str], horizon: int, extra_days: int = 0) -> Optional[pd.DataFrame]:
-    """加载指定年份数据（含未来horizon天）。
+    """Load yearly data including future horizon days.
 
     Args:
-        extra_days: LSTM 需要额外加载天数用于构造序列
+        extra_days: extra buffer days for LSTM sequence construction
     """
     year_start = f"{year}0101"
     year_end = f"{year}1231"
@@ -53,7 +53,7 @@ async def _load_year_data(year: int, ts_codes: List[str], horizon: int, extra_da
 
 
 async def _evaluate_classifier(classifier, X: np.ndarray, y: np.ndarray, feature_names: List[str], targets: List[str]) -> Dict:
-    """评估分类器性能，支持多目标"""
+    """Evaluate classifier performance for multi-target classification."""
     metrics = {}
     for i, target in enumerate(targets):
         y_i = y[:, i] if y.ndim > 1 else y

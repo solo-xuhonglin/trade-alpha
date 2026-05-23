@@ -33,7 +33,7 @@ class LSTMClassifier(BaseClassifier):
         return "lstm"
 
     async def train(self, ts_codes, start_date, end_date, task_id=None):
-        """自闭环训练：加载数据 → 构造序列 → 序列内标准化 → 训练LSTM。"""
+        """Self-contained training: load data, create sequences, normalize, train LSTM."""
         from trade_alpha.models.lstm.normalizer import create_sequences
         from trade_alpha.task.service import TaskService
         from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data

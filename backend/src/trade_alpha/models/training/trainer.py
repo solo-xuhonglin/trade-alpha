@@ -1,4 +1,4 @@
-"""模型训练编排 - 只做调度，数据工作在模型内部。"""
+"""Training orchestration - dispatches to models, does not handle data internally."""
 
 import os
 from datetime import datetime, timezone
