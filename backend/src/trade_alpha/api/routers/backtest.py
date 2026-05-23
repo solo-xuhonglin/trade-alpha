@@ -3,14 +3,15 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from beanie import PydanticObjectId
 from pydantic import BaseModel, field_validator
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import datetime
 
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.models import training as training_module
 from trade_alpha.execution.pipeline import ExecutionPipeline
 from trade_alpha.dao.execution import ExecutionResult
-from trade_alpha.dao.task import Task, TaskStatus, TaskType
+from trade_alpha.dao.task import TaskStatus, TaskType
+from trade_alpha.services.task_service import TaskService
 from trade_alpha.strategy.service import get_strategy_by_id
 from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.api.validators import validate_trade_date
@@ -81,22 +82,17 @@ async def trigger_backtest(
         if not training:
             raise HTTPException(status_code=404, detail="Training not found")
 
-        task = await Task(
-            type=TaskType.BACKTEST,
-            status=TaskStatus.PENDING,
-            params={
-                "account_config_id": body.account_config_id,
-                "training_id": body.training_id,
-                "start_date": body.start_date,
-                "end_date": body.end_date,
-                "name": body.name,
-                "mode": body.mode,
-                "ts_codes": body.ts_codes,
-                "max_positions": body.max_positions,
-                "strategy_config_id": body.strategy_config_id,
-            },
-            created_at=datetime.now(),
-        ).save()
+        task = await TaskService.create_task(TaskType.BACKTEST, {
+            "account_config_id": body.account_config_id,
+            "training_id": body.training_id,
+            "start_date": body.start_date,
+            "end_date": body.end_date,
+            "name": body.name,
+            "mode": body.mode,
+            "ts_codes": body.ts_codes,
+            "max_positions": body.max_positions,
+            "strategy_config_id": body.strategy_config_id,
+        })
 
         background_tasks.add_task(run_backtest_async, str(task.id))
 
@@ -117,32 +113,32 @@ async def run_backtest_async(task_id: str):
     from trade_alpha.logging import get_logger
 
     logger = get_logger("backtest.task")
-    task = await Task.get(PydanticObjectId(task_id))
+    task = await TaskService.get_task(PydanticObjectId(task_id))
     if not task:
         return
 
     try:
-        task.status = TaskStatus.RUNNING
-        task.started_at = datetime.now()
-        task.progress = 0.0
-        task.progress_message = "正在初始化..."
-        await task.save()
+        await TaskService.start_task(task.id)
 
         params = task.params
         account_config = await AccountConfig.get(PydanticObjectId(params["account_config_id"]))
 
         training = await training_module.get_training_by_id(PydanticObjectId(params["training_id"]))
         if not training:
-            raise ValueError(f"Training not found: {params['training_id']}")
+            await TaskService.fail_task(task.id, f"Training not found: {params['training_id']}")
+            return
+        
         model_config = await training_module.get_config_by_id(training.config_id)
         if not model_config:
-            raise ValueError(f"Model config not found: {training.config_id}")
+            await TaskService.fail_task(task.id, f"Model config not found: {training.config_id}")
+            return
 
         strategy_config = None
         if params.get("strategy_config_id"):
             strategy_config = await get_strategy_by_id(PydanticObjectId(params["strategy_config_id"]))
             if not strategy_config:
-                raise ValueError(f"Strategy config not found: {params['strategy_config_id']}")
+                await TaskService.fail_task(task.id, f"Strategy config not found: {params['strategy_config_id']}")
+                return
 
         pipeline = ExecutionPipeline(
             account_config=account_config,
@@ -161,19 +157,11 @@ async def run_backtest_async(task_id: str):
             task_id=task.id,
         )
 
-        task.status = TaskStatus.COMPLETED
-        task.progress = 100.0
-        task.progress_message = "回测完成"
-        task.result_id = str(result.id)
-        task.completed_at = datetime.now()
-        await task.save()
+        await TaskService.complete_task(task.id, str(result.id))
 
     except Exception as e:
         logger.error(f"Backtest task {task_id} failed: {e}")
-        task.status = TaskStatus.FAILED
-        task.error_message = str(e)
-        task.progress_message = f"回测失败: {str(e)}"
-        await task.save()
+        await TaskService.fail_task(task.id, str(e))
 
 
 @router.get("/task/{task_id}")
@@ -184,7 +172,7 @@ async def get_backtest_task(task_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    task = await Task.get(obj_id)
+    task = await TaskService.get_task(obj_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -213,7 +201,7 @@ async def cancel_backtest_task(task_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    task = await Task.get(obj_id)
+    task = await TaskService.get_task(obj_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -224,10 +212,7 @@ async def cancel_backtest_task(task_id: str):
     if task.status == TaskStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Task already completed")
 
-    task.status = TaskStatus.FAILED
-    task.error_message = "Task cancelled by user"
-    task.completed_at = datetime.now()
-    await task.save()
+    await TaskService.fail_task(task.id, "Task cancelled by user")
 
     return {"message": "Task cancelled"}
 
@@ -239,34 +224,37 @@ async def list_backtest_tasks(
     status: Optional[str] = None,
 ):
     """List backtest tasks."""
-    query = Task.find(Task.type == TaskType.BACKTEST)
-
+    task_status = None
     if status:
         try:
-            query = query.find(Task.status == TaskStatus(status))
+            task_status = TaskStatus(status)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid status")
 
-    total = await query.count()
-    tasks = await query.sort(-Task.created_at).skip((page - 1) * page_size).limit(page_size).to_list()
+    result = await TaskService.list_tasks(
+        task_type=TaskType.BACKTEST,
+        status=task_status,
+        page=page,
+        page_size=page_size,
+    )
 
     return {
         "items": [
             {
-                "task_id": str(task.id),
-                "status": task.status.value,
-                "progress": task.progress,
-                "progress_message": task.progress_message,
-                "error_message": task.error_message,
-                "created_at": task.created_at,
-                "completed_at": task.completed_at,
+                "task_id": str(t.id),
+                "status": t.status.value,
+                "progress": t.progress,
+                "progress_message": t.progress_message,
+                "error_message": t.error_message,
+                "created_at": t.created_at,
+                "completed_at": t.completed_at,
             }
-            for task in tasks
+            for t in result["items"]
         ],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size,
+        "total": result["total"],
+        "page": result["page"],
+        "page_size": result["page_size"],
+        "total_pages": result["total_pages"],
     }
 
 
