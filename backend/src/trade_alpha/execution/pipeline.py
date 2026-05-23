@@ -8,7 +8,7 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
-from trade_alpha.dao.task import Task
+from trade_alpha.services.task_service import TaskService
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.predictor import Predictor
 from trade_alpha.models.normalizers import CrossSectionalNormalizer
@@ -92,12 +92,6 @@ class ExecutionPipeline:
         task_id: Optional[PydanticObjectId] = None,
     ) -> ExecutionResult:
         """Run backtest from start_date to end_date (inclusive)."""
-        async def update_progress(progress: float, message: str):
-            if task_id:
-                await Task.find_one(Task.id == task_id).update(
-                    {"$set": {"progress": progress, "progress_message": message}}
-                )
-
         backtest_name = name or f"backtest_{start_date}_{end_date}"
 
         result = ExecutionResult(
@@ -130,7 +124,7 @@ class ExecutionPipeline:
         await result.insert()
         backtest_id = result.id
 
-        await update_progress(10, "正在初始化...")
+        await TaskService.update_progress(task_id, 10, "正在初始化...")
         logger.info(f"Backtest {backtest_id} started: {start_date} -> {end_date}")
 
         # Get stocks from the universe (same stocks used in training)
@@ -141,7 +135,7 @@ class ExecutionPipeline:
 
         from beanie.odm.operators.find.comparison import NotIn
 
-        await update_progress(20, "正在加载股票列表...")
+        await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
         all_stocks = await StockList.find(
             StockList.sync_status == "active",
             NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
@@ -164,7 +158,7 @@ class ExecutionPipeline:
 
         logger.info(f"Universe contains {len(ts_codes)} stocks (top {limit})")
 
-        await update_progress(30, "正在准备回测...")
+        await TaskService.update_progress(task_id, 30, "正在准备回测...")
         self.cash = self.account_config.initial_capital
         self.positions = {}
         self.prev_total_value = None
@@ -198,7 +192,7 @@ class ExecutionPipeline:
                 baseline_end_price = baseline_records[-1].close
                 logger.info(f"Baseline: {len(baseline_records)} records, {baseline_start_price} -> {baseline_end_price}")
 
-        await update_progress(40, "正在执行回测...")
+        await TaskService.update_progress(task_id, 40, "正在执行回测...")
 
         date = start_date
         while date <= end_date:
@@ -213,7 +207,7 @@ class ExecutionPipeline:
             for idx, (y, m) in enumerate(year_months):
                 if y == current_year and m == current_month and idx >= last_idx:
                     last_idx = idx + 1
-                    await update_progress(40 + last_idx / total_months * 50, f"正在回测 {y}年{m}月...")
+                    await TaskService.update_progress(task_id, 40 + last_idx / total_months * 50, f"正在回测 {y}年{m}月...")
                     break
 
             logger.debug(f"Processing {date}")

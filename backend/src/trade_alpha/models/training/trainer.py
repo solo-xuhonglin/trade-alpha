@@ -8,7 +8,8 @@ from beanie import PydanticObjectId
 import pandas as pd
 import numpy as np
 
-from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult, Task
+from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult
+from trade_alpha.services.task_service import TaskService
 from .config import get_config_by_id
 from ..adapters.registry import get_trainer_adapter
 from trade_alpha.utils.date_utils import get_year_months, to_db_format
@@ -164,16 +165,10 @@ async def create_training(
     if not config:
         raise ValueError(f"Config not found: {config_id}")
 
-    async def update_progress(progress: float, message: str):
-        if task_id:
-            await Task.find_one(Task.id == task_id).update(
-                {"$set": {"progress": progress, "progress_message": message}}
-            )
-
     # 获取模型适配器
     adapter = get_trainer_adapter(config.model_type)
 
-    await update_progress(10, "正在初始化...")
+    await TaskService.update_progress(task_id, 10, "正在初始化...")
 
     year_months = get_year_months(start_date, end_date)
     years = sorted(set(y for y, _ in year_months))
@@ -185,7 +180,7 @@ async def create_training(
 
     normalizer = adapter.create_normalizer(config, target_names)
 
-    await update_progress(20, "正在加载数据...")
+    await TaskService.update_progress(task_id, 20, "正在加载数据...")
 
     for year_idx, year in enumerate(years):
         year_df = await _load_year_data(year, ts_codes, horizon)
@@ -199,26 +194,26 @@ async def create_training(
         if not year_norm.empty:
             all_norm_dfs.append(year_norm)
 
-        await update_progress(20 + (year_idx + 1) / len(years) * 30, f"正在处理 {year} 年数据...")
+        await TaskService.update_progress(task_id, 20 + (year_idx + 1) / len(years) * 30, f"正在处理 {year} 年数据...")
 
     if not all_norm_dfs:
         raise ValueError("No available data")
 
-    await update_progress(50, "正在准备训练数据...")
+    await TaskService.update_progress(task_id, 50, "正在准备训练数据...")
 
     X = np.vstack([df[config.feature_fields].values for df in all_norm_dfs])
     y = np.vstack([df[target_names].values for df in all_norm_dfs])
     sample_count = len(X)
 
-    await update_progress(55, "正在创建模型...")
+    await TaskService.update_progress(task_id, 55, "正在创建模型...")
 
     classifier = adapter.create_classifier(config)
 
-    await update_progress(60, "正在训练模型...")
+    await TaskService.update_progress(task_id, 60, "正在训练模型...")
 
     classifier.fit(X, y, target_names)
 
-    await update_progress(80, "正在评估模型...")
+    await TaskService.update_progress(task_id, 80, "正在评估模型...")
 
     eval_metrics = await _evaluate_classifier(
         classifier,
@@ -229,7 +224,7 @@ async def create_training(
         n_splits=5,
     )
 
-    await update_progress(95, "正在保存结果...")
+    await TaskService.update_progress(task_id, 95, "正在保存结果...")
 
     training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, config.feature_fields)
 
