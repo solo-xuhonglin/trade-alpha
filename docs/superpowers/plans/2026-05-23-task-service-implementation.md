@@ -147,7 +147,29 @@ git commit -m "feat: add TaskService class for task lifecycle management"
 
 ---
 
-## Task 2: Migrate backtest.py to use TaskService
+## Task 2: Add TaskService Integration Test
+
+**Files:**
+- Create: `backend/tests/trade_alpha/integration/test_35_task_service.py`
+
+- [ ] **Step 1: Run integration tests**
+
+```bash
+cd backend && pytest tests/trade_alpha/integration/test_35_task_service.py -v
+```
+
+Expected: All tests should PASS
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add backend/tests/trade_alpha/integration/test_35_task_service.py
+git commit -m "test: add integration tests for TaskService"
+```
+
+---
+
+## Task 3: Migrate backtest.py to use TaskService
 
 **Files:**
 - Modify: `backend/src/trade_alpha/api/routers/backtest.py:1-30` (imports)
@@ -289,7 +311,7 @@ git commit -m "refactor: migrate backtest.py to use TaskService"
 
 ---
 
-## Task 3: Migrate trainings.py to use TaskService
+## Task 4: Migrate trainings.py to use TaskService
 
 **Files:**
 - Modify: `backend/src/trade_alpha/api/routers/trainings.py`
@@ -450,7 +472,7 @@ git commit -m "refactor: migrate trainings.py to use TaskService"
 
 ---
 
-## Task 4: Migrate data_analysis.py to use TaskService
+## Task 5: Migrate data_analysis.py to use TaskService
 
 **Files:**
 - Modify: `backend/src/trade_alpha/api/routers/data_analysis.py`
@@ -623,7 +645,7 @@ git commit -m "refactor: migrate data_analysis.py to use TaskService"
 
 ---
 
-## Task 5: Push all changes
+## Task 6: Push all changes
 
 - [ ] **Step 1: Push to remote**
 
@@ -639,6 +661,7 @@ git push
 ✅ Status management: start_task, complete_task, fail_task (TaskService)
 ✅ Progress update (TaskService.update_progress)
 ✅ Query operations: get_task, list_tasks (TaskService)
+✅ Integration tests for TaskService
 ✅ Usage examples in plan tasks
 
 All spec requirements covered.
