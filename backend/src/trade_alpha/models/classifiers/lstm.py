@@ -4,7 +4,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict
 from .base import BaseClassifier
 
 
@@ -41,17 +41,6 @@ class LSTMModel(nn.Module):
 
     def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 5) -> None:
         """Simple fit method for cross-validation evaluation."""
-        from trade_alpha.predict.models.lstm import LSTMClassifier
-        
-        # Create a temporary classifier to fit
-        tmp_classifier = LSTMClassifier(
-            hidden_size=self.hidden_size,
-            num_layers=self.num_layers,
-            dropout=self.dropout,
-            epochs=epochs,
-            sequence_length=10,
-        )
-        # For cross-validation, we just use this model as is
         pass
 
 
@@ -89,7 +78,7 @@ class LSTMClassifier(BaseClassifier):
             sequences.append(X[i:i + self.sequence_length])
         return np.array(sequences)
 
-    def fit(self, X: np.ndarray, y: np.ndarray, target_names: List[str], progress_callback: Optional[Callable] = None) -> None:
+    def fit(self, X: np.ndarray, y: np.ndarray, target_names: List[str]) -> None:
         self.input_size = X.shape[1]
         self.models = {}
         self._label_mapping = {}
@@ -115,9 +104,6 @@ class LSTMClassifier(BaseClassifier):
         # Convert to float and handle NaN in sequences
         X_seq = np.array(X_seq, dtype=np.float64)
         X_seq = np.nan_to_num(X_seq, nan=0.0, posinf=0.0, neginf=0.0)
-
-        total_targets = len(target_names)
-        total_steps = total_targets * self.epochs
 
         for target_idx, target in enumerate(target_names):
             y_i = y_seq[:, target_idx].astype(int)
@@ -155,15 +141,6 @@ class LSTMClassifier(BaseClassifier):
                     optimizer.step()
                     epoch_loss += loss.item()
                     num_batches += 1
-
-                if progress_callback:
-                    current_step = target_idx * self.epochs + epoch + 1
-                    progress_pct = current_step / total_steps * 100
-                    avg_loss = epoch_loss / num_batches if num_batches > 0 else 0
-                    progress_callback(
-                        progress_pct,
-                        f"训练 {target} Epoch {epoch + 1}/{self.epochs}, Loss: {avg_loss:.4f}"
-                    )
 
             self.models[target] = model.cpu()
             self._label_mapping[target] = label_map

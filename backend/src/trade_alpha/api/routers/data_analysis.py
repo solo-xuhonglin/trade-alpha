@@ -80,11 +80,6 @@ async def run_data_analysis_async(task_id: str):
     if not task:
         return
 
-    async def update_progress(progress: float, message: str):
-        task.progress = progress
-        task.progress_message = message
-        await task.save()
-
     try:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
@@ -114,7 +109,7 @@ async def run_data_analysis_async(task_id: str):
             start_date=params["start_date"],
             end_date=params["end_date"],
             feature_fields=feature_fields,
-            progress_callback=update_progress,
+            task_id=task.id,
         )
 
         analysis_result_id = await save_analysis_result(

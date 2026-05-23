@@ -72,11 +72,6 @@ async def run_training_async(task_id: str):
     if not task:
         return
 
-    async def update_progress(progress: float, message: str):
-        task.progress = progress
-        task.progress_message = message
-        await task.save()
-
     try:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
@@ -91,13 +86,13 @@ async def run_training_async(task_id: str):
             ts_codes=params["ts_codes"],
             start_date=params["start_date"],
             end_date=params["end_date"],
-            progress_callback=update_progress,
+            task_id=task.id,
         )
 
         task.status = TaskStatus.COMPLETED
         task.progress = 100.0
         task.progress_message = "训练完成"
-        task.result_id = str(training.id)
+        task.result_id = str(training_result.id)
         task.completed_at = datetime.now()
         await task.save()
 

@@ -3,8 +3,9 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Callable
-from trade_alpha.dao import StockDaily, DataAnalysisResult
+from typing import List, Dict, Any, Optional
+from beanie import PydanticObjectId
+from trade_alpha.dao import StockDaily, DataAnalysisResult, Task
 from trade_alpha.utils.date_utils import to_db_format
 from trade_alpha.logging import get_logger
 
@@ -104,22 +105,24 @@ async def run_data_analysis(
     start_date: str,
     end_date: str,
     feature_fields: List[str],
-    progress_callback: Optional[Callable] = None,
+    task_id: Optional[PydanticObjectId] = None,
 ) -> Dict[str, Any]:
     """Run data analysis and return results."""
 
     async def update_progress(progress: float, message: str):
-        if progress_callback:
-            await progress_callback(progress, message)
+        if task_id:
+            await Task.find_one(Task.id == task_id).update(
+                {"$set": {"progress": progress, "progress_message": message}}
+            )
 
     # Convert date format to match database format (YYYYMMDD)
     start_date = to_db_format(start_date)
     end_date = to_db_format(end_date)
 
-    await update_progress(10, "Loading data from database...")
+    await update_progress(10, "正在加载数据...")
 
     all_dfs = []
-    for ts_code in ts_codes:
+    for idx, ts_code in enumerate(ts_codes):
         records = await StockDaily.find(
             StockDaily.ts_code == ts_code,
             StockDaily.trade_date >= start_date,
@@ -129,17 +132,18 @@ async def run_data_analysis(
             df = pd.DataFrame([r.model_dump() for r in records])
             df["ts_code"] = ts_code
             all_dfs.append(df)
+        await update_progress(10 + (idx + 1) / len(ts_codes) * 60, f"正在处理 {idx+1}/{len(ts_codes)} 只股票...")
 
     if not all_dfs:
         raise ValueError("No data found")
 
+    await update_progress(70, "正在计算统计数据...")
     df = pd.concat(all_dfs, ignore_index=True)
-    await update_progress(30, "Calculating statistics...")
 
+    await update_progress(80, "正在生成分析结果...")
     result = compute_field_analysis(df, feature_fields)
 
-    await update_progress(60, "Generating chart data...")
-    await update_progress(90, "Saving results...")
+    await update_progress(95, "正在保存结果...")
 
     return result
 

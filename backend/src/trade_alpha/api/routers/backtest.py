@@ -121,11 +121,6 @@ async def run_backtest_async(task_id: str):
     if not task:
         return
 
-    async def update_progress(progress: float, message: str):
-        task.progress = progress
-        task.progress_message = message
-        await task.save()
-
     try:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
@@ -163,7 +158,7 @@ async def run_backtest_async(task_id: str):
             start_date=params["start_date"],
             end_date=params["end_date"],
             name=params["name"],
-            progress_callback=update_progress,
+            task_id=task.id,
         )
 
         task.status = TaskStatus.COMPLETED

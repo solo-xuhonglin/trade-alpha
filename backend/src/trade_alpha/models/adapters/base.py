@@ -32,15 +32,14 @@ class BaseTrainerAdapter(ABC):
         """
         pass
 
-    def train(self, classifier, X: np.ndarray, y: np.ndarray, target_names: List[str], progress_callback=None):
-        """训练模型（可选的进度回调）
+    def train(self, classifier, X: np.ndarray, y: np.ndarray, target_names: List[str]):
+        """训练模型
         
         Args:
             classifier: 分类器实例
             X: 特征数据
             y: 标签数据
             target_names: 目标列名列表
-            progress_callback: 可选的进度回调函数
         """
         classifier.fit(X, y, target_names)
 

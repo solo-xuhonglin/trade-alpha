@@ -1,4 +1,4 @@
-from typing import List, Optional, Callable
+from typing import List
 from ..base import BaseTrainerAdapter
 from ...classifiers.lstm import LSTMClassifier
 from ...normalizers.sliding_window import SlidingWindowNormalizer
@@ -27,6 +27,6 @@ class LSTMTrainerAdapter(BaseTrainerAdapter):
             sequence_length=config.lstm_sequence_length,
         )
 
-    def train(self, classifier, X, y, target_names: List[str], progress_callback: Optional[Callable] = None):
+    def train(self, classifier, X, y, target_names: List[str]):
         """训练 LSTM 模型"""
-        classifier.fit(X, y, target_names, progress_callback=progress_callback)
+        classifier.fit(X, y, target_names)

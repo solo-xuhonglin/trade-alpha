@@ -8,9 +8,8 @@ from beanie import PydanticObjectId
 import pandas as pd
 import numpy as np
 
-from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult
+from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult, Task
 from .config import get_config_by_id
-from .stages import Stage
 from ..adapters.registry import get_trainer_adapter
 from trade_alpha.utils.date_utils import get_year_months, to_db_format
 from trade_alpha.logging import get_logger
@@ -85,24 +84,11 @@ async def _evaluate_classifier(
     feature_names: List[str],
     targets: List[str],
     n_splits: int = 5,
-    progress_callback: Optional[callable] = None,
 ) -> Dict:
     """评估分类器性能，支持多目标"""
     from sklearn.model_selection import KFold
 
     metrics = {}
-
-    async def _call_progress(pct: float, msg: str):
-        if progress_callback:
-            try:
-                if asyncio.iscoroutinefunction(progress_callback):
-                    await progress_callback(pct, msg)
-                else:
-                    progress_callback(pct, msg)
-            except Exception:
-                pass
-
-    await _call_progress(0, "正在计算准确率...")
 
     for i, target in enumerate(targets):
         y_i = y[:, i] if y.ndim > 1 else y
@@ -126,8 +112,6 @@ async def _evaluate_classifier(
     is_lstm = hasattr(classifier, "sequence_length")
 
     for fold_idx, (train_idx, val_idx) in enumerate(kf.split(X)):
-        await _call_progress((fold_idx + 1) / n_splits * 100, f"交叉验证 Fold {fold_idx + 1}/{n_splits}...")
-
         X_train, X_val = X[train_idx], X[val_idx]
 
         for i, target in enumerate(targets):
@@ -169,7 +153,7 @@ async def create_training(
     ts_codes: List[str],
     start_date: str,
     end_date: str,
-    progress_callback: Optional[callable] = None,
+    task_id: Optional[PydanticObjectId] = None,
 ) -> TrainingResult:
     """训练流程：逐年加载→逐年计算标签→逐年标准化→一次性训练（使用适配器）"""
     existing = await get_training_by_name(name)
@@ -180,33 +164,34 @@ async def create_training(
     if not config:
         raise ValueError(f"Config not found: {config_id}")
 
+    async def update_progress(progress: float, message: str):
+        if task_id:
+            await Task.find_one(Task.id == task_id).update(
+                {"$set": {"progress": progress, "progress_message": message}}
+            )
+
     # 获取模型适配器
     adapter = get_trainer_adapter(config.model_type)
+
+    await update_progress(10, "正在初始化...")
 
     year_months = get_year_months(start_date, end_date)
     years = sorted(set(y for y, _ in year_months))
 
     target_names = [f"label_{h}d" for h in config.classification_horizons]
 
-    async def update_progress(message: str):
-        if progress_callback:
-            if asyncio.iscoroutinefunction(progress_callback):
-                await progress_callback(0, message)  # 百分比固定0
-            else:
-                progress_callback(0, message)
-
     horizon = max(config.classification_horizons)
     all_norm_dfs = []
 
     normalizer = adapter.create_normalizer(config, target_names)
 
+    await update_progress(20, "正在加载数据...")
+
     for year_idx, year in enumerate(years):
-        await update_progress(f"{Stage.DATA_LOAD}{year}年")
         year_df = await _load_year_data(year, ts_codes, horizon)
         if year_df is None:
             continue
 
-        await update_progress(f"{Stage.LABEL_CALC}{year}年")
         year_df = _create_classification_labels(year_df, config.classification_horizons, config.classification_threshold)
 
         year_norm = normalizer.normalize(year_df)
@@ -214,19 +199,27 @@ async def create_training(
         if not year_norm.empty:
             all_norm_dfs.append(year_norm)
 
+        await update_progress(20 + (year_idx + 1) / len(years) * 30, f"正在处理 {year} 年数据...")
+
     if not all_norm_dfs:
         raise ValueError("No available data")
+
+    await update_progress(50, "正在准备训练数据...")
 
     X = np.vstack([df[config.feature_fields].values for df in all_norm_dfs])
     y = np.vstack([df[target_names].values for df in all_norm_dfs])
     sample_count = len(X)
 
+    await update_progress(55, "正在创建模型...")
+
     classifier = adapter.create_classifier(config)
 
-    await update_progress(Stage.TRAINING)
+    await update_progress(60, "正在训练模型...")
+
     classifier.fit(X, y, target_names)
 
-    await update_progress(Stage.EVALUATE)
+    await update_progress(80, "正在评估模型...")
+
     eval_metrics = await _evaluate_classifier(
         classifier,
         X,
@@ -236,10 +229,9 @@ async def create_training(
         n_splits=5,
     )
 
-    await update_progress(Stage.ANALYSIS)
-    training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, config.feature_fields)
+    await update_progress(95, "正在保存结果...")
 
-    await update_progress(Stage.DONE)
+    training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, config.feature_fields)
 
     training = TrainingResult(
         config_id=config_id,
