@@ -136,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { trainingApi, type TaskStatusResponse } from '@/api/training'
 import { modelConfigApi } from '@/api/modelConfig'
 
@@ -155,10 +155,10 @@ const formatDateTime = () => {
 
 const form = ref({
   config_id: '',
-  name: `training_${formatDateTime()}`,
+  name: '',
   mv_rank_start: 1,
-  mv_rank_end: 1000,
-  start_date: '2015-01-01',
+  mv_rank_end: 100,
+  start_date: '2021-01-01',
   end_date: '2024-12-31',
 })
 
@@ -172,6 +172,17 @@ const activeTaskHeaders = [
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
+
+const configNameMap = ref<Record<string, string>>({})
+
+watch(() => form.value.config_id, (newId) => {
+  if (newId && configNameMap.value[newId]) {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+    form.value.name = `${configNameMap.value[newId]}_${ts}`
+  }
+})
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -232,6 +243,7 @@ const loadConfigs = async () => {
   const res = await modelConfigApi.list()
   configs.value = res.data.map(c => ({ id: c.id, name: c.name }))
   configOptions.value = configs.value.map(c => ({ title: c.name, value: c.id }))
+  configNameMap.value = Object.fromEntries(configs.value.map(c => [c.id, c.name]))
 }
 
 const runTraining = async () => {

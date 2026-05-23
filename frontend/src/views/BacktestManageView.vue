@@ -158,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
 import { accountConfigApi } from '@/api/accountConfig'
 import { trainingRecordApi } from '@/api/trainingRecord'
@@ -178,9 +178,16 @@ const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 const stopDialog = ref({ show: false, loading: false, task_id: '', force: false })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
+const trainingNameMap = ref<Record<string, string>>({})
 const accountOptions = ref<{ label: string; value: string }[]>([])
 const strategyOptions = ref<{ label: string; value: string }[]>([])
 const strategyTypeMap = ref<Record<string, string>>({})
+
+watch(() => form.value.training_id, (newId) => {
+  if (newId && trainingNameMap.value[newId]) {
+    form.value.name = `backtest_${trainingNameMap.value[newId]}`
+  }
+})
 
 const currentMode = computed(() => {
   const id = form.value.strategy_config_id
@@ -266,6 +273,7 @@ const pollActiveTasks = async () => {
 const loadTrainings = async () => {
   const res = await trainingRecordApi.list()
   trainingOptions.value = res.data.map(t => ({ label: t.name, value: t.id }))
+  trainingNameMap.value = Object.fromEntries(res.data.map(t => [t.id, t.name]))
 }
 
 const loadAccounts = async () => {
