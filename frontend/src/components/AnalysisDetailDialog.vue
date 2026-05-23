@@ -1,13 +1,16 @@
 <template>
   <v-dialog :model-value="dialog" @update:model-value="$emit('update:dialog', $event)" max-width="1200px">
-    <v-card v-if="result">
+    <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
         {{ title }}
         <v-btn icon variant="text" size="small" @click="$emit('update:dialog', false)">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text class="overflow-hidden" style="max-height: 95vh;">
+      <v-card-text v-if="!result" class="text-center text-medium-emphasis py-8">
+        暂无分析数据
+      </v-card-text>
+      <v-card-text v-else class="overflow-hidden" style="max-height: 95vh;">
         <v-tabs v-model="tab" color="primary">
           <v-tab value="overview">概览</v-tab>
           <v-tab value="boxplot">箱线图</v-tab>
