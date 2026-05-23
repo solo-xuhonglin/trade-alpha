@@ -9,8 +9,8 @@ from trade_alpha.data.fetcher import fetch_stock_data
 class TestFetcher:
     """Test cases for fetcher module."""
 
-    @patch("trade_alpha.data.fetcher.get_pro_api")
-    def test_fetch_stock_data_success(self, mock_api):
+    @patch("trade_alpha.data.fetcher.ts.pro_bar")  # 直接mock pro_bar
+    def test_fetch_stock_data_success(self, mock_pro_bar):
         mock_df = pd.DataFrame({
             "ts_code": ["000001.SZ"],
             "trade_date": ["20240101"],
@@ -20,7 +20,7 @@ class TestFetcher:
             "close": [10.5],
             "vol": [1000000],
         })
-        mock_api.return_value.daily.return_value = mock_df
+        mock_pro_bar.return_value = mock_df
 
         result = fetch_stock_data("000001.SZ", "20240101", "20240101")
 
@@ -28,17 +28,16 @@ class TestFetcher:
         assert len(result) == 1
         assert result.iloc[0]["ts_code"] == "000001.SZ"
 
-    @patch("trade_alpha.data.fetcher.get_pro_api")
-    def test_fetch_stock_data_empty(self, mock_api):
-        mock_df = pd.DataFrame()
-        mock_api.return_value.daily.return_value = mock_df
+    @patch("trade_alpha.data.fetcher.ts.pro_bar")
+    def test_fetch_stock_data_empty(self, mock_pro_bar):
+        mock_pro_bar.return_value = pd.DataFrame()
 
         result = fetch_stock_data("000001.SZ", "20240101", "20240101")
 
         assert result is None
 
-    @patch("trade_alpha.data.fetcher.get_pro_api")
-    def test_fetch_stock_data_returns_sorted(self, mock_api):
+    @patch("trade_alpha.data.fetcher.ts.pro_bar")
+    def test_fetch_stock_data_returns_sorted(self, mock_pro_bar):
         mock_df = pd.DataFrame({
             "ts_code": ["000001.SZ", "000001.SZ"],
             "trade_date": ["20240102", "20240101"],
@@ -48,7 +47,7 @@ class TestFetcher:
             "close": [10.5, 10.0],
             "vol": [1000000, 900000],
         })
-        mock_api.return_value.daily.return_value = mock_df
+        mock_pro_bar.return_value = mock_df
 
         result = fetch_stock_data("000001.SZ", "20240101", "20240102")
 

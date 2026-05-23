@@ -10,7 +10,7 @@ import numpy as np
 
 from trade_alpha.dao import StockDaily, StockList, TrainingResult, PredictionResult
 from .config import get_config_by_id
-from .stages import DATA_LOAD, LABEL_CALC, TRAINING, EVALUATE, ANALYSIS, DONE
+from .stages import Stage
 from ..adapters.registry import get_trainer_adapter
 from trade_alpha.utils.date_utils import get_year_months, to_db_format
 from trade_alpha.logging import get_logger
@@ -188,13 +188,12 @@ async def create_training(
 
     target_names = [f"label_{h}d" for h in config.classification_horizons]
 
-    async def update_progress(stage, detail: str = ""):
-        msg = f"{stage.message}{detail}" if detail else stage.message
+    async def update_progress(message: str):
         if progress_callback:
             if asyncio.iscoroutinefunction(progress_callback):
-                await progress_callback(stage.pct, msg)
+                await progress_callback(0, message)  # 百分比固定0
             else:
-                progress_callback(stage.pct, msg)
+                progress_callback(0, message)
 
     horizon = max(config.classification_horizons)
     all_norm_dfs = []
@@ -202,12 +201,12 @@ async def create_training(
     normalizer = adapter.create_normalizer(config, target_names)
 
     for year_idx, year in enumerate(years):
-        await update_progress(DATA_LOAD, f"{year}年")
+        await update_progress(f"{Stage.DATA_LOAD}{year}年")
         year_df = await _load_year_data(year, ts_codes, horizon)
         if year_df is None:
             continue
 
-        await update_progress(LABEL_CALC, f"{year}年")
+        await update_progress(f"{Stage.LABEL_CALC}{year}年")
         year_df = _create_classification_labels(year_df, config.classification_horizons, config.classification_threshold)
 
         year_norm = normalizer.normalize(year_df)
@@ -224,10 +223,10 @@ async def create_training(
 
     classifier = adapter.create_classifier(config)
 
-    await update_progress(TRAINING)
+    await update_progress(Stage.TRAINING)
     classifier.fit(X, y, target_names)
 
-    await update_progress(EVALUATE)
+    await update_progress(Stage.EVALUATE)
     eval_metrics = await _evaluate_classifier(
         classifier,
         X,
@@ -237,10 +236,10 @@ async def create_training(
         n_splits=5,
     )
 
-    await update_progress(ANALYSIS)
+    await update_progress(Stage.ANALYSIS)
     training_normalized_analysis = _analyze_normalized_data(all_norm_dfs, config.feature_fields)
 
-    await update_progress(DONE)
+    await update_progress(Stage.DONE)
 
     training = TrainingResult(
         config_id=config_id,
