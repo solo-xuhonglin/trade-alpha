@@ -305,32 +305,30 @@ async def list_all_trades(
 @router.get("/trades/options")
 async def get_trade_filter_options():
     """Get filter options for trade list."""
+    # Load all execution results to extract actual filter values
+    results = await ExecutionResult.find_all().sort(-ExecutionResult.created_at).to_list()
+
     # Collect account configs: from live collection + from execution results (handles deleted configs)
     account_configs = await AccountConfig.find_all().sort(-AccountConfig.created_at).to_list()
     account_map = {str(c.id): c.name for c in account_configs}
-    exec_account_ids = await ExecutionResult.distinct("account_config_id", {"account_config_id": {"$ne": None}})
-    for aid in exec_account_ids:
-        aid_str = str(aid) if hasattr(aid, "__str__") else str(aid)
-        if aid_str not in account_map:
-            account_map[aid_str] = aid_str
+    for r in results:
+        if r.account_config_id:
+            aid = str(r.account_config_id)
+            if aid not in account_map:
+                account_map[aid] = aid
 
     # Collect trainings from execution results (handles deleted trainings)
     trainings = await TrainingResult.find_all().sort(-TrainingResult.created_at).to_list()
     training_map = {str(t.id): t.name for t in trainings}
-    exec_training_ids = await ExecutionResult.distinct("training_id", {"training_id": {"$ne": None}})
-    for tid in exec_training_ids:
-        tid_str = str(tid) if hasattr(tid, "__str__") else str(tid)
-        if tid_str not in training_map:
-            training_map[tid_str] = tid_str
+    for r in results:
+        if r.training_id:
+            tid = str(r.training_id)
+            if tid not in training_map:
+                training_map[tid] = tid
 
-    # Get actual ts_codes from execution results
-    ts_codes = await ExecutionResult.distinct("ts_code", {"ts_code": {"$ne": None, "$ne": ""}})
-
-    # Get execution results as backtest filter options
-    backtests = await ExecutionResult.find_all().sort(-ExecutionResult.created_at).to_list()
-
-    # Get model types from model_snapshot
-    model_types = await ExecutionResult.distinct("model_snapshot.model_type")
+    # Extract unique ts_codes and model_types from results
+    ts_codes = sorted({r.ts_code for r in results if r.ts_code})
+    model_types = sorted({r.model_snapshot.model_type for r in results if r.model_snapshot and r.model_snapshot.model_type})
 
     return {
         "account_configs": [
@@ -341,10 +339,10 @@ async def get_trade_filter_options():
             {"id": id, "name": name}
             for id, name in training_map.items()
         ],
-        "ts_codes": sorted(ts_codes),
+        "ts_codes": ts_codes,
         "backtests": [
             {"id": str(b.id), "name": b.name}
-            for b in backtests
+            for b in results
         ],
         "model_types": model_types,
     }
