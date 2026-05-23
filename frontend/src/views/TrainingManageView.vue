@@ -102,7 +102,9 @@
         </template>
         <template v-slot:item.progress="{ item }">
           <div class="d-flex flex-column">
-            <span class="text-caption text-medium-emphasis">{{ item.progress_message || `${item.progress.toFixed(1)}%` }}</span>
+            <div class="text-caption text-medium-emphasis" style="white-space: pre-line;">
+              {{ item.progress_message || `${item.progress.toFixed(1)}%` }}
+            </div>
             <v-progress-linear :value="item.progress" height="4" class="mt-1" />
           </div>
         </template>

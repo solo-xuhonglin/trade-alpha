@@ -27,6 +27,9 @@
           </v-chip>
         </v-chip-group>
       </template>
+      <template v-slot:item.created_at="{ item }">
+        {{ formatDate(item.created_at) }}
+      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
@@ -243,12 +246,20 @@ const defaultForm = {
 
 const form = ref({ ...defaultForm })
 
+const formatDate = (val: string | undefined) => {
+  if (!val) return ''
+  const d = val.split('T')[0]
+  const t = val.split('T')[1]?.split('.')[0]?.substring(0, 5)
+  return t ? `${d} ${t}` : d
+}
+
 const headers = [
   { title: '名称', key: 'name' },
   { title: '模型类型', key: 'model_type' },
   { title: '特征字段', key: 'feature_fields' },
   { title: '预测周期', key: 'classification_horizons' },
   { title: '涨跌阈值', key: 'classification_threshold' },
+  { title: '创建时间', key: 'created_at' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
