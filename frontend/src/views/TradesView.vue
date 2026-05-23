@@ -22,11 +22,11 @@
       ></v-select>
 
       <v-select
-        v-model="filters.backtest_id"
-        :items="filterOptions.backtests"
+        v-model="filters.training_id"
+        :items="filterOptions.trainings"
         item-title="name"
         item-value="id"
-        label="回测"
+        label="训练"
         density="compact"
         variant="outlined"
         hide-details
@@ -36,11 +36,11 @@
       ></v-select>
 
       <v-select
-        v-model="filters.training_id"
-        :items="filterOptions.trainings"
+        v-model="filters.backtest_id"
+        :items="filterOptions.backtests"
         item-title="name"
         item-value="id"
-        label="训练"
+        label="回测"
         density="compact"
         variant="outlined"
         hide-details
