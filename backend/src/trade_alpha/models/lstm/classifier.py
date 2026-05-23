@@ -176,9 +176,9 @@ class LSTMClassifier(BaseClassifier):
 
                 # 更新进度消息
                 if patience_counter > 0:
-                    msg = f"正在训练 {target}，Epoch {epoch + 1}/{config.lstm_epochs}，Train Loss: {avg_train_loss:.4f}，Val Loss: {val_loss:.4f}，等待早停 {patience_counter}/{patience}"
+                    msg = f"正在训练 {target}\nEpoch {epoch + 1}/{config.lstm_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}\n等待早停 {patience_counter}/{patience}"
                 else:
-                    msg = f"正在训练 {target}，Epoch {epoch + 1}/{config.lstm_epochs}，Train Loss: {avg_train_loss:.4f}，Val Loss: {val_loss:.4f}（最佳）"
+                    msg = f"正在训练 {target}\nEpoch {epoch + 1}/{config.lstm_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}（最佳）"
                 await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, msg)
 
                 if patience_counter >= patience:

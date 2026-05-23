@@ -166,7 +166,7 @@ const activeTaskHeaders = [
   { title: '任务ID', key: 'task_id' },
   { title: '状态', key: 'status' },
   { title: '进度', key: 'progress' },
-  { title: '错误信息', key: 'error_message' },
+  { title: '错误信息', key: 'error_message', minWidth: 200 },
   { title: '创建时间', key: 'created_at' },
   { title: '操作', key: 'actions', sortable: false },
 ]

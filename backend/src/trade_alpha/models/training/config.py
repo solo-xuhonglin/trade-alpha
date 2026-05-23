@@ -78,7 +78,7 @@ async def create_config(
         lstm_hidden_size: LSTM hidden layer size, defaults to 64
         lstm_num_layers: LSTM number of layers, defaults to 2
         lstm_dropout: LSTM dropout ratio, defaults to 0.2
-        lstm_epochs: LSTM training epochs, defaults to 25
+        lstm_epochs: LSTM training epochs, defaults to 50
         lstm_batch_size: LSTM batch size, defaults to 256
         lstm_learning_rate: LSTM learning rate, defaults to 0.001
         lstm_sequence_length: LSTM input sequence length, defaults to 60
