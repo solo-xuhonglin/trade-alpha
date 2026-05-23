@@ -49,6 +49,10 @@ class ExecutionResult(Document):
     baseline_return: Optional[float] = None
     excess_return: Optional[float] = None
     baseline_max_drawdown: Optional[float] = None
+    baseline_annual_return: Optional[float] = None
+    baseline_volatility: Optional[float] = None
+    baseline_sharpe_ratio: Optional[float] = None
+    annual_return: Optional[float] = None
     sharpe_ratio: Optional[float] = None
     volatility: Optional[float] = None
     avg_hold_days: Optional[float] = None

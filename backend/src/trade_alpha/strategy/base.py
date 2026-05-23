@@ -162,9 +162,9 @@ class PositionManager:
 
     @staticmethod
     def calculate_metrics(daily_returns: List[float]) -> Dict[str, float]:
-        """Calculate Sharpe ratio, volatility from daily returns."""
+        """Calculate Sharpe ratio, volatility, annual return from daily returns."""
         if not daily_returns:
-            return {"sharpe_ratio": 0.0, "volatility": 0.0}
+            return {"sharpe_ratio": 0.0, "volatility": 0.0, "annual_return": 0.0}
 
         returns = np.array(daily_returns)
         mean_return = np.mean(returns)
@@ -174,9 +174,14 @@ class PositionManager:
         sharpe_ratio = (mean_return - daily_rf) / std_return if std_return > 0 else 0.0
         volatility = std_return * np.sqrt(TRADING_DAYS)
 
+        cumulative_return = float(np.prod(1 + returns) - 1)
+        n_days = len(returns)
+        annual_return = (1 + cumulative_return) ** (TRADING_DAYS / n_days) - 1 if n_days > 0 else 0.0
+
         return {
             "sharpe_ratio": float(sharpe_ratio),
             "volatility": float(volatility),
+            "annual_return": float(annual_return),
         }
 
     @staticmethod
@@ -206,16 +211,35 @@ class PositionManager:
     ) -> Dict[str, float]:
         """Calculate baseline metrics for buy-and-hold strategy."""
         if not daily_prices or start_price <= 0:
-            return {"baseline_return": 0.0, "baseline_max_drawdown": 0.0}
+            return {"baseline_return": 0.0, "baseline_max_drawdown": 0.0,
+                    "baseline_annual_return": 0.0, "baseline_volatility": 0.0,
+                    "baseline_sharpe_ratio": 0.0}
 
         baseline_return = (end_price - start_price) / start_price
 
         values = [price / daily_prices[0] * start_price for price in daily_prices]
         baseline_max_drawdown = PositionManager.calculate_max_drawdown(values)
 
+        baseline_daily_returns = [
+            (daily_prices[i] - daily_prices[i-1]) / daily_prices[i-1]
+            for i in range(1, len(daily_prices))
+        ]
+        returns = np.array(baseline_daily_returns) if baseline_daily_returns else np.array([0.0])
+        mean_return = np.mean(returns)
+        std_return = np.std(returns)
+        daily_rf = RISK_FREE_RATE / TRADING_DAYS
+        baseline_sharpe_ratio = (mean_return - daily_rf) / std_return if std_return > 0 else 0.0
+        baseline_volatility = std_return * np.sqrt(TRADING_DAYS)
+
+        n_days = len(daily_prices)
+        baseline_annual_return = (1 + baseline_return) ** (TRADING_DAYS / n_days) - 1 if n_days > 0 else 0.0
+
         return {
             "baseline_return": float(baseline_return),
             "baseline_max_drawdown": float(baseline_max_drawdown),
+            "baseline_annual_return": float(baseline_annual_return),
+            "baseline_volatility": float(baseline_volatility),
+            "baseline_sharpe_ratio": float(baseline_sharpe_ratio),
         }
 
     async def calculate_trade_metrics(

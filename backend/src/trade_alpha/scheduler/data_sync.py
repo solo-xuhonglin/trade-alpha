@@ -123,8 +123,8 @@ async def check_active_stocks_sufficient() -> bool:
         StockList.sync_status == "active",
         NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
     ).count()
-    logger.info(f"Current active stocks: {active_count}, target: {config.target_active_stocks}")
-    return active_count >= config.target_active_stocks
+    logger.info(f"Current active stocks: {active_count}, target: {config.top_market_cap_stocks}")
+    return active_count >= config.top_market_cap_stocks
 
 
 async def run_data_sync_job():

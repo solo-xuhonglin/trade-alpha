@@ -19,7 +19,7 @@ class TestAccountConfigService:
 
         account_configs = await account_config_service.list_account_configs()
         for p in account_configs:
-            if p.name != self.default_account_config_name:
+            if p.name.endswith("_temp"):
                 await account_config_service.delete_account_config(p.id)
 
     @pytest.mark.asyncio

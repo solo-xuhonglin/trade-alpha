@@ -323,6 +323,7 @@ class ExecutionPipeline:
         metrics = self.strategy.calculate_metrics(daily_returns)
         result.sharpe_ratio = round(metrics["sharpe_ratio"], 4) if metrics["sharpe_ratio"] else None
         result.volatility = round(metrics["volatility"], 4) if metrics["volatility"] else None
+        result.annual_return = round(metrics["annual_return"], 4) if metrics.get("annual_return") else None
 
         # Calculate average hold days
         trade_metrics = await self.strategy.calculate_trade_metrics(
@@ -340,6 +341,9 @@ class ExecutionPipeline:
             )
             result.baseline_return = round(baseline_metrics["baseline_return"], 4)
             result.baseline_max_drawdown = round(baseline_metrics["baseline_max_drawdown"], 4)
+            result.baseline_annual_return = round(baseline_metrics["baseline_annual_return"], 4) if baseline_metrics.get("baseline_annual_return") else None
+            result.baseline_volatility = round(baseline_metrics["baseline_volatility"], 4) if baseline_metrics.get("baseline_volatility") else None
+            result.baseline_sharpe_ratio = round(baseline_metrics["baseline_sharpe_ratio"], 4) if baseline_metrics.get("baseline_sharpe_ratio") else None
             result.excess_return = round(total_return - baseline_metrics["baseline_return"], 4)
 
         result.final_value = round(final_value, 2)

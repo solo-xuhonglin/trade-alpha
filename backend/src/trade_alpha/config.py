@@ -14,7 +14,6 @@ class Config:
     mongodb_uri: str
     mongodb_db: str
     data_years: int = 12
-    target_active_stocks: int = 3000
     top_market_cap_stocks: int = 1500
 
 
@@ -25,6 +24,5 @@ def load_config() -> Config:
         mongodb_uri=os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
         mongodb_db=os.getenv("MONGODB_DB", "trade_alpha"),
         data_years=int(os.getenv("DATA_YEARS", "12")),
-        target_active_stocks=int(os.getenv("TARGET_ACTIVE_STOCKS", "3000")),
         top_market_cap_stocks=int(os.getenv("TOP_MARKET_CAP_STOCKS", "1500")),
     )

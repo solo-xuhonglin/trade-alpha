@@ -20,7 +20,7 @@ class TestModelConfigService:
 
         configs = await config.list_configs()
         for c in configs:
-            if c.name != self.default_config_name:
+            if c.name.endswith("_temp"):
                 await config.delete_config(c.id)
 
     @pytest.mark.asyncio

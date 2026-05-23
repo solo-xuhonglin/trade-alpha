@@ -1,26 +1,41 @@
 <template>
   <v-card border rounded>
+    <v-card-title class="d-flex justify-space-between align-center pa-4">
+      <div class="d-flex align-center ga-2">
+        <v-icon color="primary">mdi-wallet</v-icon>
+        <span class="text-h6">账户配置</span>
+      </div>
+      <v-btn
+        prepend-icon="mdi-plus"
+        rounded="lg"
+        text="新建账户"
+        border
+        @click="openDialog()"
+      ></v-btn>
+    </v-card-title>
     <v-data-table
       :headers="headers"
       :items="accountConfigs"
       :loading="loading"
     >
-      <template v-slot:top>
-        <v-toolbar flat>
-          <v-toolbar-title>
-            <v-icon color="medium-emphasis" icon="mdi-wallet" size="x-small" start></v-icon>
-            账户配置
-          </v-toolbar-title>
-          <v-btn
-            prepend-icon="mdi-plus"
-            rounded="lg"
-            text="新建账户"
-            border
-            @click="openDialog()"
-          ></v-btn>
-        </v-toolbar>
+      <template v-slot:item.initial_capital="{ item }">
+        {{ formatMoney(item.initial_capital) }}
       </template>
-
+      <template v-slot:item.buy_fee_rate="{ item }">
+        {{ formatPercent(item.buy_fee_rate) }}
+      </template>
+      <template v-slot:item.sell_fee_rate="{ item }">
+        {{ formatPercent(item.sell_fee_rate) }}
+      </template>
+      <template v-slot:item.stamp_tax_rate="{ item }">
+        {{ formatPercent(item.stamp_tax_rate) }}
+      </template>
+      <template v-slot:item.min_fee="{ item }">
+        {{ formatMoney(item.min_fee) }}
+      </template>
+      <template v-slot:item.created_at="{ item }">
+        {{ formatDate(item.created_at) }}
+      </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
@@ -110,10 +125,28 @@ const form = ref({
 const headers = [
   { title: '名称', key: 'name' },
   { title: '初始资金', key: 'initial_capital' },
-  { title: '当前现金', key: 'cash' },
-  { title: '持仓', key: 'position' },
+  { title: '买入费率', key: 'buy_fee_rate' },
+  { title: '卖出费率', key: 'sell_fee_rate' },
+  { title: '印花税', key: 'stamp_tax_rate' },
+  { title: '最低手续费', key: 'min_fee' },
+  { title: '创建时间', key: 'created_at' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' },
 ]
+
+const formatMoney = (val: number) => {
+  return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const formatPercent = (val: number) => {
+  return (val * 100).toFixed(3) + '%'
+}
+
+const formatDate = (val: string) => {
+  if (!val) return ''
+  const d = val.split('T')[0]
+  const t = val.split('T')[1]?.split('.')[0]?.substring(0, 5)
+  return t ? `${d} ${t}` : d
+}
 
 const loadAccountConfigs = async () => {
   loading.value = true

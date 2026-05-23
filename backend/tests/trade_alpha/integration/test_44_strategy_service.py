@@ -19,7 +19,7 @@ class TestStrategyService:
 
         strategies = await strategy_service.list_strategies()
         for s in strategies:
-            if s.name != self.default_strategy_name:
+            if s.name.endswith("_temp"):
                 await strategy_service.delete_strategy(s.id)
 
     @pytest.mark.asyncio
