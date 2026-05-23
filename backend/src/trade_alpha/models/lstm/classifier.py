@@ -131,6 +131,22 @@ class LSTMClassifier(BaseClassifier):
             "loss_per_epoch": all_epoch_losses,
             "sample_count": len(X_3d),
         }
+
+        for target_idx, target in enumerate(target_names):
+            y_true = y_2d[:, target_idx].astype(int)
+            model = self.models[target].eval()
+            with torch.no_grad():
+                X_eval = torch.FloatTensor(X_3d).cpu()
+                y_pred_idx = model(X_eval).argmax(dim=1).numpy()
+            label_map = self._label_mapping[target]
+            y_pred = np.array([label_map[p] for p in y_pred_idx])
+            accuracy = float(np.mean(y_pred == y_true))
+            metrics.setdefault("accuracy", {})[target] = accuracy
+            unique, counts = np.unique(y_true, return_counts=True)
+            total = len(y_true)
+            class_dist = {str(int(k)): float(v) / total for k, v in zip(unique, counts)}
+            metrics.setdefault("class_distribution", {})[target] = class_dist
+
         return metrics
 
     def predict(self, features, target_names):

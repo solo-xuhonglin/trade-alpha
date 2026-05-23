@@ -253,11 +253,9 @@ const openDetailDialog = async (item: Training) => {
 
 const openAnalysisDialog = async (item: Training) => {
   const res = await trainingRecordApi.get(item.id)
-  if (res.data.normalized_data_analysis) {
-    analysisResult.value = res.data.normalized_data_analysis
-    analysisTitle.value = `${item.name} - 标准化数据分析`
-    analysisDialog.value = true
-  }
+  analysisResult.value = res.data.normalized_data_analysis
+  analysisTitle.value = `${item.name} - 标准化数据分析`
+  analysisDialog.value = true
 }
 
 const deleteTraining = async () => {
