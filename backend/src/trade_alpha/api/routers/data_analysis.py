@@ -15,7 +15,7 @@ from trade_alpha.data.analysis_service import (
     get_analysis_result_by_task,
 )
 from trade_alpha.utils.date_utils import to_api_format
-from trade_alpha.predict.config_service import DEFAULT_INDICATOR_FIELDS
+from trade_alpha.models.training.config import DEFAULT_INDICATOR_FIELDS
 from trade_alpha.api.validators import validate_trade_date
 
 router = APIRouter(prefix="/data-analysis", tags=["data-analysis"])
