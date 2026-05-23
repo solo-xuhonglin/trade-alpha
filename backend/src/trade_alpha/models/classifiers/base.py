@@ -54,23 +54,3 @@ class BaseClassifier(ABC):
     @abstractmethod
     def load(self, path: str) -> None:
         """Load model from file."""
-
-
-class BasePredictor(ABC):
-    """Abstract base class for all regression predictors (legacy interface)."""
-
-    @abstractmethod
-    def fit(self, X: np.ndarray, y: np.ndarray, targets: List[str]) -> None:
-        """Train the predictor."""
-
-    @abstractmethod
-    def predict(self, features: np.ndarray, targets: List[str]) -> Dict[str, float]:
-        """Predict using trained model."""
-
-    @abstractmethod
-    def save(self, path: str) -> None:
-        """Save model to file."""
-
-    @abstractmethod
-    def load(self, path: str) -> None:
-        """Load model from file."""

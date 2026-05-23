@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 import xgboost as xgb
 from typing import List, Dict
-from .base import BaseClassifier, BasePredictor
+from .base import BaseClassifier
 
 
 class XGBoostClassifier(BaseClassifier):
@@ -89,53 +89,3 @@ class XGBoostClassifier(BaseClassifier):
             data = pickle.load(f)
             self.models = data["models"]
             self._label_mapping = data["label_mapping"]
-
-
-class XGBoostPredictor(BasePredictor):
-    """XGBoost predictor for multiple targets (legacy regression interface)."""
-
-    def __init__(
-        self,
-        n_estimators: int = 100,
-        max_depth: int = 6,
-        learning_rate: float = 0.1,
-        min_child_weight: int = 1,
-        subsample: float = 1.0,
-        colsample_bytree: float = 1.0,
-    ):
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
-        self.learning_rate = learning_rate
-        self.min_child_weight = min_child_weight
-        self.subsample = subsample
-        self.colsample_bytree = colsample_bytree
-        self.models: Dict[str, xgb.XGBRegressor] = {}
-
-    def fit(self, X: np.ndarray, y: np.ndarray, targets: List[str]) -> None:
-        self.models = {}
-        for i, target in enumerate(targets):
-            model = xgb.XGBRegressor(
-                n_estimators=self.n_estimators,
-                max_depth=self.max_depth,
-                learning_rate=self.learning_rate,
-                min_child_weight=self.min_child_weight,
-                subsample=self.subsample,
-                colsample_bytree=self.colsample_bytree,
-            )
-            model.fit(X, y[:, i])
-            self.models[target] = model
-
-    def predict(self, features: np.ndarray, targets: List[str]) -> Dict[str, float]:
-        result = {}
-        for target in targets:
-            if target in self.models:
-                result[target] = float(self.models[target].predict(features)[0])
-        return result
-
-    def save(self, path: str) -> None:
-        with open(path, "wb") as f:
-            pickle.dump(self.models, f)
-
-    def load(self, path: str) -> None:
-        with open(path, "rb") as f:
-            self.models = pickle.load(f)
