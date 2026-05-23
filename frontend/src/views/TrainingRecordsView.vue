@@ -218,7 +218,7 @@ const configOptions = ref<{ title: string; value: string }[]>([])
 const loadConfigs = async () => {
   const res = await modelConfigApi.list()
   configs.value = res.data.map(c => ({ id: c.id, name: c.name, model_type: c.model_type }))
-  configOptions.value = configs.value.map(c => ({ title: c.model_type, value: c.id }))
+  configOptions.value = configs.value.map(c => ({ title: c.name, value: c.id }))
 }
 
 const loadTrainings = async () => {
