@@ -10,7 +10,8 @@ from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, Mod
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.task.service import TaskService
 from trade_alpha.execution.data_loader import DataLoader
-from trade_alpha.execution.predictor import Predictor
+from trade_alpha.models.factory import create_predictor
+from trade_alpha.models.base import compute_scores
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.strategy.portfolio import PortfolioStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
@@ -58,7 +59,7 @@ class ExecutionPipeline:
         self._config = model_config
 
         self.data_loader = DataLoader()
-        self.predictor = Predictor(training_id, normalizer=None, data_loader=self.data_loader)
+        self.predictor = None  # 延迟初始化
         
         # Initialize strategy based on mode
         if mode == "single":
@@ -124,6 +125,8 @@ class ExecutionPipeline:
         backtest_id = result.id
 
         await TaskService.update_progress(task_id, 10, "正在初始化...")
+        if self.predictor is None:
+            self.predictor = await create_predictor(self.training_id, data_loader=self.data_loader)
         logger.info(f"Backtest {backtest_id} started: {start_date} -> {end_date}")
 
         # Get stocks from the universe (same stocks used in training)
@@ -282,9 +285,14 @@ class ExecutionPipeline:
                 self.pending_orders.clear()
 
             # Step 2: Predict T+1 signals
-            pred_results = await self.predictor.predict_batch_with_history(
-                day_df, ts_codes, date
-            )
+            target_names = [f"label_{h}d" for h in self._config.classification_horizons]
+            pred_results = {}
+            for ts_code in ts_codes:
+                probs = await self.predictor.predict(ts_code, target_names, date)
+                if probs is None:
+                    continue
+                close_price = close_prices.get(ts_code, 0)
+                pred_results[ts_code] = compute_scores(probs, close_price)
             if not pred_results:
                 logger.debug(f"No predictions for {date}, skipping")
                 date = _next_date(date)
@@ -401,6 +409,8 @@ class ExecutionPipeline:
 
         Returns a list of pending orders for manual review or execution.
         """
+        if self.predictor is None:
+            self.predictor = await create_predictor(self.training_id, data_loader=self.data_loader)
         top_stock_list = await self.data_loader.get_top_stocks(date=date, limit=300)
         universe = {s["ts_code"]: s["name"] for s in top_stock_list}
         ts_codes = list(universe.keys())
@@ -414,7 +424,16 @@ class ExecutionPipeline:
             logger.warning(f"No close prices for {date}")
             return []
 
-        pred_results = await self.predictor.predict_batch(day_df, ts_codes)
+        pred_results = {}
+        target_names = [f"label_{h}d" for h in self._config.classification_horizons]
+        for ts_code in ts_codes:
+            probs = await self.predictor.predict(ts_code, target_names, date)
+            if probs is None:
+                continue
+            close_price = close_prices.get(ts_code, 0)
+            result = compute_scores(probs, close_price)
+            if result["score"] > 0:
+                pred_results[ts_code] = result
         if not pred_results:
             return []
 
@@ -428,7 +447,6 @@ class ExecutionPipeline:
                 score=r["score"],
             )
             for ts_code, r in pred_results.items()
-            if r["score"] > 0
         ]
 
         pending_orders = await self.strategy.make_decisions(
