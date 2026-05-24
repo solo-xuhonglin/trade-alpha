@@ -13,6 +13,9 @@ logger = get_logger("execution.data_loader")
 class DataLoader:
     """Load stock data for backtest execution."""
 
+    def __init__(self):
+        self._history_cache: Dict[str, List] = {}
+
     async def get_top_stocks(self, date: str, limit: int = 300) -> List[Dict]:
         records = await StockList.find(
             StockList.sync_status == "active"
