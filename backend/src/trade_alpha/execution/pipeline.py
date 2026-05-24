@@ -208,14 +208,14 @@ class ExecutionPipeline:
                     break
 
             logger.debug(f"Processing {date}")
-            close_prices = await self.data_loader.load_day_close(date, ts_codes)
-            if not close_prices:
-                date = _next_date(date)
-                continue
-
             day_df = await self.data_loader.load_day_data(date, ts_codes)
             if day_df.empty:
                 logger.debug(f"No day data for {date}, skipping")
+                date = _next_date(date)
+                continue
+
+            close_prices = dict(zip(day_df["ts_code"], day_df["close"]))
+            if not close_prices:
                 date = _next_date(date)
                 continue
 
@@ -373,13 +373,13 @@ class ExecutionPipeline:
         universe = {s["ts_code"]: s["name"] for s in top_stock_list}
         ts_codes = list(universe.keys())
 
-        close_prices = await self.data_loader.load_day_close(date, ts_codes)
-        if not close_prices:
-            logger.warning(f"No close prices for {date}")
-            return []
-
         day_df = await self.data_loader.load_day_data(date, ts_codes)
         if day_df.empty:
+            return []
+
+        close_prices = dict(zip(day_df["ts_code"], day_df["close"]))
+        if not close_prices:
+            logger.warning(f"No close prices for {date}")
             return []
 
         pred_results = await self.predictor.predict_batch(day_df, ts_codes)
