@@ -261,26 +261,6 @@ class LSTMClassifier(BaseClassifier):
 
         return metrics
 
-    def predict(self, features, target_names):
-        seq = np.array(features, dtype=np.float64)
-        if len(seq) < self.sequence_length:
-            return {}
-        seq = seq[-self.sequence_length:]
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
-        X_tensor = torch.FloatTensor(seq).unsqueeze(0)
-        result = {}
-        for target in target_names:
-            if target not in self.models:
-                continue
-            self.models[target].eval()
-            with torch.no_grad():
-                logits = self.models[target](X_tensor)
-                pred_idx = logits.argmax(dim=1)[0].item()
-                result[target] = self._label_mapping[target][pred_idx]
-        return result
-
     def predict_proba(self, features, target_names):
         seq = np.array(features, dtype=np.float64)
         if len(seq) < self.sequence_length:

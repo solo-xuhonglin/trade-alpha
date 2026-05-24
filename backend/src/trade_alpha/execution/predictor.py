@@ -122,7 +122,6 @@ class Predictor:
         else:
             raise ValueError(f"Unknown model type: {self._config.model_type}")
 
-        predictions = self._classifier.predict(features, target_names)
         probabilities = self._classifier.predict_proba(features, target_names)
 
         probs = probabilities or {}

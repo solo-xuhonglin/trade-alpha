@@ -17,9 +17,6 @@ class BaseClassifier(ABC):
         """Self-contained training: load data, normalize, train, return metrics."""
 
     @abstractmethod
-    def predict(self, features, target_names) -> Dict: ...
-
-    @abstractmethod
     def predict_proba(self, features, target_names) -> Dict: ...
 
     @abstractmethod
