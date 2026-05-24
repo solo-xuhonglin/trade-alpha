@@ -87,21 +87,38 @@ class DataLoader:
         return records
 
     async def load_history_data(self, end_date: str, ts_codes: List[str], days: int) -> pd.DataFrame:
-        """Load historical data for multiple stocks from end_date back by days."""
-        end_dt = datetime.strptime(end_date, "%Y%m%d")
-        start_dt = end_dt - timedelta(days=days * 2)  # load extra to account for weekends
-        start_date = start_dt.strftime("%Y%m%d")
-        
-        records = await StockDaily.find(
-            StockDaily.trade_date >= start_date,
-            StockDaily.trade_date <= end_date,
-            In(StockDaily.ts_code, ts_codes),
-        ).sort(StockDaily.ts_code, StockDaily.trade_date).to_list()
-        
-        if not records:
+        """Load history data with cache optimization."""
+        keep_days = days * 2
+
+        all_records = []
+
+        for ts_code in ts_codes:
+            cache_start = self._get_cache_start(ts_code)
+            cache_end = self._get_cache_end(ts_code)
+
+            if cache_start is None:
+                load_start = self._calc_start_date(end_date, keep_days)
+                new_records = await self._load_from_db(load_start, end_date, [ts_code])
+                self._history_cache[ts_code] = sorted(new_records, key=lambda r: r.trade_date)
+            else:
+                if cache_end < end_date:
+                    incremental_records = await self._load_from_db(
+                        self._next_date(cache_end),
+                        end_date,
+                        [ts_code]
+                    )
+                    self._history_cache[ts_code].extend(incremental_records)
+                    self._history_cache[ts_code].sort(key=lambda r: r.trade_date)
+
+                self._trim_cache(ts_code, keep_days)
+
+            if ts_code in self._history_cache:
+                all_records.extend(self._history_cache[ts_code])
+
+        if not all_records:
             return pd.DataFrame()
-        
-        df = pd.DataFrame([r.model_dump() for r in records])
+
+        df = pd.DataFrame([r.model_dump() for r in all_records])
         return df
 
     async def load_day_low(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
