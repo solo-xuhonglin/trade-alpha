@@ -6,6 +6,8 @@ from beanie import PydanticObjectId
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
+from trade_alpha.dao import StockList, StockDaily
+from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.task.service import TaskService
