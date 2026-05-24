@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from typing import Dict, List
+from sklearn.metrics import roc_auc_score
 from trade_alpha.models.base import BaseClassifier
 
 
@@ -96,9 +97,12 @@ class LSTMClassifier(BaseClassifier):
 
         all_epoch_losses = []
         all_val_losses = []
+        all_val_aucs = []
         actual_epochs = 0
         early_stopped = False
         best_epoch = 0
+        best_auc = 0.0
+        val_auc_per_epoch = []
 
         for target_idx, target in enumerate(target_names):
             y_i = y_2d[:, target_idx].astype(int)
@@ -110,6 +114,7 @@ class LSTMClassifier(BaseClassifier):
             # 划分数据
             X_train, X_val = X_3d[train_indices], X_3d[val_indices]
             y_train, y_val = y_mapped[train_indices], y_mapped[val_indices]
+            y_val_original = y_2d[val_indices, target_idx].astype(int)
 
             model = LSTMModel(self.input_size, config.lstm_hidden_size, config.lstm_num_layers,
                               len(label_map), config.lstm_dropout).to(device)
@@ -133,14 +138,15 @@ class LSTMClassifier(BaseClassifier):
                 batch_size=config.lstm_batch_size, shuffle=True,
             )
             
-            # 早停相关变量
-            best_val_loss = float('inf')
+            # 早停相关变量（使用 AUC 而不是 Loss）
+            best_val_auc = 0.0
             patience_counter = 0
             patience = getattr(config, 'early_stopping_patience', 5)
             best_model_state = None
 
             epoch_losses = []
             val_epoch_losses = []
+            val_epoch_aucs = []
 
             for epoch in range(config.lstm_epochs):
                 # 训练
@@ -164,10 +170,20 @@ class LSTMClassifier(BaseClassifier):
                     val_logits = model(X_val_tensor)
                     val_loss = criterion(val_logits, y_val_tensor).item()
                     val_epoch_losses.append(val_loss)
+                    
+                    # 计算验证集 AUC
+                    val_proba = torch.softmax(val_logits, dim=1).cpu().numpy()
+                    try:
+                        # 处理多分类 AUC（ovr 模式）
+                        val_auc = roc_auc_score(y_val_original, val_proba, multi_class='ovr')
+                    except:
+                        # 可能的情况：某个类别没有样本
+                        val_auc = 0.5
+                    val_epoch_aucs.append(val_auc)
 
-                # 早停检查
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
+                # 早停检查（使用 AUC，AUC 越大越好）
+                if val_auc > best_val_auc:
+                    best_val_auc = val_auc
                     patience_counter = 0
                     best_model_state = model.state_dict().copy()
                     best_epoch = epoch + 1
@@ -176,14 +192,14 @@ class LSTMClassifier(BaseClassifier):
 
                 # 更新进度消息
                 if patience_counter > 0:
-                    msg = f"正在训练 {target}\nEpoch {epoch + 1}/{config.lstm_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}\n等待早停 {patience_counter}/{patience}"
+                    msg = f"正在训练 {target}\nEpoch {epoch + 1}/{config.lstm_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}, Val AUC: {val_auc:.4f}\n等待早停 {patience_counter}/{patience}"
                 else:
-                    msg = f"正在训练 {target}\nEpoch {epoch + 1}/{config.lstm_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}（最佳）"
+                    msg = f"正在训练 {target}\nEpoch {epoch + 1}/{config.lstm_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}, Val AUC: {val_auc:.4f}（最佳）"
                 await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, msg)
 
                 if patience_counter >= patience:
                     early_stopped = True
-                    await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, f"{target} 早停于 Epoch {epoch + 1}")
+                    await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, f"{target} 早停于 Epoch {epoch + 1}（最佳 Val AUC: {best_val_auc:.4f}）")
                     break
 
             # 恢复最佳模型
@@ -193,6 +209,12 @@ class LSTMClassifier(BaseClassifier):
             actual_epochs = len(epoch_losses)
             all_epoch_losses.append(epoch_losses[-1])
             all_val_losses.append(val_epoch_losses[-1])
+            all_val_aucs.append(val_epoch_aucs[-1])
+            
+            # 只记录最后一个目标的 AUC 历史用于前端展示
+            if target_idx == len(target_names) - 1:
+                val_auc_per_epoch = val_epoch_aucs.copy()
+                best_auc = best_val_auc
 
             self.models[target] = model.cpu()
             self._label_mapping[target] = label_map
@@ -202,10 +224,12 @@ class LSTMClassifier(BaseClassifier):
             "final_train_loss": all_epoch_losses[-1] if all_epoch_losses else None,
             "loss_per_epoch": epoch_losses,  # 最后一个目标的训练 loss 记录
             "val_loss_per_epoch": val_epoch_losses,  # 最后一个目标的验证 loss 记录
+            "val_auc_per_epoch": val_auc_per_epoch,  # 最后一个目标的验证 AUC 记录
             "sample_count": len(X_3d),
             "actual_epochs": actual_epochs,
             "early_stopped": early_stopped,
             "best_epoch": best_epoch,
+            "best_auc": best_auc,
         }
 
         for target_idx, target in enumerate(target_names):
@@ -215,10 +239,19 @@ class LSTMClassifier(BaseClassifier):
                 X_eval = torch.FloatTensor(X_3d).cpu()
                 logits = model(X_eval)
                 y_pred_idx = logits.argmax(dim=1).numpy()
+                y_proba = torch.softmax(logits, dim=1).numpy()
             label_map = self._label_mapping[target]
             y_pred = np.array([label_map[p] for p in y_pred_idx])
             accuracy = float(np.mean(y_pred == y_true))
             metrics.setdefault("accuracy", {})[target] = accuracy
+            
+            # 计算 AUC
+            try:
+                auc = roc_auc_score(y_true, y_proba, multi_class='ovr')
+            except:
+                auc = 0.5
+            metrics.setdefault("auc", {})[target] = float(auc)
+            
             unique, counts = np.unique(y_true, return_counts=True)
             total = len(y_true)
             class_dist = {str(int(k)): float(v) / total for k, v in zip(unique, counts)}
