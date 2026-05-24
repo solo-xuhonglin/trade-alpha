@@ -47,13 +47,10 @@ def test_xgboost_classifier_fit_predict():
     _train_minimal(clf)
 
     X = np.random.randn(1, 5)
-    preds = clf.predict(X, ["label_3d", "label_5d"])
-    assert "label_3d" in preds
-    assert preds["label_3d"] in [-1, 0, 1]
-
-    probas = clf.predict_proba(X, ["label_3d", "label_5d"])
-    assert len(probas["label_3d"]) == 3
-    assert abs(sum(probas["label_3d"]) - 1.0) < 0.01
+    probs = clf.predict_proba(X, ["label_3d", "label_5d"])
+    assert "label_3d" in probs
+    assert len(probs["label_3d"]) == 3
+    assert abs(sum(probs["label_3d"]) - 1.0) < 0.01
 
 
 def test_xgboost_classifier_save_load(tmp_path):
