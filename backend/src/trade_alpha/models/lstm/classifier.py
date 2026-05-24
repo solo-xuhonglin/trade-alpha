@@ -76,7 +76,7 @@ class LSTMClassifier(BaseClassifier):
         X_3d, y_2d = create_sequences(
             combined_df, config.feature_fields, target_names,
             sequence_length=seq_len,
-            normalization_window=norm_window,
+            normalization_window=normalization_window,
         )
 
         if len(X_3d) == 0:
