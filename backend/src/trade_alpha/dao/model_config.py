@@ -43,7 +43,7 @@ class ModelConfig(Document):
         lstm_batch_size: lstm 批次大小
         lstm_learning_rate: lstm 学习率
         lstm_sequence_length: lstm 序列长度
-        lstm_window_size: lstm 滑动窗口标准化窗口大小
+        lstm_normalization_window: lstm 标准化统计量计算窗口（默认 300 天）
         created_at: 创建时间
         updated_at: 更新时间
     """

@@ -117,7 +117,7 @@ Layer 5: 训练
 | 超参数 | n_estimators, max_depth, etc | hidden_size, num_layers, epochs, etc |
 | 测试 epochs | 默认配置 | 5（快速测试） |
 | 序列要求 | 无 | lstm_sequence_length |
-| 滑动窗口 | 无 | lstm_window_size |
+| 滑动窗口 | 无 | lstm_normalization_window |
 
 ## 执行影响
 
