@@ -128,22 +128,21 @@ class ExecutionPipeline:
         # Get stocks from the universe (same stocks used in training)
         from trade_alpha.dao import StockList
 
-        # For single-stock mode: optimize by only loading top 200 stocks for cross-sectional normalization
-        limit = 200 if self.single_stock_ts_code else 3000
-
-        from beanie.odm.operators.find.comparison import NotIn
-
-        await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
-        all_stocks = await StockList.find(
-            StockList.sync_status == "active",
-            NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
-        ).sort(-StockList.total_mv).limit(limit).to_list()
-
-        # Ensure target stock is included in single-stock mode
         if self.single_stock_ts_code:
+            limit = 1
+            await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
             target_stock = await StockList.find_one(StockList.ts_code == self.single_stock_ts_code)
-            if target_stock and target_stock not in all_stocks:
-                all_stocks.append(target_stock)
+            if not target_stock:
+                raise ValueError(f"Target stock {self.single_stock_ts_code} not found")
+            all_stocks = [target_stock]
+        else:
+            limit = 3000
+            from beanie.odm.operators.find.comparison import NotIn
+            await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
+            all_stocks = await StockList.find(
+                StockList.sync_status == "active",
+                NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
+            ).sort(-StockList.total_mv).limit(limit).to_list()
 
         universe = {s.ts_code: s.name for s in all_stocks}
         ts_codes = list(universe.keys())
