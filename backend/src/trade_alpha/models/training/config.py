@@ -18,7 +18,6 @@ from trade_alpha.logging import get_logger
 logger = get_logger("config_service")
 
 DEFAULT_INDICATOR_FIELDS = [
-    "close", "vol",
     "ma_5", "ma_10", "ma_20", "ma_60",
     "macd", "macd_signal", "macd_hist",
     "pct_chg",
