@@ -46,9 +46,22 @@ BasePredictor (抽象)
 
 ## 新设计
 
-### BasePredictor
+### 文件结构
 
-只有一个抽象方法，入参只有 ts_code 和 date，内部自己加载数据：
+```
+models/
+  base.py              ← 新增 BasePredictor + compute_scores
+  factory.py           ← 新增 create_predictor 工厂
+  lstm/
+    predictor.py       ← 新增 LSTMPredictor
+  xgboost/
+    predictor.py       ← 新增 XGBoostPredictor
+execution/
+  predictor.py         ← 删除
+  pipeline.py          ← 修改 import
+```
+
+### BasePredictor (models/base.py)
 
 ```python
 class BasePredictor(ABC):
@@ -61,19 +74,29 @@ class BasePredictor(ABC):
     async def predict(self, ts_code: str, target_names: List[str], current_date: str) -> Optional[Dict]:
         """内部构造 DataFrame，预测单只股票的 label_xxd 概率。
         
-        Args:
-            ts_code: 目标股票代码
-            target_names: 预测目标名列表，如 ["label_3d", "label_5d"]
-            current_date: 当前交易日，格式 YYYYMMDD
-            
-        Returns:
-            {target_name: [p_down, p_flat, p_up]} 或 None（数据不足时）
+        Returns: {target_name: [p_down, p_flat, p_up]} 或 None
         """
+
+
+def compute_scores(probs: Dict, close: float) -> Dict:
+    """计算分数（与模型类型无关）。"""
+    up_3d = probs.get("label_3d", [0, 0, 0])[2]
+    up_5d = probs.get("label_5d", [0, 0, 0])[2]
+    down_3d = probs.get("label_3d", [0, 0, 0])[0]
+    down_5d = probs.get("label_5d", [0, 0, 0])[0]
+    score = (up_3d - down_3d) * 0.4 + (up_5d - down_5d) * 0.6
+    return {
+        "up_prob_3d": up_3d, "up_prob_5d": up_5d,
+        "down_prob_3d": down_3d, "down_prob_5d": down_5d,
+        "score": score, "close": close,
+    }
 ```
 
-### XGBoostPredictor
+### XGBoostPredictor (models/xgboost/predictor.py)
 
 ```python
+from trade_alpha.models.base import BasePredictor
+
 class XGBoostPredictor(BasePredictor):
     async def predict(self, ts_code, target_names, current_date):
         from trade_alpha.models.xgboost.normalizer import normalize
@@ -91,9 +114,11 @@ class XGBoostPredictor(BasePredictor):
         return self.classifier.predict_proba(features, target_names)
 ```
 
-### LSTMPredictor
+### LSTMPredictor (models/lstm/predictor.py)
 
 ```python
+from trade_alpha.models.base import BasePredictor
+
 class LSTMPredictor(BasePredictor):
     async def predict(self, ts_code, target_names, current_date):
         seq_len = self.config.lstm_sequence_length
@@ -109,30 +134,44 @@ class LSTMPredictor(BasePredictor):
         return self.classifier.predict_proba(features, target_names)
 ```
 
-### 移除部分
+### create_predictor 工厂 (models/factory.py)
 
-从 Predictor 移除的职责：
+```python
+async def create_predictor(training_id, data_loader=None):
+    training = await get_training_by_id(training_id)
+    config = await get_config_by_id(training.config_id)
 
-| 职责 | 去哪了 | 原因 |
-|------|--------|------|
-| 数据加载 | 各 Predictor 实现类内部调用 data_loader | 每种模型需要的数据量和方式不同 |
-| 分数计算 | 抽取为独立函数 `compute_scores(probs, close)` | 与模型类型无关，所有模型统一 |
-| 循环多只股票 | Pipeline 自己 for 循环 | 简单循环不需要封装 |
-| 模型加载 + 工厂 | 放在 create_predictor 工厂函数 | 统一一处决定 |
+    if config.model_type == "xgboost":
+        from trade_alpha.models.xgboost.classifier import XGBoostClassifier
+        from trade_alpha.models.xgboost.predictor import XGBoostPredictor
+        classifier = XGBoostClassifier(config)
+        predictor_class = XGBoostPredictor
+    elif config.model_type == "lstm":
+        from trade_alpha.models.lstm.classifier import LSTMClassifier
+        from trade_alpha.models.lstm.predictor import LSTMPredictor
+        classifier = LSTMClassifier(config)
+        predictor_class = LSTMPredictor
+    else:
+        raise ValueError(f"Unknown model type: {config.model_type}")
+
+    classifier.load(training.model_path)
+    return predictor_class(config, classifier, data_loader)
+```
 
 ### Pipeline 调用示例
 
 ```python
+from trade_alpha.models.factory import create_predictor
+from trade_alpha.models.base import compute_scores
+
 # 在 Pipeline.__init__ 中
 self.predictor = None  # 延迟初始化
 
 # 在 run_backtest / run_live 中
 if self.predictor is None:
-    from trade_alpha.models.predictor import create_predictor
     self.predictor = await create_predictor(training_id, data_loader=self.data_loader)
 
 # 预测
-from trade_alpha.models.predictor import compute_scores
 pred_result = {}
 for ts_code in ts_codes:
     probs = await self.predictor.predict(ts_code, target_names, date)
@@ -141,29 +180,16 @@ for ts_code in ts_codes:
     pred_result[ts_code] = compute_scores(probs, close_prices.get(ts_code, 0))
 ```
 
-### compute_scores
-
-```python
-def compute_scores(probs: Dict, close: float) -> Dict:
-    up_3d = probs.get("label_3d", [0,0,0])[2]
-    up_5d = probs.get("label_5d", [0,0,0])[2]
-    down_3d = probs.get("label_3d", [0,0,0])[0]
-    down_5d = probs.get("label_5d", [0,0,0])[0]
-    score = (up_3d - down_3d) * 0.4 + (up_5d - down_5d) * 0.6
-    return {
-        "up_prob_3d": up_3d, "up_prob_5d": up_5d,
-        "down_prob_3d": down_3d, "down_prob_5d": down_5d,
-        "score": score, "close": close,
-    }
-```
-
 ## 文件变更
 
 | 文件 | 变更 |
 |------|------|
-| `models/predictor.py` | **新建**：BasePredictor、XGBoostPredictor、LSTMPredictor、create_predictor 工厂、compute_scores 函数 |
+| `models/base.py` | **追加** BasePredictor + compute_scores |
+| `models/factory.py` | **新建** create_predictor |
+| `models/lstm/predictor.py` | **新建** LSTMPredictor |
+| `models/xgboost/predictor.py` | **新建** XGBoostPredictor |
 | `execution/predictor.py` | **删除** |
-| `execution/pipeline.py` | import 改为 `from trade_alpha.models.predictor import ...` |
+| `execution/pipeline.py` | 修改 import |
 
 ## 测试
 

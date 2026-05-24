@@ -14,50 +14,34 @@
 
 | 文件 | 变更 |
 |------|------|
-| `models/predictor.py` | **新建** |
+| `models/base.py` | **追加** BasePredictor + compute_scores |
+| `models/factory.py` | **新建** create_predictor |
+| `models/lstm/predictor.py` | **新建** LSTMPredictor |
+| `models/xgboost/predictor.py` | **新建** XGBoostPredictor |
 | `execution/predictor.py` | **删除** |
-| `execution/pipeline.py` | import 改为从 `models.predictor` |
+| `execution/pipeline.py` | 修改 import |
 | `tests/trade_alpha/unit/models/test_predictor.py` | 新增 |
 
 ---
 
-### Task 1: 新建 models/predictor.py
+### Task 1: 追加 BasePredictor + compute_scores 到 models/base.py
 
 **Files:**
-- Create: `backend/src/trade_alpha/models/predictor.py`
+- Modify: `backend/src/trade_alpha/models/base.py`
+- Create: `backend/src/trade_alpha/models/xgboost/predictor.py`
+- Create: `backend/src/trade_alpha/models/lstm/predictor.py`
+- Create: `backend/src/trade_alpha/models/factory.py`
 - Delete: `backend/src/trade_alpha/execution/predictor.py`
 - Create: `backend/tests/trade_alpha/unit/models/test_predictor.py`
 
-- [ ] **Step 1: 重写 predictor.py**
+- [ ] **Step 1: 在 models/base.py 末尾追加 BasePredictor 和 compute_scores**
 
-完整替换内容为 BasePredictor、XGBoostPredictor、LSTMPredictor、compute_scores、create_predictor：
+追加到现有文件末尾：
 
 ```python
-"""Predictor - model-specific prediction logic."""
-
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
-import numpy as np
-from beanie import PydanticObjectId
-from trade_alpha.models.training.trainer import get_training_by_id
-from trade_alpha.models.training.config import get_config_by_id
-from trade_alpha.logging import get_logger
-
-logger = get_logger("execution.predictor")
-
-
-def compute_scores(probs: Dict, close: float) -> Dict:
-    """从概率字典计算交易分数。"""
-    up_3d = probs.get("label_3d", [0, 0, 0])[2]
-    up_5d = probs.get("label_5d", [0, 0, 0])[2]
-    down_3d = probs.get("label_3d", [0, 0, 0])[0]
-    down_5d = probs.get("label_5d", [0, 0, 0])[0]
-    score = (up_3d - down_3d) * 0.4 + (up_5d - down_5d) * 0.6
-    return {
-        "up_prob_3d": up_3d, "up_prob_5d": up_5d,
-        "down_prob_3d": down_3d, "down_prob_5d": down_5d,
-        "score": score, "close": close,
-    }
+# ============================================================
+# Predictor
+# ============================================================
 
 
 class BasePredictor(ABC):
@@ -68,10 +52,30 @@ class BasePredictor(ABC):
 
     @abstractmethod
     async def predict(self, ts_code: str, target_names: List[str], current_date: str) -> Optional[Dict]:
-        """内部构造 DataFrame，预测单只股票的概率字典。
-        
-        Returns {target_name: [p_down, p_flat, p_up]} or None.
-        """
+        pass
+
+
+def compute_scores(probs: Dict, close: float) -> Dict:
+    up_3d = probs.get("label_3d", [0, 0, 0])[2]
+    up_5d = probs.get("label_5d", [0, 0, 0])[2]
+    down_3d = probs.get("label_3d", [0, 0, 0])[0]
+    down_5d = probs.get("label_5d", [0, 0, 0])[0]
+    score = (up_3d - down_3d) * 0.4 + (up_5d - down_5d) * 0.6
+    return {
+        "up_prob_3d": up_3d, "up_prob_5d": up_5d,
+        "down_prob_3d": down_3d, "down_prob_5d": down_5d,
+        "score": score, "close": close,
+    }
+```
+
+需要补充 import：在文件顶部 `from typing import Dict` 改为 `from typing import Dict, List, Optional`。
+
+- [ ] **Step 2: 新建 models/xgboost/predictor.py**
+
+```python
+"""XGBoostPredictor - loads day data and predicts."""
+import numpy as np
+from trade_alpha.models.base import BasePredictor
 
 
 class XGBoostPredictor(BasePredictor):
@@ -89,6 +93,14 @@ class XGBoostPredictor(BasePredictor):
         if np.isnan(features).any():
             return None
         return self.classifier.predict_proba(features, target_names)
+```
+
+- [ ] **Step 3: 新建 models/lstm/predictor.py**
+
+```python
+"""LSTMPredictor - loads history data and predicts."""
+import numpy as np
+from trade_alpha.models.base import BasePredictor
 
 
 class LSTMPredictor(BasePredictor):
@@ -104,39 +116,46 @@ class LSTMPredictor(BasePredictor):
         if np.isnan(features).any():
             return None
         return self.classifier.predict_proba(features, target_names)
+```
+
+- [ ] **Step 4: 新建 models/factory.py**
+
+```python
+"""Factory for creating Predictor instances."""
+from trade_alpha.models.training.trainer import get_training_by_id
+from trade_alpha.models.training.config import get_config_by_id
 
 
-async def create_predictor(training_id: PydanticObjectId, data_loader=None):
-    """创建对应模型类型的 Predictor 实例。"""
+async def create_predictor(training_id, data_loader=None):
     training = await get_training_by_id(training_id)
     config = await get_config_by_id(training.config_id)
 
     if config.model_type == "xgboost":
         from trade_alpha.models.xgboost.classifier import XGBoostClassifier
+        from trade_alpha.models.xgboost.predictor import XGBoostPredictor
         classifier = XGBoostClassifier(config)
+        predictor_class = XGBoostPredictor
     elif config.model_type == "lstm":
         from trade_alpha.models.lstm.classifier import LSTMClassifier
+        from trade_alpha.models.lstm.predictor import LSTMPredictor
         classifier = LSTMClassifier(config)
+        predictor_class = LSTMPredictor
     else:
         raise ValueError(f"Unknown model type: {config.model_type}")
 
     classifier.load(training.model_path)
-
-    if config.model_type == "xgboost":
-        return XGBoostPredictor(config, classifier, data_loader)
-    elif config.model_type == "lstm":
-        return LSTMPredictor(config, classifier, data_loader)
+    return predictor_class(config, classifier, data_loader)
 ```
 
-- [ ] **Step 2: 写测试文件**
+- [ ] **Step 5: 新建测试文件**
 
-创建 `test_predictor.py`:
+创建 `tests/trade_alpha/unit/models/test_predictor.py`:
 
 ```python
 """Tests for predictors and compute_scores."""
 import pytest
 import numpy as np
-from trade_alpha.models.predictor import compute_scores
+from trade_alpha.models.base import compute_scores
 
 
 class FakeClassifier:
@@ -189,7 +208,7 @@ def test_compute_scores_empty():
 
 @pytest.mark.asyncio
 async def test_xgboost_predictor_predict():
-    from trade_alpha.models.predictor import XGBoostPredictor
+    from trade_alpha.models.xgboost.predictor import XGBoostPredictor
     config = FakeConfig()
     config.model_type = "xgboost"
     pred = XGBoostPredictor(config, FakeClassifier(), FakeDataLoader())
@@ -201,7 +220,7 @@ async def test_xgboost_predictor_predict():
 
 @pytest.mark.asyncio
 async def test_lstm_predictor_predict():
-    from trade_alpha.models.predictor import LSTMPredictor
+    from trade_alpha.models.lstm.predictor import LSTMPredictor
     config = FakeConfig()
     config.lstm_sequence_length = 3
     pred = LSTMPredictor(config, FakeClassifier(), FakeDataLoader())
@@ -211,18 +230,20 @@ async def test_lstm_predictor_predict():
     assert len(result["label_3d"]) == 3
 ```
 
-- [ ] **Step 3: 运行测试验证新测试通过**
+- [ ] **Step 6: 运行新测试**
 
 Run: `cd backend && python -m pytest tests/trade_alpha/unit/models/test_predictor.py -v`
-Expected: compute_scores 测试通过，predictor 测试因缺少 data_loader 等依赖可能 FAIL
+Expected: PASSED
 
-实际上应该全部通过，因为新文件只依赖已存在的模块。运行验证。
-
-- [ ] **Step 4: 删除旧文件并提交**
+- [ ] **Step 7: 删除旧文件并提交**
 
 ```bash
 git rm backend/src/trade_alpha/execution/predictor.py
-git add backend/src/trade_alpha/models/predictor.py backend/tests/trade_alpha/unit/models/test_predictor.py
+git add backend/src/trade_alpha/models/base.py
+git add backend/src/trade_alpha/models/factory.py
+git add backend/src/trade_alpha/models/lstm/predictor.py
+git add backend/src/trade_alpha/models/xgboost/predictor.py
+git add backend/tests/trade_alpha/unit/models/test_predictor.py
 git commit -m "refactor: split Predictor into BasePredictor + XGBoostPredictor + LSTMPredictor"
 ```
 
@@ -239,22 +260,16 @@ git commit -m "refactor: split Predictor into BasePredictor + XGBoostPredictor +
 # 移除旧的 import
 # from trade_alpha.execution.predictor import Predictor
 # 改为
-from trade_alpha.models.predictor import create_predictor, compute_scores
+from trade_alpha.models.factory import create_predictor
+from trade_alpha.models.base import compute_scores
 
 # 在 __init__ 中 (第61行附近)
 # 旧: self.predictor = Predictor(training_id, normalizer=None, data_loader=self.data_loader)
 # 改为:
-self.predictor = await create_predictor(training_id, data_loader=self.data_loader)
-```
-
-注意：`__init__` 是同步的，但 `create_predictor` 是 async 的。需要把 predictor 创建移到第一个 async 方法（如 `run_backtest`）中，或改为延迟初始化。
-
-**方案：添加 `_ensure_predictor` 辅助方法，延迟初始化**
-
-修改第61行：
-```python
 self.predictor = None  # 延迟初始化
 ```
+
+- [ ] **Step 2: 在 run_backtest 和 run_live 中添加延迟初始化**
 
 在 `run_backtest` 中（第126行任务进度更新后）和 `run_live` 中（第399行开始处）添加：
 ```python
@@ -262,7 +277,7 @@ if self.predictor is None:
     self.predictor = await create_predictor(self.training_id, data_loader=self.data_loader)
 ```
 
-- [ ] **Step 2: 修改 run_backtest 中的预测调用（L284-291）**
+- [ ] **Step 3: 修改 run_backtest 中的预测调用（L284-291）**
 
 旧代码：
 ```python
@@ -283,7 +298,7 @@ for ts_code in ts_codes:
     pred_results[ts_code] = compute_scores(probs, close_price)
 ```
 
-- [ ] **Step 3: 修改 run_live 中的预测调用（L417）**
+- [ ] **Step 4: 修改 run_live 中的预测调用（L417）**
 
 旧代码：
 ```python
@@ -302,15 +317,15 @@ for ts_code in ts_codes:
     pred_results[ts_code] = compute_scores(probs, close_price)
 ```
 
-- [ ] **Step 4: 运行测试验证**
+- [ ] **Step 5: 运行测试验证**
 
 Run: `cd backend && python -m pytest tests/trade_alpha/unit/models/test_predictor.py tests/trade_alpha/unit/predict/ -v`
 Expected: 全部 PASSED
 
-Run: `cd backend && python -m pytest tests/ -v -x --timeout=60`
+Run: `cd backend && python -m pytest tests/ -v -x --timeout=120`
 Expected: PASSED
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
 git add backend/src/trade_alpha/execution/pipeline.py
