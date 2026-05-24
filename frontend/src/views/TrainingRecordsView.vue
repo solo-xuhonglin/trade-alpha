@@ -149,15 +149,28 @@
           <v-window-item value="loss">
             <div v-if="detailItem.model_metrics.loss_per_epoch">
               <div class="text-subtitle-2 mb-2">训练 Loss</div>
-              <div class="text-caption mb-1">
+              <div class="text-caption mb-3">
                 Final Loss: {{ detailItem.model_metrics.final_train_loss?.toFixed(4) }}
+                <span v-if="detailItem.model_metrics.best_auc">, Best Val AUC: {{ detailItem.model_metrics.best_auc.toFixed(4) }}</span>
               </div>
-              <div v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx">
-                Epoch {{ idx + 1 }}: Train={{ loss.toFixed(4) }}
-                <span v-if="detailItem.model_metrics.val_loss_per_epoch?.[idx]">
-                  Val={{ detailItem.model_metrics.val_loss_per_epoch[idx].toFixed(4) }}
-                </span>
-              </div>
+              <v-table density="compact">
+                <thead>
+                  <tr>
+                    <th>Epoch</th>
+                    <th>Train Loss</th>
+                    <th>Val Loss</th>
+                    <th>Val AUC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx">
+                    <td>{{ idx + 1 }}</td>
+                    <td>{{ loss.toFixed(4) }}</td>
+                    <td>{{ detailItem.model_metrics.val_loss_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
+                    <td>{{ detailItem.model_metrics.val_auc_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
             </div>
             <div v-else class="text-caption text-medium-emphasis">
               仅 LSTM 模型记录训练 Loss

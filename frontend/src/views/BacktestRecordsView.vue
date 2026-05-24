@@ -74,56 +74,56 @@
             </thead>
             <tbody>
               <tr>
-                <td class="text-body-2 font-weight-medium">总收益率</td>
-                <td class="text-center font-weight-bold" :class="selectedResult.total_return >= 0 ? 'text-success' : 'text-error'">{{ (selectedResult.total_return * 100).toFixed(2) }}%</td>
+                <td class="text-body-2">总收益率</td>
+                <td class="text-center" :class="selectedResult.total_return >= 0 ? 'text-success' : 'text-error'">{{ (selectedResult.total_return * 100).toFixed(2) }}%</td>
                 <td class="text-center">{{ ((selectedResult.baseline_return || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center font-weight-bold" :class="(selectedResult.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.excess_return || 0) * 100).toFixed(2) }}%</td>
+                <td class="text-center" :class="(selectedResult.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.excess_return || 0) * 100).toFixed(2) }}%</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">年化收益</td>
-                <td class="text-center font-weight-bold" :class="(selectedResult.annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.annual_return || 0) * 100).toFixed(2) }}%</td>
+                <td class="text-body-2">年化收益</td>
+                <td class="text-center" :class="(selectedResult.annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.annual_return || 0) * 100).toFixed(2) }}%</td>
                 <td class="text-center" :class="(selectedResult.baseline_annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.baseline_annual_return || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center font-weight-bold" :class="((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) >= 0 ? 'text-success' : 'text-error'">{{ (((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) * 100).toFixed(2) }}%</td>
+                <td class="text-center" :class="((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) >= 0 ? 'text-success' : 'text-error'">{{ (((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) * 100).toFixed(2) }}%</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">最大回撤</td>
-                <td class="text-center font-weight-bold text-error">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</td>
+                <td class="text-body-2">最大回撤</td>
+                <td class="text-center text-error">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</td>
                 <td class="text-center text-error">{{ ((selectedResult.baseline_max_drawdown || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center font-weight-bold" :class="selectedResult.max_drawdown <= (selectedResult.baseline_max_drawdown || 0) ? 'text-success' : 'text-error'">{{ ((selectedResult.max_drawdown - (selectedResult.baseline_max_drawdown || 0)) * 100).toFixed(2) }}%</td>
+                <td class="text-center" :class="selectedResult.max_drawdown <= (selectedResult.baseline_max_drawdown || 0) ? 'text-success' : 'text-error'">{{ ((selectedResult.max_drawdown - (selectedResult.baseline_max_drawdown || 0)) * 100).toFixed(2) }}%</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">波动率</td>
-                <td class="text-center font-weight-bold">{{ ((selectedResult.volatility || 0) * 100).toFixed(2) }}%</td>
+                <td class="text-body-2">波动率</td>
+                <td class="text-center">{{ ((selectedResult.volatility || 0) * 100).toFixed(2) }}%</td>
                 <td class="text-center">{{ ((selectedResult.baseline_volatility || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center font-weight-bold" :class="(selectedResult.volatility || 0) <= (selectedResult.baseline_volatility || 0) ? 'text-success' : 'text-warning'">{{ ((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0) > 0 ? '+' : '') }}{{ (((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0)) * 100).toFixed(2) }}%</td>
+                <td class="text-center" :class="(selectedResult.volatility || 0) <= (selectedResult.baseline_volatility || 0) ? 'text-success' : 'text-warning'">{{ ((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0) > 0 ? '+' : '') }}{{ (((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0)) * 100).toFixed(2) }}%</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">夏普比率</td>
-                <td class="text-center font-weight-bold" :class="(selectedResult.sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.sharpe_ratio || 0).toFixed(2) }}</td>
+                <td class="text-body-2">夏普比率</td>
+                <td class="text-center" :class="(selectedResult.sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.sharpe_ratio || 0).toFixed(2) }}</td>
                 <td class="text-center" :class="(selectedResult.baseline_sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.baseline_sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.baseline_sharpe_ratio || 0).toFixed(2) }}</td>
-                <td class="text-center font-weight-bold" :class="((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0) > 0 ? '+' : '') }}{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)).toFixed(2) }}</td>
+                <td class="text-center" :class="((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0) > 0 ? '+' : '') }}{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)).toFixed(2) }}</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">胜率</td>
-                <td class="text-center font-weight-bold" :class="(selectedResult.win_rate || 0) >= 0.5 ? 'text-success' : 'text-error'">{{ ((selectedResult.win_rate || 0) * 100).toFixed(1) }}%</td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-              </tr>
-              <tr>
-                <td class="text-body-2 font-weight-medium">交易次数</td>
-                <td class="text-center font-weight-bold">{{ selectedResult.total_trades }}</td>
+                <td class="text-body-2">胜率</td>
+                <td class="text-center" :class="(selectedResult.win_rate || 0) >= 0.5 ? 'text-success' : 'text-error'">{{ ((selectedResult.win_rate || 0) * 100).toFixed(1) }}%</td>
                 <td class="text-center">-</td>
                 <td class="text-center">-</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">平均持仓天数</td>
-                <td class="text-center font-weight-bold">{{ selectedResult.avg_hold_days || 0 }}</td>
+                <td class="text-body-2">交易次数</td>
+                <td class="text-center">{{ selectedResult.total_trades }}</td>
                 <td class="text-center">-</td>
                 <td class="text-center">-</td>
               </tr>
               <tr>
-                <td class="text-body-2 font-weight-medium">总手续费</td>
-                <td class="text-center font-weight-bold">{{ (selectedResult.total_fees || 0).toFixed(2) }}</td>
+                <td class="text-body-2">平均持仓天数</td>
+                <td class="text-center">{{ selectedResult.avg_hold_days || 0 }}</td>
+                <td class="text-center">-</td>
+                <td class="text-center">-</td>
+              </tr>
+              <tr>
+                <td class="text-body-2">总手续费</td>
+                <td class="text-center">{{ (selectedResult.total_fees || 0).toFixed(2) }}</td>
                 <td class="text-center">-</td>
                 <td class="text-center">-</td>
               </tr>
