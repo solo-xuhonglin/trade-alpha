@@ -23,6 +23,7 @@ class ExecutionTrade(Document):
     up_prob_5d: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.now)
     mode: str = Field(default="backtest")
+    status: str = Field(default="filled")  # "filled" or "cancelled"
 
     class Settings:
         name = "execution_trades"
