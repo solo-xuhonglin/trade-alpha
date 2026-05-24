@@ -14,17 +14,19 @@
 
 | 文件 | 变更 |
 |------|------|
-| `execution/predictor.py` | 完全重写 |
-| `execution/pipeline.py` | 改为使用新 Predictor 接口 |
-| `tests/trade_alpha/unit/execution/test_predictor.py` | 新增 |
+| `models/predictor.py` | **新建** |
+| `execution/predictor.py` | **删除** |
+| `execution/pipeline.py` | import 改为从 `models.predictor` |
+| `tests/trade_alpha/unit/models/test_predictor.py` | 新增 |
 
 ---
 
-### Task 1: 重写 predictor.py
+### Task 1: 新建 models/predictor.py
 
 **Files:**
-- Rewrite: `backend/src/trade_alpha/execution/predictor.py` (全量替换)
-- Create: `backend/tests/trade_alpha/unit/execution/test_predictor.py`
+- Create: `backend/src/trade_alpha/models/predictor.py`
+- Delete: `backend/src/trade_alpha/execution/predictor.py`
+- Create: `backend/tests/trade_alpha/unit/models/test_predictor.py`
 
 - [ ] **Step 1: 重写 predictor.py**
 
@@ -134,7 +136,7 @@ async def create_predictor(training_id: PydanticObjectId, data_loader=None):
 """Tests for predictors and compute_scores."""
 import pytest
 import numpy as np
-from trade_alpha.execution.predictor import compute_scores
+from trade_alpha.models.predictor import compute_scores
 
 
 class FakeClassifier:
@@ -187,7 +189,7 @@ def test_compute_scores_empty():
 
 @pytest.mark.asyncio
 async def test_xgboost_predictor_predict():
-    from trade_alpha.execution.predictor import XGBoostPredictor
+    from trade_alpha.models.predictor import XGBoostPredictor
     config = FakeConfig()
     config.model_type = "xgboost"
     pred = XGBoostPredictor(config, FakeClassifier(), FakeDataLoader())
@@ -199,7 +201,7 @@ async def test_xgboost_predictor_predict():
 
 @pytest.mark.asyncio
 async def test_lstm_predictor_predict():
-    from trade_alpha.execution.predictor import LSTMPredictor
+    from trade_alpha.models.predictor import LSTMPredictor
     config = FakeConfig()
     config.lstm_sequence_length = 3
     pred = LSTMPredictor(config, FakeClassifier(), FakeDataLoader())
@@ -211,15 +213,16 @@ async def test_lstm_predictor_predict():
 
 - [ ] **Step 3: 运行测试验证新测试通过**
 
-Run: `cd backend && python -m pytest tests/trade_alpha/unit/execution/test_predictor.py -v`
-Expected: 2 of 4 pass (compute_scores 测试通过，predictor 测试因缺少其他文件而 FAIL)
+Run: `cd backend && python -m pytest tests/trade_alpha/unit/models/test_predictor.py -v`
+Expected: compute_scores 测试通过，predictor 测试因缺少 data_loader 等依赖可能 FAIL
 
 实际上应该全部通过，因为新文件只依赖已存在的模块。运行验证。
 
-- [ ] **Step 4: 提交**
+- [ ] **Step 4: 删除旧文件并提交**
 
 ```bash
-git add backend/src/trade_alpha/execution/predictor.py backend/tests/trade_alpha/unit/execution/test_predictor.py
+git rm backend/src/trade_alpha/execution/predictor.py
+git add backend/src/trade_alpha/models/predictor.py backend/tests/trade_alpha/unit/models/test_predictor.py
 git commit -m "refactor: split Predictor into BasePredictor + XGBoostPredictor + LSTMPredictor"
 ```
 
@@ -236,7 +239,7 @@ git commit -m "refactor: split Predictor into BasePredictor + XGBoostPredictor +
 # 移除旧的 import
 # from trade_alpha.execution.predictor import Predictor
 # 改为
-from trade_alpha.execution.predictor import create_predictor, compute_scores
+from trade_alpha.models.predictor import create_predictor, compute_scores
 
 # 在 __init__ 中 (第61行附近)
 # 旧: self.predictor = Predictor(training_id, normalizer=None, data_loader=self.data_loader)
@@ -301,7 +304,7 @@ for ts_code in ts_codes:
 
 - [ ] **Step 4: 运行测试验证**
 
-Run: `cd backend && python -m pytest tests/trade_alpha/unit/execution/test_predictor.py tests/trade_alpha/unit/predict/ -v`
+Run: `cd backend && python -m pytest tests/trade_alpha/unit/models/test_predictor.py tests/trade_alpha/unit/predict/ -v`
 Expected: 全部 PASSED
 
 Run: `cd backend && python -m pytest tests/ -v -x --timeout=60`

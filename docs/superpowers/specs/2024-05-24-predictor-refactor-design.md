@@ -124,9 +124,15 @@ class LSTMPredictor(BasePredictor):
 
 ```python
 # 在 Pipeline.__init__ 中
-self.predictor = create_predictor(training_id, data_loader=self.data_loader)  # 工厂函数
+self.predictor = None  # 延迟初始化
 
-# 在 run_backtest 中
+# 在 run_backtest / run_live 中
+if self.predictor is None:
+    from trade_alpha.models.predictor import create_predictor
+    self.predictor = await create_predictor(training_id, data_loader=self.data_loader)
+
+# 预测
+from trade_alpha.models.predictor import compute_scores
 pred_result = {}
 for ts_code in ts_codes:
     probs = await self.predictor.predict(ts_code, target_names, date)
@@ -155,9 +161,9 @@ def compute_scores(probs: Dict, close: float) -> Dict:
 
 | 文件 | 变更 |
 |------|------|
-| `execution/predictor.py` | 重写：BasePredictor、XGBoostPredictor、LSTMPredictor、create_predictor 工厂、compute_scores 函数 |
-| `execution/pipeline.py` | 改为调用 create_predictor，自己循环 + 计算分数 + 加载数据 |
-| `models/base.py` | 不变 |
+| `models/predictor.py` | **新建**：BasePredictor、XGBoostPredictor、LSTMPredictor、create_predictor 工厂、compute_scores 函数 |
+| `execution/predictor.py` | **删除** |
+| `execution/pipeline.py` | import 改为 `from trade_alpha.models.predictor import ...` |
 
 ## 测试
 
