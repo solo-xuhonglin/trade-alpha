@@ -117,6 +117,9 @@ async def get_backtest_trades(
                 "fee": trade.fee,
                 "cash_after": trade.cash_after,
                 "position_after": getattr(trade, "position_after", 0),
+                "status": trade.status,
+                "ts_code": trade.ts_code,
+                "reason": trade.reason,
             }
             for trade in trades
         ],
@@ -292,6 +295,9 @@ async def list_all_trades(
                 "fee": trade.fee,
                 "cash_after": trade.cash_after,
                 "position_after": getattr(trade, "position_after", 0),
+                "status": trade.status,
+                "ts_code": trade.ts_code,
+                "reason": trade.reason,
             }
             for trade in trades
         ],
