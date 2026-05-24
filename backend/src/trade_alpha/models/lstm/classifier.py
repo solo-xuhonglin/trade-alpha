@@ -72,7 +72,11 @@ class LSTMClassifier(BaseClassifier):
             raise ValueError("No available data")
 
         combined_df = pd.concat(all_dfs, ignore_index=True)
-        X_3d, y_2d = create_sequences(combined_df, config.feature_fields, target_names, seq_len)
+        X_3d, y_2d = create_sequences(
+            combined_df, config.feature_fields, target_names,
+            sequence_length=seq_len,
+            normalization_window=norm_window,
+        )
 
         if len(X_3d) == 0:
             raise ValueError("No sequences created from available data")
@@ -266,9 +270,6 @@ class LSTMClassifier(BaseClassifier):
         if len(seq) < self.sequence_length:
             return {t: [0.0, 0.0, 0.0] for t in target_names}
         seq = seq[-self.sequence_length:]
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
         X_tensor = torch.FloatTensor(seq).unsqueeze(0)
         result = {}
         for target in target_names:

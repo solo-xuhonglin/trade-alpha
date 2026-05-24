@@ -18,6 +18,7 @@ class MockConfig:
     lstm_batch_size = 32
     lstm_learning_rate = 0.001
     lstm_sequence_length = 5
+    lstm_normalization_window = 30
 
 
 def _train_minimal_lstm(clf):
