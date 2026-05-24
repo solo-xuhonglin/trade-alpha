@@ -1,4 +1,4 @@
-# LSTM 回测数据缓存优化 Implementation Plan
+# LSTM Backtest Cache Optimization Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -25,7 +25,7 @@
 
 ```python
     def __init__(self):
-        # 新增: 缓存结构: { ts_code: [sorted_stock_records] }
+        # NEW: Cache structure: { ts_code: [sorted_stock_records] }
         self._history_cache: Dict[str, List] = {}
 ```
 
@@ -53,7 +53,7 @@ Add after the `__init__` method:
 
 ```python
     def _get_cache_start(self, ts_code: str):
-        """获取某只股票缓存的最早日期"""
+        """Get the earliest date in cache for a stock"""
         if ts_code not in self._history_cache or not self._history_cache[ts_code]:
             return None
         return self._history_cache[ts_code][0].trade_date
@@ -63,7 +63,7 @@ Add after the `__init__` method:
 
 ```python
     def _get_cache_end(self, ts_code: str):
-        """获取某只股票缓存的最新日期"""
+        """Get the latest date in cache for a stock"""
         if ts_code not in self._history_cache or not self._history_cache[ts_code]:
             return None
         return self._history_cache[ts_code][-1].trade_date
@@ -73,7 +73,7 @@ Add after the `__init__` method:
 
 ```python
     def _trim_cache(self, ts_code: str, keep_days: int):
-        """清理缓存，只保留最近 keep_days 天的数据"""
+        """Trim cache to keep only the most recent keep_days records"""
         if ts_code not in self._history_cache:
             return
         if len(self._history_cache[ts_code]) > keep_days:
@@ -86,8 +86,8 @@ Add after the `__init__` method:
 ```python
     def _calc_start_date(self, end_date: str, days: int):
         """
-        计算开始日期，考虑周末
-        实际加载: days * 2 天以确保覆盖
+        Calculate start date, accounting for weekends
+        Actually load: days * 2 to ensure coverage
         """
         from datetime import datetime, timedelta
         end_dt = datetime.strptime(end_date, "%Y%m%d")
@@ -95,7 +95,7 @@ Add after the `__init__` method:
         return start_dt.strftime("%Y%m%d")
 
     def _next_date(self, date_str: str):
-        """获取下一个日历日期"""
+        """Get the next calendar date"""
         from datetime import datetime, timedelta
         dt = datetime.strptime(date_str, "%Y%m%d")
         dt += timedelta(days=1)
@@ -124,7 +124,7 @@ Add before `load_history_data`:
 
 ```python
     async def _load_from_db(self, start_date: str, end_date: str, ts_codes: List[str]):
-        """从数据库加载指定时间范围的数据"""
+        """Load data from database for the specified time range"""
         records = await StockDaily.find(
             StockDaily.trade_date >= start_date,
             StockDaily.trade_date <= end_date,
@@ -156,57 +156,57 @@ Replace the entire method with:
 ```python
     async def load_history_data(self, end_date: str, ts_codes: List[str], days: int):
         """
-        加载历史数据，带缓存优化
-        
+        Load history data with cache optimization.
+
         Args:
-            end_date: 结束日期 (YYYYMMDD)
-            ts_codes: 股票代码列表
-            days: 需要的天数（序列长度 + buffer）
-        
+            end_date: End date (YYYYMMDD)
+            ts_codes: List of stock codes
+            days: Number of days needed (sequence length + buffer)
+
         Returns:
-            DataFrame: 历史数据
+            DataFrame: History data
         """
-        # 1. 计算需要的安全缓冲: 2×days，确保足够用于特征工程
+        # 1. Calculate safe buffer: 2×days to ensure sufficient data for feature engineering
         keep_days = days * 2
-        
+
         all_records = []
-        
+
         for ts_code in ts_codes:
             cache_start = self._get_cache_start(ts_code)
             cache_end = self._get_cache_end(ts_code)
-            
+
             if cache_start is None:
-                # 情况1: 未缓存，加载完整数据
+                # Case 1: Not cached, load full data
                 load_start = self._calc_start_date(end_date, keep_days)
                 new_records = await self._load_from_db(load_start, end_date, [ts_code])
-                # 存入缓存
+                # Store in cache
                 self._history_cache[ts_code] = sorted(new_records, key=lambda r: r.trade_date)
             else:
-                # 情况2: 已缓存，加载增量数据
+                # Case 2: Already cached, load incremental data
                 if cache_end < end_date:
-                    # 只加载缓存日期之后的数据
+                    # Load only data after cached end date
                     incremental_records = await self._load_from_db(
-                        self._next_date(cache_end), 
-                        end_date, 
+                        self._next_date(cache_end),
+                        end_date,
                         [ts_code]
                     )
-                    # 追加到缓存
+                    # Append to cache
                     self._history_cache[ts_code].extend(incremental_records)
-                    # 保持排序
+                    # Maintain sort order
                     self._history_cache[ts_code].sort(key=lambda r: r.trade_date)
-                
-                # 清理缓存: 只保留最近 keep_days 天
+
+                # Trim cache: keep only recent keep_days
                 self._trim_cache(ts_code, keep_days)
-            
-            # 从缓存中收集数据
+
+            # Collect data from cache
             if ts_code in self._history_cache:
                 all_records.extend(self._history_cache[ts_code])
-        
-        # 转换为 DataFrame
+
+        # Convert to DataFrame
         if not all_records:
             import pandas as pd
             return pd.DataFrame()
-        
+
         import pandas as pd
         df = pd.DataFrame([r.model_dump() for r in all_records])
         return df
@@ -264,23 +264,23 @@ git commit -m "feat: complete LSTM backtest cache optimization" --allow-empty
 
 ### 1. Spec Coverage
 
-✅ Add cache state - Task 1  
-✅ Add helper methods - Task 2  
-✅ Extract database loading - Task 3  
-✅ Rewrite load_history_data - Task 4  
-✅ Cache trimming (2×days) - Task 4  
-✅ Incremental loading - Task 4  
-✅ Predictor transparency - No Predictor changes needed  
+✅ Add cache state - Task 1
+✅ Add helper methods - Task 2
+✅ Extract database loading - Task 3
+✅ Rewrite load_history_data - Task 4
+✅ Cache trimming (2×days) - Task 4
+✅ Incremental loading - Task 4
+✅ Predictor transparency - No Predictor changes needed
 
 ### 2. Placeholder Scan
 
-✅ No TBD/TODO  
-✅ All code blocks complete  
-✅ Exact file paths  
-✅ No vague instructions  
+✅ No TBD/TODO
+✅ All code blocks complete
+✅ Exact file paths
+✅ No vague instructions
 
 ### 3. Type Consistency
 
-✅ Method names consistent  
-✅ Cache structure clear  
-✅ No conflicting definitions  
+✅ Method names consistent
+✅ Cache structure clear
+✅ No conflicting definitions
