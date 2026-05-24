@@ -61,15 +61,15 @@
         <div class="text-subtitle-2 text-medium-emphasis mb-2">特征与数据处理</div>
         <v-row>
           <v-col cols="12">
-            <v-autocomplete v-model="form.feature_fields" :items="indicatorFields" label="特征字段" multiple chips closable-chips dense></v-autocomplete>
+            <v-autocomplete v-model="form.feature_fields" :items="allFeatureFields" label="特征字段" multiple chips closable-chips dense></v-autocomplete>
           </v-col>
         </v-row>
         <v-row>
           <v-col cols="12" sm="6">
-            <v-autocomplete v-model="form.standardize_fields" :items="indicatorFields" label="标准化字段" multiple chips closable-chips dense></v-autocomplete>
+            <v-autocomplete v-model="form.standardize_fields" :items="allFeatureFields" label="标准化字段" multiple chips closable-chips dense></v-autocomplete>
           </v-col>
           <v-col cols="12" sm="6">
-            <v-autocomplete v-model="form.winsorize_fields" :items="indicatorFields" label="缩尾字段" multiple chips closable-chips dense></v-autocomplete>
+            <v-autocomplete v-model="form.winsorize_fields" :items="allFeatureFields" label="缩尾字段" multiple chips closable-chips dense></v-autocomplete>
           </v-col>
         </v-row>
 
@@ -179,6 +179,12 @@ const models = ref<ModelConfig[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<ModelConfig | null>(null)
 
+const dailyBasicFields = [
+  'open', 'high', 'low', 'close', 'vol', 'amount',
+  'candle_body_pct', 'candle_upper_pct', 'candle_lower_pct',
+  'close_location_pct', 'gap_pct', 'gap_fill_pct',
+]
+
 const indicatorFields = [
   'ma_5', 'ma_10', 'ma_20', 'ma_60',
   'macd', 'macd_signal', 'macd_hist',
@@ -195,6 +201,9 @@ const indicatorFields = [
   'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
   'obv',
 ]
+
+// 所有可选字段（日线基础 + 技术指标）
+const allFeatureFields = [...dailyBasicFields, ...indicatorFields]
 
 // 与价格绝对值无关的字段（特征字段默认只选这些）
 const priceIndependentFields = [
