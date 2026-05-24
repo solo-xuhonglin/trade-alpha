@@ -56,6 +56,7 @@ async def create_config(
     lstm_batch_size: int = 256,
     lstm_learning_rate: float = 0.001,
     lstm_sequence_length: int = 60,
+    lstm_normalization_window: int = 300,
     label_smoothing: float = 0.1,
     early_stopping_patience: int = 5,
 ) -> ModelConfig:
@@ -121,6 +122,7 @@ async def create_config(
         lstm_batch_size=lstm_batch_size,
         lstm_learning_rate=lstm_learning_rate,
         lstm_sequence_length=lstm_sequence_length,
+        lstm_normalization_window=lstm_normalization_window,
         label_smoothing=label_smoothing,
         early_stopping_patience=early_stopping_patience,
         created_at=datetime.now(timezone.utc),
