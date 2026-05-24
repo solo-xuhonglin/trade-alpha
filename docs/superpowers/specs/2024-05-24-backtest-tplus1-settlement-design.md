@@ -27,11 +27,10 @@ Step 2: Settle T-1 pending orders with day T's OHLC
   for each order in self.pending_orders:
     matched_price = match_order(order, open_T, high_T, low_T)
     if matched_price:
-      → record ExecutionTrade (trade_date = T, price = matched_price)
+      → record ExecutionTrade (trade_date = T, price = matched_price, status="filled")
       → update positions / cash
-      → OrderSuggestion(status="filled")
     else:
-      → OrderSuggestion(status="cancelled")
+      → record ExecutionTrade (trade_date = T, status="cancelled", no cash impact)
   self.pending_orders.clear()
 
 Step 3: Make predictions (predict T+1 returns)
@@ -83,8 +82,11 @@ Same as current `settle_orders` logic:
 
 ### Unfilled orders
 
-Unfilled orders are recorded to `OrderSuggestion` collection with `status = "cancelled"`.
-This allows the user to see how many orders were placed vs filled.
+Each order (whether filled or not) produces exactly one `ExecutionTrade` record:
+- Filled: `status="filled"`, has actual price/shares/fee/cash_after
+- Unfilled: `status="cancelled"`, price/shares/fee/cash_after all set to 0, no cash impact
+
+No separate pending order table is needed. The `ExecutionTrade` table serves as both the order log and the trade log.
 
 ## Pipeline State Changes
 
@@ -95,6 +97,13 @@ self.pending_orders: List[PendingOrder] = []  # Orders from T-1 waiting to settl
 ```
 
 ## Changes by File
+
+### `backend/src/trade_alpha/dao/execution_trade.py`
+
+Add `status` field to `ExecutionTrade`:
+```python
+status: str = Field(default="filled")  # "filled" or "cancelled"
+```
 
 ### `backend/src/trade_alpha/schemas.py`
 
@@ -145,9 +154,25 @@ if self.pending_orders:
     self.cash += net_cash
     # Process filled trades (update positions)
     ...
-    # Record unfilled orders to DB
-    for order in unfilled:
-        record OrderSuggestion(status="cancelled")
+    # Record all orders to ExecutionTrade (filled + cancelled)
+    all_trades = filled_trades + [
+        ExecutionTrade(
+            backtest_id=backtest_id,
+            ts_code=order.ts_code,
+            trade_date=date,
+            action="buy" if order.order_shares > 0 else "sell",
+            price=0,
+            shares=0,
+            fee=0,
+            cash_after=0,
+            reason="cancelled",
+            entry_score=order.score,
+            up_prob_3d=order.up_prob_3d,
+            up_prob_5d=order.up_prob_5d,
+        )
+        for order in unfilled
+    ]
+    await ExecutionTrade.insert_many(all_trades)
     self.pending_orders.clear()
 
 # Step 2: Generate new orders for T+1
