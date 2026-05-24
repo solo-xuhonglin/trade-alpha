@@ -8,6 +8,9 @@ export interface Trade {
   fee: number
   cash_after: number
   position_after: number
+  status: string
+  ts_code?: string
+  reason?: string
 }
 
 export interface TradeListResponse {
