@@ -45,47 +45,78 @@ class PositionManager:
         """Make buy/sell decisions (to be implemented by subclasses)."""
         raise NotImplementedError("Subclasses must implement make_decisions")
 
+    @staticmethod
+    def match_order(order: PendingOrder, open_px: float, high_px: float, low_px: float) -> Optional[float]:
+        """Match a pending order against next day's OHLC. Returns matched price or None."""
+        if order.order_shares > 0:  # Buy
+            if order.order_price >= open_px:
+                return open_px
+            if high_px >= order.order_price:
+                return order.order_price
+            return None
+        else:  # Sell
+            if order.order_price <= open_px:
+                return open_px
+            if low_px <= order.order_price:
+                return order.order_price
+            return None
+
     async def settle_orders(
         self,
         orders: List[PendingOrder],
         date: str,
-        close_prices: Dict[str, float],
+        open_prices: Dict[str, float],
+        high_prices: Dict[str, float],
+        low_prices: Dict[str, float],
         backtest_id: Optional[PydanticObjectId] = None,
-    ) -> Tuple[List[ExecutionTrade], float]:
-        """Settle pending orders using actual close prices."""
-        trades: List[ExecutionTrade] = []
+    ) -> Tuple[List[ExecutionTrade], List[PendingOrder], float]:
+        """Settle pending orders using T+1 OHLC matching."""
+        filled_trades: List[ExecutionTrade] = []
+        unfilled_orders: List[PendingOrder] = []
         net_cash_change = 0.0
 
         for order in orders:
-            price = close_prices.get(order.ts_code, order.order_price)
+            open_px = open_prices.get(order.ts_code)
+            high_px = high_prices.get(order.ts_code)
+            low_px = low_prices.get(order.ts_code)
+            if open_px is None or high_px is None or low_px is None:
+                unfilled_orders.append(order)
+                continue
+
+            matched_price = self.match_order(order, open_px, high_px, low_px)
+            if matched_price is None:
+                unfilled_orders.append(order)
+                continue
+
             shares = abs(order.order_shares)
             action = "buy" if order.order_shares > 0 else "sell"
 
             if action == "buy":
-                fee = max(price * shares * self.account_config.buy_fee_rate, self.account_config.min_fee)
-                cash_after = -price * shares - fee
+                fee = max(matched_price * shares * self.account_config.buy_fee_rate, self.account_config.min_fee)
+                cash_after = -matched_price * shares - fee
             else:
-                fee = max(price * shares * self.account_config.sell_fee_rate, self.account_config.min_fee)
-                stamp_tax = price * shares * self.account_config.stamp_tax_rate
-                cash_after = price * shares - fee - stamp_tax
+                fee = max(matched_price * shares * self.account_config.sell_fee_rate, self.account_config.min_fee)
+                stamp_tax = matched_price * shares * self.account_config.stamp_tax_rate
+                cash_after = matched_price * shares - fee - stamp_tax
 
             net_cash_change += cash_after
-            trades.append(ExecutionTrade(
+            filled_trades.append(ExecutionTrade(
                 backtest_id=backtest_id,
                 ts_code=order.ts_code,
                 trade_date=date,
                 action=action,
-                price=price,
+                price=matched_price,
                 shares=shares if action == "buy" else -shares,
                 fee=fee,
                 cash_after=cash_after,
-                reason=f"rank_{'buy' if action == 'buy' else 'sell'}",
+                status="filled",
+                reason=f"rank_{action}",
                 entry_score=order.score,
                 up_prob_3d=order.up_prob_3d,
                 up_prob_5d=order.up_prob_5d,
             ))
 
-        return trades, net_cash_change
+        return filled_trades, unfilled_orders, net_cash_change
 
     async def daily_snapshot(
         self,
