@@ -175,11 +175,21 @@
               {{ item.action === 'buy' ? '买入' : '卖出' }}
             </v-chip>
           </template>
+          <template v-slot:item.status="{ item }">
+            <v-chip v-if="item.status === 'filled'" color="success" size="small">成交</v-chip>
+            <v-chip v-else color="grey" size="small">未成交</v-chip>
+          </template>
           <template v-slot:item.price="{ item }">
-            {{ item.price.toFixed(2) }}
+            {{ item.status === 'cancelled' ? '-' : item.price.toFixed(2) }}
+          </template>
+          <template v-slot:item.shares="{ item }">
+            {{ item.status === 'cancelled' ? '-' : item.shares }}
           </template>
           <template v-slot:item.fee="{ item }">
-            {{ item.fee.toFixed(2) }}
+            {{ item.status === 'cancelled' ? '-' : item.fee.toFixed(2) }}
+          </template>
+          <template v-slot:item.cash_after="{ item }">
+            {{ item.status === 'cancelled' ? '-' : item.cash_after.toFixed(2) }}
           </template>
         </v-data-table-server>
       </v-card-text>
@@ -235,13 +245,14 @@ const historyHeaders = [
 ]
 
 const tradesHeaders = [
+  { title: '股票代码', key: 'ts_code' },
   { title: '日期', key: 'trade_date' },
   { title: '操作', key: 'action' },
+  { title: '状态', key: 'status' },
   { title: '价格', key: 'price' },
   { title: '数量', key: 'shares' },
   { title: '手续费', key: 'fee' },
   { title: '现金', key: 'cash_after' },
-  { title: '持仓', key: 'position_after' },
 ]
 
 const loadBacktests = async () => {
