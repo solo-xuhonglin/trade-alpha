@@ -262,14 +262,16 @@ class LSTMClassifier(BaseClassifier):
 
         return metrics
 
-    def predict(self, features, target_names):
+    def predict(self, features, target_names, ts_code):
         seq = np.array(features, dtype=np.float64)
         if len(seq) < self.sequence_length:
             return {}
         seq = seq[-self.sequence_length:]
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
+        norm = self._norm_params.get(ts_code)
+        if norm is None:
+            return {}
+        seq = (seq - norm["means"]) / norm["stds"]
+        seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
         X_tensor = torch.FloatTensor(seq).unsqueeze(0)
         result = {}
         for target in target_names:
@@ -282,14 +284,16 @@ class LSTMClassifier(BaseClassifier):
                 result[target] = self._label_mapping[target][pred_idx]
         return result
 
-    def predict_proba(self, features, target_names):
+    def predict_proba(self, features, target_names, ts_code):
         seq = np.array(features, dtype=np.float64)
         if len(seq) < self.sequence_length:
             return {t: [0.0, 0.0, 0.0] for t in target_names}
         seq = seq[-self.sequence_length:]
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
+        norm = self._norm_params.get(ts_code)
+        if norm is None:
+            return {t: [0.0, 0.0, 0.0] for t in target_names}
+        seq = (seq - norm["means"]) / norm["stds"]
+        seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
         X_tensor = torch.FloatTensor(seq).unsqueeze(0)
         result = {}
         for target in target_names:
@@ -313,6 +317,7 @@ class LSTMClassifier(BaseClassifier):
             "label_mapping": self._label_mapping,
             "input_size": self.input_size,
             "sequence_length": self.sequence_length,
+            "norm_params": self._norm_params,
         }, path)
 
     def load(self, path: str):
@@ -320,6 +325,7 @@ class LSTMClassifier(BaseClassifier):
         self.input_size = state["input_size"]
         self.sequence_length = state["sequence_length"]
         self._label_mapping = state["label_mapping"]
+        self._norm_params = state.get("norm_params", {})
         self.models = {}
         for target, model_state in state["models"].items():
             model = LSTMModel(self.input_size, self.config.lstm_hidden_size,

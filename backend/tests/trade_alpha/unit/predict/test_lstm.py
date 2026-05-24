@@ -34,6 +34,7 @@ def _train_minimal_lstm(clf):
         model.eval()
         clf.models[target] = model
         clf._label_mapping[target] = label_map
+    clf._norm_params = {"000001.SZ": {"means": np.zeros(n_features), "stds": np.ones(n_features)}}
 
 
 def test_lstm_classifier_fit_predict():
@@ -42,7 +43,7 @@ def test_lstm_classifier_fit_predict():
     _train_minimal_lstm(clf)
 
     X = np.random.randn(10, 5)
-    preds = clf.predict(X, ["label_3d", "label_5d"])
+    preds = clf.predict(X, ["label_3d", "label_5d"], ts_code="000001.SZ")
     assert "label_3d" in preds
     assert preds["label_3d"] in [-1, 0, 1]
 
@@ -53,12 +54,12 @@ def test_lstm_classifier_save_load(tmp_path):
     _train_minimal_lstm(clf)
 
     X = np.random.randn(10, 5)
-    preds = clf.predict(X, ["label_3d"])
+    preds = clf.predict(X, ["label_3d"], ts_code="000001.SZ")
 
     path = tmp_path / "model.pt"
     clf.save(str(path))
     clf2 = LSTMClassifier(config)
     clf2.load(str(path))
 
-    preds2 = clf2.predict(X, ["label_3d"])
+    preds2 = clf2.predict(X, ["label_3d"], ts_code="000001.SZ")
     assert preds == preds2
