@@ -48,22 +48,23 @@ BasePredictor (抽象)
 
 ### BasePredictor
 
-只有一个抽象方法：
+只有一个抽象方法，入参只有 ts_code 和 date，内部自己加载数据：
 
 ```python
 class BasePredictor(ABC):
-    def __init__(self, config, classifier):
+    def __init__(self, config, classifier, data_loader):
         self.config = config
         self.classifier = classifier
+        self.data_loader = data_loader
 
     @abstractmethod
-    def predict(self, df: pd.DataFrame, ts_code: str, target_names: List[str]) -> Optional[Dict]:
-        """从 DataFrame 预测单只股票的 label_xxd 概率。
+    async def predict(self, ts_code: str, target_names: List[str], current_date: str) -> Optional[Dict]:
+        """内部构造 DataFrame，预测单只股票的 label_xxd 概率。
         
         Args:
-            df: 包含历史数据和当日数据的 DataFrame（含 ts_code、trade_date、feature_fields）
             ts_code: 目标股票代码
             target_names: 预测目标名列表，如 ["label_3d", "label_5d"]
+            current_date: 当前交易日，格式 YYYYMMDD
             
         Returns:
             {target_name: [p_down, p_flat, p_up]} 或 None（数据不足时）
@@ -74,8 +75,11 @@ class BasePredictor(ABC):
 
 ```python
 class XGBoostPredictor(BasePredictor):
-    def predict(self, df, ts_code, target_names):
+    async def predict(self, ts_code, target_names, current_date):
         from trade_alpha.models.xgboost.normalizer import normalize
+        df = await self.data_loader.load_day_data(current_date, [ts_code])
+        if df.empty:
+            return None
         stock = df[df["ts_code"] == ts_code]
         if stock.empty:
             return None
@@ -91,11 +95,15 @@ class XGBoostPredictor(BasePredictor):
 
 ```python
 class LSTMPredictor(BasePredictor):
-    def predict(self, df, ts_code, target_names):
-        stock = df[df["ts_code"] == ts_code].sort_values("trade_date")
-        if len(stock) < self.config.lstm_sequence_length:
+    async def predict(self, ts_code, target_names, current_date):
+        seq_len = self.config.lstm_sequence_length
+        df = await self.data_loader.load_history_data(current_date, [ts_code], seq_len + 10)
+        if df.empty:
             return None
-        features = stock[self.config.feature_fields].values[-self.config.lstm_sequence_length:]
+        stock = df[df["ts_code"] == ts_code].sort_values("trade_date")
+        if len(stock) < seq_len:
+            return None
+        features = stock[self.config.feature_fields].values[-seq_len:]
         if np.isnan(features).any():
             return None
         return self.classifier.predict_proba(features, target_names)
@@ -107,21 +115,21 @@ class LSTMPredictor(BasePredictor):
 
 | 职责 | 去哪了 | 原因 |
 |------|--------|------|
-| 数据加载 | Pipeline 自己调用 data_loader | 每种模型需要多少天历史数据是 Pipeline 决策 |
-| 分数计算 | 抽取为独立函数 `_compute_scores(probs, close)` | 与模型类型无关，所有模型统一 |
-| 循环多股票 | Pipeline 自己 for 循环 | 简单循环不需要封装 |
-| 模型加载 + 工厂 | 放在 Pipeline 或工厂函数 | 统一一处决定 |
+| 数据加载 | 各 Predictor 实现类内部调用 data_loader | 每种模型需要的数据量和方式不同 |
+| 分数计算 | 抽取为独立函数 `compute_scores(probs, close)` | 与模型类型无关，所有模型统一 |
+| 循环多只股票 | Pipeline 自己 for 循环 | 简单循环不需要封装 |
+| 模型加载 + 工厂 | 放在 create_predictor 工厂函数 | 统一一处决定 |
 
 ### Pipeline 调用示例
 
 ```python
 # 在 Pipeline.__init__ 中
-self.predictor = create_predictor(training_id)  # 工厂函数
+self.predictor = create_predictor(training_id, data_loader=self.data_loader)  # 工厂函数
 
 # 在 run_backtest 中
 pred_result = {}
 for ts_code in ts_codes:
-    probs = await self.predictor.predict(df, ts_code, target_names)
+    probs = await self.predictor.predict(ts_code, target_names, date)
     if probs is None:
         continue
     pred_result[ts_code] = compute_scores(probs, close_prices.get(ts_code, 0))
