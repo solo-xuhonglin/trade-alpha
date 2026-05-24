@@ -64,9 +64,8 @@ def create_sequences(df, feature_fields, target_names,
             mean = window.mean(axis=0)
             std = window.std(axis=0)
             std[std == 0] = 1.0
-            # 整个窗口归一化，只取最后 sequence_length 行
-            normed = (window - mean) / std
-            seq = normed[-sequence_length:]
+            # 用 300 天的 mean/std 只对最后 sequence_length 天做归一化
+            seq = (window[-sequence_length:] - mean) / std
             X_list.append(seq)
             y_list.append(label)
     ...
@@ -75,7 +74,7 @@ def create_sequences(df, feature_fields, target_names,
 
 - 滑动步长仍是 1，但窗口大小从 `sequence_length` 变为 `normalization_window`
 - mean/std 基于整个 `normalization_window` 计算
-- 输出只取 `normed[-sequence_length:]`，X_3d 形状保持 `(样本数, 60, 特征数)`
+- 只对最后 `sequence_length` 行做归一化，X_3d 形状保持 `(样本数, 60, 特征数)`
 
 ### 4. classifier.py — 训练适配
 
@@ -148,5 +147,5 @@ class LSTMPredictor(BasePredictor):
 ## 测试
 
 - 单元测试验证 `create_sequences` 传入不同 `normalization_window` 时输出形状为 `(N, 60, n_features)`
-- 验证用 `normalization_window` 天窗口做标准化的数据均值约 0、标准差约 1
+- 验证返回的 X_3d 中无 NaN
 - 集成测试确认训练/预测链路可用
