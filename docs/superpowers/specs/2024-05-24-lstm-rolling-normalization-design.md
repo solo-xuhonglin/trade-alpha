@@ -17,34 +17,37 @@
 
 ## 改动设计
 
-### 1. normalizer.py — 新增 `create_sequences_rolling`
+### 1. normalizer.py — 重写 `create_sequences`，支持滚动窗口标准化
 
 ```python
-def create_sequences_rolling(
+LOOKBACK_DAYS = 250  # 至少一年交易日
+
+def create_sequences(
     df: pd.DataFrame,
     feature_fields: List[str],
     target_names: List[str],
     sequence_length: int,
-) -> Tuple[np.ndarray, np.ndarray, Dict[str, Tuple[np.ndarray, np.ndarray]]]:
+) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
     滚动窗口标准化创建训练序列。
     
     对每只股票：
     1. 按日期排序
-    2. 对每个 T 日的序列，用 [lookback_start, T-1] 的滚动窗口计算 mean/std
+    2. 对每个 T 日的序列，用 [T - LOOKBACK_DAYS, T-1] 的滚动窗口计算 mean/std
     3. 用该 mean/std 标准化 T 日的序列
     
     返回：
     - X_3d: 标准化后的序列
     - y_2d: 标签
-    - norm_params: {ts_code: (means, stds)}，保存的最新统计量，用于预测
+    - norm_params: {ts_code: {"means": np.ndarray, "stds": np.ndarray}}，用整个训练集计算的最新统计量
     """
 ```
 
 **统计量计算规则**：
-- 对每只股票，取 `[T - lookback_days, T-1]` 的数据计算 mean/std
-- `lookback_days = sequence_length * 2`（至少120天，确保统计稳定）
-- 如果历史数据不足 lookback_days，则使用所有可用数据
+- 对每只股票，取 `[T - LOOKBACK_DAYS, T-1]` 的数据计算 mean/std
+- `LOOKBACK_DAYS = 250`（约一年交易日）
+- 如果历史数据不足 250 天，使用所有可用数据
+- `norm_params` 使用该股票所有训练数据的整体 mean/std（非最后一个窗口）
 
 **norm_params 结构**：
 ```python
@@ -59,9 +62,8 @@ def create_sequences_rolling(
 ### 2. classifier.py — 保存 norm_params
 
 **train 方法**：
-- 调用 `create_sequences_rolling` 替代 `create_sequences`
+- `create_sequences` 返回三元素 (X_3d, y_2d, norm_params)
 - 将返回的 `norm_params` 保存到 `self._norm_params`
-- 清理非价格特征的 mean/std 不必要，所有特征都使用 rolling normalizer
 
 **save 方法**：
 ```python
