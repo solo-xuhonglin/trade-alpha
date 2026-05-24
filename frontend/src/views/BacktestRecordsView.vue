@@ -152,7 +152,7 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="tradesDialog" max-width="800px">
+  <v-dialog v-model="tradesDialog" max-width="1100px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
         交易记录
