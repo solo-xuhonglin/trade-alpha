@@ -128,11 +128,13 @@ class ExecutionPipeline:
 
         await TaskService.update_progress(task_id, 10, "正在初始化...")
         if self.predictor is None:
-            self.predictor = await create_predictor(self.training_id, data_loader=self.data_loader)
+            training = await get_training_by_id(self.training_id)
+            config = await get_config_by_id(training.config_id)
+            classifier = create_classifier(config, training.model_path)
+            self.predictor = create_predictor(config, classifier, data_loader=self.data_loader)
         logger.info(f"Backtest {backtest_id} started: {start_date} -> {end_date}")
 
         # Get stocks from the universe (same stocks used in training)
-        from trade_alpha.dao import StockList
 
         if self.single_stock_ts_code:
             limit = 1
