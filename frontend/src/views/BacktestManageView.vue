@@ -55,10 +55,10 @@
             type="number"
           />
         </v-col>
-        <v-col cols="12" sm="3" md="2">
+        <v-col cols="12" sm="3" md="3">
           <v-text-field v-model="form.name" label="回测名称" />
         </v-col>
-        <v-col cols="12" sm="3" md="4">
+        <v-col cols="12" sm="3" md="3">
           <v-btn color="primary" block @click="runBacktest" :loading="running" height="40">
             发起回测
           </v-btn>
