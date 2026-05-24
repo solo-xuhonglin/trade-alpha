@@ -81,6 +81,7 @@ class ExecutionPipeline:
         self.cash: float = account_config.initial_capital
         self.positions: Dict[str, PositionEmbed] = {}
         self.prev_total_value: Optional[float] = None
+        self.pending_orders: List[PendingOrder] = []
 
     async def run_backtest(
         self,
@@ -214,12 +215,73 @@ class ExecutionPipeline:
                 date = _next_date(date)
                 continue
 
+            open_prices = dict(zip(day_df["ts_code"], day_df["open"]))
+            high_prices = dict(zip(day_df["ts_code"], day_df["high"]))
+            low_prices = dict(zip(day_df["ts_code"], day_df["low"]))
             close_prices = dict(zip(day_df["ts_code"], day_df["close"]))
             if not close_prices:
                 date = _next_date(date)
                 continue
 
-            # Normalize current day's data only
+            # Step 1: Settle T-1 pending orders with T's OHLC
+            if self.pending_orders:
+                filled_trades, unfilled_orders, net_cash = await self.strategy.settle_orders(
+                    orders=self.pending_orders,
+                    date=date,
+                    open_prices=open_prices,
+                    high_prices=high_prices,
+                    low_prices=low_prices,
+                    backtest_id=backtest_id,
+                )
+                self.cash += net_cash
+                total_trades += len(filled_trades)
+
+                # Record all orders (filled + cancelled) as ExecutionTrade
+                all_trades = filled_trades + [
+                    ExecutionTrade(
+                        backtest_id=backtest_id,
+                        ts_code=order.ts_code,
+                        trade_date=date,
+                        action="buy" if order.order_shares > 0 else "sell",
+                        price=0.0,
+                        shares=0,
+                        fee=0.0,
+                        cash_after=0.0,
+                        status="cancelled",
+                        reason="cancelled",
+                        entry_score=order.score,
+                        up_prob_3d=order.up_prob_3d,
+                        up_prob_5d=order.up_prob_5d,
+                    )
+                    for order in unfilled_orders
+                ]
+                await ExecutionTrade.insert_many(all_trades)
+
+                for t in filled_trades:
+                    total_fees += t.fee
+                    if t.action == "sell":
+                        total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
+
+                for t in filled_trades:
+                    if t.action == "sell":
+                        self.positions.pop(t.ts_code, None)
+                    elif t.action == "buy":
+                        self.positions[t.ts_code] = PositionEmbed(
+                            ts_code=t.ts_code,
+                            stock_name=universe.get(t.ts_code, ""),
+                            buy_date=date,
+                            buy_price=t.price,
+                            shares=t.shares,
+                            fee=t.fee,
+                            entry_score=t.entry_score or 0,
+                            entry_3d_prob=t.up_prob_3d or 0,
+                            entry_5d_prob=t.up_prob_5d or 0,
+                            hold_days=0,
+                        )
+
+                self.pending_orders.clear()
+
+            # Step 2: Predict T+1 signals
             pred_results = await self.predictor.predict_batch_with_history(
                 day_df, ts_codes, date
             )
@@ -239,11 +301,11 @@ class ExecutionPipeline:
                 )
                 for ts_code, r in pred_results.items()
             ]
-            
+
             # Single-stock mode: filter to only the target stock
             if self.single_stock_ts_code:
                 scored = [s for s in scored if s.ts_code == self.single_stock_ts_code]
-            
+
             # Log first day predictions for debugging
             if date == start_date:
                 logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
@@ -251,6 +313,7 @@ class ExecutionPipeline:
                     top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
                     logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
 
+            # Step 3: Generate new pending orders for T+1
             pending_orders = await self.strategy.make_decisions(
                 scored_stocks=scored,
                 current_positions=self.positions,
@@ -258,43 +321,12 @@ class ExecutionPipeline:
                 trade_date=date,
                 close_prices=close_prices,
             )
-            
-            if date == start_date and pending_orders:
-                logger.info(f"First day orders: {len(pending_orders)} orders generated")
-            
-            if pending_orders:
-                trades, net_cash = await self.strategy.settle_orders(
-                    orders=pending_orders,
-                    date=date,
-                    close_prices=close_prices,
-                    backtest_id=backtest_id,
-                )
-                self.cash += net_cash
-                total_trades += len(trades)
-                for t in trades:
-                    total_fees += t.fee
-                    if t.action == "sell":
-                        total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
-                
-                # Save trades to database
-                await ExecutionTrade.insert_many(trades)
 
-                for t in trades:
-                    if t.action == "sell":
-                        self.positions.pop(t.ts_code, None)
-                    elif t.action == "buy":
-                        self.positions[t.ts_code] = PositionEmbed(
-                            ts_code=t.ts_code,
-                            stock_name=universe.get(t.ts_code, ""),
-                            buy_date=date,
-                            buy_price=t.price,
-                            shares=t.shares,
-                            fee=t.fee,
-                            entry_score=t.entry_score or 0,
-                            entry_3d_prob=t.up_prob_3d or 0,
-                            entry_5d_prob=t.up_prob_5d or 0,
-                            hold_days=0,
-                        )
+            for order in pending_orders:
+                order.trade_date = date
+                order.settle_date = _next_date(date)
+
+            self.pending_orders = pending_orders
 
             snapshot = await self.strategy.daily_snapshot(
                 backtest_id=backtest_id,
