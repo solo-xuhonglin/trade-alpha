@@ -86,12 +86,11 @@ class LSTMClassifier(BaseClassifier):
         valid_mask = ~np.isnan(y_2d).any(axis=1)
         X_3d, y_2d = X_3d[valid_mask], y_2d[valid_mask]
 
-        # 划分训练集和验证集 (80% / 20%)
+        # 划分训练集和验证集 (80% / 20%) - 时间序列划分
         num_samples = len(X_3d)
         train_size = int(num_samples * 0.8)
-        indices = np.random.permutation(num_samples)
-        train_indices = indices[:train_size]
-        val_indices = indices[train_size:]
+        train_indices = np.arange(train_size)
+        val_indices = np.arange(train_size, num_samples)
 
         await TaskService.update_progress(task_id, 60, "正在训练模型...")
 
