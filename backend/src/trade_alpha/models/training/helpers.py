@@ -1,5 +1,6 @@
 """Shared helper functions for model training."""
 
+from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 import pandas as pd
 import numpy as np
@@ -26,12 +27,12 @@ async def _load_year_data(year: int, ts_codes: List[str], horizon: int, extra_da
     """Load yearly data including future horizon days.
 
     Args:
-        extra_days: extra buffer days for LSTM sequence construction
+        extra_days: extra calendar buffer days for LSTM normalization window
     """
     year_start = f"{year}0101"
     year_end = f"{year}1231"
     future_end = f"{year + (horizon + 180) // 365}1231"
-    data_start = f"{year - 1}0101" if extra_days > 0 else year_start
+    data_start = (datetime(year, 1, 1) - timedelta(days=extra_days)).strftime("%Y%m%d") if extra_days > 0 else year_start
 
     year_dfs = []
     for ts_code in ts_codes:
