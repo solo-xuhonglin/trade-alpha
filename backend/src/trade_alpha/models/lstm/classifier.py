@@ -72,8 +72,7 @@ class LSTMClassifier(BaseClassifier):
             raise ValueError("No available data")
 
         combined_df = pd.concat(all_dfs, ignore_index=True)
-        X_3d, y_2d, norm_params = create_sequences(combined_df, config.feature_fields, target_names, seq_len)
-        self._norm_params = norm_params
+        X_3d, y_2d = create_sequences(combined_df, config.feature_fields, target_names, seq_len)
 
         if len(X_3d) == 0:
             raise ValueError("No sequences created from available data")
