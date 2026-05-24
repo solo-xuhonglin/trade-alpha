@@ -143,24 +143,22 @@ git commit -m "feat: adapt training to new create_sequences signature"
 
 **Files:**
 - Modify: `backend/src/trade_alpha/models/lstm/classifier.py:264-306`
+- Modify: `backend/tests/trade_alpha/unit/predict/test_lstm.py`
 - Test: `backend/tests/trade_alpha/unit/predict/test_lstm.py`
 
 - [ ] **Step 1: 修改 `predict` 方法**
 
 ```python
-def predict(self, features, target_names, ts_code=None):
+def predict(self, features, target_names, ts_code):
     seq = np.array(features, dtype=np.float64)
     if len(seq) < self.sequence_length:
         return {}
     seq = seq[-self.sequence_length:]
-    if ts_code and ts_code in self._norm_params:
-        norm = self._norm_params[ts_code]
-        seq = (seq - norm["means"]) / norm["stds"]
-        seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
-    else:
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
+    norm = self._norm_params.get(ts_code)
+    if norm is None:
+        return {}
+    seq = (seq - norm["means"]) / norm["stds"]
+    seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
     X_tensor = torch.FloatTensor(seq).unsqueeze(0)
     result = {}
     for target in target_names:
@@ -177,19 +175,16 @@ def predict(self, features, target_names, ts_code=None):
 - [ ] **Step 2: 修改 `predict_proba` 方法**
 
 ```python
-def predict_proba(self, features, target_names, ts_code=None):
+def predict_proba(self, features, target_names, ts_code):
     seq = np.array(features, dtype=np.float64)
     if len(seq) < self.sequence_length:
         return {t: [0.0, 0.0, 0.0] for t in target_names}
     seq = seq[-self.sequence_length:]
-    if ts_code and ts_code in self._norm_params:
-        norm = self._norm_params[ts_code]
-        seq = (seq - norm["means"]) / norm["stds"]
-        seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
-    else:
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
+    norm = self._norm_params.get(ts_code)
+    if norm is None:
+        return {t: [0.0, 0.0, 0.0] for t in target_names}
+    seq = (seq - norm["means"]) / norm["stds"]
+    seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
     X_tensor = torch.FloatTensor(seq).unsqueeze(0)
     result = {}
     for target in target_names:
@@ -207,15 +202,70 @@ def predict_proba(self, features, target_names, ts_code=None):
     return result
 ```
 
-- [ ] **Step 3: 运行测试验证**
+- [ ] **Step 3: 更新测试文件适配新的接口**
+
+在 `_train_minimal_lstm` 函数末尾添加 norm_params 初始化：
+
+```python
+def _train_minimal_lstm(clf):
+    seq_len = 5
+    n_features = 5
+    clf.input_size = n_features
+    X = np.random.randn(30, n_features)
+    for target in ["label_3d", "label_5d"]:
+        label_map = {0: -1, 1: 0, 2: 1}
+        reverse_map = {-1: 0, 0: 1, 1: 2}
+        y = np.random.choice([-1, 0, 1], size=30)
+        y_mapped = np.array([reverse_map[v] for v in y])
+        model = LSTMModel(n_features, clf.config.lstm_hidden_size, clf.config.lstm_num_layers, 3)
+        model.eval()
+        clf.models[target] = model
+        clf._label_mapping[target] = label_map
+    clf._norm_params = {
+        "000001.SZ": {"means": np.zeros(n_features), "stds": np.ones(n_features)}
+    }
+```
+
+测试函数中 predict 调用增加 ts_code：
+
+```python
+def test_lstm_classifier_fit_predict():
+    config = MockConfig()
+    clf = LSTMClassifier(config)
+    _train_minimal_lstm(clf)
+
+    X = np.random.randn(10, 5)
+    preds = clf.predict(X, ["label_3d", "label_5d"], ts_code="000001.SZ")
+    assert "label_3d" in preds
+    assert preds["label_3d"] in [-1, 0, 1]
+
+
+def test_lstm_classifier_save_load(tmp_path):
+    config = MockConfig()
+    clf = LSTMClassifier(config)
+    _train_minimal_lstm(clf)
+
+    X = np.random.randn(10, 5)
+    preds = clf.predict(X, ["label_3d"], ts_code="000001.SZ")
+
+    path = tmp_path / "model.pt"
+    clf.save(str(path))
+    clf2 = LSTMClassifier(config)
+    clf2.load(str(path))
+
+    preds2 = clf2.predict(X, ["label_3d"], ts_code="000001.SZ")
+    assert preds == preds2
+```
+
+- [ ] **Step 4: 运行测试验证**
 
 Run: `cd backend && python -m pytest tests/trade_alpha/unit/predict/test_lstm.py -v`
 Expected: PASSED
 
-- [ ] **Step 4: 提交**
+- [ ] **Step 5: 提交**
 
 ```bash
-git add backend/src/trade_alpha/models/lstm/classifier.py
+git add backend/src/trade_alpha/models/lstm/classifier.py backend/tests/trade_alpha/unit/predict/test_lstm.py
 git commit -m "feat: add ts_code support to predict/predict_proba for rolling normalization"
 ```
 
@@ -265,9 +315,10 @@ git commit -m "feat: persist and restore norm_params in save/load"
 ### Task 5: 修改 predictor.py 传递 ts_code
 
 **Files:**
-- Modify: `backend/src/trade_alpha/execution/predictor.py:80-95`
+- Modify: `backend/src/trade_alpha/execution/predictor.py:80-95` (`_predict_and_add`)
+- Modify: `backend/src/trade_alpha/execution/predictor.py:113-140` (`_predict_single`)
 
-- [ ] **Step 1: 修改 `_predict_and_add` 方法**
+- [ ] **Step 1: 修改 `_predict_and_add` 方法（第80-95行）**
 
 ```python
 def _predict_and_add(self, result, ts_code, day_df, features, target_names):
@@ -292,12 +343,42 @@ def _predict_and_add(self, result, ts_code, day_df, features, target_names):
     }
 ```
 
-- [ ] **Step 2: 运行测试验证**
+- [ ] **Step 2: 修改 `_predict_single` 方法（第121-122行）- LSTM 路径传 ts_code**
+
+第113-127行目前：
+```python
+async def _predict_single(self, df, ts_code):
+    target_names = [f"label_{h}d" for h in self._training.classification_horizons]
+
+    if self._config.model_type == "xgboost":
+        from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
+        df_norm = xgb_normalize(df, self._config.feature_fields, self._config.standardize_fields, self._config.winsorize_fields)
+        features = df_norm[self._config.feature_fields].iloc[-1:].values
+    elif self._config.model_type == "lstm":
+        features = df[self._config.feature_fields].values[-self._config.lstm_sequence_length:]
+    else:
+        raise ValueError(f"Unknown model type: {self._config.model_type}")
+
+    predictions = self._classifier.predict(features, target_names)
+    probabilities = self._classifier.predict_proba(features, target_names)
+```
+
+只需将最后两行改为按 model_type 分支传参：
+```python
+    if self._config.model_type == "lstm":
+        predictions = self._classifier.predict(features, target_names, ts_code=ts_code)
+        probabilities = self._classifier.predict_proba(features, target_names, ts_code=ts_code)
+    else:
+        predictions = self._classifier.predict(features, target_names)
+        probabilities = self._classifier.predict_proba(features, target_names)
+```
+
+- [ ] **Step 3: 运行测试验证**
 
 Run: `cd backend && python -m pytest tests/trade_alpha/unit/predict/test_lstm.py -v`
 Expected: PASSED
 
-- [ ] **Step 3: 提交**
+- [ ] **Step 4: 提交**
 
 ```bash
 git add backend/src/trade_alpha/execution/predictor.py

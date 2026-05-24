@@ -82,27 +82,22 @@ self._norm_params = state.get("norm_params", {})  # 兼容旧模型
 ```
 
 **predict/predict_proba 方法**：
-- 新增 `ts_code` 参数（默认为 None）
-- 如果有 `ts_code` 且 `self._norm_params` 中包含该股票，则使用保存的统计量
-- 否则回退到 per-window 标准化
+- `ts_code` 改为必选参数
+- 只用 `self._norm_params[ts_code]` 标准化，不再有 per-window 回退
+- 如果股票在训练时没有 norm_params（理论上不应该发生），predict 返回空
 
 ```python
-def predict_proba(self, features, target_names, ts_code=None):
+def predict_proba(self, features, target_names, ts_code):
     seq = np.array(features, dtype=np.float64)
     if len(seq) < self.sequence_length:
         return {t: [0.0, 0.0, 0.0] for t in target_names}
     seq = seq[-self.sequence_length:]
     
-    if ts_code and ts_code in self._norm_params:
-        # 使用训练时保存的统计量
-        norm = self._norm_params[ts_code]
-        seq = (seq - norm["means"]) / norm["stds"]
-        seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
-    else:
-        # 回退到 per-window 标准化
-        seq_mean, seq_std = seq.mean(axis=0), seq.std(axis=0)
-        seq_std[seq_std == 0] = 1.0
-        seq = np.nan_to_num((seq - seq_mean) / seq_std, nan=0.0)
+    norm = self._norm_params.get(ts_code)
+    if norm is None:
+        return {t: [0.0, 0.0, 0.0] for t in target_names}
+    seq = (seq - norm["means"]) / norm["stds"]
+    seq = np.nan_to_num(seq, nan=0.0, posinf=0.0, neginf=0.0)
     
     X_tensor = torch.FloatTensor(seq).unsqueeze(0)
     ...
@@ -156,8 +151,8 @@ DEFAULT_INDICATOR_FIELDS = [
 
 ### 5. 兼容性
 
-- 旧模型文件不包含 `norm_params`，`load` 方法中 `get("norm_params", {})` 确保不报错
-- 回退到 per-window 标准化，行为不变
+- 旧模型文件不包含 `norm_params`，`load` 方法中 `get("norm_params", {})` 确保加载不报错
+- 旧模型预测时 norm_params 为空，predict/predict_proba 返回 0 概率，必须重新训练后使用
 
 ## 测试
 
