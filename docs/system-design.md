@@ -258,17 +258,14 @@ elif config.model_type == "lstm":
 - `0`: 持平
 - `1`: 上涨
 
-#### LSTM 模型优化
+#### LSTM 模型特性
 
-LSTM 模型进行了以下优化：
-
-1. **移除双重 softmax**：模型直接输出原始 logits，损失函数内部处理 softmax，避免梯度异常
-2. **添加标签平滑**：通过 `label_smoothing` 参数让模型预测概率更加平滑，防止过度自信
-3. **添加验证集和早停**：使用 20% 数据作为验证集，监控验证 AUC，连续多个 epoch 不提升则早停
-4. **使用 AUC 作为早停指标**：相比 loss，AUC 更能反映分类性能
-5. **保存最佳模型**：保存验证 AUC 最高的模型，而不是最后一个 epoch 的模型
-6. **添加 L2 正则化**：通过 weight decay 防止过拟合
-7. **调整默认参数**：dropout 调整为 0.2，epochs 默认 50
+- **输出 logits**：模型 `forward()` 返回原始 logits，`predict_proba()` 在调用时做 softmax
+- **标签平滑**：使用 `label_smoothing` 参数（默认 0.1）防止模型过度自信
+- **L2 正则化**：`weight_decay=1e-4`
+- **验证集划分**：80% 训练，20% 验证
+- **早停机制**：监控验证 AUC，`early_stopping_patience`（默认 5）个 epoch 不提升则停止
+- **最佳模型保存**：保存验证 AUC 最高的模型状态
 
 #### 训练评估指标
 
@@ -290,16 +287,14 @@ LSTM 模型进行了以下优化：
 | `feature_importance` | 各特征的重要性（XGBoost 按分裂增益，按目标分组） |
 | `class_distribution` | 类别分布比例（-1看跌/0震荡/1看涨） |
 
-#### DataLoader 缓存优化
+#### DataLoader 缓存
 
-为优化 LSTM 回测性能，DataLoader 实现了滑动窗口缓存：
+`DataLoader` 实现滑动窗口缓存优化：
 
-1. **缓存历史数据**：第一次加载时缓存所有历史数据到内存
-2. **滑动窗口策略**：后续请求只需增量加载新数据
-3. **自动清理**：内存占用控制在合理范围内
-4. **性能提升**：回测性能提升约 98%（减少数据库查询次数）
-
-该优化对 ExecutionPipeline 和 Predictor 完全透明，无需修改调用代码。
+- `_history_cache`：内存缓存每只股票的历史数据
+- `load_history_data()`：首次加载全部数据，后续增量加载新数据
+- `_trim_cache()`：保持缓存大小在 `days * 2` 以内，防止内存溢出
+- 对 `ExecutionPipeline` 和 `Predictor` 完全透明
 
 ### 8. 策略模块 (strategy)
 

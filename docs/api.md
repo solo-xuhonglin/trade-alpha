@@ -345,7 +345,7 @@ POST /api/model-configs
 | `lstm_hidden_size` | int | 64 | LSTM 隐藏层大小 |
 | `lstm_num_layers` | int | 2 | LSTM 层数 |
 | `lstm_dropout` | float | 0.2 | Dropout 比例 |
-| `lstm_epochs` | int | 50 | 训练 epoch 数 |
+| `lstm_epochs` | int | 25 | 训练 epoch 数 |
 | `lstm_batch_size` | int | 256 | 训练 batch 大小 |
 | `lstm_learning_rate` | float | 0.001 | 学习率 |
 | `lstm_sequence_length` | int | 60 | 序列长度 |
