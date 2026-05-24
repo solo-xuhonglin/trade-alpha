@@ -2,9 +2,14 @@
 
 import os
 import pickle
+import xgboost as xgb
 import numpy as np
 from typing import List, Dict
 from trade_alpha.models.base import BaseClassifier
+from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
+from trade_alpha.task.service import TaskService
+from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data, _evaluate_classifier
+from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
 
 class XGBoostClassifier(BaseClassifier):
@@ -19,10 +24,6 @@ class XGBoostClassifier(BaseClassifier):
 
     async def train(self, ts_codes, start_date, end_date, task_id=None):
         """Self-contained training: load data, cross-sectional normalize, train XGBoost."""
-        from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
-        from trade_alpha.task.service import TaskService
-        from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data, _evaluate_classifier
-        from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
         await TaskService.update_progress(task_id, 20, "正在加载数据...")
 
@@ -63,8 +64,6 @@ class XGBoostClassifier(BaseClassifier):
         self._label_mapping = {}
 
         await TaskService.update_progress(task_id, 60, "正在训练模型...")
-
-        import xgboost as xgb
 
         for target_idx, target in enumerate(target_names):
             y_i = y[:, target_idx]

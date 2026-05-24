@@ -1,12 +1,17 @@
 """LSTM classifier - fully self-contained."""
 
 import os
+import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
 from typing import Dict, List
 from sklearn.metrics import roc_auc_score
 from trade_alpha.models.base import BaseClassifier
+from trade_alpha.models.lstm.normalizer import create_sequences
+from trade_alpha.task.service import TaskService
+from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data
+from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
 
 class LSTMModel(nn.Module):
@@ -39,11 +44,6 @@ class LSTMClassifier(BaseClassifier):
 
     async def train(self, ts_codes, start_date, end_date, task_id=None):
         """Self-contained training: load data, create sequences, normalize, train LSTM."""
-        from trade_alpha.models.lstm.normalizer import create_sequences
-        from trade_alpha.task.service import TaskService
-        from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data
-        from trade_alpha.utils.date_utils import get_year_months as _get_year_months
-        import pandas as pd
 
         await TaskService.update_progress(task_id, 20, "正在加载数据...")
 
