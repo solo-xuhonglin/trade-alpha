@@ -6,13 +6,21 @@ from trade_alpha.models.base import BasePredictor
 class LSTMPredictor(BasePredictor):
     async def predict(self, ts_code, target_names, current_date):
         seq_len = self.config.lstm_sequence_length
-        df = await self.data_loader.load_history_data(current_date, [ts_code], seq_len + 10)
+        norm_win = self.config.lstm_normalization_window
+        df = await self.data_loader.load_history_data(current_date, [ts_code], norm_win + seq_len)
         if df.empty:
             return None
         stock = df[df["ts_code"] == ts_code].sort_values("trade_date")
-        if len(stock) < seq_len:
+        if len(stock) < norm_win + seq_len:
             return None
-        features = stock[self.config.feature_fields].values[-seq_len:]
+        data = stock[self.config.feature_fields].values
+        chunk = data[-(norm_win + seq_len):]
+        norm_data = chunk[:-seq_len]
+        feed = chunk[-seq_len:]
+        mean = norm_data.mean(axis=0)
+        std = norm_data.std(axis=0)
+        std[std == 0] = 1.0
+        features = (feed - mean) / std
         if np.isnan(features).any():
             return None
         return self.classifier.predict_proba(features, target_names)

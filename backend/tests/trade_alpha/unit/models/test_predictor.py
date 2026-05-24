@@ -31,6 +31,7 @@ class FakeConfig:
     standardize_fields = ["close", "ma_5"]
     winsorize_fields = []
     lstm_sequence_length = 5
+    lstm_normalization_window = 30
     classification_horizons = [3, 5]
 
 
