@@ -55,9 +55,10 @@ trade-alpha/
 │   │   ├── data/             # 数据获取模块
 │   │   ├── indicators/        # 技术指标模块
 │   │   ├── models/              # 模型模块
-│   │   │   ├── base.py          # BaseClassifier 基类
-│   │   │   ├── xgboost/         # XGBoost 模型（分类器 + 标准化器）
-│   │   │   ├── lstm/            # LSTM 模型（分类器 + 标准化器）
+│   │   │   ├── base.py          # BaseClassifier + BasePredictor 基类 + compute_scores
+│   │   │   ├── factory.py       # create_classifier / create_predictor 工厂
+│   │   │   ├── xgboost/         # XGBoost 模型（分类器 + 预测器 + 标准化器）
+│   │   │   ├── lstm/            # LSTM 模型（分类器 + 预测器 + 标准化器）
 │   │   │   └── training/        # 训练和配置服务
 │   │   │       ├── config.py    # 模型配置 CRUD
 │   │   │       ├── trainer.py   # 训练编排
@@ -74,7 +75,6 @@ trade-alpha/
 │   │   ├── execution/         # 统一执行框架
 │   │   │   ├── pipeline.py         # 统一流程编排
 │   │   │   ├── data_loader.py      # 数据加载器
-│   │   │   ├── predictor.py        # 预测管理器
 │   │   │   ├── signal_generator.py # 信号生成器
 │   │   │   ├── position_manager.py # 仓位管理器
 │   │   │   ├── schemas.py          # 数据结构定义
@@ -218,31 +218,30 @@ trade-alpha/
 
 ### 7. 模型模块 (models)
 
-采用自包含模型架构，每个模型类型拥有独立的目录（分类器 + 标准化器），消除了适配器中间层。
+采用自包含模型架构，每个模型类型拥有独立的目录（分类器 + 预测器 + 标准化器），消除了适配器中间层。
 
 **模块结构**:
 
 | 文件/目录 | 说明 |
 |-----------|------|
-| `base.py` | `BaseClassifier` 抽象基类，定义 `train()`, `predict()`, `predict_proba()`, `save()`, `load()` 接口 |
-| `xgboost/` | XGBoost 模型：`classifier.py`（分类器）+ `normalizer.py`（截面标准化器） |
-| `lstm/` | LSTM 模型：`classifier.py`（分类器）+ `normalizer.py`（滑动窗口标准化器） |
+| `base.py` | `BaseClassifier` 抽象基类 + `BasePredictor` 抽象基类 + `compute_scores()` 分数函数 |
+| `factory.py` | `create_classifier()` / `create_predictor()` 工厂，统一管理模型类型分支 |
+| `xgboost/` | XGBoost 模型：`classifier.py`（分类器）+ `predictor.py`（预测器）+ `normalizer.py`（截面标准化器） |
+| `lstm/` | LSTM 模型：`classifier.py`（分类器）+ `predictor.py`（预测器）+ `normalizer.py`（滑动窗口标准化器） |
 | `training/config.py` | 模型配置 CRUD（`create_config`, `get_config_*`, `list_configs`, `update_config`, `delete_config`） |
-| `training/trainer.py` | 训练编排，根据 `config.model_type` 路由到对应模型 |
+| `training/trainer.py` | 训练编排，通过 `create_classifier()` 工厂路由到对应模型 |
 | `training/helpers.py` | 共享训练辅助函数（标签生成、交叉验证） |
 
 #### 训练流程
 
-`create_training()` 根据 `config.model_type` 动态创建模型实例：
+`create_training()` 通过 `factory.create_classifier(config)` 动态创建模型实例，调用 `classifier.train()` 后，训练指标通过 `model_metrics` 字段存入 `TrainingResult`。
 
-```python
-if config.model_type == "xgboost":
-    classifier = XGBoostClassifier(config)
-elif config.model_type == "lstm":
-    classifier = LSTMClassifier(config)
-```
+#### 预测流程
 
-调用 `classifier.train()` 后，训练指标通过 `model_metrics` 字段存入 `TrainingResult`。
+- `BasePredictor` 定义 `async predict(ts_code, target_names, current_date)` 抽象方法，各预测器内部自己加载数据、提取特征
+- `XGBoostPredictor` 加载单日行情数据，做截面标准化后取最后一行特征
+- `LSTMPredictor` 加载历史序列，截取后 `seq_len` 行特征
+- Pipeline 通过 `create_predictor()` 创建实例，对每只股票逐个调用 `predict()`，再用 `compute_scores()` 转换为交易分数
 
 #### 标准化方式
 
@@ -349,12 +348,6 @@ elif config.model_type == "lstm":
 - 统一的数据接口，屏蔽数据源差异
 - 支持截面标准化所需的全市场数据加载
 - 自动处理数据对齐和缺失值
-
-#### predictor.py - 预测管理器
-
-- 基于已训练模型进行预测
-- 输出预测概率和评分
-- 支持3日、5日等多周期预测
 
 #### schemas.py - 数据结构定义
 
