@@ -77,6 +77,15 @@ class DataLoader:
         df = df.sort_values("ts_code")
         return df
 
+    async def _load_from_db(self, start_date: str, end_date: str, ts_codes: List[str]):
+        """Load data from database for the specified time range."""
+        records = await StockDaily.find(
+            StockDaily.trade_date >= start_date,
+            StockDaily.trade_date <= end_date,
+            In(StockDaily.ts_code, ts_codes),
+        ).sort(StockDaily.ts_code, StockDaily.trade_date).to_list()
+        return records
+
     async def load_history_data(self, end_date: str, ts_codes: List[str], days: int) -> pd.DataFrame:
         """Load historical data for multiple stocks from end_date back by days."""
         end_dt = datetime.strptime(end_date, "%Y%m%d")
