@@ -9,8 +9,10 @@ from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.task.service import TaskService
+from trade_alpha.models.training.trainer import get_training_by_id
+from trade_alpha.models.training.config import get_config_by_id
 from trade_alpha.execution.data_loader import DataLoader
-from trade_alpha.models.factory import create_predictor
+from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.models.base import compute_scores
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.strategy.portfolio import PortfolioStrategy
@@ -409,7 +411,10 @@ class ExecutionPipeline:
         Returns a list of pending orders for manual review or execution.
         """
         if self.predictor is None:
-            self.predictor = await create_predictor(self.training_id, data_loader=self.data_loader)
+            training = await get_training_by_id(self.training_id)
+            config = await get_config_by_id(training.config_id)
+            classifier = create_classifier(config, training.model_path)
+            self.predictor = create_predictor(config, classifier, data_loader=self.data_loader)
         top_stock_list = await self.data_loader.get_top_stocks(date=date, limit=300)
         universe = {s["ts_code"]: s["name"] for s in top_stock_list}
         ts_codes = list(universe.keys())

@@ -1,20 +1,26 @@
-"""Factory for creating Predictor instances."""
-from trade_alpha.models.training.trainer import get_training_by_id
-from trade_alpha.models.training.config import get_config_by_id
+"""Factory for creating classifier and predictor instances."""
+from trade_alpha.models.lstm.classifier import LSTMClassifier
+from trade_alpha.models.lstm.predictor import LSTMPredictor
+from trade_alpha.models.xgboost.classifier import XGBoostClassifier
+from trade_alpha.models.xgboost.predictor import XGBoostPredictor
 
 
-async def create_predictor(training_id, data_loader=None):
-    training = await get_training_by_id(training_id)
-    config = await get_config_by_id(training.config_id)
-
+def create_classifier(config, model_path=None):
     if config.model_type == "xgboost":
         classifier = XGBoostClassifier(config)
-        predictor_class = XGBoostPredictor
     elif config.model_type == "lstm":
         classifier = LSTMClassifier(config)
-        predictor_class = LSTMPredictor
     else:
         raise ValueError(f"Unknown model type: {config.model_type}")
+    if model_path:
+        classifier.load(model_path)
+    return classifier
 
-    classifier.load(training.model_path)
-    return predictor_class(config, classifier, data_loader)
+
+def create_predictor(config, classifier, data_loader=None):
+    if config.model_type == "xgboost":
+        return XGBoostPredictor(config, classifier, data_loader)
+    elif config.model_type == "lstm":
+        return LSTMPredictor(config, classifier, data_loader)
+    else:
+        raise ValueError(f"Unknown model type: {config.model_type}")

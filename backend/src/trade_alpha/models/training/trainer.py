@@ -10,10 +10,8 @@ import numpy as np
 from trade_alpha.dao import TrainingResult, PredictionResult, StockDaily
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.config import get_config_by_id
-from trade_alpha.models.base import BaseClassifier
-from trade_alpha.models.xgboost.classifier import XGBoostClassifier
 from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
-from trade_alpha.models.lstm.classifier import LSTMClassifier
+from trade_alpha.models.factory import create_classifier
 from trade_alpha.logging import get_logger
 
 logger = get_logger("models.training.trainer")
@@ -25,14 +23,7 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
     if not config:
         raise ValueError(f"Config not found: {config_id}")
 
-    if config.model_type == "xgboost":
-        from trade_alpha.models.xgboost.classifier import XGBoostClassifier
-        classifier = XGBoostClassifier(config)
-    elif config.model_type == "lstm":
-        from trade_alpha.models.lstm.classifier import LSTMClassifier
-        classifier = LSTMClassifier(config)
-    else:
-        raise ValueError(f"Unknown model type: {config.model_type}")
+    classifier = create_classifier(config)
 
     await TaskService.update_progress(task_id, 10, "正在初始化...")
     metrics = await classifier.train(ts_codes, start_date, end_date, task_id)
