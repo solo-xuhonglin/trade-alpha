@@ -8,13 +8,9 @@ async def create_predictor(training_id, data_loader=None):
     config = await get_config_by_id(training.config_id)
 
     if config.model_type == "xgboost":
-        from trade_alpha.models.xgboost.classifier import XGBoostClassifier
-        from trade_alpha.models.xgboost.predictor import XGBoostPredictor
         classifier = XGBoostClassifier(config)
         predictor_class = XGBoostPredictor
     elif config.model_type == "lstm":
-        from trade_alpha.models.lstm.classifier import LSTMClassifier
-        from trade_alpha.models.lstm.predictor import LSTMPredictor
         classifier = LSTMClassifier(config)
         predictor_class = LSTMPredictor
     else:

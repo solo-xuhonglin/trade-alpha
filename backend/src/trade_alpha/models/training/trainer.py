@@ -10,6 +10,10 @@ import numpy as np
 from trade_alpha.dao import TrainingResult, PredictionResult, StockDaily
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.config import get_config_by_id
+from trade_alpha.models.base import BaseClassifier
+from trade_alpha.models.xgboost.classifier import XGBoostClassifier
+from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
+from trade_alpha.models.lstm.classifier import LSTMClassifier
 from trade_alpha.logging import get_logger
 
 logger = get_logger("models.training.trainer")
@@ -108,18 +112,14 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
 
     target_names = [f"label_{h}d" for h in training.classification_horizons]
 
-    from trade_alpha.models.base import BaseClassifier
     classifier: BaseClassifier
     if config.model_type == "xgboost":
-        from trade_alpha.models.xgboost.classifier import XGBoostClassifier
         classifier = XGBoostClassifier(config)
         classifier.load(training.model_path)
-        from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
         df_norm = xgb_normalize(df, config.feature_fields, config.standardize_fields, config.winsorize_fields)
         df_norm = df_norm.dropna(subset=config.feature_fields)
         features = df_norm[config.feature_fields].iloc[-1:].values
     elif config.model_type == "lstm":
-        from trade_alpha.models.lstm.classifier import LSTMClassifier
         classifier = LSTMClassifier(config)
         classifier.load(training.model_path)
         features = df[config.feature_fields].values[-config.lstm_sequence_length:]

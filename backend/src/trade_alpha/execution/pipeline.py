@@ -180,7 +180,6 @@ class ExecutionPipeline:
         baseline_daily_prices: List[float] = []
 
         if self.single_stock_ts_code:
-            from trade_alpha.dao import StockDaily
             baseline_records = await StockDaily.find(
                 StockDaily.ts_code == self.single_stock_ts_code,
                 StockDaily.trade_date >= start_date,
@@ -478,7 +477,6 @@ class ExecutionPipeline:
     @staticmethod
     async def _calc_win_rate(backtest_id: PydanticObjectId) -> float:
         """Calculate win rate from daily snapshots (positive day_return ratio)."""
-        from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
         snapshots = await ExecutionDailySnapshot.find(
             ExecutionDailySnapshot.backtest_id == backtest_id
         ).to_list()

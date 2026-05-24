@@ -64,7 +64,6 @@ async def get_pending_stocks(limit: int = 300) -> List[StockList]:
 
 async def update_single_stock_data_count(ts_code: str) -> None:
     """Update data_count and latest_date for a single stock."""
-    from trade_alpha.dao.mongodb import get_database
     db = await get_database()
     pipeline = [
         {"$match": {"ts_code": ts_code}},

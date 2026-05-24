@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import List, Tuple
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic
 from trade_alpha.dao import StockDaily, StockList
+from trade_alpha.dao.mongodb import get_database
 from trade_alpha.logging import get_logger
 
 logger = get_logger("data_service")
@@ -128,7 +129,6 @@ async def update_stock_data_count():
             "latest_date": {"$max": "$trade_date"}
         }}
     ]
-    from trade_alpha.dao.mongodb import get_database
     db = await get_database()
     updated = 0
     async for doc in db.stock_daily.aggregate(pipeline):

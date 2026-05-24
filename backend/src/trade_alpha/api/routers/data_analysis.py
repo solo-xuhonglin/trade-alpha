@@ -15,6 +15,7 @@ from trade_alpha.data.analysis_service import (
     save_analysis_result,
     get_analysis_result_by_task,
 )
+from trade_alpha.logging import get_logger
 from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.models.training.config import DEFAULT_INDICATOR_FIELDS
 from trade_alpha.api.validators import validate_trade_date
@@ -68,8 +69,6 @@ async def trigger_data_analysis(
 
 async def run_data_analysis_async(task_id: str):
     """Execute data analysis asynchronously."""
-    from trade_alpha.logging import get_logger
-
     logger = get_logger("data_analysis.task")
     task = await TaskService.get_task(PydanticObjectId(task_id))
     if not task:
