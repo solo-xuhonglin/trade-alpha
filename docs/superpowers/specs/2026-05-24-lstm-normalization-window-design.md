@@ -120,16 +120,15 @@ class LSTMPredictor(BasePredictor):
         seq_len = self.config.lstm_sequence_length                  # 60
         norm_win = self.config.lstm_normalization_window             # 300
         df = await self.data_loader.load_history_data(
-            current_date, [ts_code], norm_win + seq_len)
+            current_date, [ts_code], norm_win)
         if df.empty:
             return None
         stock = df[df["ts_code"] == ts_code].sort_values("trade_date")
-        if len(stock) < norm_win + seq_len:
+        if len(stock) < norm_win:
             return None
-        # 取最后 norm_win+seq_len 行，前 norm_win 行算统计量，后 seq_len 行做归一化
         data = stock[self.config.feature_fields].values
-        chunk = data[-(norm_win + seq_len):]
-        norm_data, feed = chunk[:-seq_len], chunk[-seq_len:]
+        norm_data = data[-norm_win:]    # 最后 norm_win 行：与训练时的 window 一致
+        feed = data[-seq_len:]           # 最后 seq_len 行
         mean, std = norm_data.mean(axis=0), norm_data.std(axis=0)
         std[std == 0] = 1.0
         features = (feed - mean) / std
