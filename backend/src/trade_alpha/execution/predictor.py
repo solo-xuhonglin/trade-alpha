@@ -78,12 +78,8 @@ class Predictor:
         return result
 
     def _predict_and_add(self, result, ts_code, day_df, features, target_names):
-        if self._config.model_type == "lstm":
-            predictions = self._classifier.predict(features, target_names, ts_code=ts_code)
-            probabilities = self._classifier.predict_proba(features, target_names, ts_code=ts_code)
-        else:
-            predictions = self._classifier.predict(features, target_names)
-            probabilities = self._classifier.predict_proba(features, target_names)
+        predictions = self._classifier.predict(features, target_names)
+        probabilities = self._classifier.predict_proba(features, target_names)
         if not predictions:
             return
         up_prob_3d = probabilities.get("label_3d", [0, 0, 0])[2] if isinstance(probabilities.get("label_3d"), list) and len(probabilities["label_3d"]) == 3 else 0
@@ -126,12 +122,8 @@ class Predictor:
         else:
             raise ValueError(f"Unknown model type: {self._config.model_type}")
 
-        if self._config.model_type == "lstm":
-            predictions = self._classifier.predict(features, target_names, ts_code=ts_code)
-            probabilities = self._classifier.predict_proba(features, target_names, ts_code=ts_code)
-        else:
-            predictions = self._classifier.predict(features, target_names)
-            probabilities = self._classifier.predict_proba(features, target_names)
+        predictions = self._classifier.predict(features, target_names)
+        probabilities = self._classifier.predict_proba(features, target_names)
 
         probs = probabilities or {}
         up_prob_3d = probs.get("label_3d", [0, 0, 0])[2] if isinstance(probs.get("label_3d"), list) and len(probs["label_3d"]) == 3 else 0
