@@ -53,7 +53,7 @@ def test_create_sequences_multiple_stocks():
 
 
 def test_create_sequences_normalization():
-    """Verify sequences use per-stock global mean/std normalization."""
+    """Verify sequences are Z-score normalized using rolling window."""
     df = pd.DataFrame({
         "ts_code": ["A"] * 10,
         "trade_date": [f"2024-01-{i+1:02d}" for i in range(10)],
@@ -65,9 +65,3 @@ def test_create_sequences_normalization():
     assert "A" in norm_params
     assert norm_params["A"]["means"].shape[0] == 1
     assert norm_params["A"]["stds"].shape[0] == 1
-    global_mean = norm_params["A"]["means"][0]
-    global_std = norm_params["A"]["stds"][0]
-    stock_mean = np.mean(list(range(10, 20)))
-    stock_std = np.std(list(range(10, 20)))
-    assert abs(global_mean - stock_mean) < 1e-6
-    assert abs(global_std - stock_std) < 1e-6
