@@ -51,8 +51,8 @@ class LSTMClassifier(BaseClassifier):
         target_names = [f"label_{h}d" for h in config.classification_horizons]
         horizon = max(config.classification_horizons)
         seq_len = self.sequence_length
-        norm_window = config.lstm_normalization_window
-        extra_days = int(norm_window * 1.5)
+        normalization_window = config.lstm_normalization_window
+        extra_days = int(normalization_window * 1.5)
         years = sorted(set(y for y, _ in _get_year_months(start_date, end_date)))
 
         all_dfs = []
