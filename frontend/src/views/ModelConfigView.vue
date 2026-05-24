@@ -132,7 +132,10 @@
               <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001"></v-text-field>
             </v-col>
             <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length（序列长度和标准化窗口）" type="number"></v-text-field>
+              <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length（序列长度）" type="number"></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field v-model.number="form.lstm_normalization_window" label="normalization_window（标准化窗口）" type="number"></v-text-field>
             </v-col>
           </v-row>
         </template>
@@ -242,6 +245,7 @@ const defaultForm = {
   lstm_batch_size: 256,
   lstm_learning_rate: 0.001,
   lstm_sequence_length: 60,
+  lstm_normalization_window: 300,
 }
 
 const form = ref({ ...defaultForm })
@@ -293,6 +297,7 @@ const lstmRecommendedParams = {
   lstm_batch_size: 256,
   lstm_learning_rate: 0.001,
   lstm_sequence_length: 60,
+  lstm_normalization_window: 300,
 }
 
 // 监听模型类型变化，新建时自动更新推荐参数
@@ -338,6 +343,7 @@ const openDialog = (item?: ModelConfig) => {
       lstm_batch_size: (item as any).lstm_batch_size || 256,
       lstm_learning_rate: (item as any).lstm_learning_rate || 0.001,
       lstm_sequence_length: (item as any).lstm_sequence_length || 60,
+      lstm_normalization_window: (item as any).lstm_normalization_window || 300,
     }
   } else {
     editingId.value = null

@@ -22,6 +22,7 @@ export interface ModelConfig {
   lstm_batch_size: number
   lstm_learning_rate: number
   lstm_sequence_length: number
+  lstm_normalization_window: number
   created_at?: string
   updated_at?: string
 }
