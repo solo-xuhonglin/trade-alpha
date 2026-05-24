@@ -22,6 +22,9 @@ class LSTMModel(nn.Module):
         return self.fc(out[:, -1, :])
 
 
+TEMPERATURE = 2.0
+
+
 class LSTMClassifier(BaseClassifier):
     def __init__(self, config):
         super().__init__(config)
@@ -155,7 +158,7 @@ class LSTMClassifier(BaseClassifier):
                 for batch_X, batch_y in train_loader:
                     optimizer.zero_grad()
                     logits = model(batch_X)
-                    loss = criterion(logits, batch_y)
+                    loss = criterion(logits / TEMPERATURE, batch_y)
                     loss.backward()
                     optimizer.step()
                     epoch_train_loss += loss.item()
@@ -167,7 +170,7 @@ class LSTMClassifier(BaseClassifier):
                 model.eval()
                 with torch.no_grad():
                     val_logits = model(X_val_tensor)
-                    val_loss = criterion(val_logits, y_val_tensor).item()
+                    val_loss = criterion(val_logits / TEMPERATURE, y_val_tensor).item()
                     val_epoch_losses.append(val_loss)
                     
                     # 计算验证集 AUC
@@ -294,7 +297,7 @@ class LSTMClassifier(BaseClassifier):
             self.models[target].eval()
             with torch.no_grad():
                 logits = self.models[target](X_tensor)
-                proba_mapped = torch.softmax(logits, dim=1)[0].numpy()  # 在这里做 softmax
+                proba_mapped = torch.softmax(logits / TEMPERATURE, dim=1)[0].numpy()
                 label_map = self._label_mapping[target]
                 proba = [0.0, 0.0, 0.0]
                 for j, label in label_map.items():

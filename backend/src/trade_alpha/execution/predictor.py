@@ -130,7 +130,7 @@ class Predictor:
         up_prob_5d = probs.get("label_5d", [0, 0, 0])[2] if isinstance(probs.get("label_5d"), list) and len(probs["label_5d"]) == 3 else 0
         down_prob_3d = probs.get("label_3d", [0, 0, 0])[0] if isinstance(probs.get("label_3d"), list) and len(probs["label_3d"]) == 3 else 0
         down_prob_5d = probs.get("label_5d", [0, 0, 0])[0] if isinstance(probs.get("label_5d"), list) and len(probs["label_5d"]) == 3 else 0
-        score = (up_prob_3d - down_prob_3d) * 0.4 + (up_prob_5d - down_prob_5d) * 0.5
+        score = (up_prob_3d - down_prob_3d) * 0.4 + (up_prob_5d - down_prob_5d) * 0.6
 
         return {
             "up_prob_3d": up_prob_3d, "up_prob_5d": up_prob_5d,
