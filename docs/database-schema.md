@@ -405,16 +405,38 @@ MACDStrategy:
 | `created_at` | datetime | 创建时间 |
 | `updated_at` | datetime | 更新时间 |
 
-**分类任务配置示例**:
+**分类任务配置示例 (XGBoost)**:
 ```json
 {
   "name": "xgboost-classifier",
   "model_type": "xgboost",
-  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_position_5", "close_position_10", "close_position_20", "close_position_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower", "boll_position"],
+  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower"],
   "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
   "classification_horizons": [3, 5],
   "classification_threshold": 0.02
+}
+```
+
+**分类任务配置示例 (LSTM)**:
+```json
+{
+  "name": "lstm-classifier",
+  "model_type": "lstm",
+  "feature_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "macd", "macd_signal", "macd_hist", "pct_chg", "bias_5", "bias_10", "bias_20", "bias_60", "close_pct_rank_5", "close_pct_rank_10", "close_pct_rank_20", "close_pct_rank_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60", "kdj_k", "kdj_d", "kdj_j", "boll_upper", "boll_middle", "boll_lower"],
+  "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
+  "winsorize_fields": [],
+  "classification_horizons": [3, 5],
+  "classification_threshold": 0.02,
+  "lstm_hidden_size": 64,
+  "lstm_num_layers": 2,
+  "lstm_dropout": 0.2,
+  "lstm_epochs": 50,
+  "lstm_batch_size": 256,
+  "lstm_learning_rate": 0.001,
+  "lstm_sequence_length": 60,
+  "label_smoothing": 0.1,
+  "early_stopping_patience": 5
 }
 ```
 
@@ -445,7 +467,6 @@ MACDStrategy:
 | `created_at` | datetime | 创建时间 |
 
 **指标说明**:
-
 ```json
 {
   "sample_count": 1751631,
@@ -453,8 +474,18 @@ MACDStrategy:
     "label_3d": 0.3912,
     "label_5d": 0.4181
   },
+  "auc": {
+    "label_3d": 0.65,
+    "label_5d": 0.68
+  },
   "final_train_loss": 0.2341,
   "loss_per_epoch": [0.4521, 0.3823, 0.3156, 0.2789, 0.2341],
+  "val_loss_per_epoch": [0.4621, 0.3923, 0.3256, 0.2889, 0.2441],
+  "val_auc_per_epoch": [0.58, 0.61, 0.63, 0.65, 0.67],
+  "actual_epochs": 5,
+  "early_stopped": false,
+  "best_epoch": 5,
+  "best_auc": 0.67,
   "feature_importance": {
     "label_3d": {
       "boll_upper": 0.178,
@@ -480,9 +511,16 @@ MACDStrategy:
 |------|------|
 | `sample_count` | 训练样本总数 |
 | `accuracy` | 各目标的分类准确率 |
+| `auc` | 各目标的 AUC 指标（仅 LSTM 模型） |
 | `final_train_loss` | LSTM 最终训练 loss（仅 LSTM 模型） |
-| `loss_per_epoch` | LSTM 每 epoch 的 loss 列表（仅 LSTM 模型） |
-| `feature_importance` | 各特征的重要性（按目标分组） |
+| `loss_per_epoch` | LSTM 每 epoch 的训练 loss 列表（仅 LSTM 模型） |
+| `val_loss_per_epoch` | LSTM 每 epoch 的验证 loss 列表（仅 LSTM 模型） |
+| `val_auc_per_epoch` | LSTM 每 epoch 的验证 AUC 列表（仅 LSTM 模型） |
+| `actual_epochs` | 实际训练的 epoch 数（仅 LSTM 模型） |
+| `early_stopped` | 是否触发早停（仅 LSTM 模型） |
+| `best_epoch` | 最佳模型所在的 epoch（仅 LSTM 模型） |
+| `best_auc` | 最佳验证 AUC 值（仅 LSTM 模型） |
+| `feature_importance` | 各特征的重要性（按目标分组，仅 XGBoost 模型） |
 | `class_distribution` | 类别分布比例（-1看跌/0震荡/1看涨） |
 
 ### tasks

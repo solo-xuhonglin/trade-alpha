@@ -338,6 +338,20 @@ POST /api/model-configs
 
 **注意**：`output_fields` 由 `feature_fields` + `classification_horizons` 动态生成，无需配置。
 
+**LSTM 专用参数**:
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `lstm_hidden_size` | int | 64 | LSTM 隐藏层大小 |
+| `lstm_num_layers` | int | 2 | LSTM 层数 |
+| `lstm_dropout` | float | 0.2 | Dropout 比例 |
+| `lstm_epochs` | int | 50 | 训练 epoch 数 |
+| `lstm_batch_size` | int | 256 | 训练 batch 大小 |
+| `lstm_learning_rate` | float | 0.001 | 学习率 |
+| `lstm_sequence_length` | int | 60 | 序列长度 |
+| `label_smoothing` | float | 0.1 | 标签平滑系数 |
+| `early_stopping_patience` | int | 5 | 早停耐心值 |
+
 **模型类型**:
 - `xgboost`: XGBoost 分类器
 - `lstm`: LSTM 分类器
@@ -421,11 +435,29 @@ POST /api/trainings
   "start_date": "2023-01-01",
   "end_date": "2023-12-31",
   "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
-  "classification_horizons": [1, 5, 20],
-  "metrics": {
-    "horizon_1": {"accuracy": 0.55, "precision": 0.52, "recall": 0.50, "f1": 0.48},
-    "horizon_5": {"accuracy": 0.58, "precision": 0.55, "recall": 0.52, "f1": 0.51},
-    "sample_count": 2000
+  "classification_horizons": [3, 5],
+  "model_metrics": {
+    "sample_count": 2000,
+    "accuracy": {
+      "label_3d": 0.55,
+      "label_5d": 0.58
+    },
+    "auc": {
+      "label_3d": 0.62,
+      "label_5d": 0.65
+    },
+    "final_train_loss": 0.45,
+    "loss_per_epoch": [0.68, 0.62, 0.58, 0.52, 0.45],
+    "val_loss_per_epoch": [0.70, 0.65, 0.60, 0.55, 0.48],
+    "val_auc_per_epoch": [0.55, 0.58, 0.60, 0.63, 0.65],
+    "actual_epochs": 5,
+    "early_stopped": false,
+    "best_epoch": 5,
+    "best_auc": 0.65,
+    "class_distribution": {
+      "label_3d": {"-1": 0.35, "0": 0.30, "1": 0.35},
+      "label_5d": {"-1": 0.38, "0": 0.24, "1": 0.38}
+    }
   },
   "created_at": "2024-01-01T00:00:00Z"
 }
@@ -819,20 +851,30 @@ GET /api/trainings/task/{task_id}
     "ts_codes": ["000001.SZ", "600000.SH"],
     "start_date": "2023-01-01",
     "end_date": "2023-12-31",
-    "metrics": {
-      "horizon_3": {
-        "accuracy": 0.55,
-        "precision": 0.52,
-        "recall": 0.50,
-        "f1": 0.48
+    "feature_fields": ["close", "pct_chg", "ma_5", "ma_10"],
+    "classification_horizons": [3, 5],
+    "model_metrics": {
+      "sample_count": 2000,
+      "accuracy": {
+        "label_3d": 0.55,
+        "label_5d": 0.58
       },
-      "horizon_5": {
-        "accuracy": 0.58,
-        "precision": 0.55,
-        "recall": 0.52,
-        "f1": 0.51
+      "auc": {
+        "label_3d": 0.62,
+        "label_5d": 0.65
       },
-      "sample_count": 2000
+      "final_train_loss": 0.45,
+      "loss_per_epoch": [0.68, 0.62, 0.58, 0.52, 0.45],
+      "val_loss_per_epoch": [0.70, 0.65, 0.60, 0.55, 0.48],
+      "val_auc_per_epoch": [0.55, 0.58, 0.60, 0.63, 0.65],
+      "actual_epochs": 5,
+      "early_stopped": false,
+      "best_epoch": 5,
+      "best_auc": 0.65,
+      "class_distribution": {
+        "label_3d": {"-1": 0.35, "0": 0.30, "1": 0.35},
+        "label_5d": {"-1": 0.38, "0": 0.24, "1": 0.38}
+      }
     },
     "created_at": "2024-01-01T00:00:00Z"
   },

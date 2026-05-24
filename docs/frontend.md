@@ -211,16 +211,29 @@ frontend/
 **训练评估指标**:
 - `sample_count`：训练样本数
 - `accuracy`：各目标（label_3d/label_5d）的分类准确率
+- `auc`：各目标（label_3d/label_5d）的 AUC 指标（仅 LSTM 模型）
 - `final_train_loss`：LSTM 最终训练 loss（仅 LSTM 模型）
-- `loss_per_epoch`：LSTM 每 epoch 的 loss 列表（仅 LSTM 模型）
-- `feature_importance`：各特征的重要性排名
+- `loss_per_epoch`：LSTM 每 epoch 的训练 loss 列表（仅 LSTM 模型）
+- `val_loss_per_epoch`：LSTM 每 epoch 的验证 loss 列表（仅 LSTM 模型）
+- `val_auc_per_epoch`：LSTM 每 epoch 的验证 AUC 列表（仅 LSTM 模型）
+- `actual_epochs`：实际训练的 epoch 数（仅 LSTM 模型）
+- `early_stopped`：是否触发早停（仅 LSTM 模型）
+- `best_epoch`：最佳模型所在的 epoch（仅 LSTM 模型）
+- `best_auc`：最佳验证 AUC 值（仅 LSTM 模型）
+- `feature_importance`：各特征的重要性排名（仅 XGBoost 模型）
 - `class_distribution`：类别（-1/0/1）的分布比例
 
-**详情面板**（3个标签页）:
-- **概览**：样本数、准确率卡片、类别分布
+**详情面板**（条件显示标签页）:
+- **概览**：样本数、准确率卡片、类别分布、早停信息（仅 LSTM）
 - **准确率**：训练准确率表格
-- **特征重要性**：所有特征的重要性进度条（按重要性排序）
-- **训练Loss**：仅 LSTM 模型显示，Final Loss 和每个 Epoch 的 Loss 列表
+- **特征重要性**：仅 XGBoost 模型显示，所有特征的重要性进度条（按重要性排序）
+- **训练Loss**：仅 LSTM 模型显示，表格化展示 Train Loss、Val Loss 和 Val AUC，包含最佳 AUC 信息
+
+**前端改进**:
+1. **条件标签页显示**：根据模型类型只显示相关标签页
+2. **训练损失表格化**：LSTM 训练详情使用表格展示，更清晰易读
+3. **回测指标样式优化**：移除回测结果的加粗样式，界面更加简洁
+4. **交易筛选器重新排序**：训练结果筛选器移到回测结果之前
 
 **组件**:
 - 数据表格：训练记录
