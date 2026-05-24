@@ -70,6 +70,7 @@ class ModelConfig(Document):
     lstm_batch_size: int = 32
     lstm_learning_rate: float = 0.001
     lstm_sequence_length: int = 60  # 序列长度（用于模型输入和滑动窗口标准化）
+    lstm_normalization_window: int = 300  # 标准化统计量计算窗口
     label_smoothing: float = 0.1  # 标签平滑系数
     early_stopping_patience: int = 5  # 早停耐心值
     created_at: Optional[datetime] = None
