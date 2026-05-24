@@ -61,6 +61,20 @@
         @update:model-value="loadTrades"
       ></v-select>
 
+      <v-select
+        v-model="filters.status"
+        :items="statusOptionItems"
+        item-title="label"
+        item-value="value"
+        label="状态"
+        density="compact"
+        variant="outlined"
+        hide-details
+        clearable
+        style="max-width: 100px; margin-right: 8px"
+        @update:model-value="loadTrades"
+      ></v-select>
+
       <v-btn
         prepend-icon="mdi-refresh"
         rounded="lg"
@@ -86,14 +100,21 @@
           {{ item.action === 'buy' ? '买入' : '卖出' }}
         </v-chip>
       </template>
+      <template v-slot:item.status="{ item }">
+        <v-chip v-if="item.status === 'filled'" color="success" size="small">成交</v-chip>
+        <v-chip v-else color="grey" size="small">未成交</v-chip>
+      </template>
       <template v-slot:item.price="{ item }">
-        {{ item.price.toFixed(2) }}
+        {{ item.status === 'cancelled' ? '-' : item.price.toFixed(2) }}
+      </template>
+      <template v-slot:item.shares="{ item }">
+        {{ item.status === 'cancelled' ? '-' : item.shares }}
       </template>
       <template v-slot:item.fee="{ item }">
-        {{ item.fee.toFixed(2) }}
+        {{ item.status === 'cancelled' ? '-' : item.fee.toFixed(2) }}
       </template>
       <template v-slot:item.cash_after="{ item }">
-        {{ item.cash_after.toFixed(2) }}
+        {{ item.status === 'cancelled' ? '-' : item.cash_after.toFixed(2) }}
       </template>
     </v-data-table-server>
   </v-card>
@@ -127,17 +148,25 @@ const filters = ref({
   account_config_id: null as string | null,
   backtest_id: null as string | null,
   training_id: null as string | null,
-  ts_code: null as string | null
+  ts_code: null as string | null,
+  status: '' as string
 })
 
+const statusOptionItems = [
+  { label: '全部', value: '' },
+  { label: '已成交', value: 'filled' },
+  { label: '未成交', value: 'cancelled' },
+]
+
 const headers = [
+  { title: '股票代码', key: 'ts_code' },
   { title: '日期', key: 'trade_date' },
   { title: '操作', key: 'action' },
+  { title: '状态', key: 'status' },
   { title: '价格', key: 'price' },
   { title: '数量', key: 'shares' },
   { title: '手续费', key: 'fee' },
   { title: '现金', key: 'cash_after' },
-  { title: '持仓', key: 'position_after' },
 ]
 
 const loadFilterOptions = async () => {
@@ -159,8 +188,12 @@ const loadTrades = async () => {
       ts_code: filters.value.ts_code || undefined
     }
     const res = await tradeApi.list(page.value, pageSize.value, filterParams)
-    trades.value = res.data.items
-    totalItems.value = res.data.total
+    let items = res.data.items
+    if (filters.value.status) {
+      items = items.filter(t => t.status === filters.value.status)
+    }
+    trades.value = items
+    totalItems.value = items.length
   } finally {
     loading.value = false
   }
