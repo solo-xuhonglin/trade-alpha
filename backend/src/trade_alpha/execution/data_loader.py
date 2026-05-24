@@ -120,24 +120,3 @@ class DataLoader:
 
         df = pd.DataFrame([r.model_dump() for r in all_records])
         return df
-
-    async def load_day_low(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
-        records = await StockDaily.find(
-            StockDaily.trade_date == date,
-            In(StockDaily.ts_code, ts_codes),
-        ).to_list()
-        return {r.ts_code: r.low for r in records if r.low is not None}
-
-    async def load_day_close(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
-        records = await StockDaily.find(
-            StockDaily.trade_date == date,
-            In(StockDaily.ts_code, ts_codes),
-        ).to_list()
-        return {r.ts_code: r.close for r in records if r.close is not None}
-
-    async def load_day_high(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
-        records = await StockDaily.find(
-            StockDaily.trade_date == date,
-            In(StockDaily.ts_code, ts_codes),
-        ).to_list()
-        return {r.ts_code: r.high for r in records if r.high is not None}

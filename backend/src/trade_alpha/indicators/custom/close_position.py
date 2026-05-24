@@ -14,5 +14,5 @@ def calculate_close_position(df: pd.DataFrame, periods: List[int] = None) -> pd.
         min_low = result["low"].rolling(window=period).min()
         max_high = result["high"].rolling(window=period).max()
         range_ = max_high - min_low
-        result[col_name] = np.where(range_ > 0, (result["close"] - min_low) / range_ * 100, 0.0)
+        result[col_name] = np.where(range_ > 0, (result["close"] - min_low) / range_ * 100, np.nan)
     return result
