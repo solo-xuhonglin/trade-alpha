@@ -57,7 +57,8 @@ async def _evaluate_classifier(classifier, X: np.ndarray, y: np.ndarray, feature
     metrics = {}
     for i, target in enumerate(targets):
         y_i = y[:, i] if y.ndim > 1 else y
-        y_pred = classifier.predict(X, [target])[target]
+        probs = classifier.predict_proba(X, [target])[target]
+        y_pred = np.array([int(np.argmax(probs)) - 1])
         accuracy = np.mean(y_pred == y_i)
         metrics.setdefault("accuracy", {})[target] = float(accuracy)
         unique, counts = np.unique(y_i, return_counts=True)

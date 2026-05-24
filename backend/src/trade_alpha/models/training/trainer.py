@@ -126,8 +126,8 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     else:
         raise ValueError(f"Unknown model type: {config.model_type}")
 
-    predictions = classifier.predict(features, target_names)
     probabilities = classifier.predict_proba(features, target_names)
+    predictions = {t: int(np.argmax(p)) - 1 for t, p in probabilities.items()}
 
     last_date = df["trade_date"].iloc[-1]
 

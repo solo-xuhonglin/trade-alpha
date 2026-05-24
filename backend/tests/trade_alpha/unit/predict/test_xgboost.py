@@ -62,12 +62,12 @@ def test_xgboost_classifier_save_load(tmp_path):
     _train_minimal(clf)
 
     X = np.random.randn(1, 5)
-    preds = clf.predict(X, ["label_3d"])
+    probs1 = clf.predict_proba(X, ["label_3d"])
 
     path = tmp_path / "model.pkl"
     clf.save(str(path))
     clf2 = XGBoostClassifier(config)
     clf2.load(str(path))
 
-    preds2 = clf2.predict(X, ["label_3d"])
-    assert preds == preds2
+    probs2 = clf2.predict_proba(X, ["label_3d"])
+    assert probs1 == probs2
