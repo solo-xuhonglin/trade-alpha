@@ -51,8 +51,23 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
                 continue
             ret = group["close"].shift(-horizon) / group["close"] - 1
             threshold = threshold_map.get(horizon, 0.01)
-            trend_up = (group["close"] > group[config["ma_base"]]) & (group[config["ma_slope"]] > group[config["ma_slope"]].shift(config["shift"]))
-            trend_down = (group["close"] < group[config["ma_base"]]) & (group[config["ma_slope"]] < group[config["ma_slope"]].shift(config["shift"]))
+            
+            close_valid = group["close"].notna()
+            ma_base_valid = group[config["ma_base"]].notna()
+            ma_slope_valid = group[config["ma_slope"]].notna()
+            
+            ma_base = group[config["ma_base"]].fillna(method='ffill').fillna(method='bfill')
+            ma_slope = group[config["ma_slope"]].fillna(method='ffill').fillna(method='bfill')
+            ma_slope_future = ma_slope.shift(-config["shift"]).fillna(method='ffill').fillna(method='bfill')
+            
+            trend_up = (close_valid & ma_base_valid & ma_slope_valid & 
+                       (group["close"] > ma_base) & 
+                       (ma_slope_future > ma_slope))
+            
+            trend_down = (close_valid & ma_base_valid & ma_slope_valid & 
+                         (group["close"] < ma_base) & 
+                         (ma_slope_future < ma_slope))
+            
             col = f"label_{horizon}d"
             group[col] = 0
             group.loc[trend_up & (ret > threshold), col] = 1
