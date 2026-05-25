@@ -197,7 +197,8 @@ async def get_stock_predictions(result_id: str, ts_code: str):
         }
 
     training = await TrainingResult.get(result.training_id)
-    horizons = training.classification_horizons if training else [3, 5]
+    snap = training.model_snapshot if training else None
+    horizons = snap.classification_horizons if snap else [3, 5]
 
     items = []
     dates = []

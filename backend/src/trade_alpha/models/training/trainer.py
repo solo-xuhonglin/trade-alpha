@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 
 from trade_alpha.dao import TrainingResult, PredictionResult, StockDaily
+from trade_alpha.dao.execution import ModelSnapshotEmbed
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.config import get_config_by_id
 from trade_alpha.models.factory import create_classifier, create_predictor
@@ -33,8 +34,16 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
     training = TrainingResult(
         config_id=config_id, name=name,
         ts_codes=ts_codes, start_date=start_date, end_date=end_date,
-        feature_fields=config.feature_fields,
-        classification_horizons=config.classification_horizons,
+        model_snapshot=ModelSnapshotEmbed(
+            name=config.name,
+            model_type=config.model_type,
+            feature_fields=config.feature_fields,
+            classification_horizons=config.classification_horizons,
+            classification_threshold_3d=config.classification_threshold_3d,
+            classification_threshold_5d=config.classification_threshold_5d,
+            classification_threshold_10d=config.classification_threshold_10d,
+            label_mode=config.label_mode,
+        ),
         model_metrics=metrics,
         created_at=datetime.now(timezone.utc),
     )
