@@ -32,7 +32,7 @@ class TestTradesPage:
         page = goto_page("/backtest/trades")
         page.wait_for_load_state("networkidle")
         expect(page.get_by_role("combobox", name="账户")).to_be_visible()
-        expect(page.get_by_role("combobox", name="策略")).to_be_visible()
+        expect(page.get_by_role("combobox", name="回测")).to_be_visible()
         expect(page.get_by_role("combobox", name="训练")).to_be_visible()
         expect(page.get_by_role("combobox", name="股票")).to_be_visible()
 

@@ -10,8 +10,8 @@ import numpy as np
 from trade_alpha.dao import TrainingResult, PredictionResult, StockDaily
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.config import get_config_by_id
-from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
-from trade_alpha.models.factory import create_classifier
+from trade_alpha.models.factory import create_classifier, create_predictor
+from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.logging import get_logger
 
 logger = get_logger("models.training.trainer")
@@ -80,3 +80,64 @@ async def delete_training_by_name(name: str) -> bool:
     if not training:
         return False
     return await delete_training(training.id)
+
+
+async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> Optional[Dict]:
+    """Predict using a trained model.
+
+    Loads the training, creates classifier and predictor, runs prediction
+    for the latest available date, stores result, and returns predictions dict.
+    """
+    training = await get_training_by_id(training_id)
+    if not training:
+        raise ValueError(f"Training not found: {training_id}")
+
+    config = await get_config_by_id(training.config_id)
+    if not config:
+        raise ValueError(f"Config not found: {training.config_id}")
+
+    classifier = create_classifier(config, training.model_path)
+    data_loader = DataLoader()
+    predictor = create_predictor(config, classifier, data_loader)
+
+    latest = await StockDaily.find(
+        StockDaily.ts_code == ts_code,
+    ).sort(-StockDaily.trade_date).limit(1).to_list()
+    if not latest:
+        raise ValueError(f"No data found for {ts_code}")
+
+    current_date = latest[0].trade_date
+    target_names = [f"label_{h}d" for h in config.classification_horizons]
+
+    probs = await predictor.predict(ts_code, target_names, current_date)
+    if probs is None:
+        raise ValueError(f"Prediction failed for {ts_code} at {current_date}")
+
+    predictions = {}
+    for name in target_names:
+        prob = probs.get(name, [0, 0, 0])
+        predictions[name] = int(np.argmax(prob)) - 1
+
+    record = PredictionResult(
+        training_result_id=training_id,
+        ts_code=ts_code,
+        trade_date=current_date,
+        predictions=predictions,
+        probabilities=probs,
+        created_at=datetime.now(timezone.utc),
+    )
+    await record.insert()
+
+    return {"predictions": predictions, "probabilities": probs}
+
+
+async def get_prediction_by_id(prediction_id: PydanticObjectId) -> Optional[PredictionResult]:
+    return await PredictionResult.get(prediction_id)
+
+
+async def delete_prediction(prediction_id: PydanticObjectId) -> bool:
+    pred = await PredictionResult.get(prediction_id)
+    if not pred:
+        return False
+    await pred.delete()
+    return True

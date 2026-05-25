@@ -122,7 +122,10 @@ class ExecutionPipeline:
                 model_type=self.model_config.model_type,
                 feature_fields=self.model_config.feature_fields,
                 classification_horizons=self.model_config.classification_horizons,
-                classification_threshold=self.model_config.classification_threshold,
+                classification_threshold_3d=self.model_config.classification_threshold_3d,
+                classification_threshold_5d=self.model_config.classification_threshold_5d,
+                classification_threshold_10d=self.model_config.classification_threshold_10d,
+                label_mode=self.model_config.label_mode,
             ),
             status="running",
         )

@@ -187,7 +187,14 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     stock = await StockList.find_one(StockList.ts_code == ts_code)
     stock_name = stock.name if stock else ts_code
 
-    threshold = result.model_snapshot.classification_threshold if result.model_snapshot else 0.02
+    snap_model = result.model_snapshot
+    threshold_map = {}
+    if snap_model:
+        threshold_map = {
+            3: getattr(snap_model, 'classification_threshold_3d', None) or getattr(snap_model, 'classification_threshold', 0.02),
+            5: getattr(snap_model, 'classification_threshold_5d', None) or getattr(snap_model, 'classification_threshold', 0.02),
+            10: getattr(snap_model, 'classification_threshold_10d', None) or getattr(snap_model, 'classification_threshold', 0.02),
+        }
 
     training = await TrainingResult.get(result.training_id)
     horizons = training.classification_horizons if training else [3, 5]
@@ -232,7 +239,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
                     future_close = close_map.get(future_date)
                     if future_close is not None:
                         ret = (future_close - close_t) / close_t
-                        label = 1 if ret > threshold else (-1 if ret < -threshold else 0)
+                        label = 1 if ret > threshold_map.get(h, 0.02) else (-1 if ret < -threshold_map.get(h, 0.02) else 0)
                         item[f"actual_return_{h}d"] = round(ret, 6)
                         item[f"actual_label_{h}d"] = label
 

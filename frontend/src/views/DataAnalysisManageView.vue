@@ -148,8 +148,8 @@ const stopPolling = () => {
 
 const pollActiveTasks = async () => {
   try {
-    const res = await dataAnalysisApi.listTasks({ page_size: 10, status: 'pending,running' })
-    activeTasks.value = res.data.items
+    const res = await dataAnalysisApi.listTasks({ page_size: 10 })
+    activeTasks.value = res.data.items.filter((t: any) => t.status !== 'completed' && t.status !== 'failed' && t.status !== 'cancelled')
   } catch (e: any) {
     console.error('Failed to poll tasks:', e)
   }

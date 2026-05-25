@@ -25,7 +25,10 @@ class ModelSnapshotEmbed(BaseModel):
     model_type: str
     feature_fields: List[str] = Field(default_factory=list)
     classification_horizons: List[int] = Field(default_factory=list)
-    classification_threshold: float
+    classification_threshold_3d: float = 0.01
+    classification_threshold_5d: float = 0.015
+    classification_threshold_10d: float = 0.02
+    label_mode: str = "threshold"
 
 
 class ExecutionResult(Document):
