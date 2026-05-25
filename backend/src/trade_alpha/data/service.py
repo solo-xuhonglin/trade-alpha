@@ -70,9 +70,9 @@ async def fetch_and_store_stock_list() -> int:
         stock = StockList(
             ts_code=row["ts_code"],
             name=row["name"],
-            industry=row.get("industry"),
+            industry=str(row["industry"]) if pd.notna(row.get("industry")) else None,
             list_date=str(row["list_date"]) if pd.notna(row.get("list_date")) else None,
-            market=row.get("market"),
+            market=str(row["market"]) if pd.notna(row.get("market")) else None,
             total_mv=float(row["total_mv"]) if pd.notna(row.get("total_mv")) else None,
             pe=float(row["pe"]) if pd.notna(row.get("pe")) else None,
             pb=float(row["pb"]) if pd.notna(row.get("pb")) else None,
