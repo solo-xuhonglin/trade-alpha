@@ -71,6 +71,8 @@ class StrategyCreateRequest(BaseModel):
     min_order_value: Optional[float] = 5000.0
     stop_loss_pct: Optional[float] = -0.1
     max_hold_days: Optional[int] = 30
+    buy_threshold: Optional[float] = 0.1
+    sell_threshold: Optional[float] = -0.1
     max_positions: Optional[int] = 10
     max_position_pct: Optional[float] = 0.3
 
@@ -80,6 +82,8 @@ class StrategyUpdateRequest(BaseModel):
     min_order_value: Optional[float] = None
     stop_loss_pct: Optional[float] = None
     max_hold_days: Optional[int] = None
+    buy_threshold: Optional[float] = None
+    sell_threshold: Optional[float] = None
     max_positions: Optional[int] = None
     max_position_pct: Optional[float] = None
 

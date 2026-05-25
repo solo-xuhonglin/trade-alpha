@@ -81,8 +81,8 @@ class SingleStockStrategy(PositionManager):
         return orders
 
     def _should_buy(self, scored_stock: ScoredStock) -> bool:
-        """Determine if we should buy based on score."""
-        return scored_stock.score > 0
+        """Determine if we should buy based on score and threshold."""
+        return scored_stock.score > self.buy_threshold
 
     def _should_sell(
         self,
@@ -91,7 +91,7 @@ class SingleStockStrategy(PositionManager):
         close_prices: Optional[Dict[str, float]] = None,
     ) -> bool:
         """Determine if we should sell."""
-        if scored_stock.score <= 0:
+        if scored_stock.score < self.sell_threshold:
             return True
         if position.hold_days >= self.max_hold_days:
             return True

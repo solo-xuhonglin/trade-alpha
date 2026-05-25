@@ -14,6 +14,8 @@ class StrategyConfig(Document):
     min_order_value: float = 5000.0
     stop_loss_pct: float = -0.1
     max_hold_days: int = 30
+    buy_threshold: float = 0.1
+    sell_threshold: float = -0.1
     max_positions: Optional[int] = 10
     max_position_pct: Optional[float] = 0.3
     created_at: Optional[datetime] = None

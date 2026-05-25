@@ -64,6 +64,8 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             min_order_value=request.min_order_value,
             stop_loss_pct=request.stop_loss_pct,
             max_hold_days=request.max_hold_days,
+            buy_threshold=request.buy_threshold,
+            sell_threshold=request.sell_threshold,
             max_positions=request.max_positions,
             max_position_pct=request.max_position_pct,
         )
@@ -87,6 +89,8 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             min_order_value=request.min_order_value,
             stop_loss_pct=request.stop_loss_pct,
             max_hold_days=request.max_hold_days,
+            buy_threshold=request.buy_threshold,
+            sell_threshold=request.sell_threshold,
             max_positions=request.max_positions,
             max_position_pct=request.max_position_pct,
         )

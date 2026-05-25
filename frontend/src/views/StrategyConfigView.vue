@@ -145,6 +145,8 @@ const form = ref({
   min_order_value: 5000,
   stop_loss_pct: -0.1,
   max_hold_days: 30,
+  buy_threshold: 0.1,
+  sell_threshold: -0.1,
   max_positions: 10,
   max_position_pct: 0.3,
 })
@@ -209,6 +211,8 @@ const saveStrategy = async () => {
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
       max_hold_days: form.value.max_hold_days,
+      buy_threshold: form.value.buy_threshold,
+      sell_threshold: form.value.sell_threshold,
       max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
     })

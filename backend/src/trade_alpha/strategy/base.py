@@ -26,6 +26,8 @@ class PositionManager:
         min_order_value: float = 5000,
         stop_loss_pct: float = -0.1,
         max_hold_days: int = 20,
+        buy_threshold: float = 0.1,
+        sell_threshold: float = -0.1,
     ):
         self.account_config = account_config
         self.max_positions = max_positions
@@ -33,6 +35,8 @@ class PositionManager:
         self.min_order_value = min_order_value
         self.stop_loss_pct = stop_loss_pct
         self.max_hold_days = max_hold_days
+        self.buy_threshold = buy_threshold
+        self.sell_threshold = sell_threshold
 
     async def make_decisions(
         self,

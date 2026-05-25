@@ -46,6 +46,7 @@ class PortfolioStrategy(PositionManager):
         if self.ts_codes:
             scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
 
+        scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.score, reverse=True)
         top_stocks = sorted_stocks[:self.max_positions]
         top_ts_codes = {s.ts_code for s in top_stocks}

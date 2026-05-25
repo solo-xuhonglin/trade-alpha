@@ -62,6 +62,8 @@ async def update_strategy(
     min_order_value: Optional[float] = None,
     stop_loss_pct: Optional[float] = None,
     max_hold_days: Optional[int] = None,
+    buy_threshold: Optional[float] = None,
+    sell_threshold: Optional[float] = None,
     max_positions: Optional[int] = None,
     max_position_pct: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
@@ -82,6 +84,10 @@ async def update_strategy(
         strategy.stop_loss_pct = stop_loss_pct
     if max_hold_days is not None:
         strategy.max_hold_days = max_hold_days
+    if buy_threshold is not None:
+        strategy.buy_threshold = buy_threshold
+    if sell_threshold is not None:
+        strategy.sell_threshold = sell_threshold
     if max_positions is not None:
         strategy.max_positions = max_positions
     if max_position_pct is not None:
