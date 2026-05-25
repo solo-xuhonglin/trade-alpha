@@ -30,7 +30,7 @@
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="dialog" max-width="600px">
+  <v-dialog v-model="dialog" max-width="700px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
         {{ editingId ? '编辑策略' : '新建策略' }}
@@ -74,6 +74,31 @@
               v-model="form.max_hold_days"
               type="number"
               label="最大持仓天数"
+            ></v-text-field>
+          </v-col>
+        </v-row>
+
+        <v-divider class="my-4"></v-divider>
+
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.buy_threshold"
+              type="number"
+              step="0.05"
+              label="买入阈值"
+              hint="预测分数大于此值才买入"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.sell_threshold"
+              type="number"
+              step="0.05"
+              label="卖出阈值"
+              hint="预测分数小于此值才卖出"
+              persistent-hint
             ></v-text-field>
           </v-col>
         </v-row>
@@ -176,6 +201,8 @@ const openDialog = (item?: Strategy) => {
       min_order_value: item.min_order_value,
       stop_loss_pct: item.stop_loss_pct,
       max_hold_days: item.max_hold_days,
+      buy_threshold: item.buy_threshold ?? 0.1,
+      sell_threshold: item.sell_threshold ?? -0.1,
       max_positions: item.max_positions ?? 10,
       max_position_pct: item.max_position_pct ?? 0.3,
     }
@@ -187,6 +214,8 @@ const openDialog = (item?: Strategy) => {
       min_order_value: 5000,
       stop_loss_pct: -0.1,
       max_hold_days: 30,
+      buy_threshold: 0.1,
+      sell_threshold: -0.1,
       max_positions: 10,
       max_position_pct: 0.3,
     }
@@ -201,6 +230,8 @@ const saveStrategy = async () => {
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
       max_hold_days: form.value.max_hold_days,
+      buy_threshold: form.value.buy_threshold,
+      sell_threshold: form.value.sell_threshold,
       max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
     })
