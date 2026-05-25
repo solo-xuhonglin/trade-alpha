@@ -14,7 +14,6 @@ from trade_alpha.data.service import (
 )
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.scheduler.data_sync import update_single_stock_data_count
-from trade_alpha.data.service import update_stock_data_count as bulk_update_data_count
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
 from trade_alpha.api.validators import TradeDateQuery
 
