@@ -435,6 +435,11 @@ MACDStrategy:
   "lstm_batch_size": 256,
   "lstm_learning_rate": 0.001,
   "lstm_sequence_length": 60,
+  "lstm_normalization_window": 300,
+  "lstm_weight_decay": 1e-4,
+  "lr_scheduler_factor": 0.5,
+  "lr_scheduler_patience": 3,
+  "val_size": 0.2,
   "label_smoothing": 0.1,
   "early_stopping_patience": 10
 }

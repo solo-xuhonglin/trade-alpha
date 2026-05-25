@@ -352,6 +352,10 @@ POST /api/model-configs
 | `lstm_sequence_length` | int | 60 | 序列长度 |
 | `label_smoothing` | float | 0.1 | 标签平滑系数 |
 | `early_stopping_patience` | int | 10 | 早停耐心值（验证AUC不提升时停止训练的轮数） |
+| `lstm_weight_decay` | float | 1e-4 | L2 正则化系数 |
+| `lr_scheduler_factor` | float | 0.5 | 学习率衰减因子 |
+| `lr_scheduler_patience` | int | 3 | 学习率调度器等待轮数 |
+| `val_size` | float | 0.2 | 验证集比例（按日期划分） |
 
 **模型类型**:
 - `xgboost`: XGBoost 分类器

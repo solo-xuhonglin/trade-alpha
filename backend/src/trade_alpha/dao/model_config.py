@@ -34,6 +34,10 @@ from trade_alpha.constants import (
     DEFAULT_LSTM_LEARNING_RATE,
     DEFAULT_LSTM_SEQUENCE_LENGTH,
     DEFAULT_LSTM_NORMALIZATION_WINDOW,
+    DEFAULT_LSTM_WEIGHT_DECAY,
+    DEFAULT_LR_SCHEDULER_FACTOR,
+    DEFAULT_LR_SCHEDULER_PATIENCE,
+    DEFAULT_VAL_SIZE,
     DEFAULT_LABEL_SMOOTHING,
     DEFAULT_EARLY_STOPPING_PATIENCE,
 )
@@ -91,6 +95,10 @@ class ModelConfig(Document):
     lstm_learning_rate: float = DEFAULT_LSTM_LEARNING_RATE
     lstm_sequence_length: int = DEFAULT_LSTM_SEQUENCE_LENGTH
     lstm_normalization_window: int = DEFAULT_LSTM_NORMALIZATION_WINDOW
+    lstm_weight_decay: float = DEFAULT_LSTM_WEIGHT_DECAY
+    lr_scheduler_factor: float = DEFAULT_LR_SCHEDULER_FACTOR
+    lr_scheduler_patience: int = DEFAULT_LR_SCHEDULER_PATIENCE
+    val_size: float = DEFAULT_VAL_SIZE
     label_smoothing: float = DEFAULT_LABEL_SMOOTHING
     early_stopping_patience: int = DEFAULT_EARLY_STOPPING_PATIENCE
     created_at: Optional[datetime] = None

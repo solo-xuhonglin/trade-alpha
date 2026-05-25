@@ -23,6 +23,10 @@ export interface ModelConfig {
   lstm_learning_rate: number
   lstm_sequence_length: number
   lstm_normalization_window: number
+  lstm_weight_decay: number
+  lr_scheduler_factor: number
+  lr_scheduler_patience: number
+  val_size: number
   created_at?: string
   updated_at?: string
 }

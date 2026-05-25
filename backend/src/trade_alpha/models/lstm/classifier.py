@@ -101,13 +101,14 @@ class LSTMClassifier(BaseClassifier):
         valid_mask = ~np.isnan(y_2d).any(axis=1)
         X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
 
-        # 按时间划分训练集和验证集 (80% / 20%)
+        # 按时间划分训练集和验证集
+        val_ratio = getattr(config, 'val_size', 0.2)
         unique_dates = np.unique(dates)
         unique_dates_sorted = np.sort(unique_dates)
         num_unique_dates = len(unique_dates_sorted)
-        val_size = int(num_unique_dates * 0.2)
-        train_dates = unique_dates_sorted[:-val_size] if val_size > 0 else unique_dates_sorted
-        val_dates = unique_dates_sorted[-val_size:] if val_size > 0 else []
+        val_count = max(1, int(num_unique_dates * val_ratio))
+        train_dates = unique_dates_sorted[:-val_count] if val_count < num_unique_dates else unique_dates_sorted
+        val_dates = unique_dates_sorted[-val_count:] if val_count < num_unique_dates else []
         train_mask = np.isin(dates, train_dates)
         val_mask = np.isin(dates, val_dates)
 
@@ -143,12 +144,13 @@ class LSTMClassifier(BaseClassifier):
             optimizer = torch.optim.Adam(
                 model.parameters(), 
                 lr=config.lstm_learning_rate,
-                weight_decay=1e-4  # L2 正则化
+                weight_decay=getattr(config, 'lstm_weight_decay', 1e-4)
             )
             
-            # 添加学习率调度器（当验证AUC不再提升时自动降低学习率）
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode='max', factor=0.5, patience=3,
+                optimizer, mode='max',
+                factor=getattr(config, 'lr_scheduler_factor', 0.5),
+                patience=getattr(config, 'lr_scheduler_patience', 3),
                 threshold=1e-4
             )
 

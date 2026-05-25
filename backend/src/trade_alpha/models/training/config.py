@@ -31,6 +31,10 @@ from trade_alpha.constants import (
     DEFAULT_LSTM_LEARNING_RATE,
     DEFAULT_LSTM_SEQUENCE_LENGTH,
     DEFAULT_LSTM_NORMALIZATION_WINDOW,
+    DEFAULT_LSTM_WEIGHT_DECAY,
+    DEFAULT_LR_SCHEDULER_FACTOR,
+    DEFAULT_LR_SCHEDULER_PATIENCE,
+    DEFAULT_VAL_SIZE,
     DEFAULT_LABEL_SMOOTHING,
     DEFAULT_EARLY_STOPPING_PATIENCE,
 )
@@ -78,7 +82,11 @@ async def create_config(
     lstm_sequence_length: int = 60,
     lstm_normalization_window: int = 300,
     label_smoothing: float = 0.1,
-    early_stopping_patience: int = 5,
+    early_stopping_patience: int = 10,
+    lstm_weight_decay: float = DEFAULT_LSTM_WEIGHT_DECAY,
+    lr_scheduler_factor: float = DEFAULT_LR_SCHEDULER_FACTOR,
+    lr_scheduler_patience: int = DEFAULT_LR_SCHEDULER_PATIENCE,
+    val_size: float = DEFAULT_VAL_SIZE,
 ) -> ModelConfig:
     """Create model configuration.
 
@@ -104,7 +112,11 @@ async def create_config(
         lstm_learning_rate: LSTM learning rate, defaults to 0.001
         lstm_sequence_length: LSTM input sequence length, defaults to 60
         label_smoothing: Label smoothing coefficient, defaults to 0.1
-        early_stopping_patience: Early stopping patience, defaults to 5
+        early_stopping_patience: Early stopping patience, defaults to 10
+        lstm_weight_decay: LSTM L2 regularization weight, defaults to 1e-4
+        lr_scheduler_factor: Learning rate scheduler decay factor, defaults to 0.5
+        lr_scheduler_patience: Learning rate scheduler patience, defaults to 3
+        val_size: Validation set ratio (by date), defaults to 0.2
     """
     if not name:
         raise ValueError("name is required")
@@ -143,6 +155,10 @@ async def create_config(
         lstm_learning_rate=lstm_learning_rate,
         lstm_sequence_length=lstm_sequence_length,
         lstm_normalization_window=lstm_normalization_window,
+        lstm_weight_decay=lstm_weight_decay,
+        lr_scheduler_factor=lr_scheduler_factor,
+        lr_scheduler_patience=lr_scheduler_patience,
+        val_size=val_size,
         label_smoothing=label_smoothing,
         early_stopping_patience=early_stopping_patience,
         created_at=datetime.now(timezone.utc),
