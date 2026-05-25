@@ -93,9 +93,8 @@
                     { title: '涨跌幅阈值', value: 'threshold' },
                     { title: '均线趋势', value: 'trend' }
                   ]" label="标签计算模式"
-                    hint="threshold: 基于未来涨跌幅; trend: 基于均线位置和斜率" persistent-hint></v-select>
+                    hint="threshold: 基于未来涨跌幅阈值分类; trend: 基于均线位置斜率 + 涨跌幅阈值分类" persistent-hint></v-select>
                 </v-col>
-                <template v-if="form.label_mode === 'threshold'">
                   <v-col cols="12" sm="4">
                     <v-text-field v-model.number="form.classification_threshold_3d" label="3日涨跌阈值" type="number" step="0.005" hint="短周期，小阈值" persistent-hint></v-text-field>
                   </v-col>
@@ -105,7 +104,6 @@
                   <v-col cols="12" sm="4">
                     <v-text-field v-model.number="form.classification_threshold_10d" label="10日涨跌阈值" type="number" step="0.005" hint="长周期，大阈值" persistent-hint></v-text-field>
                   </v-col>
-                </template>
               </v-row>
 
               <template v-if="form.model_type === 'xgboost'">
