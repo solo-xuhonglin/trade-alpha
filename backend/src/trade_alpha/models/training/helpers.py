@@ -56,9 +56,9 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
             ma_base_valid = group[config["ma_base"]].notna()
             ma_slope_valid = group[config["ma_slope"]].notna()
             
-            ma_base = group[config["ma_base"]].fillna(method='ffill').fillna(method='bfill')
-            ma_slope = group[config["ma_slope"]].fillna(method='ffill').fillna(method='bfill')
-            ma_slope_future = ma_slope.shift(-config["shift"]).fillna(method='ffill').fillna(method='bfill')
+            ma_base = group[config["ma_base"]].ffill().bfill()
+            ma_slope = group[config["ma_slope"]].ffill().bfill()
+            ma_slope_future = ma_slope.shift(-config["shift"]).ffill().bfill()
             
             trend_up = (close_valid & ma_base_valid & ma_slope_valid & 
                        (group["close"] > ma_base) & 
