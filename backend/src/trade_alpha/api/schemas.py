@@ -145,6 +145,9 @@ class StockDailyItem(BaseModel):
     macd: Optional[float] = None
     macd_signal: Optional[float] = None
     macd_hist: Optional[float] = None
+    obv_chg_5: Optional[float] = None
+    obv_chg_10: Optional[float] = None
+    obv_chg_20: Optional[float] = None
 
 
 class StockDailyListResponse(BaseModel):

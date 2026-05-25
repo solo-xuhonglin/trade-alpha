@@ -70,6 +70,9 @@ class StockDaily(Document):
     trend_stability_10: Optional[float] = None
     trend_stability_20: Optional[float] = None
     obv: Optional[float] = None
+    obv_chg_5: Optional[float] = None
+    obv_chg_10: Optional[float] = None
+    obv_chg_20: Optional[float] = None
     candle_body_pct: Optional[float] = None
     candle_upper_pct: Optional[float] = None
     candle_lower_pct: Optional[float] = None

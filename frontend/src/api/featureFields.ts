@@ -19,6 +19,7 @@ export const INDICATOR_FIELDS = [
   'trend_volume_5', 'trend_volume_10', 'trend_volume_20',
   'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
   'obv',
+  'obv_chg_5', 'obv_chg_10', 'obv_chg_20',
 ]
 
 export const ALL_FEATURE_FIELDS = [...DAILY_BASIC_FIELDS, ...INDICATOR_FIELDS]

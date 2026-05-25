@@ -17,6 +17,9 @@ export interface DataRecord {
   macd?: number
   macd_signal?: number
   macd_hist?: number
+  obv_chg_5?: number
+  obv_chg_10?: number
+  obv_chg_20?: number
 }
 
 export interface Stock {
