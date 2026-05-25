@@ -16,7 +16,10 @@ from trade_alpha.dao import ModelConfig, TrainingResult
 from trade_alpha.logging import get_logger
 from trade_alpha.constants import (
     DEFAULT_CLASSIFICATION_HORIZONS,
-    DEFAULT_CLASSIFICATION_THRESHOLD,
+    DEFAULT_LABEL_MODE,
+    DEFAULT_CLASSIFICATION_THRESHOLD_3D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_5D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_10D,
     DEFAULT_XGB_N_ESTIMATORS,
     DEFAULT_XGB_MAX_DEPTH,
     DEFAULT_XGB_LEARNING_RATE,
@@ -66,7 +69,10 @@ async def create_config(
     standardize_fields: Optional[List[str]] = None,
     winsorize_fields: Optional[List[str]] = None,
     classification_horizons: Optional[List[int]] = None,
-    classification_threshold: float = 0.02,
+    label_mode: str = DEFAULT_LABEL_MODE,
+    classification_threshold_3d: float = DEFAULT_CLASSIFICATION_THRESHOLD_3D,
+    classification_threshold_5d: float = DEFAULT_CLASSIFICATION_THRESHOLD_5D,
+    classification_threshold_10d: float = DEFAULT_CLASSIFICATION_THRESHOLD_10D,
     xgb_n_estimators: int = 100,
     xgb_max_depth: int = 6,
     xgb_learning_rate: float = 0.1,
@@ -97,7 +103,10 @@ async def create_config(
         standardize_fields: fields for Z-score normalization, defaults to feature_fields
         winsorize_fields: fields for winsorization, defaults to empty
         classification_horizons: classification horizon list, defaults to DEFAULT_CLASSIFICATION_HORIZONS
-        classification_threshold: classification threshold for up/down, defaults to 0.02
+        label_mode: label generation mode (threshold/quantile), defaults to DEFAULT_LABEL_MODE
+        classification_threshold_3d: 3-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_3D
+        classification_threshold_5d: 5-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_5D
+        classification_threshold_10d: 10-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_10D
         xgb_n_estimators: XGBoost number of trees, defaults to 100
         xgb_max_depth: XGBoost max tree depth, defaults to 6
         xgb_learning_rate: XGBoost learning rate, defaults to 0.1
@@ -140,7 +149,10 @@ async def create_config(
         standardize_fields=standardize_fields,
         winsorize_fields=winsorize_fields,
         classification_horizons=classification_horizons,
-        classification_threshold=classification_threshold,
+        label_mode=label_mode,
+        classification_threshold_3d=classification_threshold_3d,
+        classification_threshold_5d=classification_threshold_5d,
+        classification_threshold_10d=classification_threshold_10d,
         xgb_n_estimators=xgb_n_estimators,
         xgb_max_depth=xgb_max_depth,
         xgb_learning_rate=xgb_learning_rate,

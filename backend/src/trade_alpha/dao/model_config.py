@@ -19,7 +19,10 @@ from pydantic import Field
 from beanie import Document
 from trade_alpha.constants import (
     DEFAULT_CLASSIFICATION_HORIZONS,
-    DEFAULT_CLASSIFICATION_THRESHOLD,
+    DEFAULT_LABEL_MODE,
+    DEFAULT_CLASSIFICATION_THRESHOLD_3D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_5D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_10D,
     DEFAULT_XGB_N_ESTIMATORS,
     DEFAULT_XGB_MAX_DEPTH,
     DEFAULT_XGB_LEARNING_RATE,
@@ -53,7 +56,10 @@ class ModelConfig(Document):
         standardize_fields: 需要Z-score标准化的字段列表
         winsorize_fields: 需要缩尾处理的字段列表
         classification_horizons: 分类预测周期列表
-        classification_threshold: 涨跌分类阈值
+        label_mode: 标签生成模式 (threshold/quantile)
+        classification_threshold_3d: 3日涨跌分类阈值
+        classification_threshold_5d: 5日涨跌分类阈值
+        classification_threshold_10d: 10日涨跌分类阈值
         xgb_n_estimators: xgboost 树的数量
         xgb_max_depth: xgboost 树的最大深度
         xgb_learning_rate: xgboost 学习率
@@ -78,7 +84,10 @@ class ModelConfig(Document):
     standardize_fields: List[str] = Field(default_factory=list)
     winsorize_fields: List[str] = Field(default_factory=list)
     classification_horizons: List[int] = Field(default_factory=lambda: DEFAULT_CLASSIFICATION_HORIZONS.copy())
-    classification_threshold: float = DEFAULT_CLASSIFICATION_THRESHOLD
+    label_mode: str = DEFAULT_LABEL_MODE
+    classification_threshold_3d: float = DEFAULT_CLASSIFICATION_THRESHOLD_3D
+    classification_threshold_5d: float = DEFAULT_CLASSIFICATION_THRESHOLD_5D
+    classification_threshold_10d: float = DEFAULT_CLASSIFICATION_THRESHOLD_10D
     # xgboost 超参数（仅 model_type="xgboost" 时使用）
     xgb_n_estimators: int = DEFAULT_XGB_N_ESTIMATORS
     xgb_max_depth: int = DEFAULT_XGB_MAX_DEPTH

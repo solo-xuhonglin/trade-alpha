@@ -302,7 +302,10 @@ GET /api/model-configs
     "standardize_fields": ["ma_5", "ma_10"],
     "winsorize_fields": [],
     "classification_horizons": [3, 5],
-    "classification_threshold": 0.02
+    "label_mode": "threshold",
+    "classification_threshold_3d": 0.01,
+    "classification_threshold_5d": 0.015,
+    "classification_threshold_10d": 0.02
   }
 ]
 ```
@@ -322,7 +325,10 @@ POST /api/model-configs
   "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
   "classification_horizons": [3, 5],
-  "classification_threshold": 0.02
+  "label_mode": "threshold",
+  "classification_threshold_3d": 0.01,
+  "classification_threshold_5d": 0.015,
+  "classification_threshold_10d": 0.02
 }
 ```
 

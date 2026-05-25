@@ -8,7 +8,7 @@ from typing import List, Dict
 from trade_alpha.models.base import BaseClassifier
 from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
 from trade_alpha.task.service import TaskService
-from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data, _evaluate_classifier
+from trade_alpha.models.training.helpers import create_labels, _load_year_data, _evaluate_classifier
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
 
@@ -38,8 +38,8 @@ class XGBoostClassifier(BaseClassifier):
             year_df = await _load_year_data(year, ts_codes, horizon)
             if year_df is None:
                 continue
-            year_df = _create_classification_labels(
-                year_df, config.classification_horizons, config.classification_threshold
+            year_df = create_labels(
+                year_df, config.classification_horizons, label_mode=config.label_mode, threshold_3d=config.classification_threshold_3d, threshold_5d=config.classification_threshold_5d, threshold_10d=config.classification_threshold_10d
             )
             year_norm = xgb_normalize(
                 year_df, config.feature_fields,

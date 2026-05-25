@@ -4,6 +4,12 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from beanie import PydanticObjectId
+from trade_alpha.constants import (
+    DEFAULT_LABEL_MODE,
+    DEFAULT_CLASSIFICATION_THRESHOLD_3D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_5D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_10D,
+)
 from trade_alpha.models import training
 
 router = APIRouter(prefix="/model-configs", tags=["model-configs"])
@@ -16,7 +22,10 @@ class ConfigCreate(BaseModel):
     standardize_fields: Optional[List[str]] = None
     winsorize_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
-    classification_threshold: Optional[float] = None
+    label_mode: str = DEFAULT_LABEL_MODE
+    classification_threshold_3d: Optional[float] = None
+    classification_threshold_5d: Optional[float] = None
+    classification_threshold_10d: Optional[float] = None
     xgb_n_estimators: Optional[int] = None
     xgb_max_depth: Optional[int] = None
     xgb_learning_rate: Optional[float] = None
@@ -40,7 +49,10 @@ class ConfigUpdate(BaseModel):
     standardize_fields: Optional[List[str]] = None
     winsorize_fields: Optional[List[str]] = None
     classification_horizons: Optional[List[int]] = None
-    classification_threshold: Optional[float] = None
+    label_mode: Optional[str] = None
+    classification_threshold_3d: Optional[float] = None
+    classification_threshold_5d: Optional[float] = None
+    classification_threshold_10d: Optional[float] = None
     xgb_n_estimators: Optional[int] = None
     xgb_max_depth: Optional[int] = None
     xgb_learning_rate: Optional[float] = None
@@ -68,7 +80,10 @@ def config_to_dict(c):
         "standardize_fields": c.standardize_fields,
         "winsorize_fields": c.winsorize_fields,
         "classification_horizons": c.classification_horizons,
-        "classification_threshold": c.classification_threshold,
+        "label_mode": c.label_mode,
+        "classification_threshold_3d": c.classification_threshold_3d,
+        "classification_threshold_5d": c.classification_threshold_5d,
+        "classification_threshold_10d": c.classification_threshold_10d,
         "xgb_n_estimators": c.xgb_n_estimators,
         "xgb_max_depth": c.xgb_max_depth,
         "xgb_learning_rate": c.xgb_learning_rate,
@@ -100,7 +115,10 @@ async def create_config(body: ConfigCreate):
             standardize_fields=body.standardize_fields,
             winsorize_fields=body.winsorize_fields,
             classification_horizons=body.classification_horizons,
-            classification_threshold=body.classification_threshold or 0.02,
+            label_mode=body.label_mode,
+            classification_threshold_3d=body.classification_threshold_3d or DEFAULT_CLASSIFICATION_THRESHOLD_3D,
+            classification_threshold_5d=body.classification_threshold_5d or DEFAULT_CLASSIFICATION_THRESHOLD_5D,
+            classification_threshold_10d=body.classification_threshold_10d or DEFAULT_CLASSIFICATION_THRESHOLD_10D,
             xgb_n_estimators=body.xgb_n_estimators or 100,
             xgb_max_depth=body.xgb_max_depth or 6,
             xgb_learning_rate=body.xgb_learning_rate or 0.1,

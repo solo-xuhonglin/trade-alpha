@@ -10,7 +10,7 @@ from sklearn.metrics import roc_auc_score
 from trade_alpha.models.base import BaseClassifier
 from trade_alpha.models.lstm.normalizer import create_sequences
 from trade_alpha.task.service import TaskService
-from trade_alpha.models.training.helpers import _create_classification_labels, _load_year_data
+from trade_alpha.models.training.helpers import create_labels, _load_year_data
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
 
@@ -66,8 +66,8 @@ class LSTMClassifier(BaseClassifier):
             year_df = await _load_year_data(year, ts_codes, horizon, extra_days)
             if year_df is None:
                 continue
-            year_df = _create_classification_labels(
-                year_df, config.classification_horizons, config.classification_threshold
+            year_df = create_labels(
+                year_df, config.classification_horizons, label_mode=config.label_mode, threshold_3d=config.classification_threshold_3d, threshold_5d=config.classification_threshold_5d, threshold_10d=config.classification_threshold_10d
             )
             all_dfs.append(year_df)
             await TaskService.update_progress(

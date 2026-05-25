@@ -27,14 +27,14 @@ async def calculate_and_store_ma(ts_code: str, periods: list[int] | None = None)
 
     Args:
         ts_code: Stock code
-        periods: List of MA periods (default [5, 10, 20, 60])
+        periods: List of MA periods (default [5, 10, 20, 40, 60])
 
     Returns:
         Number of records updated
     """
     logger.info(f"Calculating MA for {ts_code} with periods {periods}")
     if periods is None:
-        periods = [5, 10, 20, 60]
+        periods = [5, 10, 20, 40, 60]
 
     records = await StockDaily.find(StockDaily.ts_code == ts_code).to_list()
 

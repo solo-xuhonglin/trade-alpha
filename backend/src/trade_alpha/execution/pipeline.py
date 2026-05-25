@@ -24,6 +24,7 @@ from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.utils.date_utils import get_year_months
+from trade_alpha.models.training.helpers import create_labels
 
 logger = get_logger("execution.pipeline")
 

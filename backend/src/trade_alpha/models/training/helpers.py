@@ -8,12 +8,14 @@ from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockDaily, StockList
 
 
-def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold: float) -> pd.DataFrame:
+def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02) -> pd.DataFrame:
+    threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d}
     label_cols = [f"label_{h}d" for h in horizons]
     result_parts = []
     for ts_code, group in df.groupby("ts_code"):
         group = group.sort_values("trade_date").copy()
         for horizon in horizons:
+            threshold = threshold_map.get(horizon, 0.01)
             future_pct = (group["close"].shift(-horizon) - group["close"]) / group["close"]
             group[f"label_{horizon}d"] = future_pct.map(
                 lambda x: 1 if x > threshold else (-1 if x < -threshold else 0) if pd.notna(x) else None
@@ -21,6 +23,46 @@ def _create_classification_labels(df: pd.DataFrame, horizons: List[int], thresho
         group = group.dropna(subset=label_cols)
         result_parts.append(group)
     return pd.concat(result_parts, ignore_index=True)
+
+
+def _create_trend_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame:
+    label_configs = {
+        3: {"ma_base": "ma_20", "ma_slope": "ma_5", "shift": 2, "threshold": 0.005},
+        5: {"ma_base": "ma_40", "ma_slope": "ma_10", "shift": 3, "threshold": 0.008},
+        10: {"ma_base": "ma_60", "ma_slope": "ma_20", "shift": 5, "threshold": 0.01},
+    }
+    required_ma = set()
+    for h in horizons:
+        if h in label_configs:
+            required_ma.add(label_configs[h]["ma_base"])
+            required_ma.add(label_configs[h]["ma_slope"])
+    label_cols = [f"label_{h}d" for h in horizons]
+    result_parts = []
+    for ts_code, group in df.groupby("ts_code"):
+        group = group.sort_values("trade_date").copy()
+        for ma_col in required_ma:
+            if ma_col not in group.columns:
+                raise ValueError(f"Missing required MA column: {ma_col}")
+        for horizon in horizons:
+            config = label_configs.get(horizon)
+            if config is None:
+                continue
+            ret = group["close"].shift(-horizon) / group["close"] - 1
+            trend_up = (group["close"] > group[config["ma_base"]]) & (group[config["ma_slope"]] > group[config["ma_slope"]].shift(config["shift"]))
+            trend_down = (group["close"] < group[config["ma_base"]]) & (group[config["ma_slope"]] < group[config["ma_slope"]].shift(config["shift"]))
+            col = f"label_{horizon}d"
+            group[col] = 0
+            group.loc[trend_up & (ret > config["threshold"]), col] = 1
+            group.loc[trend_down & (ret < -config["threshold"]), col] = -1
+        group = group.dropna(subset=label_cols)
+        result_parts.append(group)
+    return pd.concat(result_parts, ignore_index=True)
+
+
+def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02) -> pd.DataFrame:
+    if label_mode == "trend":
+        return _create_trend_labels(df, horizons)
+    return _create_classification_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d)
 
 
 async def _load_year_data(year: int, ts_codes: List[str], horizon: int, extra_days: int = 0) -> Optional[pd.DataFrame]:

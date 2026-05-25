@@ -30,13 +30,17 @@ class TestModelConfigService:
             name="test_create_temp",
             model_type="xgboost",
             classification_horizons=[3, 5],
-            classification_threshold=0.02,
+            classification_threshold_3d=0.02,
+            classification_threshold_5d=0.02,
+            classification_threshold_10d=0.02,
         )
 
         assert config_obj is not None
         assert config_obj.model_type == "xgboost"
         assert config_obj.classification_horizons == [3, 5]
-        assert config_obj.classification_threshold == 0.02
+        assert config_obj.classification_threshold_3d == 0.02
+        assert config_obj.classification_threshold_5d == 0.02
+        assert config_obj.classification_threshold_10d == 0.02
 
     @pytest.mark.asyncio
     async def test_create_duplicate_config(self):
@@ -45,7 +49,9 @@ class TestModelConfigService:
             name="test_dup_temp",
             model_type="xgboost",
             classification_horizons=[3, 5],
-            classification_threshold=0.02,
+            classification_threshold_3d=0.02,
+            classification_threshold_5d=0.02,
+            classification_threshold_10d=0.02,
         )
 
         with pytest.raises(ValueError, match="already exists"):
@@ -53,7 +59,9 @@ class TestModelConfigService:
                 name="test_dup_temp",
                 model_type="xgboost",
                 classification_horizons=[3, 5],
-                classification_threshold=0.02,
+                classification_threshold_3d=0.02,
+                classification_threshold_5d=0.02,
+                classification_threshold_10d=0.02,
             )
 
     @pytest.mark.asyncio
@@ -63,7 +71,9 @@ class TestModelConfigService:
             name="test_list_temp",
             model_type="lstm",
             classification_horizons=[5, 10],
-            classification_threshold=0.03,
+            classification_threshold_3d=0.03,
+            classification_threshold_5d=0.03,
+            classification_threshold_10d=0.03,
         )
 
         configs = await config.list_configs()
@@ -76,7 +86,9 @@ class TestModelConfigService:
             name="test_update_temp",
             model_type="xgboost",
             classification_horizons=[3, 5],
-            classification_threshold=0.02,
+            classification_threshold_3d=0.02,
+            classification_threshold_5d=0.02,
+            classification_threshold_10d=0.02,
         )
 
         updated = await config.update_config(config_obj.id, classification_horizons=[5, 10])
@@ -90,7 +102,9 @@ class TestModelConfigService:
             name="test_delete_temp",
             model_type="lstm",
             classification_horizons=[3, 5],
-            classification_threshold=0.02,
+            classification_threshold_3d=0.02,
+            classification_threshold_5d=0.02,
+            classification_threshold_10d=0.02,
         )
 
         deleted = await config.delete_config(config_obj.id)
@@ -110,7 +124,9 @@ class TestModelConfigService:
             name=self.default_config_name,
             model_type="xgboost",
             classification_horizons=[3, 5],
-            classification_threshold=0.02,
+            classification_threshold_3d=0.02,
+            classification_threshold_5d=0.02,
+            classification_threshold_10d=0.02,
         )
         assert config_obj.feature_fields == DEFAULT_INDICATOR_FIELDS
         assert config_obj.standardize_fields == DEFAULT_INDICATOR_FIELDS

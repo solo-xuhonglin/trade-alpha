@@ -111,6 +111,7 @@ async def get_data_paginated(
             "ma_5": r.ma_5,
             "ma_10": r.ma_10,
             "ma_20": r.ma_20,
+            "ma_40": r.ma_40,
             "ma_60": r.ma_60,
             "macd": r.macd,
             "macd_signal": r.macd_signal,

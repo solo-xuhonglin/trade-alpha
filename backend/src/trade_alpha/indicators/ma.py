@@ -8,7 +8,7 @@ def calculate_ma(df: pd.DataFrame, periods: list[int]) -> pd.DataFrame:
 
     Args:
         df: DataFrame with 'close' column
-        periods: List of periods (e.g., [5, 10, 20, 60])
+        periods: List of periods (e.g., [5, 10, 20, 40, 60])
 
     Returns:
         DataFrame with added ma_{period} columns

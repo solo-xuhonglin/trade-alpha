@@ -288,7 +288,10 @@ MACDStrategy:
 | `model_type` | string | 模型类型 |
 | `feature_fields` | array | 特征字段列表 |
 | `classification_horizons` | array | 分类预测周期 |
-| `classification_threshold` | float | 分类阈值 |
+| `label_mode` | string | "threshold" | 标签计算模式，可选 "threshold"(涨跌幅阈值) / "trend"(均线趋势) |
+| `classification_threshold_3d` | float | 0.01 | label_3d 的涨跌阈值 |
+| `classification_threshold_5d` | float | 0.015 | label_5d 的涨跌阈值 |
+| `classification_threshold_10d` | float | 0.02 | label_10d 的涨跌阈值 |
 
 ### execution_daily_snapshots
 
@@ -401,7 +404,10 @@ MACDStrategy:
 | `standardize_fields` | array | Z-score 标准化的字段列表 (通常与feature_fields相同) |
 | `winsorize_fields` | array | 缩尾处理的字段列表 (通常为空) |
 | `classification_horizons` | array | 分类预测周期列表 |
-| `classification_threshold` | float | 涨跌分类阈值 |
+| `label_mode` | string | "threshold" | 标签计算模式，可选 "threshold"(涨跌幅阈值) / "trend"(均线趋势) |
+| `classification_threshold_3d` | float | 0.01 | label_3d 的涨跌阈值 |
+| `classification_threshold_5d` | float | 0.015 | label_5d 的涨跌阈值 |
+| `classification_threshold_10d` | float | 0.02 | label_10d 的涨跌阈值 |
 | `created_at` | datetime | 创建时间 |
 | `updated_at` | datetime | 更新时间 |
 
@@ -414,7 +420,10 @@ MACDStrategy:
   "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
   "classification_horizons": [3, 5],
-  "classification_threshold": 0.02
+  "label_mode": "threshold",
+  "classification_threshold_3d": 0.01,
+  "classification_threshold_5d": 0.015,
+  "classification_threshold_10d": 0.02
 }
 ```
 
@@ -427,7 +436,10 @@ MACDStrategy:
   "standardize_fields": ["ma_5", "ma_10", "ma_20", "ma_60", "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60"],
   "winsorize_fields": [],
   "classification_horizons": [3, 5],
-  "classification_threshold": 0.02,
+  "label_mode": "threshold",
+  "classification_threshold_3d": 0.01,
+  "classification_threshold_5d": 0.015,
+  "classification_threshold_10d": 0.02,
   "lstm_hidden_size": 64,
   "lstm_num_layers": 2,
   "lstm_dropout": 0.2,

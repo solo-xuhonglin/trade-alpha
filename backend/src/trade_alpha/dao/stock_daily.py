@@ -30,6 +30,7 @@ class StockDaily(Document):
     ma_5: Optional[float] = None
     ma_10: Optional[float] = None
     ma_20: Optional[float] = None
+    ma_40: Optional[float] = None
     ma_60: Optional[float] = None
     macd: Optional[float] = None
     macd_signal: Optional[float] = None

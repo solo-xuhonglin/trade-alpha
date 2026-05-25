@@ -8,7 +8,10 @@ export interface ModelConfig {
   standardize_fields: string[]
   winsorize_fields: string[]
   classification_horizons: number[]
-  classification_threshold: number
+  label_mode: string
+  classification_threshold_3d: number
+  classification_threshold_5d: number
+  classification_threshold_10d: number
   xgb_n_estimators: number
   xgb_max_depth: number
   xgb_learning_rate: number

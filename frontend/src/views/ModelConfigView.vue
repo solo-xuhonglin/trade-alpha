@@ -89,8 +89,23 @@
                   <v-combobox v-model="form.classification_horizons" :items="[1, 2, 3, 5, 10, 20]" label="预测周期" multiple chips small-chips></v-combobox>
                 </v-col>
                 <v-col cols="12" sm="6">
-                  <v-text-field v-model.number="form.classification_threshold" label="涨跌阈值" type="number" step="0.01"></v-text-field>
+                  <v-select v-model="form.label_mode" :items="[
+                    { title: '涨跌幅阈值', value: 'threshold' },
+                    { title: '均线趋势', value: 'trend' }
+                  ]" label="标签计算模式"
+                    hint="threshold: 基于未来涨跌幅; trend: 基于均线位置和斜率" persistent-hint></v-select>
                 </v-col>
+                <template v-if="form.label_mode === 'threshold'">
+                  <v-col cols="12" sm="4">
+                    <v-text-field v-model.number="form.classification_threshold_3d" label="3日涨跌阈值" type="number" step="0.005" hint="短周期，小阈值" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field v-model.number="form.classification_threshold_5d" label="5日涨跌阈值" type="number" step="0.005" hint="中周期" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field v-model.number="form.classification_threshold_10d" label="10日涨跌阈值" type="number" step="0.005" hint="长周期，大阈值" persistent-hint></v-text-field>
+                  </v-col>
+                </template>
               </v-row>
 
               <template v-if="form.model_type === 'xgboost'">
@@ -271,7 +286,10 @@ const defaultForm = {
   standardize_fields: [...indicatorFields],
   winsorize_fields: [...indicatorFields],
   classification_horizons: [3, 5, 10],
-  classification_threshold: 0.01,
+  label_mode: 'threshold',
+  classification_threshold_3d: 0.01,
+  classification_threshold_5d: 0.015,
+  classification_threshold_10d: 0.02,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
@@ -321,6 +339,10 @@ const xgbRecommendedParams = {
   feature_fields: [...priceIndependentFields],
   standardize_fields: [...indicatorFields],
   winsorize_fields: [...indicatorFields],
+  label_mode: 'threshold',
+  classification_threshold_3d: 0.01,
+  classification_threshold_5d: 0.015,
+  classification_threshold_10d: 0.02,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
@@ -333,6 +355,10 @@ const lstmRecommendedParams = {
   feature_fields: [...lstmRecommendedFeatureFields],
   standardize_fields: [...lstmAffectedByPriceFields],
   winsorize_fields: [...lstmAffectedByPriceFields],
+  label_mode: 'threshold',
+  classification_threshold_3d: 0.01,
+  classification_threshold_5d: 0.015,
+  classification_threshold_10d: 0.02,
   lstm_hidden_size: 64,
   lstm_num_layers: 2,
   lstm_dropout: 0.2,
@@ -377,7 +403,10 @@ const openDialog = (item?: ModelConfig) => {
       standardize_fields: [...item.standardize_fields],
       winsorize_fields: [...item.winsorize_fields],
       classification_horizons: [...item.classification_horizons],
-      classification_threshold: item.classification_threshold,
+      label_mode: (item as any).label_mode || 'threshold',
+      classification_threshold_3d: (item as any).classification_threshold_3d ?? 0.01,
+      classification_threshold_5d: (item as any).classification_threshold_5d ?? 0.015,
+      classification_threshold_10d: (item as any).classification_threshold_10d ?? 0.02,
       xgb_n_estimators: item.xgb_n_estimators,
       xgb_max_depth: item.xgb_max_depth,
       xgb_learning_rate: item.xgb_learning_rate,

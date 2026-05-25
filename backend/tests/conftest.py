@@ -55,7 +55,9 @@ async def test_model_config():
         name=default_config_name,
         model_type="xgboost",
         classification_horizons=[3, 5],
-        classification_threshold=0.02,
+        classification_threshold_3d=0.02,
+        classification_threshold_5d=0.02,
+        classification_threshold_10d=0.02,
     )
     return config
 
@@ -93,7 +95,9 @@ async def test_lstm_config():
             "rsi_6", "rsi_12"
         ],
         classification_horizons=[3, 5],
-        classification_threshold=0.02,
+        classification_threshold_3d=0.02,
+        classification_threshold_5d=0.02,
+        classification_threshold_10d=0.02,
         lstm_hidden_size=64,
         lstm_num_layers=2,
         lstm_dropout=0.2,

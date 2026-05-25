@@ -4,7 +4,14 @@ from typing import List
 
 # Classification horizons default values
 DEFAULT_CLASSIFICATION_HORIZONS: List[int] = [3, 5, 10]
-DEFAULT_CLASSIFICATION_THRESHOLD: float = 0.02
+
+# Label mode
+DEFAULT_LABEL_MODE: str = "threshold"
+
+# Per-horizon classification thresholds（短周期用小阈值，长周期用大阈值）
+DEFAULT_CLASSIFICATION_THRESHOLD_3D: float = 0.01
+DEFAULT_CLASSIFICATION_THRESHOLD_5D: float = 0.015
+DEFAULT_CLASSIFICATION_THRESHOLD_10D: float = 0.02
 
 # LSTM default hyperparameters
 DEFAULT_LSTM_HIDDEN_SIZE: int = 64
