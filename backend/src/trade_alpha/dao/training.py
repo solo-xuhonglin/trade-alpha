@@ -16,7 +16,7 @@ class TrainingResult(Document):
     start_date: str
     end_date: str
     feature_fields: List[str] = Field(default_factory=list)
-    classification_horizons: List[int] = Field(default_factory=lambda: [3, 5])
+    classification_horizons: List[int] = Field(default_factory=list)
     model_metrics: Dict[str, Any] = Field(default_factory=dict)
     normalized_data_analysis: Optional[Dict[str, Any]] = None
     model_path: Optional[str] = None

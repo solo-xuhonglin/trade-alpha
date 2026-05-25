@@ -77,7 +77,7 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text>
+      <v-card-text class="overflow-y-auto" style="max-height: 80vh;">
         <div class="mb-2">股票：{{ downloadingStock?.name }} ({{ downloadingStock?.ts_code }})</div>
         <v-row>
           <v-col cols="12" sm="6">

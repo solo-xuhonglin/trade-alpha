@@ -12,11 +12,12 @@ def test_create_sequences_basic():
         "close": list(range(10, 70)),
         "label_3d": [1] * 60,
     })
-    X, y = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
+    X, y, dates = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
     assert X.shape[0] > 0
     assert X.shape[1] == 3
     assert X.shape[2] == 1
     assert len(y) == X.shape[0]
+    assert len(dates) == X.shape[0]
 
 
 def test_create_sequences_insufficient_data():
@@ -26,13 +27,13 @@ def test_create_sequences_insufficient_data():
         "close": [10.0, 12.0],
         "label_3d": [1, 1],
     })
-    X, y = create_sequences(df, ["close"], ["label_3d"], sequence_length=5)
+    X, y, dates = create_sequences(df, ["close"], ["label_3d"], sequence_length=5)
     assert len(X) == 0
 
 
 def test_create_sequences_empty():
     df = pd.DataFrame(columns=["ts_code", "trade_date", "close"])
-    X, y = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
+    X, y, dates = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
     assert len(X) == 0
 
 
@@ -43,7 +44,7 @@ def test_create_sequences_multiple_stocks():
         "close": list(range(10, 70)) + list(range(20, 80)),
         "label_3d": [1] * 120,
     })
-    X, y = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
+    X, y, dates = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
     assert X.shape[0] == 2
 
 
@@ -55,7 +56,7 @@ def test_create_sequences_normalization():
         "close": list(range(10, 70)),
         "label_3d": [1] * 60,
     })
-    X, y = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
+    X, y, dates = create_sequences(df, ["close"], ["label_3d"], sequence_length=3)
     # Only one sequence produced (at i=59)
     assert X.shape[0] == 1
     # Full window is values[0:60] = [10..69], mean=39.5, std=sqrt(42000/60)=sqrt(700)≈26.46
@@ -85,7 +86,7 @@ def test_create_sequences_with_normalization_window():
                 "label_5d": np.random.choice([-1, 0, 1]),
             })
     df = pd.DataFrame(rows)
-    X, y = create_sequences(
+    X, y, dates = create_sequences(
         df, ["f1", "f2", "f3"], ["label_3d", "label_5d"],
         sequence_length=10, normalization_window=30,
     )
@@ -96,3 +97,4 @@ def test_create_sequences_with_normalization_window():
     assert y.shape[1] == 2
     assert not np.isnan(X).any()
     assert not np.isnan(y).any()
+    assert len(dates) == X.shape[0]

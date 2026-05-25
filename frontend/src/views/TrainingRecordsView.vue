@@ -56,139 +56,147 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="detailDialog" max-width="800px">
+  <v-dialog v-model="detailDialog" max-width="900px">
     <v-card v-if="detailItem">
       <v-card-title class="d-flex justify-space-between align-center">
         {{ detailItem.name }}
-        <v-btn icon variant="text" size="small" @click="detailDialog = false">
+        <v-btn icon variant="text" size="small" @click="closeDetailDialog">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text class="overflow-hidden" style="max-height: 450px;">
+      <v-card-text class="overflow-y-auto" style="max-height: 75vh;">
         <v-tabs v-model="detailTab" color="primary">
           <v-tab value="overview">概览</v-tab>
-          <v-tab value="accuracy">准确率</v-tab>
-          <v-tab v-if="detailItem.model_type === 'lstm'" value="loss">训练Loss</v-tab>
+          <v-tab value="metrics">评估指标</v-tab>
+          <v-tab v-if="detailItem.model_type === 'lstm'" value="loss">训练曲线</v-tab>
           <v-tab v-if="detailItem.model_type === 'xgboost'" value="features">特征重要性</v-tab>
         </v-tabs>
 
-        <v-window v-model="detailTab" class="mt-4 overflow-auto" style="max-height: 380px;">
+        <v-window v-model="detailTab" class="mt-4">
           <v-window-item value="overview">
-            <v-row>
-              <v-col cols="12" sm="4">
-                <v-card variant="outlined">
-                  <v-card-text class="text-center">
-                    <div class="text-h5">{{ detailItem.model_metrics.sample_count?.toLocaleString() }}</div>
-                    <div class="text-caption">样本数</div>
+            <v-row class="mb-4">
+              <v-col cols="12" sm="3">
+                <v-card variant="outlined" class="h-full">
+                  <v-card-text class="text-center py-4">
+                    <div class="text-h4">{{ detailItem.model_metrics.sample_count?.toLocaleString() }}</div>
+                    <div class="text-caption mt-1">样本数</div>
                   </v-card-text>
                 </v-card>
               </v-col>
               
-              <v-col v-if="detailItem.model_type === 'lstm'" cols="12" sm="4">
-                <v-card variant="outlined">
-                  <v-card-text class="text-center">
-                    <div class="text-h5">
+              <v-col v-if="detailItem.model_type === 'lstm'" cols="12" sm="3">
+                <v-card variant="outlined" class="h-full">
+                  <v-card-text class="text-center py-4">
+                    <div class="text-h4">
                       <span v-if="detailItem.model_metrics.early_stopped">
-                        早停于第 {{ detailItem.model_metrics.actual_epochs }} 轮
+                        {{ detailItem.model_metrics.actual_epochs }}
                       </span>
                       <span v-else>
-                        {{ detailItem.model_metrics.actual_epochs || 25 }} 轮
+                        {{ detailItem.model_metrics.actual_epochs || 50 }}
                       </span>
                     </div>
-                    <div class="text-caption">
-                      <span v-if="detailItem.model_metrics.early_stopped">
-                        最佳: 第 {{ detailItem.model_metrics.best_epoch }} 轮
-                      </span>
+                    <div class="text-caption mt-1">
+                      <span v-if="detailItem.model_metrics.early_stopped">早停轮数</span>
                       <span v-else>训练完成</span>
                     </div>
                   </v-card-text>
                 </v-card>
               </v-col>
               
-              <v-col v-for="target in ['label_3d', 'label_5d']" :key="target" cols="12" sm="4">
-                <v-card variant="outlined">
-                  <v-card-text class="text-center">
-                    <div class="text-h5">{{ ((detailItem.model_metrics.accuracy?.[target] || 0) * 100).toFixed(1) }}%</div>
-                    <div class="text-caption">{{ target }} 准确率</div>
+              <v-col cols="12" sm="3">
+                <v-card variant="outlined" class="h-full">
+                  <v-card-text class="text-center py-4">
+                    <div class="text-h4">{{ ((detailItem.model_metrics.best_auc || 0) * 100).toFixed(1) }}%</div>
+                    <div class="text-caption mt-1">最佳 AUC</div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12" sm="3">
+                <v-card variant="outlined" class="h-full">
+                  <v-card-text class="text-center py-4">
+                    <div class="text-h4">{{ ((detailItem.model_metrics.accuracy?.[targetLabels[0]] || 0) * 100).toFixed(1) }}%</div>
+                    <div class="text-caption mt-1">平均准确率</div>
                   </v-card-text>
                 </v-card>
               </v-col>
             </v-row>
-            <div class="mt-4">
-              <div class="text-subtitle-2 mb-2">类别分布</div>
-              <v-row>
-                <v-col v-for="target in ['label_3d', 'label_5d']" :key="target" cols="12" sm="6">
-                  <div class="text-caption text-medium-emphasis mb-1">{{ target }}</div>
-                  <div class="d-flex ga-2">
-                    <v-chip v-for="(ratio, cls) in detailItem.model_metrics.class_distribution?.[target]" :key="cls" size="small" variant="outlined">
-                      {{ cls }}: {{ ((ratio || 0) * 100).toFixed(1) }}%
-                    </v-chip>
-                  </div>
-                </v-col>
-              </v-row>
+
+            <div>
+              <div class="text-subtitle-2 mb-3">类别分布</div>
+              <div ref="classDistChartRef" style="width: 100%; height: 280px;"></div>
             </div>
           </v-window-item>
 
-          <v-window-item value="accuracy">
-            <v-table density="compact">
-              <thead>
-                <tr>
-                  <th>目标</th>
-                  <th>训练准确率</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="target in ['label_3d', 'label_5d']" :key="target">
-                  <td>{{ target }}</td>
-                  <td>{{ ((detailItem.model_metrics.accuracy?.[target] || 0) * 100).toFixed(2) }}%</td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-window-item>
-
-          <v-window-item value="loss">
-            <div v-if="detailItem.model_metrics.loss_per_epoch">
-              <div class="text-subtitle-2 mb-2">训练 Loss</div>
-              <div class="text-caption mb-3">
-                Final Loss: {{ detailItem.model_metrics.final_train_loss?.toFixed(4) }}
-                <span v-if="detailItem.model_metrics.best_auc">, Best Val AUC: {{ detailItem.model_metrics.best_auc.toFixed(4) }}</span>
-              </div>
+          <v-window-item value="metrics">
+            <div class="overflow-x-auto">
               <v-table density="compact">
                 <thead>
                   <tr>
-                    <th>Epoch</th>
-                    <th>Train Loss</th>
-                    <th>Val Loss</th>
-                    <th>Val AUC</th>
+                    <th>目标</th>
+                    <th>准确率</th>
+                    <th>AUC</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx">
-                    <td>{{ idx + 1 }}</td>
-                    <td>{{ loss.toFixed(4) }}</td>
-                    <td>{{ detailItem.model_metrics.val_loss_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
-                    <td>{{ detailItem.model_metrics.val_auc_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
+                  <tr v-for="target in targetLabels" :key="target">
+                    <td>{{ target }}</td>
+                    <td>{{ ((detailItem.model_metrics.accuracy?.[target] || 0) * 100).toFixed(2) }}%</td>
+                    <td>{{ ((detailItem.model_metrics.auc?.[target] || 0) * 100).toFixed(2) }}%</td>
                   </tr>
                 </tbody>
               </v-table>
             </div>
+          </v-window-item>
+
+          <v-window-item value="loss">
+            <div v-if="detailItem.model_metrics.loss_per_epoch">
+              <div class="text-subtitle-2 mb-2">训练曲线</div>
+              <div class="text-caption mb-4">
+                最佳轮次: 第 {{ detailItem.model_metrics.best_epoch }} 轮 | 
+                最佳 AUC: {{ detailItem.model_metrics.best_auc?.toFixed(4) }} |
+                最终 Loss: {{ detailItem.model_metrics.final_train_loss?.toFixed(4) }}
+              </div>
+              
+              <div ref="lossChartRef" style="width: 100%; height: 280px;" class="mb-4"></div>
+              
+              <div class="overflow-x-auto">
+                <v-table density="compact">
+                  <thead>
+                    <tr>
+                      <th>Epoch</th>
+                      <th>Train Loss</th>
+                      <th>Val Loss</th>
+                      <th>Val AUC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx" :class="{ 'bg-primary/10': idx + 1 === detailItem.model_metrics.best_epoch }">
+                      <td>{{ idx + 1 }}</td>
+                      <td>{{ loss.toFixed(4) }}</td>
+                      <td>{{ detailItem.model_metrics.val_loss_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
+                      <td>{{ detailItem.model_metrics.val_auc_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
+                    </tr>
+                  </tbody>
+                </v-table>
+              </div>
+            </div>
             <div v-else class="text-caption text-medium-emphasis">
-              仅 LSTM 模型记录训练 Loss
+              仅 LSTM 模型记录训练曲线
             </div>
           </v-window-item>
 
           <v-window-item value="features">
             <v-tabs v-model="featureTarget" color="primary" density="compact">
-              <v-tab v-for="target in ['label_3d', 'label_5d']" :key="target" :value="target">{{ target }}</v-tab>
+              <v-tab v-for="target in targetLabels" :key="target" :value="target">{{ target }}</v-tab>
             </v-tabs>
-            <div class="mt-3">
-              <div v-for="(imp, name) in sortedFeatureImportance" :key="name" class="d-flex align-center mb-2">
-                <div style="min-width: 120px;" class="text-caption">{{ name }}</div>
-                <v-progress-linear :model-value="imp * 100" height="20" color="primary" rounded>
-                  <template v-slot:default>
-                    <span class="text-caption">{{ (imp * 100).toFixed(2) }}%</span>
-                  </template>
-                </v-progress-linear>
+            <div class="mt-4">
+              <div v-for="(imp, name) in sortedFeatureImportance" :key="name" class="mb-3">
+                <div class="d-flex justify-between mb-1">
+                  <span class="text-caption">{{ name }}</span>
+                  <span class="text-caption text-medium-emphasis">{{ (imp * 100).toFixed(2) }}%</span>
+                </div>
+                <v-progress-linear :model-value="imp * 100" height="16" color="primary" rounded class="w-full"></v-progress-linear>
               </div>
             </div>
           </v-window-item>
@@ -205,7 +213,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, nextTick, onUnmounted } from 'vue'
+import * as echarts from 'echarts'
 import { trainingRecordApi, type Training, type TrainingDetail } from '@/api/trainingRecord'
 import { modelConfigApi } from '@/api/modelConfig'
 import AnalysisDetailDialog from '@/components/AnalysisDetailDialog.vue'
@@ -226,6 +235,11 @@ const detailTab = ref('overview')
 const featureTarget = ref('label_3d')
 const error = ref('')
 
+const classDistChartRef = ref<HTMLDivElement | null>(null)
+const lossChartRef = ref<HTMLDivElement | null>(null)
+let classDistChartInstance: echarts.ECharts | null = null
+let lossChartInstance: echarts.ECharts | null = null
+
 const getAccuracyColor = (acc: string | number) => {
   const value = typeof acc === 'string' ? parseFloat(acc) : acc
   if (value >= 0.5) return 'success'
@@ -239,6 +253,11 @@ const sortedFeatureImportance = computed(() => {
   return Object.fromEntries(
     Object.entries(fi).sort(([, a], [, b]) => (b as number) - (a as number))
   )
+})
+
+const targetLabels = computed(() => {
+  if (!detailItem.value?.model_metrics.accuracy) return ['label_3d', 'label_5d']
+  return Object.keys(detailItem.value.model_metrics.accuracy).sort()
 })
 
 const headers = [
@@ -281,13 +300,251 @@ const confirmDelete = (item: Training) => {
   deleteDialog.value = true
 }
 
+const renderClassDistChart = () => {
+  if (!classDistChartRef.value || !detailItem.value?.model_metrics.class_distribution) return
+  
+  if (classDistChartInstance) {
+    classDistChartInstance.dispose()
+  }
+  
+  classDistChartInstance = echarts.init(classDistChartRef.value)
+  
+  const labels = targetLabels.value
+  const classNames = ['-1', '0', '1']
+  const classLabels = ['下跌 (-1)', '持平 (0)', '上涨 (1)']
+  const colors = ['#ef5350', '#9e9e9e', '#26a69a']
+  
+  const xAxisData: string[] = []
+  const series: any[] = classNames.map((cls, clsIdx) => ({
+    name: classLabels[clsIdx],
+    type: 'bar',
+    data: [] as number[],
+    itemStyle: { color: colors[clsIdx] }
+  }))
+  
+  labels.forEach(label => {
+    xAxisData.push(label)
+    const dist = detailItem.value!.model_metrics.class_distribution[label]
+    if (dist) {
+      classNames.forEach((cls, clsIdx) => {
+        series[clsIdx].data.push(((dist[cls] || 0) * 100).toFixed(2) as any)
+      })
+    } else {
+      classNames.forEach((_, clsIdx) => {
+        series[clsIdx].data.push(0)
+      })
+    }
+  })
+  
+  classDistChartInstance.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        let result = `${params[0].axisValue}<br/>`
+        params.forEach((p: any) => {
+          result += `${p.marker} ${p.seriesName}: ${p.value}%<br/>`
+        })
+        return result
+      }
+    },
+    legend: {
+      data: classLabels,
+      bottom: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: xAxisData
+    },
+    yAxis: {
+      type: 'value',
+      name: '百分比 (%)',
+      max: 100,
+      axisLabel: {
+        formatter: '{value}%'
+      }
+    },
+    series: series
+  })
+  
+  window.addEventListener('resize', () => {
+    classDistChartInstance?.resize()
+  })
+}
+
+const renderLossChart = () => {
+  if (!lossChartRef.value || !detailItem.value?.model_metrics.loss_per_epoch) return
+  
+  if (lossChartInstance) {
+    lossChartInstance.dispose()
+  }
+  
+  lossChartInstance = echarts.init(lossChartRef.value)
+  
+  const trainLoss = detailItem.value.model_metrics.loss_per_epoch
+  const valLoss = detailItem.value.model_metrics.val_loss_per_epoch || []
+  const valAuc = detailItem.value.model_metrics.val_auc_per_epoch || []
+  const bestEpoch = detailItem.value.model_metrics.best_epoch || 0
+  
+  const xAxisData = trainLoss.map((_, i) => `Epoch ${i + 1}`)
+  
+  const series: any[] = [
+    {
+      name: 'Train Loss',
+      type: 'line',
+      data: trainLoss,
+      smooth: true,
+      lineStyle: { width: 2, color: '#1976d2' },
+      yAxisIndex: 0
+    }
+  ]
+  
+  if (valLoss.length > 0) {
+    series.push({
+      name: 'Val Loss',
+      type: 'line',
+      data: valLoss,
+      smooth: true,
+      lineStyle: { width: 2, color: '#4caf50', type: 'dashed' },
+      yAxisIndex: 0
+    })
+  }
+  
+  if (valAuc.length > 0) {
+    series.push({
+      name: 'Val AUC',
+      type: 'line',
+      data: valAuc,
+      smooth: true,
+      lineStyle: { width: 2, color: '#ff9800' },
+      yAxisIndex: 1
+    })
+  }
+  
+  lossChartInstance.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        crossStyle: {
+          color: '#999'
+        }
+      }
+    },
+    legend: {
+      data: series.map(s => s.name),
+      top: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: xAxisData,
+      axisLabel: {
+        rotate: 45,
+        fontSize: 10
+      },
+      axisTick: {
+        alignWithLabel: true
+      }
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: 'Loss',
+        min: 'dataMin',
+        max: 'dataMax',
+        axisLabel: {
+          formatter: '{value:.4f}'
+        }
+      },
+      {
+        type: 'value',
+        name: 'AUC',
+        min: 0,
+        max: 1,
+        axisLabel: {
+          formatter: '{value:.4f}'
+        }
+      }
+    ],
+    series: series,
+    markLine: bestEpoch > 0 ? {
+      silent: false,
+      symbol: 'none',
+      lineStyle: {
+        color: '#f44336',
+        type: 'dashed',
+        width: 2
+      },
+      data: [
+        {
+          xAxis: bestEpoch - 1,
+          label: {
+            show: true,
+            position: 'end',
+            formatter: `最佳 Epoch ${bestEpoch}`,
+            color: '#f44336'
+          }
+        }
+      ]
+    } : undefined
+  })
+  
+  window.addEventListener('resize', () => {
+    lossChartInstance?.resize()
+  })
+}
+
+const closeDetailDialog = () => {
+  if (classDistChartInstance) {
+    classDistChartInstance.dispose()
+    classDistChartInstance = null
+  }
+  if (lossChartInstance) {
+    lossChartInstance.dispose()
+    lossChartInstance = null
+  }
+  detailDialog.value = false
+}
+
 const openDetailDialog = async (item: Training) => {
   const res = await trainingRecordApi.get(item.id)
   detailItem.value = res.data
-  featureTarget.value = 'label_3d'
+  featureTarget.value = targetLabels.value[0] || 'label_3d'
   detailTab.value = 'overview'
   detailDialog.value = true
+  
+  await nextTick()
+  
+  setTimeout(() => {
+    renderClassDistChart()
+  }, 100)
 }
+
+watch(detailTab, async (newTab) => {
+  await nextTick()
+  
+  setTimeout(() => {
+    if (newTab === 'overview') {
+      renderClassDistChart()
+    } else if (newTab === 'loss') {
+      renderLossChart()
+    }
+  }, 100)
+})
 
 const openAnalysisDialog = async (item: Training) => {
   const res = await trainingRecordApi.get(item.id)
@@ -312,4 +569,19 @@ onMounted(async () => {
   await loadConfigs()
   await loadTrainings()
 })
+
+onUnmounted(() => {
+  if (classDistChartInstance) {
+    classDistChartInstance.dispose()
+  }
+  if (lossChartInstance) {
+    lossChartInstance.dispose()
+  }
+})
 </script>
+
+<style scoped>
+.h-full {
+  height: 100%;
+}
+</style>

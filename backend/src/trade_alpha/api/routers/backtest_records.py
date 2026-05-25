@@ -197,14 +197,14 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     for snap in snapshots:
         pred = snap.predictions.get(ts_code)
         if pred is not None:
-            items.append({
-                "trade_date": snap.date,  # trade_date 保持数据库格式 YYYYMMDD，不转换
+            item = {
+                "trade_date": snap.date,
                 "score": pred.get("score"),
-                "up_prob_3d": pred.get("up_prob_3d"),
-                "up_prob_5d": pred.get("up_prob_5d"),
-                "down_prob_3d": pred.get("down_prob_3d"),
-                "down_prob_5d": pred.get("down_prob_5d"),
-            })
+            }
+            for h in horizons:
+                item[f"up_prob_{h}d"] = pred.get(f"up_prob_{h}d")
+                item[f"down_prob_{h}d"] = pred.get(f"down_prob_{h}d")
+            items.append(item)
             dates.append(snap.date)
 
     if items and dates:
@@ -239,8 +239,9 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     return {
         "ts_code": ts_code,
         "stock_name": stock_name,
-        "start_date": items[0]["trade_date"] if items else None,  # 保持 YYYYMMDD 格式
-        "end_date": items[-1]["trade_date"] if items else None,  # 保持 YYYYMMDD 格式
+        "horizons": horizons,
+        "start_date": items[0]["trade_date"] if items else None,
+        "end_date": items[-1]["trade_date"] if items else None,
         "items": items,
     }
 

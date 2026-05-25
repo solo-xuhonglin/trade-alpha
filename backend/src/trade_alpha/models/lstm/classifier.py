@@ -44,6 +44,12 @@ class LSTMClassifier(BaseClassifier):
 
     async def train(self, ts_codes, start_date, end_date, task_id=None):
         """Self-contained training: load data, create sequences, normalize, train LSTM."""
+        
+        # 设置随机种子保证结果可复现
+        torch.manual_seed(42)
+        np.random.seed(42)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(42)
 
         await TaskService.update_progress(task_id, 20, "正在加载数据...")
 
@@ -73,7 +79,8 @@ class LSTMClassifier(BaseClassifier):
             raise ValueError("No available data")
 
         combined_df = pd.concat(all_dfs, ignore_index=True)
-        X_3d, y_2d = create_sequences(
+        combined_df = combined_df.sort_values('trade_date')
+        X_3d, y_2d, dates = create_sequences(
             combined_df, config.feature_fields, target_names,
             sequence_length=seq_len,
             normalization_window=normalization_window,
@@ -92,13 +99,17 @@ class LSTMClassifier(BaseClassifier):
         X_3d = np.nan_to_num(np.array(X_3d, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
         y_2d = np.array(y_2d, dtype=np.float64)
         valid_mask = ~np.isnan(y_2d).any(axis=1)
-        X_3d, y_2d = X_3d[valid_mask], y_2d[valid_mask]
+        X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
 
-        # 划分训练集和验证集 (80% / 20%) - 时间序列划分
-        num_samples = len(X_3d)
-        train_size = int(num_samples * 0.8)
-        train_indices = np.arange(train_size)
-        val_indices = np.arange(train_size, num_samples)
+        # 按时间划分训练集和验证集 (80% / 20%)
+        unique_dates = np.unique(dates)
+        unique_dates_sorted = np.sort(unique_dates)
+        num_unique_dates = len(unique_dates_sorted)
+        val_size = int(num_unique_dates * 0.2)
+        train_dates = unique_dates_sorted[:-val_size] if val_size > 0 else unique_dates_sorted
+        val_dates = unique_dates_sorted[-val_size:] if val_size > 0 else []
+        train_mask = np.isin(dates, train_dates)
+        val_mask = np.isin(dates, val_dates)
 
         await TaskService.update_progress(task_id, 60, "正在训练模型...")
 
@@ -119,9 +130,9 @@ class LSTMClassifier(BaseClassifier):
             y_mapped = np.array([reverse_map[v] for v in y_i])
 
             # 划分数据
-            X_train, X_val = X_3d[train_indices], X_3d[val_indices]
-            y_train, y_val = y_mapped[train_indices], y_mapped[val_indices]
-            y_val_original = y_2d[val_indices, target_idx].astype(int)
+            X_train, X_val = X_3d[train_mask], X_3d[val_mask]
+            y_train, y_val = y_mapped[train_mask], y_mapped[val_mask]
+            y_val_original = y_2d[val_mask, target_idx].astype(int)
 
             model = LSTMModel(self.input_size, config.lstm_hidden_size, config.lstm_num_layers,
                               len(label_map), config.lstm_dropout).to(device)
@@ -133,6 +144,12 @@ class LSTMClassifier(BaseClassifier):
                 model.parameters(), 
                 lr=config.lstm_learning_rate,
                 weight_decay=1e-4  # L2 正则化
+            )
+            
+            # 添加学习率调度器（当验证AUC不再提升时自动降低学习率）
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode='max', factor=0.5, patience=3,
+                threshold=1e-4
             )
 
             X_train_tensor = torch.FloatTensor(X_train).to(device)
@@ -187,6 +204,9 @@ class LSTMClassifier(BaseClassifier):
                         # 可能的情况：某个类别没有样本
                         val_auc = 0.5
                     val_epoch_aucs.append(val_auc)
+
+                    # 更新学习率调度器
+                    scheduler.step(val_auc)
 
                 # 早停检查（使用 AUC，AUC 越大越好）
                 if val_auc > best_val_auc:
@@ -305,6 +325,7 @@ class LSTMClassifier(BaseClassifier):
         for target, model_state in state["models"].items():
             model = LSTMModel(self.input_size, self.config.lstm_hidden_size,
                               self.config.lstm_num_layers,
-                              len(self._label_mapping[target]))
+                              len(self._label_mapping[target]),
+                              self.config.lstm_dropout)
             model.load_state_dict(model_state)
             self.models[target] = model

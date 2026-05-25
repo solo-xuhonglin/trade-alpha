@@ -17,6 +17,26 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import Field
 from beanie import Document
+from trade_alpha.constants import (
+    DEFAULT_CLASSIFICATION_HORIZONS,
+    DEFAULT_CLASSIFICATION_THRESHOLD,
+    DEFAULT_XGB_N_ESTIMATORS,
+    DEFAULT_XGB_MAX_DEPTH,
+    DEFAULT_XGB_LEARNING_RATE,
+    DEFAULT_XGB_MIN_CHILD_WEIGHT,
+    DEFAULT_XGB_SUBSAMPLE,
+    DEFAULT_XGB_COLSAMPLE_BYTREE,
+    DEFAULT_LSTM_HIDDEN_SIZE,
+    DEFAULT_LSTM_NUM_LAYERS,
+    DEFAULT_LSTM_DROPOUT,
+    DEFAULT_LSTM_EPOCHS,
+    DEFAULT_LSTM_BATCH_SIZE,
+    DEFAULT_LSTM_LEARNING_RATE,
+    DEFAULT_LSTM_SEQUENCE_LENGTH,
+    DEFAULT_LSTM_NORMALIZATION_WINDOW,
+    DEFAULT_LABEL_SMOOTHING,
+    DEFAULT_EARLY_STOPPING_PATIENCE,
+)
 
 
 class ModelConfig(Document):
@@ -53,26 +73,26 @@ class ModelConfig(Document):
     feature_fields: List[str] = Field(default_factory=list)
     standardize_fields: List[str] = Field(default_factory=list)
     winsorize_fields: List[str] = Field(default_factory=list)
-    classification_horizons: List[int] = Field(default_factory=lambda: [3, 5])
-    classification_threshold: float = 0.02
+    classification_horizons: List[int] = Field(default_factory=lambda: DEFAULT_CLASSIFICATION_HORIZONS.copy())
+    classification_threshold: float = DEFAULT_CLASSIFICATION_THRESHOLD
     # xgboost 超参数（仅 model_type="xgboost" 时使用）
-    xgb_n_estimators: int = 100
-    xgb_max_depth: int = 6
-    xgb_learning_rate: float = 0.1
-    xgb_min_child_weight: int = 1
-    xgb_subsample: float = 1.0
-    xgb_colsample_bytree: float = 1.0
+    xgb_n_estimators: int = DEFAULT_XGB_N_ESTIMATORS
+    xgb_max_depth: int = DEFAULT_XGB_MAX_DEPTH
+    xgb_learning_rate: float = DEFAULT_XGB_LEARNING_RATE
+    xgb_min_child_weight: int = DEFAULT_XGB_MIN_CHILD_WEIGHT
+    xgb_subsample: float = DEFAULT_XGB_SUBSAMPLE
+    xgb_colsample_bytree: float = DEFAULT_XGB_COLSAMPLE_BYTREE
     # lstm 超参数（仅 model_type="lstm" 时使用）
-    lstm_hidden_size: int = 64
-    lstm_num_layers: int = 2
-    lstm_dropout: float = 0.2  # 从 0.1 调整为 0.2
-    lstm_epochs: int = 50
-    lstm_batch_size: int = 32
-    lstm_learning_rate: float = 0.001
-    lstm_sequence_length: int = 60  # 序列长度（用于模型输入和滑动窗口标准化）
-    lstm_normalization_window: int = 300  # 标准化统计量计算窗口
-    label_smoothing: float = 0.1  # 标签平滑系数
-    early_stopping_patience: int = 5  # 早停耐心值
+    lstm_hidden_size: int = DEFAULT_LSTM_HIDDEN_SIZE
+    lstm_num_layers: int = DEFAULT_LSTM_NUM_LAYERS
+    lstm_dropout: float = DEFAULT_LSTM_DROPOUT
+    lstm_epochs: int = DEFAULT_LSTM_EPOCHS
+    lstm_batch_size: int = DEFAULT_LSTM_BATCH_SIZE
+    lstm_learning_rate: float = DEFAULT_LSTM_LEARNING_RATE
+    lstm_sequence_length: int = DEFAULT_LSTM_SEQUENCE_LENGTH
+    lstm_normalization_window: int = DEFAULT_LSTM_NORMALIZATION_WINDOW
+    label_smoothing: float = DEFAULT_LABEL_SMOOTHING
+    early_stopping_patience: int = DEFAULT_EARLY_STOPPING_PATIENCE
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

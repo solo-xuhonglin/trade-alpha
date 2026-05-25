@@ -21,6 +21,7 @@ class ExecutionTrade(Document):
     entry_score: Optional[float] = None
     up_prob_3d: Optional[float] = None
     up_prob_5d: Optional[float] = None
+    up_prob_10d: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.now)
     mode: str = Field(default="backtest")
     status: str = Field(default="filled")  # "filled" or "cancelled"

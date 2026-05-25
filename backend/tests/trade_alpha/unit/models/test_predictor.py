@@ -36,13 +36,21 @@ class FakeConfig:
 
 
 def test_compute_scores():
+    import math
     probs = {"label_3d": [0.1, 0.2, 0.7], "label_5d": [0.2, 0.3, 0.5]}
     result = compute_scores(probs, 15.0)
     assert abs(result["up_prob_3d"] - 0.7) < 1e-6
     assert abs(result["up_prob_5d"] - 0.5) < 1e-6
     assert abs(result["down_prob_3d"] - 0.1) < 1e-6
     assert abs(result["down_prob_5d"] - 0.2) < 1e-6
-    expected_score = (0.7 - 0.1) * 0.4 + (0.5 - 0.2) * 0.6
+    
+    # 平方根权重
+    horizons = [3, 5]
+    total_sqrt = sum(math.sqrt(h) for h in horizons)
+    weight_3 = math.sqrt(3) / total_sqrt
+    weight_5 = math.sqrt(5) / total_sqrt
+    
+    expected_score = (0.7 - 0.1) * weight_3 + (0.5 - 0.2) * weight_5
     assert abs(result["score"] - expected_score) < 1e-6
     assert result["close"] == 15.0
 

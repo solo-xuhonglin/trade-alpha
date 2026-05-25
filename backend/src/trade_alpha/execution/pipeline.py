@@ -297,7 +297,7 @@ class ExecutionPipeline:
                 if probs is None:
                     continue
                 close_price = close_prices.get(ts_code, 0)
-                pred_results[ts_code] = compute_scores(probs, close_price)
+                pred_results[ts_code] = compute_scores(probs, close_price, self._config.classification_horizons)
             if not pred_results:
                 logger.debug(f"No predictions for {date}, skipping")
                 date = _next_date(date)
@@ -450,8 +450,9 @@ class ExecutionPipeline:
                 ts_code=ts_code,
                 stock_name=universe.get(ts_code, ""),
                 close=r["close"],
-                up_prob_3d=r["up_prob_3d"],
-                up_prob_5d=r["up_prob_5d"],
+                up_prob_3d=r.get("up_prob_3d", 0),
+                up_prob_5d=r.get("up_prob_5d", 0),
+                up_prob_10d=r.get("up_prob_10d", 0),
                 score=r["score"],
             )
             for ts_code, r in pred_results.items()

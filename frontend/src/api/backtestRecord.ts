@@ -63,19 +63,14 @@ export interface PredictionStock {
 export interface PredictionItem {
   trade_date: string
   score: number
-  up_prob_3d: number
-  up_prob_5d: number
-  down_prob_3d?: number
-  down_prob_5d?: number
-  actual_return_3d?: number
-  actual_return_5d?: number
-  actual_label_3d?: number
-  actual_label_5d?: number
+  // 动态字段，根据 horizons 动态生成
+  [key: string]: any
 }
 
 export interface PredictionResponse {
   ts_code: string
   stock_name: string
+  horizons: number[]
   start_date: string
   end_date: string
   items: PredictionItem[]

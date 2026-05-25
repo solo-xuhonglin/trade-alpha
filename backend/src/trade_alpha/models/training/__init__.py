@@ -15,9 +15,6 @@ from .trainer import (
     list_trainings,
     delete_training,
     delete_training_by_name,
-    predict_with_training,
-    get_prediction_by_id,
-    delete_prediction,
 )
 
 __all__ = [
@@ -33,7 +30,4 @@ __all__ = [
     "list_trainings",
     "delete_training",
     "delete_training_by_name",
-    "predict_with_training",
-    "get_prediction_by_id",
-    "delete_prediction",
 ]

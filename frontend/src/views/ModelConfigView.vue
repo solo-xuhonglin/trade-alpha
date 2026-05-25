@@ -39,7 +39,7 @@
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="dialog" max-width="800px">
+  <v-dialog v-model="dialog" max-width="900px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
         {{ editingId ? '编辑配置' : '新建配置' }}
@@ -47,7 +47,7 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text>
+      <v-card-text class="overflow-y-auto" style="max-height: 70vh;">
         <v-row>
           <v-col cols="12" sm="6">
             <v-select v-model="form.model_type" :items="['xgboost', 'lstm']" label="模型类型"></v-select>
@@ -57,88 +57,103 @@
           </v-col>
         </v-row>
 
-        <v-divider class="my-3"></v-divider>
-        <div class="text-subtitle-2 text-medium-emphasis mb-2">特征与数据处理</div>
-        <v-row>
-          <v-col cols="12">
-            <v-autocomplete v-model="form.feature_fields" :items="allFeatureFields" label="特征字段" multiple chips closable-chips dense></v-autocomplete>
-          </v-col>
-        </v-row>
-        <v-row>
-          <v-col cols="12" sm="6">
-            <v-autocomplete v-model="form.standardize_fields" :items="allFeatureFields" label="标准化字段" multiple chips closable-chips dense></v-autocomplete>
-          </v-col>
-          <v-col cols="12" sm="6">
-            <v-autocomplete v-model="form.winsorize_fields" :items="allFeatureFields" label="缩尾字段" multiple chips closable-chips dense></v-autocomplete>
-          </v-col>
-        </v-row>
+        <v-tabs v-model="activeTab" color="primary">
+          <v-tab value="fields">字段配置</v-tab>
+          <v-tab value="params">参数配置</v-tab>
+        </v-tabs>
 
-        <v-divider class="my-3"></v-divider>
-        <div class="text-subtitle-2 text-medium-emphasis mb-2">训练标签参数</div>
-        <v-row>
-          <v-col cols="12" sm="6">
-            <v-combobox v-model="form.classification_horizons" :items="[1, 2, 3, 5, 10, 20]" label="预测周期" multiple chips small-chips></v-combobox>
-          </v-col>
-          <v-col cols="12" sm="6">
-            <v-text-field v-model.number="form.classification_threshold" label="涨跌阈值" type="number" step="0.01"></v-text-field>
-          </v-col>
-        </v-row>
+        <v-window v-model="activeTab" class="mt-4">
+          <v-window-item value="fields">
+            <div>
+              <v-row>
+                <v-col cols="12">
+                  <v-autocomplete v-model="form.feature_fields" :items="allFeatureFields" label="特征字段" multiple chips closable-chips dense></v-autocomplete>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" sm="6">
+                  <v-autocomplete v-model="form.standardize_fields" :items="allFeatureFields" label="标准化字段" multiple chips closable-chips dense></v-autocomplete>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-autocomplete v-model="form.winsorize_fields" :items="allFeatureFields" label="缩尾字段" multiple chips closable-chips dense></v-autocomplete>
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
+          <v-window-item value="params">
+            <div>
+              <v-divider class="mb-4"></v-divider>
+              <div class="text-subtitle-2 text-medium-emphasis mb-2">训练标签参数</div>
+              <v-row>
+                <v-col cols="12" sm="6">
+                  <v-combobox v-model="form.classification_horizons" :items="[1, 2, 3, 5, 10, 20]" label="预测周期" multiple chips small-chips></v-combobox>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-text-field v-model.number="form.classification_threshold" label="涨跌阈值" type="number" step="0.01"></v-text-field>
+                </v-col>
+              </v-row>
 
-        <template v-if="form.model_type === 'xgboost'">
-          <v-divider class="my-3"></v-divider>
-          <div class="text-subtitle-2 text-medium-emphasis mb-2">XGBoost 超参数</div>
-          <v-row>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.xgb_n_estimators" label="n_estimators" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.xgb_max_depth" label="max_depth" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.xgb_learning_rate" label="learning_rate" type="number" step="0.01"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.xgb_min_child_weight" label="min_child_weight" type="number" step="0.1"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.xgb_subsample" label="subsample" type="number" step="0.1"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.xgb_colsample_bytree" label="colsample_bytree" type="number" step="0.1"></v-text-field>
-            </v-col>
-          </v-row>
-        </template>
+              <template v-if="form.model_type === 'xgboost'">
+                <v-divider class="my-4"></v-divider>
+                <div class="text-subtitle-2 text-medium-emphasis mb-2">XGBoost 超参数</div>
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.xgb_n_estimators" label="n_estimators" type="number" hint="树的数量，值越大越准确但越慢" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.xgb_max_depth" label="max_depth" type="number" hint="树的最大深度，控制复杂度" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.xgb_min_child_weight" label="min_child_weight" type="number" step="0.1" hint="叶子节点最小权重和" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.xgb_learning_rate" label="learning_rate" type="number" step="0.01" hint="每棵树的贡献权重" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.xgb_subsample" label="subsample" type="number" step="0.1" hint="训练样本采样比例" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.xgb_colsample_bytree" label="colsample_bytree" type="number" step="0.1" hint="特征采样比例" persistent-hint></v-text-field>
+                  </v-col>
+                </v-row>
+              </template>
 
-        <template v-if="form.model_type === 'lstm'">
-          <v-divider class="my-3"></v-divider>
-          <div class="text-subtitle-2 text-medium-emphasis mb-2">LSTM 超参数</div>
-          <v-row>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_hidden_size" label="hidden_size" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_num_layers" label="num_layers" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_dropout" label="dropout" type="number" step="0.1"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_epochs" label="epochs" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length（序列长度）" type="number"></v-text-field>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <v-text-field v-model.number="form.lstm_normalization_window" label="normalization_window（标准化窗口）" type="number"></v-text-field>
-            </v-col>
-          </v-row>
-        </template>
+              <template v-if="form.model_type === 'lstm'">
+                <v-divider class="my-4"></v-divider>
+                <div class="text-subtitle-2 text-medium-emphasis mb-2">LSTM 超参数</div>
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_hidden_size" label="hidden_size" type="number" hint="隐藏层维度，控制模型容量" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_num_layers" label="num_layers" type="number" hint="LSTM 层数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_dropout" label="dropout" type="number" step="0.1" hint="Dropout 比例，防止过拟合" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length" type="number" hint="输入序列长度（天数）" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_normalization_window" label="normalization_window" type="number" hint="标准化统计窗口（天数）" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_epochs" label="epochs" type="number" hint="最大训练轮数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number" hint="每批训练样本数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001" hint="学习率" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.early_stopping_patience" label="early_stopping_patience" type="number" hint="验证 AUC 不提升时停止的轮数" persistent-hint></v-text-field>
+                  </v-col>
+                </v-row>
+              </template>
+            </div>
+          </v-window-item>
+        </v-window>
       </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
@@ -174,6 +189,7 @@ import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 
 const loading = ref(false)
 const dialog = ref(false)
+const activeTab = ref('fields')
 const deleteDialog = ref(false)
 const models = ref<ModelConfig[]>([])
 const editingId = ref<string | null>(null)
@@ -202,10 +218,8 @@ const indicatorFields = [
   'obv',
 ]
 
-// 所有可选字段（日线基础 + 技术指标）
 const allFeatureFields = [...dailyBasicFields, ...indicatorFields]
 
-// 与价格绝对值无关的字段（特征字段默认只选这些）
 const priceIndependentFields = [
   'pct_chg',
   'bias_5', 'bias_10', 'bias_20', 'bias_60',
@@ -221,7 +235,6 @@ const priceIndependentFields = [
   'obv',
 ]
 
-// LSTM 推荐特征字段（时序模型更适合精简核心特征）
 const lstmRecommendedFeatureFields = [
   'macd', 'macd_signal', 'macd_hist',
   'rsi_6', 'rsi_12',
@@ -233,13 +246,19 @@ const lstmRecommendedFeatureFields = [
   'trend_volume_5', 'trend_volume_10',
 ]
 
+const lstmAffectedByPriceFields = [
+  'ma_5', 'ma_10', 'ma_20', 'ma_60',
+  'macd', 'macd_signal', 'macd_hist',
+  'boll_upper', 'boll_middle', 'boll_lower',
+]
+
 const defaultForm = {
   name: 'xgboost_config',
   model_type: 'xgboost',
   feature_fields: [...priceIndependentFields],
   standardize_fields: [...indicatorFields],
   winsorize_fields: [...indicatorFields],
-  classification_horizons: [3, 5],
+  classification_horizons: [3, 5, 10],
   classification_threshold: 0.01,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
@@ -250,11 +269,12 @@ const defaultForm = {
   lstm_hidden_size: 64,
   lstm_num_layers: 2,
   lstm_dropout: 0.2,
-  lstm_epochs: 25,
+  lstm_epochs: 50,
   lstm_batch_size: 256,
   lstm_learning_rate: 0.001,
   lstm_sequence_length: 60,
   lstm_normalization_window: 300,
+  early_stopping_patience: 10,
 }
 
 const form = ref({ ...defaultForm })
@@ -281,7 +301,6 @@ const generateDefaultName = (modelType: string) => {
   return `${modelType}_config_${timestamp}`
 }
 
-// XGBoost 推荐参数
 const xgbRecommendedParams = {
   feature_fields: [...priceIndependentFields],
   standardize_fields: [...indicatorFields],
@@ -294,24 +313,23 @@ const xgbRecommendedParams = {
   xgb_colsample_bytree: 1.0,
 }
 
-// LSTM 推荐参数（使用精简的时序特征）
 const lstmRecommendedParams = {
   feature_fields: [...lstmRecommendedFeatureFields],
-  standardize_fields: [...indicatorFields],
-  winsorize_fields: [...indicatorFields],
+  standardize_fields: [...lstmAffectedByPriceFields],
+  winsorize_fields: [...lstmAffectedByPriceFields],
   lstm_hidden_size: 64,
   lstm_num_layers: 2,
   lstm_dropout: 0.2,
-  lstm_epochs: 25,
+  lstm_epochs: 50,
   lstm_batch_size: 256,
   lstm_learning_rate: 0.001,
   lstm_sequence_length: 60,
   lstm_normalization_window: 300,
+  early_stopping_patience: 10,
 }
 
-// 监听模型类型变化，新建时自动更新推荐参数
 watch(() => form.value.model_type, (newType) => {
-  if (!editingId.value) { // 只有新建时才自动更新
+  if (!editingId.value) {
     form.value.name = generateDefaultName(newType)
     if (newType === 'xgboost') {
       Object.assign(form.value, xgbRecommendedParams)
@@ -329,6 +347,7 @@ const loadModels = async () => {
 }
 
 const openDialog = (item?: ModelConfig) => {
+  activeTab.value = 'fields'
   if (item) {
     editingId.value = item.id
     form.value = {
@@ -348,20 +367,21 @@ const openDialog = (item?: ModelConfig) => {
       lstm_hidden_size: (item as any).lstm_hidden_size || 64,
       lstm_num_layers: (item as any).lstm_num_layers || 2,
       lstm_dropout: (item as any).lstm_dropout || 0.1,
-      lstm_epochs: (item as any).lstm_epochs || 25,
+      lstm_epochs: (item as any).lstm_epochs || 50,
       lstm_batch_size: (item as any).lstm_batch_size || 256,
       lstm_learning_rate: (item as any).lstm_learning_rate || 0.001,
       lstm_sequence_length: (item as any).lstm_sequence_length || 60,
       lstm_normalization_window: (item as any).lstm_normalization_window || 300,
+      early_stopping_patience: (item as any).early_stopping_patience || 10,
     }
   } else {
     editingId.value = null
-    form.value = { 
-      ...defaultForm, 
+    form.value = {
+      ...defaultForm,
       name: generateDefaultName(defaultForm.model_type),
-      feature_fields: [...defaultForm.feature_fields], 
-      standardize_fields: [...defaultForm.standardize_fields], 
-      winsorize_fields: [...defaultForm.winsorize_fields] 
+      feature_fields: [...defaultForm.feature_fields],
+      standardize_fields: [...defaultForm.standardize_fields],
+      winsorize_fields: [...defaultForm.winsorize_fields]
     }
   }
   dialog.value = true

@@ -12,6 +12,7 @@ class ScoredStock:
     close: float
     up_prob_3d: float
     up_prob_5d: float
+    up_prob_10d: float
     score: float
 
 
@@ -25,5 +26,6 @@ class PendingOrder:
     score: float
     up_prob_3d: float
     up_prob_5d: float
+    up_prob_10d: float
     trade_date: str
     settle_date: str

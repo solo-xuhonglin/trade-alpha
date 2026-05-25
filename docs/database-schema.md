@@ -431,12 +431,12 @@ MACDStrategy:
   "lstm_hidden_size": 64,
   "lstm_num_layers": 2,
   "lstm_dropout": 0.2,
-  "lstm_epochs": 25,
+  "lstm_epochs": 50,
   "lstm_batch_size": 256,
   "lstm_learning_rate": 0.001,
   "lstm_sequence_length": 60,
   "label_smoothing": 0.1,
-  "early_stopping_patience": 5
+  "early_stopping_patience": 10
 }
 ```
 

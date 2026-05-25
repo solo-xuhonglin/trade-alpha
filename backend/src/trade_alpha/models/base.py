@@ -1,5 +1,6 @@
 """Base classifier interface."""
 
+import math
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
@@ -37,14 +38,30 @@ class BasePredictor(ABC):
         pass
 
 
-def compute_scores(probs: Dict, close: float) -> Dict:
-    up_3d = probs.get("label_3d", [0, 0, 0])[2]
-    up_5d = probs.get("label_5d", [0, 0, 0])[2]
-    down_3d = probs.get("label_3d", [0, 0, 0])[0]
-    down_5d = probs.get("label_5d", [0, 0, 0])[0]
-    score = (up_3d - down_3d) * 0.4 + (up_5d - down_5d) * 0.6
-    return {
-        "up_prob_3d": up_3d, "up_prob_5d": up_5d,
-        "down_prob_3d": down_3d, "down_prob_5d": down_5d,
-        "score": score, "close": close,
-    }
+def compute_scores(probs: Dict, close: float, horizons: list[int] = None) -> Dict:
+    if horizons is None:
+        horizons = [3, 5]
+    
+    result = {"close": close}
+    total_score = 0.0
+    
+    # 平方根权重：长期权重更大，更稳定
+    # weight_h = sqrt(h) / sum(sqrt(horizons))
+    total_sqrt = sum(math.sqrt(h) for h in horizons)
+    
+    for h in horizons:
+        key = f"label_{h}d"
+        prob = probs.get(key, [0, 0, 0])
+        up = prob[2] if len(prob) > 2 else 0.0
+        down = prob[0] if len(prob) > 0 else 0.0
+        net = up - down
+        
+        result[f"up_prob_{h}d"] = up
+        result[f"down_prob_{h}d"] = down
+        
+        # 平方根权重
+        weight = math.sqrt(h) / total_sqrt
+        total_score += net * weight
+    
+    result["score"] = total_score
+    return result

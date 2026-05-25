@@ -1,8 +1,8 @@
 """Model configuration service.
 
 Default value filling rules:
-1. classification_horizons: defaults to [3, 5]
-2. target_names: generated from classification_horizons, e.g. ["label_3d", "label_5d"]
+1. classification_horizons: defaults to [3, 5, 10]
+2. target_names: generated from classification_horizons, e.g. ["label_3d", "label_5d", "label_10d"]
 3. feature_fields: defaults to DEFAULT_INDICATOR_FIELDS
 4. standardize_fields: defaults to feature_fields
 5. winsorize_fields: defaults to empty list
@@ -14,6 +14,26 @@ from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import ModelConfig, TrainingResult
 from trade_alpha.logging import get_logger
+from trade_alpha.constants import (
+    DEFAULT_CLASSIFICATION_HORIZONS,
+    DEFAULT_CLASSIFICATION_THRESHOLD,
+    DEFAULT_XGB_N_ESTIMATORS,
+    DEFAULT_XGB_MAX_DEPTH,
+    DEFAULT_XGB_LEARNING_RATE,
+    DEFAULT_XGB_MIN_CHILD_WEIGHT,
+    DEFAULT_XGB_SUBSAMPLE,
+    DEFAULT_XGB_COLSAMPLE_BYTREE,
+    DEFAULT_LSTM_HIDDEN_SIZE,
+    DEFAULT_LSTM_NUM_LAYERS,
+    DEFAULT_LSTM_DROPOUT,
+    DEFAULT_LSTM_EPOCHS,
+    DEFAULT_LSTM_BATCH_SIZE,
+    DEFAULT_LSTM_LEARNING_RATE,
+    DEFAULT_LSTM_SEQUENCE_LENGTH,
+    DEFAULT_LSTM_NORMALIZATION_WINDOW,
+    DEFAULT_LABEL_SMOOTHING,
+    DEFAULT_EARLY_STOPPING_PATIENCE,
+)
 
 logger = get_logger("config_service")
 
@@ -68,7 +88,7 @@ async def create_config(
         feature_fields: feature field list for model input, defaults to all indicators
         standardize_fields: fields for Z-score normalization, defaults to feature_fields
         winsorize_fields: fields for winsorization, defaults to empty
-        classification_horizons: classification horizon list, defaults to [3, 5]
+        classification_horizons: classification horizon list, defaults to DEFAULT_CLASSIFICATION_HORIZONS
         classification_threshold: classification threshold for up/down, defaults to 0.02
         xgb_n_estimators: XGBoost number of trees, defaults to 100
         xgb_max_depth: XGBoost max tree depth, defaults to 6
@@ -95,7 +115,7 @@ async def create_config(
     if existing:
         raise ValueError(f"Config already exists: {name}")
 
-    classification_horizons = classification_horizons or [3, 5]
+    classification_horizons = classification_horizons or DEFAULT_CLASSIFICATION_HORIZONS.copy()
 
     feature_fields = feature_fields or DEFAULT_INDICATOR_FIELDS.copy()
     standardize_fields = standardize_fields or feature_fields.copy()
