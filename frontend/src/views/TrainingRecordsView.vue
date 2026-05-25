@@ -151,7 +151,20 @@
 
           <v-window-item value="loss">
             <div v-if="detailItem.model_metrics.loss_per_epoch">
-              <div class="text-subtitle-2 mb-2">训练曲线</div>
+              <div class="d-flex align-center ga-4 mb-2">
+                <div class="text-subtitle-2">训练曲线</div>
+                <v-select
+                  v-if="epochTargets.length > 1"
+                  v-model="selectedEpochTarget"
+                  :items="epochTargets"
+                  label="预测周期"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  class="flex-shrink-0"
+                  style="width: 160px"
+                ></v-select>
+              </div>
               <div class="text-caption mb-4">
                 最佳轮次: 第 {{ detailItem.model_metrics.best_epoch }} 轮 | 
                 最佳 AUC: {{ detailItem.model_metrics.best_auc?.toFixed(4) }} |
@@ -171,11 +184,11 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(loss, idx) in detailItem.model_metrics.loss_per_epoch" :key="idx" :class="{ 'bg-primary/10': idx + 1 === detailItem.model_metrics.best_epoch }">
+                    <tr v-for="(loss, idx) in currentEpochLosses" :key="idx" :class="{ 'bg-primary/10': idx + 1 === detailItem.model_metrics.best_epoch }">
                       <td>{{ idx + 1 }}</td>
                       <td>{{ loss.toFixed(4) }}</td>
-                      <td>{{ detailItem.model_metrics.val_loss_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
-                      <td>{{ detailItem.model_metrics.val_auc_per_epoch?.[idx]?.toFixed(4) || '-' }}</td>
+                      <td>{{ currentEpochValLosses?.[idx]?.toFixed(4) || '-' }}</td>
+                      <td>{{ currentEpochValAucs?.[idx]?.toFixed(4) || '-' }}</td>
                     </tr>
                   </tbody>
                 </v-table>
@@ -233,6 +246,7 @@ const analysisResult = ref<AnalysisResult | null>(null)
 const analysisTitle = ref('')
 const detailTab = ref('overview')
 const featureTarget = ref('label_3d')
+const selectedEpochTarget = ref('')
 const error = ref('')
 
 const classDistChartRef = ref<HTMLDivElement | null>(null)
@@ -259,6 +273,32 @@ const targetLabels = computed(() => {
   if (!detailItem.value?.model_metrics.accuracy) return ['label_3d', 'label_5d']
   return Object.keys(detailItem.value.model_metrics.accuracy).sort()
 })
+
+const epochTargets = computed(() => {
+  const loss = detailItem.value?.model_metrics.loss_per_epoch
+  if (!loss) return []
+  if (Array.isArray(loss)) return ['全部']
+  return Object.keys(loss).sort()
+})
+
+const selectedEpochKey = computed(() => {
+  const key = selectedEpochTarget.value
+  if (key && epochTargets.value.includes(key)) return key
+  if (epochTargets.value.length > 0) return epochTargets.value[0]
+  return ''
+})
+
+const extractEpochData = (data: any) => {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  if (selectedEpochKey.value && data[selectedEpochKey.value]) return data[selectedEpochKey.value]
+  const keys = Object.keys(data).sort()
+  return keys.length > 0 ? data[keys[0]] : []
+}
+
+const currentEpochLosses = computed(() => extractEpochData(detailItem.value?.model_metrics.loss_per_epoch))
+const currentEpochValLosses = computed(() => extractEpochData(detailItem.value?.model_metrics.val_loss_per_epoch))
+const currentEpochValAucs = computed(() => extractEpochData(detailItem.value?.model_metrics.val_auc_per_epoch))
 
 const headers = [
   { title: '名称', key: 'name', width: 180, nowrap: true },
@@ -380,7 +420,7 @@ const renderClassDistChart = () => {
 }
 
 const renderLossChart = () => {
-  if (!lossChartRef.value || !detailItem.value?.model_metrics.loss_per_epoch) return
+  if (!lossChartRef.value || !currentEpochLosses.value.length) return
   
   if (lossChartInstance) {
     lossChartInstance.dispose()
@@ -388,10 +428,10 @@ const renderLossChart = () => {
   
   lossChartInstance = echarts.init(lossChartRef.value)
   
-  const trainLoss = detailItem.value.model_metrics.loss_per_epoch
-  const valLoss = detailItem.value.model_metrics.val_loss_per_epoch || []
-  const valAuc = detailItem.value.model_metrics.val_auc_per_epoch || []
-  const bestEpoch = detailItem.value.model_metrics.best_epoch || 0
+  const trainLoss = currentEpochLosses.value
+  const valLoss = currentEpochValLosses.value
+  const valAuc = currentEpochValAucs.value
+  const bestEpoch = detailItem.value?.model_metrics.best_epoch || 0
   
   const xAxisData = trainLoss.map((_, i) => `Epoch ${i + 1}`)
   
@@ -464,6 +504,8 @@ const renderLossChart = () => {
       {
         type: 'value',
         name: 'Loss',
+        nameLocation: 'middle',
+        nameGap: 45,
         min: 'dataMin',
         max: 'dataMax',
         axisLabel: {
@@ -473,6 +515,8 @@ const renderLossChart = () => {
       {
         type: 'value',
         name: 'AUC',
+        nameLocation: 'middle',
+        nameGap: 45,
         min: 0,
         max: 1,
         axisLabel: {
@@ -544,6 +588,12 @@ watch(detailTab, async (newTab) => {
       renderLossChart()
     }
   }, 100)
+})
+
+watch(selectedEpochKey, () => {
+  if (detailTab.value === 'loss') {
+    nextTick(() => setTimeout(renderLossChart, 100))
+  }
 })
 
 const openAnalysisDialog = async (item: Training) => {

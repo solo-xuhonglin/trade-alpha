@@ -122,6 +122,9 @@ class LSTMClassifier(BaseClassifier):
         best_epoch = 0
         best_auc = 0.0
         val_auc_per_epoch = []
+        per_target_epoch_losses = {}
+        per_target_val_losses = {}
+        per_target_val_aucs = {}
 
         for target_idx, target in enumerate(target_names):
             y_i = y_2d[:, target_idx].astype(int)
@@ -239,7 +242,11 @@ class LSTMClassifier(BaseClassifier):
             all_epoch_losses.append(epoch_losses[-1])
             all_val_losses.append(val_epoch_losses[-1])
             all_val_aucs.append(val_epoch_aucs[-1])
-            
+
+            per_target_epoch_losses[target] = epoch_losses
+            per_target_val_losses[target] = val_epoch_losses
+            per_target_val_aucs[target] = val_epoch_aucs
+
             # 只记录最后一个目标的 AUC 历史用于前端展示
             if target_idx == len(target_names) - 1:
                 val_auc_per_epoch = val_epoch_aucs.copy()
@@ -251,9 +258,9 @@ class LSTMClassifier(BaseClassifier):
         await TaskService.update_progress(task_id, 80, "正在评估模型...")
         metrics = {
             "final_train_loss": all_epoch_losses[-1] if all_epoch_losses else None,
-            "loss_per_epoch": epoch_losses,  # 最后一个目标的训练 loss 记录
-            "val_loss_per_epoch": val_epoch_losses,  # 最后一个目标的验证 loss 记录
-            "val_auc_per_epoch": val_auc_per_epoch,  # 最后一个目标的验证 AUC 记录
+            "loss_per_epoch": per_target_epoch_losses,
+            "val_loss_per_epoch": per_target_val_losses,
+            "val_auc_per_epoch": per_target_val_aucs,
             "sample_count": len(X_3d),
             "actual_epochs": actual_epochs,
             "early_stopped": early_stopped,
