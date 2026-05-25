@@ -13,6 +13,7 @@ from trade_alpha.data.service import (
     delete_stock_daily_by_ts_code,
 )
 from trade_alpha.indicators.service import calculate_all_indicators
+from trade_alpha.scheduler.data_sync import update_single_stock_data_count
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
 from trade_alpha.api.validators import TradeDateQuery
 
@@ -138,6 +139,7 @@ async def fetch_data_endpoint(request: DataFetchRequest):
     )
     if count > 0:
         await calculate_all_indicators(ts_code=request.ts_code)
+        await update_single_stock_data_count(ts_code=request.ts_code)
     return {"ts_code": request.ts_code, "stored_count": count}
 
 
