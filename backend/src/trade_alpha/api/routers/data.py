@@ -12,6 +12,7 @@ from trade_alpha.data.service import (
     find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
 )
+from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
 from trade_alpha.api.validators import TradeDateQuery
 
@@ -129,12 +130,14 @@ async def get_data_paginated(
 
 @router.post("")
 async def fetch_data_endpoint(request: DataFetchRequest):
-    """Fetch and store stock data."""
+    """Fetch and store stock data, then calculate all indicators."""
     count = await fetch_and_store(
         ts_code=request.ts_code,
         start_date=request.start_date,
         end_date=request.end_date,
     )
+    if count > 0:
+        await calculate_all_indicators(ts_code=request.ts_code)
     return {"ts_code": request.ts_code, "stored_count": count}
 
 
