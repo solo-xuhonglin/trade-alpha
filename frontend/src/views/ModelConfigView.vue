@@ -242,8 +242,8 @@ const defaultForm = {
   name: 'xgboost_config',
   model_type: 'xgboost',
   feature_fields: [...priceIndependentFields],
-  standardize_fields: [...indicatorFields],
-  winsorize_fields: [...indicatorFields],
+  standardize_fields: [...INDICATOR_FIELDS],
+  winsorize_fields: [...INDICATOR_FIELDS],
   classification_horizons: [3, 5, 10],
   label_mode: 'threshold',
   classification_threshold_3d: 0.01,
@@ -296,8 +296,8 @@ const generateDefaultName = (modelType: string) => {
 
 const xgbRecommendedParams = {
   feature_fields: [...priceIndependentFields],
-  standardize_fields: [...indicatorFields],
-  winsorize_fields: [...indicatorFields],
+  standardize_fields: [...INDICATOR_FIELDS],
+  winsorize_fields: [...INDICATOR_FIELDS],
   label_mode: 'threshold',
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,

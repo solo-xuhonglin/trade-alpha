@@ -45,9 +45,11 @@ from trade_alpha.constants import (
 logger = get_logger("config_service")
 
 DEFAULT_INDICATOR_FIELDS = [
-    "ma_5", "ma_10", "ma_20", "ma_60",
+    "ma_5", "ma_10", "ma_20", "ma_40", "ma_60",
     "macd", "macd_signal", "macd_hist",
     "pct_chg",
+    "candle_body_pct", "candle_upper_pct", "candle_lower_pct",
+    "close_location_pct", "gap_pct", "gap_fill_pct",
     "bias_5", "bias_10", "bias_20", "bias_60",
     "close_position_5", "close_position_10", "close_position_20", "close_position_60",
     "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60",
@@ -59,6 +61,7 @@ DEFAULT_INDICATOR_FIELDS = [
     "trend_volume_5", "trend_volume_10", "trend_volume_20",
     "trend_stability_5", "trend_stability_10", "trend_stability_20",
     "obv",
+    "obv_chg_5", "obv_chg_10", "obv_chg_20",
 ]
 
 

@@ -8,7 +8,7 @@ from trade_alpha.logging import setup_logging, get_logger
 logger = get_logger("activate_stocks")
 
 INDICATOR_FIELDS = [
-    "ma_5", "ma_10", "ma_20", "ma_60",
+    "ma_5", "ma_10", "ma_20", "ma_40", "ma_60",
     "macd", "macd_signal", "macd_hist",
     "kdj_k", "kdj_d", "kdj_j",
     "boll_upper", "boll_middle", "boll_lower",
