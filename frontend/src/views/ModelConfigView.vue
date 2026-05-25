@@ -116,19 +116,19 @@
                     <v-text-field v-model.number="form.xgb_n_estimators" label="n_estimators" type="number" hint="树的数量，值越大越准确但越慢" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.xgb_max_depth" label="max_depth" type="number" hint="树的最大深度，控制复杂度" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.xgb_learning_rate" label="learning_rate" type="number" step="0.01" hint="每棵树的贡献权重，与树数量配合调整" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.xgb_min_child_weight" label="min_child_weight" type="number" step="0.1" hint="叶子节点最小权重和" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.xgb_max_depth" label="max_depth" type="number" hint="树的最大深度，控制模型复杂度" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.xgb_learning_rate" label="learning_rate" type="number" step="0.01" hint="每棵树的贡献权重" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.xgb_min_child_weight" label="min_child_weight" type="number" step="0.1" hint="叶子节点最小权重和，与深度配合防止过拟合" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.xgb_subsample" label="subsample" type="number" step="0.1" hint="训练样本采样比例" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.xgb_colsample_bytree" label="colsample_bytree" type="number" step="0.1" hint="特征采样比例" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.xgb_colsample_bytree" label="colsample_bytree" type="number" step="0.1" hint="每棵树的特征采样比例" persistent-hint></v-text-field>
                   </v-col>
                 </v-row>
               </template>
@@ -137,15 +137,6 @@
                 <v-divider class="my-4"></v-divider>
                 <div class="text-subtitle-2 text-medium-emphasis mb-2">LSTM 超参数</div>
                 <v-row>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.val_size" label="val_size" type="number" step="0.05" hint="验证集比例（按日期划分）" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length" type="number" hint="输入序列长度（天数）" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_normalization_window" label="normalization_window" type="number" hint="标准化统计窗口（天数）" persistent-hint></v-text-field>
-                  </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_hidden_size" label="hidden_size" type="number" hint="隐藏层维度，控制模型容量" persistent-hint></v-text-field>
                   </v-col>
@@ -159,10 +150,10 @@
                     <v-text-field v-model.number="form.lstm_weight_decay" label="weight_decay" type="number" step="0.0001" hint="L2 正则化系数" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lr_scheduler_factor" label="lr_scheduler_factor" type="number" step="0.1" hint="学习率衰减因子" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001" hint="学习率" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lr_scheduler_patience" label="lr_scheduler_patience" type="number" hint="学习率调度器等待轮数" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.lr_scheduler_factor" label="lr_scheduler_factor" type="number" step="0.1" hint="验证 AUC 停滞时学习率衰减因子" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_epochs" label="epochs" type="number" hint="最大训练轮数" persistent-hint></v-text-field>
@@ -171,10 +162,19 @@
                     <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number" hint="每批训练样本数" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001" hint="学习率" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length" type="number" hint="输入序列长度（天数）" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_normalization_window" label="normalization_window" type="number" hint="标准化统计窗口（天数）" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lr_scheduler_patience" label="lr_scheduler_patience" type="number" hint="学习率调度器等待轮数" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.early_stopping_patience" label="early_stopping_patience" type="number" hint="验证 AUC 不提升时停止的轮数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.val_size" label="val_size" type="number" step="0.05" hint="验证集比例（按日期划分）" persistent-hint></v-text-field>
                   </v-col>
                 </v-row>
               </template>
