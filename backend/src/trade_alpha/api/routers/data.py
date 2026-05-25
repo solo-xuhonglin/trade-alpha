@@ -14,6 +14,7 @@ from trade_alpha.data.service import (
 )
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.scheduler.data_sync import update_single_stock_data_count
+from trade_alpha.data.service import update_stock_data_count as bulk_update_data_count
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
 from trade_alpha.api.validators import TradeDateQuery
 
@@ -148,3 +149,10 @@ async def delete_data_endpoint(ts_code: str):
     """Delete stock data."""
     count = await delete_stock_daily_by_ts_code(ts_code)
     return {"deleted_count": count}
+
+
+@router.post("/stocks/refresh-counts")
+async def refresh_data_counts():
+    """Aggregate stock_daily and update data_count/latest_date for all stocks."""
+    count = await bulk_update_data_count()
+    return {"updated_count": count}
