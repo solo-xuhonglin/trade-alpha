@@ -213,6 +213,14 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
+import {
+  DAILY_BASIC_FIELDS,
+  INDICATOR_FIELDS,
+  ALL_FEATURE_FIELDS,
+  PRICE_INDEPENDENT_FIELDS,
+  LSTM_RECOMMENDED_FIELDS,
+  LSTM_AFFECTED_BY_PRICE_FIELDS,
+} from '@/api/featureFields'
 
 const loading = ref(false)
 const dialog = ref(false)
@@ -222,62 +230,13 @@ const models = ref<ModelConfig[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<ModelConfig | null>(null)
 
-const dailyBasicFields = [
-  'open', 'high', 'low', 'close', 'vol', 'amount',
-  'candle_body_pct', 'candle_upper_pct', 'candle_lower_pct',
-  'close_location_pct', 'gap_pct', 'gap_fill_pct',
-]
+const allFeatureFields = ALL_FEATURE_FIELDS
 
-const indicatorFields = [
-  'ma_5', 'ma_10', 'ma_20', 'ma_60',
-  'macd', 'macd_signal', 'macd_hist',
-  'pct_chg',
-  'bias_5', 'bias_10', 'bias_20', 'bias_60',
-  'close_position_5', 'close_position_10', 'close_position_20', 'close_position_60',
-  'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
-  'kdj_k', 'kdj_d', 'kdj_j',
-  'boll_upper', 'boll_middle', 'boll_lower', 'boll_position',
-  'rsi_6', 'rsi_12',
-  'trend_arrangement_5', 'trend_arrangement_10', 'trend_arrangement_20',
-  'trend_slope_5', 'trend_slope_10', 'trend_slope_20',
-  'trend_volume_5', 'trend_volume_10', 'trend_volume_20',
-  'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
-  'obv',
-]
+const priceIndependentFields = PRICE_INDEPENDENT_FIELDS
 
-const allFeatureFields = [...dailyBasicFields, ...indicatorFields]
+const lstmRecommendedFeatureFields = LSTM_RECOMMENDED_FIELDS
 
-const priceIndependentFields = [
-  'pct_chg',
-  'bias_5', 'bias_10', 'bias_20', 'bias_60',
-  'close_position_5', 'close_position_10', 'close_position_20', 'close_position_60',
-  'vol_ratio_5', 'vol_ratio_10', 'vol_ratio_20', 'vol_ratio_60',
-  'kdj_k', 'kdj_d', 'kdj_j',
-  'boll_position',
-  'rsi_6', 'rsi_12',
-  'trend_arrangement_5', 'trend_arrangement_10', 'trend_arrangement_20',
-  'trend_slope_5', 'trend_slope_10', 'trend_slope_20',
-  'trend_volume_5', 'trend_volume_10', 'trend_volume_20',
-  'trend_stability_5', 'trend_stability_10', 'trend_stability_20',
-  'obv',
-]
-
-const lstmRecommendedFeatureFields = [
-  'macd', 'macd_signal', 'macd_hist',
-  'rsi_6', 'rsi_12',
-  'bias_5', 'bias_10', 'bias_20',
-  'boll_position',
-  'kdj_k', 'kdj_d', 'kdj_j',
-  'vol_ratio_5', 'vol_ratio_10',
-  'trend_slope_5', 'trend_slope_10',
-  'trend_volume_5', 'trend_volume_10',
-]
-
-const lstmAffectedByPriceFields = [
-  'ma_5', 'ma_10', 'ma_20', 'ma_60',
-  'macd', 'macd_signal', 'macd_hist',
-  'boll_upper', 'boll_middle', 'boll_lower',
-]
+const lstmAffectedByPriceFields = LSTM_AFFECTED_BY_PRICE_FIELDS
 
 const defaultForm = {
   name: 'xgboost_config',

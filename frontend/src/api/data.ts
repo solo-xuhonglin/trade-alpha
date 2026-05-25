@@ -12,6 +12,7 @@ export interface DataRecord {
   ma_5?: number
   ma_10?: number
   ma_20?: number
+  ma_40?: number
   ma_60?: number
   macd?: number
   macd_signal?: number
