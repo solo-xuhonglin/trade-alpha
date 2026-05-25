@@ -10,6 +10,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from beanie.odm.operators.find.comparison import NotIn, In
 
 from trade_alpha.dao import StockList
+from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config

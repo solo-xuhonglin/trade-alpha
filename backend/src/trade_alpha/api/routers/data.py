@@ -149,10 +149,3 @@ async def delete_data_endpoint(ts_code: str):
     """Delete stock data."""
     count = await delete_stock_daily_by_ts_code(ts_code)
     return {"deleted_count": count}
-
-
-@router.post("/stocks/refresh-counts")
-async def refresh_data_counts():
-    """Aggregate stock_daily and update data_count/latest_date for all stocks."""
-    count = await bulk_update_data_count()
-    return {"updated_count": count}

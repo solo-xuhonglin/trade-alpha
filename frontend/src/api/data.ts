@@ -66,9 +66,6 @@ export const dataApi = {
   updateStocks: () =>
     api.post('/data/stocks/update'),
 
-  refreshCounts: () =>
-    api.post('/data/stocks/refresh-counts'),
-
   getData: (tsCode: string, startDate?: string, endDate?: string) =>
     api.get<DataRecord[]>(`/data/${tsCode}`, { params: { start_date: startDate, end_date: endDate } }),
 
