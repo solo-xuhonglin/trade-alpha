@@ -245,12 +245,12 @@ const tradesPage = ref(1)
 const tradesPageSize = ref(20)
 
 const historyHeaders = [
-  { title: '名称', key: 'name' },
+  { title: '名称', key: 'name', width: 150 },
   { title: '股票代码', key: 'ts_code' },
   { title: '创建时间', key: 'created_at' },
-  { title: '收益', key: 'total_return' },
-  { title: '超额', key: 'excess_return' },
-  { title: '回撤', key: 'max_drawdown' },
+  { title: '总收益', key: 'total_return' },
+  { title: '超额收益', key: 'excess_return' },
+  { title: '最大回撤', key: 'max_drawdown' },
   { title: '夏普比', key: 'sharpe_ratio' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
