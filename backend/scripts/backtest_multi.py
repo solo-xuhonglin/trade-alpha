@@ -1,4 +1,4 @@
-"""Evaluate portfolio strategy performance."""
+"""Evaluate multi-stock strategy performance."""
 import asyncio
 from datetime import datetime
 
@@ -14,7 +14,7 @@ from trade_alpha.test_config import (
     TEST_EXCLUDED_TS_CODES,
 )
 
-logger = get_logger("backtest_portfolio")
+logger = get_logger("backtest_multi")
 
 
 async def get_active_stocks():
@@ -53,7 +53,7 @@ async def ensure_account_config():
 def print_results(result, duration, train_duration=None):
     print()
     print("=" * 60)
-    print("PORTFOLIO BACKTEST RESULTS")
+    print("MULTI-STOCK BACKTEST RESULTS")
     print("=" * 60)
     print(f"Initial Capital:   ${result.initial_capital:,.2f}")
     print(f"Final Value:       ${result.final_value:,.2f}")
@@ -85,7 +85,7 @@ async def main():
     setup_logging(log_level="INFO")
 
     import argparse
-    parser = argparse.ArgumentParser(description="Portfolio strategy evaluation")
+    parser = argparse.ArgumentParser(description="Multi-stock strategy evaluation")
     parser.add_argument("--backtest-start", type=str, default="20250101")
     parser.add_argument("--backtest-end", type=str, default="20250331")
     parser.add_argument("--max-positions", type=int, default=10)
@@ -112,7 +112,7 @@ async def main():
         account_config=account_config,
         training_id=training.id,
         model_config=model_config,
-        mode="portfolio",
+        mode="multi",
         ts_codes=valid_ts_codes,
         max_positions=args.max_positions,
     )
