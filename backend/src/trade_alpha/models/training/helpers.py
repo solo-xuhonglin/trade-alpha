@@ -52,20 +52,21 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
             ret = group["close"].shift(-horizon) / group["close"] - 1
             threshold = threshold_map.get(horizon, 0.01)
             
-            close_valid = group["close"].notna()
-            ma_base_valid = group[config["ma_base"]].notna()
-            ma_slope_valid = group[config["ma_slope"]].notna()
+            ma_base = group[config["ma_base"]]
+            ma_slope = group[config["ma_slope"]]
             
-            ma_base = group[config["ma_base"]].ffill().bfill()
-            ma_slope = group[config["ma_slope"]].ffill().bfill()
-            ma_slope_future = ma_slope.shift(-config["shift"]).ffill().bfill()
+            ma_slope_future = ma_slope.shift(-config["shift"])
+            close_future = group["close"].shift(-config["shift"])
+            ma_base_future = ma_base.shift(-config["shift"])
             
-            trend_up = (close_valid & ma_base_valid & ma_slope_valid & 
-                       (group["close"] > ma_base) & 
+            trend_up = (ma_slope_future.notna() & ma_slope.notna() & 
+                       close_future.notna() & ma_base_future.notna() & ma_base.notna() &
+                       (close_future > ma_base_future) & 
                        (ma_slope_future > ma_slope))
             
-            trend_down = (close_valid & ma_base_valid & ma_slope_valid & 
-                         (group["close"] < ma_base) & 
+            trend_down = (ma_slope_future.notna() & ma_slope.notna() & 
+                         close_future.notna() & ma_base_future.notna() & ma_base.notna() &
+                         (close_future < ma_base_future) & 
                          (ma_slope_future < ma_slope))
             
             col = f"label_{horizon}d"
