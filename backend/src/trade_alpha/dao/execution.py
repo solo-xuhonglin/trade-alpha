@@ -18,6 +18,20 @@ class AccountSnapshotEmbed(BaseModel):
     min_fee: float
 
 
+class StrategySnapshotEmbed(BaseModel):
+    """Embedded strategy config snapshot."""
+
+    name: str
+    type: str
+    min_order_value: float = 5000.0
+    stop_loss_pct: float = -0.1
+    max_hold_days: int = 30
+    buy_threshold: float = 0.1
+    sell_threshold: float = -0.1
+    max_positions: Optional[int] = 10
+    max_position_pct: Optional[float] = 0.3
+
+
 class ModelSnapshotEmbed(BaseModel):
     """Embedded model config snapshot."""
 
@@ -83,6 +97,7 @@ class ExecutionResult(Document):
     avg_hold_days: Optional[float] = None
     account_snapshot: Optional[AccountSnapshotEmbed] = None
     model_snapshot: Optional[ModelSnapshotEmbed] = None
+    strategy_snapshot: Optional[StrategySnapshotEmbed] = None
     created_at: datetime = Field(default_factory=datetime.now)
     status: str = Field(default="completed")
 

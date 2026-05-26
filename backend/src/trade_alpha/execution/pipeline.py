@@ -8,7 +8,7 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao import StockList, StockDaily
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
-from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed
+from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
@@ -124,7 +124,11 @@ class ExecutionPipeline:
             model_snapshot=ModelSnapshotEmbed(**{
                 k: v for k, v in self.model_config.model_dump().items()
                 if k in {f for f in ModelSnapshotEmbed.model_fields}
-            }),
+            ),
+            strategy_snapshot=StrategySnapshotEmbed(**{
+                k: v for k, v in self.strategy_config.model_dump().items()
+                if k in {f for f in StrategySnapshotEmbed.model_fields}
+            ) if self.strategy_config else None,
             status="running",
         )
         await result.insert()

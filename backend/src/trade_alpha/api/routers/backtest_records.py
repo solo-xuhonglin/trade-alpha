@@ -29,6 +29,7 @@ async def list_backtest_results(
     items = []
     for result in results:
         account_config = await AccountConfig.get(result.account_config_id) if result.account_config_id else None
+        strategy_snap = result.strategy_snapshot
 
         items.append({
             "id": str(result.id),
@@ -56,7 +57,9 @@ async def list_backtest_results(
             "baseline_sharpe_ratio": result.baseline_sharpe_ratio,
             "avg_hold_days": result.avg_hold_days,
             "account_config_name": account_config.name if account_config else None,
-            "strategy_name": None,
+            "strategy_name": strategy_snap.name if strategy_snap else None,
+            "buy_threshold": strategy_snap.buy_threshold if strategy_snap else None,
+            "sell_threshold": strategy_snap.sell_threshold if strategy_snap else None,
             "created_at": result.created_at,
         })
 

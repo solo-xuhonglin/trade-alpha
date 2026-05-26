@@ -45,6 +45,7 @@ def _execution_to_dict(r) -> dict:
         "avg_hold_days": r.avg_hold_days,
         "account_snapshot": r.account_snapshot.model_dump() if r.account_snapshot else None,
         "model_snapshot": r.model_snapshot.model_dump() if r.model_snapshot else None,
+        "strategy_snapshot": r.strategy_snapshot.model_dump() if r.strategy_snapshot else None,
         "created_at": r.created_at,
         "status": r.status,
     }
