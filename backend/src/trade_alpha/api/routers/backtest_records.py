@@ -28,17 +28,29 @@ async def list_backtest_results(
     results = await ExecutionResult.find_all().sort(-ExecutionResult.created_at).skip((page - 1) * page_size).limit(page_size).to_list()
 
     items = []
+    # Collect ts_codes from all results for batched name lookup
+    all_codes = set()
+    for result in results:
+        codes = result.ts_codes if result.ts_codes else ([result.ts_code] if result.ts_code else [])
+        all_codes.update(c for c in codes if c)
+    name_map = await get_stock_names(list(all_codes)) if all_codes else {}
+
     for result in results:
         account_config = await AccountConfig.get(result.account_config_id) if result.account_config_id else None
         strategy_snap = result.strategy_snapshot
+
+        raw_codes = result.ts_codes if result.ts_codes else ([result.ts_code] if result.ts_code else [])
+        ts_codes = [
+            {"ts_code": c, "ts_name": name_map.get(c, c)}
+            for c in raw_codes
+        ]
 
         items.append({
             "id": str(result.id),
             "name": result.name,
             "strategy_id": None,
             "training_id": str(result.training_id) if result.training_id else None,
-            "ts_code": result.ts_code,
-            "ts_name": result.stock_name,
+            "ts_codes": ts_codes,
             "start_date": to_api_format(result.start_date),
             "end_date": to_api_format(result.end_date),
             "initial_capital": result.initial_capital,
@@ -164,9 +176,11 @@ async def get_prediction_stocks(result_id: str):
 
     sorted_codes = sorted(ts_codes)
     if not sorted_codes:
-        if result.ts_code and result.ts_code != "multi":
+        codes = result.ts_codes if result.ts_codes else ([result.ts_code] if result.ts_code else [])
+        if len(codes) == 1:
+            name_map = await get_stock_names(codes)
             return {"items": [
-                {"ts_code": result.ts_code, "stock_name": result.stock_name or result.ts_code}
+                {"ts_code": codes[0], "stock_name": name_map.get(codes[0], codes[0])}
             ]}
         return {"items": []}
 
@@ -359,7 +373,12 @@ async def get_trade_filter_options():
                 training_map[tid] = tid
 
     # Extract unique ts_codes and model_types from results
-    ts_codes = sorted({r.ts_code for r in results if r.ts_code})
+    ts_codes = set()
+    for r in results:
+        if r.ts_code:
+            ts_codes.add(r.ts_code)
+        ts_codes.update(r.ts_codes)
+    ts_codes = sorted(ts_codes)
     name_map = await get_stock_names(list(ts_codes))
     model_types = sorted({r.model_snapshot.model_type for r in results if r.model_snapshot and r.model_snapshot.model_type})
 

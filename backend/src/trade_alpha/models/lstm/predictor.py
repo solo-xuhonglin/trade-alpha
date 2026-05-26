@@ -22,10 +22,10 @@ class LSTMPredictor(BasePredictor):
             if len(stock) < normalization_window:
                 continue
             
-            data = stock[self.config.feature_fields].values
+            data = stock[self.config.feature_fields].values.astype(float)
             normalization_data = data[-normalization_window:]
             feed = data[-seq_len:]
-            
+
             mean = normalization_data.mean(axis=0)
             std = normalization_data.std(axis=0)
             std[std == 0] = 1.0

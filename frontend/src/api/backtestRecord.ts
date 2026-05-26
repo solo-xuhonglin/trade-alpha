@@ -5,7 +5,9 @@ export interface Backtest {
   name: string
   strategy_id: string
   training_id: string
-  ts_code: string
+  ts_codes: Array<{ ts_code: string; ts_name: string }>
+  ts_code?: string
+  ts_name?: string
   start_date: string
   end_date: string
   initial_capital: number

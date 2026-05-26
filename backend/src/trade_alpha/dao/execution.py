@@ -88,6 +88,7 @@ class ExecutionResult(Document):
     total_fees: float = 0.0
     ts_code: Optional[str] = None
     stock_name: Optional[str] = None
+    ts_codes: List[str] = Field(default_factory=list)
     baseline_return: Optional[float] = None
     excess_return: Optional[float] = None
     baseline_max_drawdown: Optional[float] = None

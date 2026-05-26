@@ -31,8 +31,10 @@
           {{ (item.total_return * 100).toFixed(2) }}%
         </span>
       </template>
-      <template v-slot:item.ts_code="{ item }">
-        {{ item.ts_name || item.stock_name || item.ts_code || '-' }}
+      <template v-slot:item.ts_codes="{ item }">
+        <span v-if="item.ts_codes && item.ts_codes.length === 1">{{ item.ts_codes[0].ts_name }}</span>
+        <span v-else-if="item.ts_codes && item.ts_codes.length > 1">{{ item.ts_codes.length }} 只</span>
+        <span v-else>{{ item.ts_name || item.stock_name || item.ts_code || '-' }}</span>
       </template>
       <template v-slot:item.excess_return="{ item }">
         <span :class="(item.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">
@@ -254,7 +256,7 @@ const tradesPageSize = ref(20)
 
 const historyHeaders = [
   { title: '名称', key: 'name', width: 150 },
-  { title: '股票代码', key: 'ts_code' },
+  { title: '股票', key: 'ts_codes' },
   { title: '创建时间', key: 'created_at' },
   { title: '总收益', key: 'total_return' },
   { title: '超额收益', key: 'excess_return' },

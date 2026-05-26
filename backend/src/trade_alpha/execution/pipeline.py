@@ -374,6 +374,7 @@ class ExecutionPipeline:
         result.win_rate = round(win_rate, 4)
         result.total_trades = total_trades
         result.total_fees = round(total_fees, 2)
+        result.ts_codes = self.ts_codes
         result.status = "completed"
         await result.save()
 
