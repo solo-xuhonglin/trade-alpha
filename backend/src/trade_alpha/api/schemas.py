@@ -98,6 +98,8 @@ class AccountConfigCreateRequest(BaseModel):
 
 
 class AccountConfigUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    initial_capital: Optional[float] = None
     buy_fee_rate: Optional[float] = None
     sell_fee_rate: Optional[float] = None
     stamp_tax_rate: Optional[float] = None
