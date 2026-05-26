@@ -95,5 +95,10 @@ export const backtestRecordApi = {
   getPredictions: (id: string, tsCode: string) =>
     api.get<PredictionResponse>(`/backtests/${id}/predictions/${tsCode}`),
 
+  getTradesByTsCode: (id: string, tsCode: string) =>
+    api.get<{ items: { trade_date: string; action: string; price: number }[] }>(
+      `/backtests/${id}/trades/${tsCode}`
+    ),
+
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }
