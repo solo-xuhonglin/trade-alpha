@@ -15,6 +15,8 @@ async def create_strategy(
     min_order_value: float = 5000.0,
     stop_loss_pct: float = -0.1,
     max_hold_days: int = 30,
+    buy_threshold: float = 0.1,
+    sell_threshold: float = -0.1,
     max_positions: Optional[int] = 10,
     max_position_pct: Optional[float] = 0.3,
 ) -> StrategyConfig:
@@ -31,6 +33,8 @@ async def create_strategy(
         min_order_value=min_order_value,
         stop_loss_pct=stop_loss_pct,
         max_hold_days=max_hold_days,
+        buy_threshold=buy_threshold,
+        sell_threshold=sell_threshold,
         max_positions=max_positions,
         max_position_pct=max_position_pct,
         created_at=datetime.now(timezone.utc),

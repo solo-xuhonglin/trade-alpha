@@ -23,6 +23,8 @@ def _strategy_to_dict(s) -> dict:
         "min_order_value": s.min_order_value,
         "stop_loss_pct": s.stop_loss_pct,
         "max_hold_days": s.max_hold_days,
+        "buy_threshold": s.buy_threshold,
+        "sell_threshold": s.sell_threshold,
         "max_positions": s.max_positions,
         "max_position_pct": s.max_position_pct,
         "created_at": s.created_at,
