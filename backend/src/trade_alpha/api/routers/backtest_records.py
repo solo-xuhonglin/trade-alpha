@@ -37,6 +37,7 @@ async def list_backtest_results(
             "strategy_id": None,
             "training_id": str(result.training_id) if result.training_id else None,
             "ts_code": result.ts_code,
+            "ts_name": result.stock_name,
             "start_date": to_api_format(result.start_date),
             "end_date": to_api_format(result.end_date),
             "initial_capital": result.initial_capital,
