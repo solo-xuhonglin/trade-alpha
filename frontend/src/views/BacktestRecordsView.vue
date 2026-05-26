@@ -187,6 +187,9 @@
               {{ item.action === 'buy' ? '买入' : '卖出' }}
             </v-chip>
           </template>
+          <template v-slot:item.ts_code="{ item }">
+            {{ item.stock_name || item.ts_code }}
+          </template>
           <template v-slot:item.status="{ item }">
             <v-chip v-if="item.status === 'filled'" color="success" size="small">成交</v-chip>
             <v-chip v-else color="grey" size="small">未成交</v-chip>
@@ -258,7 +261,7 @@ const historyHeaders = [
 ]
 
 const tradesHeaders = [
-  { title: '股票代码', key: 'ts_code' },
+  { title: '股票', key: 'ts_code' },
   { title: '日期', key: 'trade_date' },
   { title: '操作', key: 'action' },
   { title: '状态', key: 'status' },

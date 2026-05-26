@@ -51,7 +51,9 @@
 
       <v-select
         v-model="filters.ts_code"
-        :items="filterOptions.ts_codes"
+        :items="tsCodeOptions"
+        item-title="label"
+        item-value="value"
         label="股票"
         density="compact"
         variant="outlined"
@@ -159,7 +161,7 @@ const statusOptionItems = [
 ]
 
 const headers = [
-  { title: '股票代码', key: 'ts_code' },
+  { title: '股票', key: 'stock_name' },
   { title: '日期', key: 'trade_date' },
   { title: '操作', key: 'action' },
   { title: '状态', key: 'status' },
