@@ -31,11 +31,13 @@
           {{ (item.total_return * 100).toFixed(2) }}%
         </span>
       </template>
+      <template v-slot:item.excess_return="{ item }">
+        <span :class="(item.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">
+          {{ ((item.excess_return || 0) * 100).toFixed(2) }}%
+        </span>
+      </template>
       <template v-slot:item.date_range="{ item }">
         {{ item.start_date }} ~ {{ item.end_date }}
-      </template>
-      <template v-slot:item.created_at="{ item }">
-        {{ item.created_at ? item.created_at.split('T')[0] + ' ' + item.created_at.split('T')[1].split('.')[0].substring(0, 5) : '' }}
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
@@ -238,8 +240,8 @@ const historyHeaders = [
   { title: '名称', key: 'name' },
   { title: '股票代码', key: 'ts_code' },
   { title: '回测时间', key: 'date_range' },
-  { title: '创建时间', key: 'created_at' },
   { title: '总收益', key: 'total_return' },
+  { title: '超额收益', key: 'excess_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
