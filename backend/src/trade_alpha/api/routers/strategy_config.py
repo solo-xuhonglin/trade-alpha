@@ -27,6 +27,8 @@ def _strategy_to_dict(s) -> dict:
         "sell_threshold": s.sell_threshold,
         "max_positions": s.max_positions,
         "max_position_pct": s.max_position_pct,
+        "sell_rank_n": s.sell_rank_n,
+        "hold_score_threshold": s.hold_score_threshold,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -95,6 +97,8 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             sell_threshold=request.sell_threshold,
             max_positions=request.max_positions,
             max_position_pct=request.max_position_pct,
+            sell_rank_n=request.sell_rank_n,
+            hold_score_threshold=request.hold_score_threshold,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

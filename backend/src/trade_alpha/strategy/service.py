@@ -70,6 +70,8 @@ async def update_strategy(
     sell_threshold: Optional[float] = None,
     max_positions: Optional[int] = None,
     max_position_pct: Optional[float] = None,
+    sell_rank_n: Optional[int] = None,
+    hold_score_threshold: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -96,6 +98,10 @@ async def update_strategy(
         strategy.max_positions = max_positions
     if max_position_pct is not None:
         strategy.max_position_pct = max_position_pct
+    if sell_rank_n is not None:
+        strategy.sell_rank_n = sell_rank_n
+    if hold_score_threshold is not None:
+        strategy.hold_score_threshold = hold_score_threshold
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

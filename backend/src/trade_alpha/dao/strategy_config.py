@@ -20,7 +20,6 @@ class StrategyConfig(Document):
     max_position_pct: Optional[float] = 0.3
     sell_rank_n: Optional[int] = 15
     hold_score_threshold: Optional[float] = 0.05
-    sell_score_threshold: Optional[float] = 0.02
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
