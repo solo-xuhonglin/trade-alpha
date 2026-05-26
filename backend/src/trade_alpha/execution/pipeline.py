@@ -47,7 +47,7 @@ class ExecutionPipeline:
         training_id: PydanticObjectId,
         model_config: ModelConfig,
         strategy_config: Optional[StrategyConfig] = None,
-        mode: str = "portfolio",
+        mode: str = "multi",
         ts_codes: List[str] = None,
         max_positions: int = 10,
         single_stock_ts_code: Optional[str] = None,

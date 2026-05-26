@@ -57,7 +57,7 @@ class BacktestRunRequest(BaseModel):
     start_date: str
     end_date: str
     name: str = "backtest"
-    mode: str = "portfolio"
+    mode: str = "multi"
     ts_codes: Optional[List[str]] = None
     max_positions: int = 10
     strategy_config_id: Optional[str] = None
