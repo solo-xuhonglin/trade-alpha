@@ -162,10 +162,14 @@ async def get_prediction_stocks(result_id: str):
             if pos.ts_code in snap.predictions:
                 ts_codes.add(pos.ts_code)
 
-    if not ts_codes:
+    sorted_codes = sorted(ts_codes)
+    if not sorted_codes:
+        if result.ts_code and result.ts_code != "multi":
+            return {"items": [
+                {"ts_code": result.ts_code, "stock_name": result.stock_name or result.ts_code}
+            ]}
         return {"items": []}
 
-    sorted_codes = sorted(ts_codes)
     stocks = await StockList.find(In(StockList.ts_code, list(sorted_codes))).to_list()
     stock_map = {s.ts_code: s.name for s in stocks}
 
