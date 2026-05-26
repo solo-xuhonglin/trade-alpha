@@ -21,6 +21,7 @@ from trade_alpha.api.routers import (
     model_configs,
     trainings,
     data_analysis,
+    tasks,
 )
 from trade_alpha.api.error_handlers import register_exception_handlers
 from trade_alpha.dao import init_db, close_db
@@ -141,6 +142,7 @@ app.include_router(backtest_records.router, prefix="/api")
 app.include_router(model_configs.router, prefix="/api")
 app.include_router(trainings.router, prefix="/api")
 app.include_router(data_analysis.router, prefix="/api")
+app.include_router(tasks.router, prefix="/api")
 
 
 @app.get("/")

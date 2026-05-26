@@ -21,6 +21,8 @@ class SingleStockStrategy(PositionManager):
         min_order_value: float = 5000,
         stop_loss_pct: float = -0.1,
         max_hold_days: int = 30,
+        buy_threshold: float = 0.1,
+        sell_threshold: float = -0.1,
     ):
         super().__init__(
             account_config=account_config,
@@ -29,6 +31,8 @@ class SingleStockStrategy(PositionManager):
             min_order_value=min_order_value,
             stop_loss_pct=stop_loss_pct,
             max_hold_days=max_hold_days,
+            buy_threshold=buy_threshold,
+            sell_threshold=sell_threshold,
         )
         self.target_ts_code = target_ts_code
 
