@@ -110,6 +110,9 @@ async def get_backtest_trades(
     total = await query.count()
     trades = await query.sort(ExecutionTrade.trade_date).skip((page - 1) * page_size).limit(page_size).to_list()
 
+    ts_codes = list({t.ts_code for t in trades})
+    name_map = await get_stock_names(ts_codes)
+
     return {
         "items": [
             {
@@ -122,6 +125,7 @@ async def get_backtest_trades(
                 "position_after": getattr(trade, "position_after", 0),
                 "status": trade.status,
                 "ts_code": trade.ts_code,
+                "stock_name": name_map.get(trade.ts_code, trade.ts_code),
                 "reason": trade.reason,
             }
             for trade in trades
@@ -346,6 +350,7 @@ async def get_trade_filter_options():
 
     # Extract unique ts_codes and model_types from results
     ts_codes = sorted({r.ts_code for r in results if r.ts_code})
+    name_map = await get_stock_names(list(ts_codes))
     model_types = sorted({r.model_snapshot.model_type for r in results if r.model_snapshot and r.model_snapshot.model_type})
 
     return {
@@ -357,7 +362,10 @@ async def get_trade_filter_options():
             {"id": id, "name": name}
             for id, name in training_map.items()
         ],
-        "ts_codes": ts_codes,
+        "ts_codes": [
+            {"code": code, "name": name_map.get(code, code)}
+            for code in ts_codes
+        ],
         "backtests": [
             {"id": str(b.id), "name": b.name}
             for b in results

@@ -24,7 +24,7 @@ export interface TradeListResponse {
 export interface TradeFilterOptions {
   account_configs: Array<{ id: string; name: string }>
   trainings: Array<{ id: string; name: string }>
-  ts_codes: string[]
+  ts_codes: Array<{ code: string; name: string }>
   backtests: Array<{ id: string; name: string }>
   model_types: string[]
 }
