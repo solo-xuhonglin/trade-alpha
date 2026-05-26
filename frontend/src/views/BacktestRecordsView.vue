@@ -37,7 +37,7 @@
         </span>
       </template>
       <template v-slot:item.max_drawdown="{ item }">
-        <span :class="item.max_drawdown > -0.1 ? 'text-warning' : 'text-error'">
+        <span :class="item.max_drawdown < 0.1 ? 'text-warning' : 'text-error'">
           {{ (item.max_drawdown * 100).toFixed(2) }}%
         </span>
       </template>
@@ -99,8 +99,8 @@
               </tr>
               <tr>
                 <td class="text-body-2">最大回撤</td>
-                <td class="text-center" :class="selectedResult.max_drawdown > -0.1 ? 'text-warning' : 'text-error'">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="(selectedResult.baseline_max_drawdown || 0) > -0.1 ? 'text-warning' : 'text-error'">{{ ((selectedResult.baseline_max_drawdown || 0) * 100).toFixed(2) }}%</td>
+                <td class="text-center" :class="selectedResult.max_drawdown < 0.1 ? 'text-warning' : 'text-error'">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</td>
+                <td class="text-center" :class="(selectedResult.baseline_max_drawdown || 0) < 0.1 ? 'text-warning' : 'text-error'">{{ ((selectedResult.baseline_max_drawdown || 0) * 100).toFixed(2) }}%</td>
                 <td class="text-center" :class="selectedResult.max_drawdown <= (selectedResult.baseline_max_drawdown || 0) ? 'text-success' : 'text-error'">{{ ((selectedResult.max_drawdown - (selectedResult.baseline_max_drawdown || 0)) * 100).toFixed(2) }}%</td>
               </tr>
               <tr>
