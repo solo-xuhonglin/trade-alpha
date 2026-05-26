@@ -51,22 +51,22 @@ python scripts/backtest_single.py
 
 流程：
 1. 按名称 `prod_training` 查找训练记录
-2. 创建/使用 `prod_portfolio` 账户配置
+2. 创建/使用 `prod_account_config` 账户配置
 3. 执行单股票回测
 4. 批量模式输出对比表格
 
 可选参数：`--backtest-start`、`--backtest-end`
 
-### backtest_portfolio.py — 组合策略评估
+### backtest_multi.py — 多股票策略评估
 
 ```bash
-python scripts/backtest_portfolio.py
-python scripts/backtest_portfolio.py --max-positions 20
+python scripts/backtest_multi.py
+python scripts/backtest_multi.py --max-positions 20
 ```
 
 流程：
 1. 按名称 `prod_training` 查找训练记录
-2. 创建/使用 `prod_portfolio` 账户配置
+2. 创建/使用 `prod_account_config` 账户配置
 3. 筛选有数据的股票
 4. 执行组合回测
 5. 输出结果（含基线比较）

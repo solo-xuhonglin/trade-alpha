@@ -159,7 +159,7 @@ trade-alpha/
 - `execution.py`: 执行结果 Document
 - `execution_trade.py`: 执行交易 Document
 - `execution_daily_snapshot.py`: 每日账户快照 Document
-- `execution_portfolio_daily.py`: 组合快照 Document（保持向后兼容）
+- `execution_portfolio_daily.py`: 组合快照 Document
 - `position.py`: 持仓嵌入模型
 - `prediction.py`: 预测结果 Document（包含 probabilities 字段）
 - `signal.py`: 交易信号 Document
@@ -304,7 +304,7 @@ trade-alpha/
 - 管理持仓信息
 - 计算交易记录、夏普比率、最大回撤等指标
 
-#### portfolio.py - 组合策略 (PortfolioStrategy)
+#### portfolio_strategy.py - 组合策略 (PortfolioStrategy)
 
 - 多股票组合策略，基于评分排名选股
 - 支持最大持仓数限制
@@ -339,7 +339,7 @@ trade-alpha/
 - `run_live()`: 实盘模式执行
 
 **策略模式**:
-- `portfolio`: 多股票组合策略，基于评分排名
+- `multi`: 多股票组合策略，基于评分排名
 - `single`: 单股票策略，基于预测概率
 
 #### data_loader.py - 数据加载器

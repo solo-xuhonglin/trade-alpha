@@ -762,7 +762,7 @@ POST /api/backtest/run
   "start_date": "2025-01-01",
   "end_date": "2025-12-31",
   "name": "backtest_20260516231312",
-  "mode": "portfolio",
+  "mode": "multi",
   "ts_codes": ["002594.SZ"],
   "max_positions": 10,
   "strategy_config_id": "507f1f77bcf86cd799439015"

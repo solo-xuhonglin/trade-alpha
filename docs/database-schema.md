@@ -653,7 +653,7 @@ MACDStrategy:
   "start_date": "20240101",
   "end_date": "20241231",
   "name": "backtest",
-  "mode": "portfolio",
+  "mode": "multi",
   "ts_codes": ["000001.SZ", "000002.SZ"],
   "max_positions": 10
 }
