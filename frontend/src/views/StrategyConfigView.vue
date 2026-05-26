@@ -39,12 +39,12 @@
         </v-btn>
       </v-card-title>
       <v-card-text>
-        <v-tabs v-model="activeTab" color="primary">
+        <v-tabs v-model="activeTab" color="primary" v-if="form.type === 'portfolio'">
           <v-tab value="basic">基本配置</v-tab>
-          <v-tab value="portfolio" :disabled="form.type !== 'portfolio'">组合配置</v-tab>
+          <v-tab value="portfolio">组合配置</v-tab>
         </v-tabs>
 
-        <v-window v-model="activeTab" class="mt-4">
+        <v-window v-model="activeTab" v-if="form.type === 'portfolio'" class="mt-4">
           <v-window-item value="basic">
             <div>
               <v-row>
@@ -162,6 +162,72 @@
             </div>
           </v-window-item>
         </v-window>
+
+        <div v-else>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model="form.name" label="策略名称"></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-select v-model="form.type" :items="strategyTypes" label="策略类型"></v-select>
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4"></v-divider>
+
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.min_order_value"
+                type="number"
+                label="最小订单金额"
+                hint="避免买入金额过小的订单"
+                persistent-hint
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.stop_loss_pct"
+                type="number"
+                label="止损比例"
+                hint="例如 -0.1 表示亏损10%止损"
+                persistent-hint
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.max_hold_days"
+                type="number"
+                label="最大持仓天数"
+              ></v-text-field>
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4"></v-divider>
+
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.buy_threshold"
+                type="number"
+                step="0.05"
+                label="买入阈值"
+                hint="评分高于此值买入"
+                persistent-hint
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.sell_threshold"
+                type="number"
+                step="0.05"
+                label="卖出阈值"
+                hint="评分低于此值卖出"
+                persistent-hint
+              ></v-text-field>
+            </v-col>
+          </v-row>
+        </div>
       </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
