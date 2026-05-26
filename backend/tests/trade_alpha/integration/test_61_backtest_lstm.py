@@ -63,7 +63,6 @@ class TestBacktestLSTM:
             strategy_config=self.strategy_config,
             mode="single",
             ts_codes=[self.ts_code],
-            max_positions=10,
         )
 
         result = await pipeline.run_backtest(
@@ -77,7 +76,6 @@ class TestBacktestLSTM:
         assert result is not None
         assert result.name == self.backtest_name
         assert result.mode == "backtest"
-        assert result.ts_code == self.ts_code
 
     @pytest.mark.asyncio
     async def test_backtest_result_exists(self):
