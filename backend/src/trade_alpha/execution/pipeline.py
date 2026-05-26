@@ -50,6 +50,7 @@ class ExecutionPipeline:
         mode: str = "multi",
         ts_codes: List[str] = None,
         max_positions: int = 10,
+        top_n: int = 100,
         single_stock_ts_code: Optional[str] = None,
     ):
         self.account_config = account_config
@@ -59,6 +60,7 @@ class ExecutionPipeline:
         self.mode = mode
         self.ts_codes = ts_codes or []
         self.max_positions = max_positions
+        self.top_n = top_n
         self.single_stock_ts_code = single_stock_ts_code
 
         self._config = model_config
@@ -90,6 +92,36 @@ class ExecutionPipeline:
         self.positions: Dict[str, PositionEmbed] = {}
         self.prev_total_value: Optional[float] = None
         self.pending_orders: List[PendingOrder] = []
+        self._score_buffer: Dict[str, List[float]] = {}  # ts_code -> EWMA history
+
+    def _smooth_scores(self, pred_results: Dict[str, Dict]) -> None:
+        """Apply EWMA smoothing to scores in-place on pred_results.
+
+        Maintains a cross-day buffer per stock. When buffer has < 3 values,
+        uses raw score (no smoothing yet).
+        """
+        alpha = 0.5  # = 2 / (span=3 + 1)
+        for ts_code, r in pred_results.items():
+            raw = r["score"]
+            buf = self._score_buffer.setdefault(ts_code, [])
+            buf.append(raw)
+            if len(buf) > 3:
+                buf.pop(0)
+            if len(buf) >= 3:
+                smoothed = buf[0]
+                for v in buf[1:]:
+                    smoothed = alpha * v + (1 - alpha) * smoothed
+                r["score"] = smoothed
+
+    def _record_ranks(self, scored: List, pred_results: Dict[str, Dict]) -> None:
+        """Sort scored stocks by score and write rank back into pred_results.
+
+        Rank is persisted via daily_snapshot for later analysis.
+        Single-stock mode: rank stays 1, harmless.
+        """
+        scored_sorted = sorted(scored, key=lambda s: s.score, reverse=True)
+        for rank, stock in enumerate(scored_sorted, start=1):
+            pred_results[stock.ts_code]["rank"] = rank
 
     async def run_backtest(
         self,
@@ -150,13 +182,12 @@ class ExecutionPipeline:
                 raise ValueError(f"Target stock {self.single_stock_ts_code} not found")
             all_stocks = [target_stock]
         else:
-            limit = 3000
             from beanie.odm.operators.find.comparison import NotIn
             await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
             all_stocks = await StockList.find(
                 StockList.sync_status == "active",
                 NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
-            ).sort(-StockList.total_mv).limit(limit).to_list()
+            ).sort(-StockList.total_mv).limit(self.top_n).to_list()
 
         universe = {s.ts_code: s.name for s in all_stocks}
         ts_codes = list(universe.keys())
@@ -167,7 +198,7 @@ class ExecutionPipeline:
             result.stock_name = universe.get(self.single_stock_ts_code, self.single_stock_ts_code)
             logger.info(f"Single-stock mode: {result.ts_code} ({result.stock_name})")
 
-        logger.info(f"Universe contains {len(ts_codes)} stocks (top {limit})")
+        logger.info(f"Universe contains {len(ts_codes)} stocks (top {self.top_n})")
 
         await TaskService.update_progress(task_id, 30, "正在准备回测...")
         self.cash = self.account_config.initial_capital
@@ -305,6 +336,9 @@ class ExecutionPipeline:
                 date = _next_date(date)
                 continue
 
+            # Smooth scores with EWMA to reduce ranking volatility
+            self._smooth_scores(pred_results)
+
             scored = [
                 ScoredStock(
                     ts_code=ts_code,
@@ -316,6 +350,9 @@ class ExecutionPipeline:
                 )
                 for ts_code, r in pred_results.items()
             ]
+
+            # Record ranks after sorting by smoothed score
+            self._record_ranks(scored, pred_results)
 
             # Single-stock mode: filter to only the target stock
             if self.single_stock_ts_code:
