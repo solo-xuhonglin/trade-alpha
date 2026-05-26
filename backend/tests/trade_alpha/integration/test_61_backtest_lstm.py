@@ -3,9 +3,11 @@
 import pytest
 import pytest_asyncio
 from trade_alpha.execution.pipeline import ExecutionPipeline
+from trade_alpha.execution.service import delete_execution_by_name
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
+from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.models.training import trainer
 from trade_alpha.test_config import TEST_STOCK
 
@@ -23,7 +25,6 @@ class TestBacktestLSTM:
         self.ts_code = TEST_STOCK
         self.backtest_name = "test_backtest_lstm"
 
-        # Find required dependencies
         self.account_config = await AccountConfig.find_one(
             AccountConfig.name == "test_account_config"
         )
@@ -52,6 +53,8 @@ class TestBacktestLSTM:
 
         if TestBacktestLSTM._backtest_result is not None:
             pytest.skip("Backtest already executed")
+
+        await delete_execution_by_name(self.backtest_name)
 
         pipeline = ExecutionPipeline(
             account_config=self.account_config,
@@ -109,7 +112,9 @@ class TestBacktestLSTM:
     @pytest.mark.asyncio
     async def test_list_backtest_results(self):
         """Verify backtest results can be listed."""
-        from trade_alpha.dao.execution import ExecutionResult
+        result = TestBacktestLSTM._backtest_result
+        if result is None:
+            pytest.skip("Backtest not executed")
 
         results = await ExecutionResult.find(
             ExecutionResult.name == self.backtest_name
