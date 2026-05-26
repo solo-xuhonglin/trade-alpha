@@ -48,10 +48,7 @@ class ExecutionPipeline:
         model_config: ModelConfig,
         strategy_config: Optional[StrategyConfig] = None,
         mode: str = "multi",
-        ts_codes: List[str] = None,
-        max_positions: int = 10,
-        top_n: int = 100,
-        single_stock_ts_code: Optional[str] = None,
+        ts_codes: Optional[List[str]] = None,
     ):
         self.account_config = account_config
         self.training_id = training_id
@@ -59,9 +56,8 @@ class ExecutionPipeline:
         self.strategy_config = strategy_config
         self.mode = mode
         self.ts_codes = ts_codes or []
-        self.max_positions = max_positions
-        self.top_n = top_n
-        self.single_stock_ts_code = single_stock_ts_code
+        if not self.ts_codes:
+            raise ValueError("ts_codes is required for pipeline initialization")
 
         self._config = model_config
 
@@ -70,22 +66,17 @@ class ExecutionPipeline:
         
         # Initialize strategy based on mode
         if mode == "single":
-            # For backward compatibility, support single_stock_ts_code
-            target_code = single_stock_ts_code or (ts_codes[0] if ts_codes else None)
-            if not target_code:
-                raise ValueError("single mode requires ts_codes or single_stock_ts_code")
             self.strategy = SingleStockStrategy(
                 account_config=account_config,
                 strategy_config=strategy_config,
-                target_ts_code=target_code,
+                target_ts_code=self.ts_codes[0],
             )
-            self.single_stock_ts_code = target_code
         else:
             self.strategy = MultiStockStrategy(
                 account_config=account_config,
                 strategy_config=strategy_config,
-                max_positions=max_positions,
-                ts_codes=ts_codes,
+                max_positions=10,
+                ts_codes=self.ts_codes,
             )
 
         self.cash: float = account_config.initial_capital
@@ -117,7 +108,6 @@ class ExecutionPipeline:
         """Sort scored stocks by score and write rank back into pred_results.
 
         Rank is persisted via daily_snapshot for later analysis.
-        Single-stock mode: rank stays 1, harmless.
         """
         scored_sorted = sorted(scored, key=lambda s: s.score, reverse=True)
         for rank, stock in enumerate(scored_sorted, start=1):
