@@ -32,6 +32,7 @@
 | 52 | test_52_predict_xgboost.py | TestPredictIntegration | 验证 XGBoost 预测集成 |
 | 53 | test_53_training_lstm.py | TestTrainingServiceLSTM | 验证 LSTM 训练服务 |
 | 54 | test_54_predict_lstm.py | TestPredictIntegrationLSTM | 验证 LSTM 预测集成 |
+| 61 | test_61_backtest_lstm.py | TestBacktestLSTM | 验证 LSTM 单股票回测 |
 
 ## 依赖关系
 
@@ -92,6 +93,11 @@ Layer 5: 训练
                                     ┌─────────────────────────┐
                                     │TestPredictIntegrationLSTM(54)│
                                     └─────────────────────────┘
+
+Layer 6: 回测
+                                    ┌─────────────────────────┐
+                                    │  TestBacktestLSTM(61)   │  ← LSTM 回测
+                                    └─────────────────────────┘
 ```
 
 ## 统一 Fixtures
@@ -138,6 +144,7 @@ Layer 5: 训练
 | TestPredictIntegration | 共享 test_51 训练 | 自动清理 | - |
 | TestTrainingServiceLSTM | 共享一次 LSTM 训练 | 自动清理 | test_lstm_training |
 | TestPredictIntegrationLSTM | 共享 test_53 训练 | 自动清理 | - |
+| TestBacktestLSTM | 共享 test_lstm_training + test_portfolio + test_strategy | **不清理** | test_backtest_lstm |
 
 ## 统一指标接口
 
@@ -178,6 +185,7 @@ Layer 5: 训练
 | test_training | Layer 6 回测训练结果 | TestTrainingService.shared_training |
 | test_lstm_config | Layer 5 LSTM 训练配置 | conftest.py test_lstm_config fixture |
 | test_lstm_training | Layer 5 LSTM 训练结果 | TestTrainingServiceLSTM.shared_training |
+| test_backtest_lstm | Layer 6 LSTM 回测结果 | TestBacktestLSTM.test_run_backtest |
 
 ## 运行命令
 
@@ -202,6 +210,9 @@ pytest tests/trade_alpha/integration/test_51_training_xgboost.py tests/trade_alp
 
 # 运行 LSTM 相关测试
 pytest tests/trade_alpha/integration/test_53_training_lstm.py tests/trade_alpha/integration/test_54_predict_lstm.py -v
+
+# 运行 LSTM 回测测试
+pytest tests/trade_alpha/integration/test_61_backtest_lstm.py -v
 ```
 
 ## 扩展指南
