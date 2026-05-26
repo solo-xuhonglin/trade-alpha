@@ -36,6 +36,14 @@
           {{ ((item.excess_return || 0) * 100).toFixed(2) }}%
         </span>
       </template>
+      <template v-slot:item.max_drawdown="{ item }">
+        <span class="text-error">{{ (item.max_drawdown * 100).toFixed(2) }}%</span>
+      </template>
+      <template v-slot:item.sharpe_ratio="{ item }">
+        <span :class="(item.sharpe_ratio || 0) >= 1 ? 'text-success' : (item.sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">
+          {{ (item.sharpe_ratio || 0).toFixed(2) }}
+        </span>
+      </template>
       <template v-slot:item.created_at="{ item }">
         {{ item.created_at ? item.created_at.split('T')[0] + ' ' + item.created_at.split('T')[1].split('.')[0].substring(0, 5) : '' }}
       </template>
@@ -240,9 +248,10 @@ const historyHeaders = [
   { title: '名称', key: 'name' },
   { title: '股票代码', key: 'ts_code' },
   { title: '创建时间', key: 'created_at' },
-  { title: '总收益', key: 'total_return' },
-  { title: '超额收益', key: 'excess_return' },
-  { title: '最大回撤', key: 'max_drawdown' },
+  { title: '收益', key: 'total_return' },
+  { title: '超额', key: 'excess_return' },
+  { title: '回撤', key: 'max_drawdown' },
+  { title: '夏普比', key: 'sharpe_ratio' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
