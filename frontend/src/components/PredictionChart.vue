@@ -122,6 +122,9 @@ const klineItems = ref<any[]>([])
 const chartData = ref<any[]>([])
 const horizons = ref<number[]>([3, 5])
 
+const buyTrades = ref<{ trade_date: string; price: number }[]>([])
+const sellTrades = ref<{ trade_date: string; price: number }[]>([])
+
 const accuracyMap = computed(() => {
   const result: Record<number, { pct: number; correct: number; total: number }> = {}
   for (const h of horizons.value) {
@@ -179,6 +182,16 @@ const loadChartData = async () => {
         ...predMap.get(k.trade_date),
       }))
     chartData.value = merged
+
+    // 加载买卖点（独立 try/catch，不阻塞 K 线）
+    try {
+      const tradeRes = await backtestRecordApi.getTradesByTsCode(props.backtestId, selectedTsCode.value.ts_code)
+      buyTrades.value = tradeRes.data.items.filter(t => t.action === 'buy')
+      sellTrades.value = tradeRes.data.items.filter(t => t.action === 'sell')
+    } catch (e) {
+      buyTrades.value = []
+      sellTrades.value = []
+    }
   } catch (e) {
     console.error('Failed to load chart data:', e)
     chartData.value = []
@@ -266,6 +279,47 @@ const renderChart = () => {
     legendSelected[`涨(${h}d)`] = false
     legendSelected[`跌(${h}d)`] = false
   })
+
+  // 买入标记
+  if (buyTrades.value.length > 0) {
+    series.push({
+      name: '买入',
+      type: 'scatter',
+      data: buyTrades.value
+        .map(t => {
+          const idx = dates.indexOf(t.trade_date)
+          return idx >= 0 ? [idx, t.price] : null
+        })
+        .filter(Boolean),
+      symbol: 'pin',
+      symbolSize: 24,
+      itemStyle: { color: '#ef5350', borderColor: '#c62828', borderWidth: 1 },
+      label: { show: true, formatter: '买', position: 'bottom', fontSize: 10, color: '#ef5350' },
+      z: 10,
+    })
+    legendData.push('买入')
+    legendSelected['买入'] = true
+  }
+  // 卖出标记
+  if (sellTrades.value.length > 0) {
+    series.push({
+      name: '卖出',
+      type: 'scatter',
+      data: sellTrades.value
+        .map(t => {
+          const idx = dates.indexOf(t.trade_date)
+          return idx >= 0 ? [idx, t.price] : null
+        })
+        .filter(Boolean),
+      symbol: 'pin',
+      symbolSize: 24,
+      itemStyle: { color: '#26a69a', borderColor: '#00796b', borderWidth: 1 },
+      label: { show: true, formatter: '卖', position: 'top', fontSize: 10, color: '#26a69a' },
+      z: 10,
+    })
+    legendData.push('卖出')
+    legendSelected['卖出'] = true
+  }
 
   chartInstance.setOption({
     tooltip: {
