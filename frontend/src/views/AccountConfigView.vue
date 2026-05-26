@@ -1,23 +1,25 @@
 <template>
   <v-card border rounded>
-    <v-card-title class="d-flex justify-space-between align-center pa-4">
-      <div class="d-flex align-center ga-2">
-        <v-icon color="primary">mdi-wallet</v-icon>
-        <span class="text-h6">账户配置</span>
-      </div>
-      <v-btn
-        prepend-icon="mdi-plus"
-        rounded="lg"
-        text="新建账户"
-        border
-        @click="openDialog()"
-      ></v-btn>
-    </v-card-title>
     <v-data-table
       :headers="headers"
       :items="accountConfigs"
       :loading="loading"
     >
+      <template v-slot:top>
+        <v-toolbar flat>
+          <v-toolbar-title>
+            <v-icon color="medium-emphasis" icon="mdi-wallet" size="x-small" start></v-icon>
+            账户配置
+          </v-toolbar-title>
+          <v-btn
+            prepend-icon="mdi-plus"
+            rounded="lg"
+            text="新建账户"
+            border
+            @click="openDialog()"
+          ></v-btn>
+        </v-toolbar>
+      </template>
       <template v-slot:item.initial_capital="{ item }">
         {{ formatMoney(item.initial_capital) }}
       </template>

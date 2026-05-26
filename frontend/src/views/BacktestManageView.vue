@@ -53,8 +53,8 @@
           />
           <v-text-field
             v-else
-            v-model.number="form.max_positions"
-            label="最大持仓数"
+            v-model.number="form.top_n"
+            label="市值排行前N"
             type="number"
           />
         </v-col>
@@ -191,6 +191,7 @@ const form = ref({
   start_date: '2025-01-01',
   end_date: '2025-12-31',
   max_positions: 10,
+  top_n: 100,
   account_config_id: '',
   training_id: '',
   strategy_config_id: '',
@@ -345,7 +346,7 @@ const runBacktest = async () => {
     }
     payload.ts_codes = [form.value.ts_codes]
   } else {
-    payload.max_positions = form.value.max_positions
+    payload.top_n = form.value.top_n
   }
 
   const res = await backtestApi.run(payload)

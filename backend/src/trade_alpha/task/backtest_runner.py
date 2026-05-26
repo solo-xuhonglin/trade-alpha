@@ -56,7 +56,7 @@ class BacktestRunner(BaseRunner):
                 strategy_config=strategy_config,
                 mode=params["mode"],
                 ts_codes=params.get("ts_codes"),
-                max_positions=params.get("max_positions", 10),
+                top_n=params.get("top_n", 100),
             )
 
             result = await pipeline.run_backtest(
