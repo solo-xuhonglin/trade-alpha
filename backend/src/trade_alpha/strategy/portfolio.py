@@ -31,7 +31,6 @@ class PortfolioStrategy(PositionManager):
         max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
         sell_rank_n = strategy_config.sell_rank_n if strategy_config else 15
         hold_score_threshold = strategy_config.hold_score_threshold if strategy_config else 0.05
-        sell_score_threshold = strategy_config.sell_score_threshold if strategy_config else 0.02
 
         super().__init__(
             account_config=account_config,
@@ -46,7 +45,6 @@ class PortfolioStrategy(PositionManager):
         self.ts_codes = ts_codes or []
         self.sell_rank_n = sell_rank_n
         self.hold_score_threshold = hold_score_threshold
-        self.sell_score_threshold = sell_score_threshold
 
     async def make_decisions(
         self,
@@ -119,7 +117,7 @@ class PortfolioStrategy(PositionManager):
         """Check whether a position should be sold."""
         current_score = score_map.get(position.ts_code, 0.0)
         
-        if current_score < self.sell_score_threshold:
+        if current_score < self.sell_threshold:
             return True
         
         if position.hold_days >= self.max_hold_days:
