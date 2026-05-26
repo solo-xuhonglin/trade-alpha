@@ -233,6 +233,11 @@ class ExecutionPipeline:
                 baseline_end_price = baseline_records[-1].close
                 logger.info(f"Baseline: {len(baseline_records)} records, {baseline_start_price} -> {baseline_end_price}")
 
+        # Multi-stock mode: initialize equal-weighted baseline tracking
+        if not self.single_stock_ts_code:
+            baseline_daily_values: List[float] = [self.account_config.initial_capital]
+            baseline_prev_close: Dict[str, float] = {}
+
         await TaskService.update_progress(task_id, 40, "正在执行回测...")
 
         date = start_date
@@ -265,6 +270,19 @@ class ExecutionPipeline:
             if not close_prices:
                 date = _next_date(date)
                 continue
+
+            # Track equal-weighted baseline portfolio for multi-stock mode
+            if not self.single_stock_ts_code:
+                returns = []
+                for ts_code in ts_codes:
+                    prev = baseline_prev_close.get(ts_code)
+                    cur = close_prices.get(ts_code)
+                    if prev and prev > 0 and cur:
+                        returns.append((cur - prev) / prev)
+                    baseline_prev_close[ts_code] = cur or 0.0
+                if returns:
+                    avg_return = sum(returns) / len(returns)
+                    baseline_daily_values.append(baseline_daily_values[-1] * (1 + avg_return))
 
             # Step 1: Settle T-1 pending orders with T's OHLC
             if self.pending_orders:
@@ -415,7 +433,7 @@ class ExecutionPipeline:
         )
         result.avg_hold_days = round(trade_metrics["avg_hold_days"], 2) if trade_metrics["avg_hold_days"] else None
 
-        # Calculate baseline metrics for single-stock mode
+        # Calculate baseline metrics
         if self.single_stock_ts_code and baseline_start_price and baseline_end_price:
             baseline_metrics = self.strategy.calculate_baseline_metrics(
                 baseline_start_price,
@@ -428,6 +446,13 @@ class ExecutionPipeline:
             result.baseline_volatility = round(baseline_metrics["baseline_volatility"], 4) if baseline_metrics.get("baseline_volatility") else None
             result.baseline_sharpe_ratio = round(baseline_metrics["baseline_sharpe_ratio"], 4) if baseline_metrics.get("baseline_sharpe_ratio") else None
             result.excess_return = round(total_return - baseline_metrics["baseline_return"], 4)
+        elif not self.single_stock_ts_code and len(baseline_daily_values) > 1:
+            baseline_start = baseline_daily_values[0]
+            baseline_end = baseline_daily_values[-1]
+            baseline_ret = (baseline_end - baseline_start) / baseline_start
+            result.baseline_return = round(baseline_ret, 4)
+            result.baseline_max_drawdown = round(self._calc_max_drawdown(baseline_daily_values), 4)
+            result.excess_return = round(total_return - baseline_ret, 4)
 
         result.final_value = round(final_value, 2)
         result.total_return = round(total_return, 4)
