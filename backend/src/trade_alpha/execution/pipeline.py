@@ -74,17 +74,15 @@ class ExecutionPipeline:
                 raise ValueError("single mode requires ts_codes or single_stock_ts_code")
             self.strategy = SingleStockStrategy(
                 account_config=account_config,
+                strategy_config=strategy_config,
                 target_ts_code=target_code,
-                buy_threshold=strategy_config.buy_threshold if strategy_config else 0.1,
-                sell_threshold=strategy_config.sell_threshold if strategy_config else -0.1,
             )
             self.single_stock_ts_code = target_code
         else:
             self.strategy = PortfolioStrategy(
                 account_config=account_config,
+                strategy_config=strategy_config,
                 max_positions=max_positions,
-                buy_threshold=strategy_config.buy_threshold if strategy_config else 0.1,
-                sell_threshold=strategy_config.sell_threshold if strategy_config else -0.1,
                 ts_codes=ts_codes,
             )
 

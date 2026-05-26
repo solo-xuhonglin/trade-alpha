@@ -3,6 +3,7 @@
 from typing import Dict, List, Optional
 
 from trade_alpha.dao.account_config import AccountConfig
+from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.strategy.base import PositionManager
@@ -17,13 +18,15 @@ class SingleStockStrategy(PositionManager):
     def __init__(
         self,
         account_config: AccountConfig,
+        strategy_config: Optional[StrategyConfig],
         target_ts_code: str,
-        min_order_value: float = 5000,
-        stop_loss_pct: float = -0.1,
-        max_hold_days: int = 30,
-        buy_threshold: float = 0.1,
-        sell_threshold: float = -0.1,
     ):
+        buy_threshold = strategy_config.buy_threshold if strategy_config else 0.1
+        sell_threshold = strategy_config.sell_threshold if strategy_config else -0.1
+        min_order_value = strategy_config.min_order_value if strategy_config else 5000.0
+        stop_loss_pct = strategy_config.stop_loss_pct if strategy_config else -0.1
+        max_hold_days = strategy_config.max_hold_days if strategy_config else 30
+
         super().__init__(
             account_config=account_config,
             max_positions=1,
