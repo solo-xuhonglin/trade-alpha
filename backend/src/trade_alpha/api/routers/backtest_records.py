@@ -11,6 +11,7 @@ from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
+from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.dao.training import TrainingResult
 from trade_alpha.utils.date_utils import to_api_format, to_db_format
 
