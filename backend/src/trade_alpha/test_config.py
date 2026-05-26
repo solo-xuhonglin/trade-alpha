@@ -18,12 +18,12 @@ TEST_EXCLUDED_TS_CODES = [
 # Default test resource names
 TEST_MODEL_CONFIG_NAME = "test_model_config"
 TEST_STRATEGY_NAME = "test_strategy"
-TEST_ACCOUNT_CONFIG_NAME = "test_portfolio"
+TEST_ACCOUNT_CONFIG_NAME = "test_account_config"
 
 # Data sync years (aligns with production config)
 DATA_YEARS = load_config().data_years
 
 # Production resource names (used by evaluate scripts)
 PROD_TRAINING_NAME = "prod_training"
-PROD_ACCOUNT_CONFIG_NAME = "prod_portfolio"
+PROD_ACCOUNT_CONFIG_NAME = "prod_account_config"
 PROD_MODEL_CONFIG_NAME = "prod_model_config"

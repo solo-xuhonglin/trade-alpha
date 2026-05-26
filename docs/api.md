@@ -776,7 +776,7 @@ POST /api/backtest/run
 | `start_date` | string | 是 | 回测开始日期 (YYYY-MM-DD) |
 | `end_date` | string | 是 | 回测结束日期 (YYYY-MM-DD) |
 | `name` | string | 否 | 回测名称，默认 `"backtest"` |
-| `mode` | string | 否 | 策略模式 `"portfolio"` 或 `"single"`，默认 `"portfolio"` |
+| `mode` | string | 否 | 策略模式 `"multi"` 或 `"single"`，默认 `"multi"` |
 | `ts_codes` | string[] | 否 | 股票代码列表（单股票模式必填） |
 | `max_positions` | int | 否 | 最大持仓数，默认 10（组合模式） |
 | `strategy_config_id` | string | 否 | 策略配置 ID |

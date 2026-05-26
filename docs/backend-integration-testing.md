@@ -144,7 +144,7 @@ Layer 6: 回测
 | TestPredictIntegration | 共享 test_51 训练 | 自动清理 | - |
 | TestTrainingServiceLSTM | 共享一次 LSTM 训练 | 自动清理 | test_lstm_training |
 | TestPredictIntegrationLSTM | 共享 test_53 训练 | 自动清理 | - |
-| TestBacktestLSTM | 共享 test_lstm_training + test_portfolio + test_strategy | **不清理** | test_backtest_lstm |
+| TestBacktestLSTM | 共享 test_lstm_training + test_account_config + test_strategy | **不清理** | test_backtest_lstm |
 
 ## 统一指标接口
 
@@ -179,7 +179,7 @@ Layer 6: 回测
 | 默认记录 | 用途 | 创建位置 |
 |---------|------|---------|
 | 002594.SZ (stock_daily) | Layer 4/5/6 测试数据 | test_20 + test_25 生命周期测试 |
-| test_portfolio | Layer 6 回测账户 | TestAccountConfigService.test_ensure_default_account_config |
+| test_account_config | Layer 6 回测账户 | TestAccountConfigService.test_ensure_default_account_config |
 | test_strategy | Layer 6 回测策略 | TestStrategyService.test_ensure_default_strategy |
 | test_model_config | Layer 5 训练配置 | TestModelConfigService.test_ensure_default_config |
 | test_training | Layer 6 回测训练结果 | TestTrainingService.shared_training |
@@ -220,7 +220,7 @@ pytest tests/trade_alpha/integration/test_61_backtest_lstm.py -v
 - Order 跨度为 10，可在中间插入新测试（如 15、25）
 - 新增 DAO 测试放在 20-29
 - 新增 Service 测试放在 30-39
-- 新增 Portfolio/Strategy/ModelConfig 测试放在 41-49
+- 新增 AccountConfig/Strategy/ModelConfig 测试放在 41-49
 - 新增 Training 测试放在 51-59
 - 新增 Backtest 测试放在 60-69
 - 新增模型类型测试（如 Transformer）可参考 LSTM 测试结构，使用 55-59 编号

@@ -5,6 +5,7 @@ import pytest_asyncio
 from trade_alpha.execution.pipeline import ExecutionPipeline
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
+from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.models.training import trainer
 from trade_alpha.test_config import TEST_STOCK
 
@@ -24,12 +25,13 @@ class TestBacktestLSTM:
 
         # Find required dependencies
         self.account_config = await AccountConfig.find_one(
-            AccountConfig.name == "test_portfolio"
+            AccountConfig.name == "test_account_config"
         )
         self.strategy_config = await StrategyConfig.find_one(
             StrategyConfig.name == "test_strategy"
         )
         self.training = await self._find_training()
+        self.model_config = await ModelConfig.get(self.training.config_id) if self.training else None
 
         yield
 
@@ -45,7 +47,7 @@ class TestBacktestLSTM:
     @pytest.mark.asyncio
     async def test_run_backtest(self):
         """Run LSTM backtest once and store result for subsequent tests."""
-        if not all([self.account_config, self.strategy_config, self.training]):
+        if not all([self.account_config, self.strategy_config, self.training, self.model_config]):
             pytest.skip("Missing dependencies")
 
         if TestBacktestLSTM._backtest_result is not None:
@@ -54,7 +56,7 @@ class TestBacktestLSTM:
         pipeline = ExecutionPipeline(
             account_config=self.account_config,
             training_id=self.training.id,
-            model_config=None,
+            model_config=self.model_config,
             strategy_config=self.strategy_config,
             mode="single",
             ts_codes=[self.ts_code],
@@ -71,7 +73,7 @@ class TestBacktestLSTM:
         TestBacktestLSTM._backtest_result = result
         assert result is not None
         assert result.name == self.backtest_name
-        assert result.mode == "single"
+        assert result.mode == "backtest"
         assert result.ts_code == self.ts_code
 
     @pytest.mark.asyncio

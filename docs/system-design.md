@@ -66,7 +66,7 @@ trade-alpha/
 │   │   ├── strategy/          # 交易策略模块
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py        # 策略基类 (PositionManager)
-│   │   │   ├── portfolio.py   # 组合策略 (PortfolioStrategy)
+│   │   │   ├── multi_stock_strategy.py   # 多股票策略
 │   │   │   └── single_stock.py # 单股票策略 (SingleStockStrategy)
 │   │   ├── account/           # 账户管理模块
 │   │   │   ├── service.py          # 账户配置 CRUD
@@ -304,7 +304,7 @@ trade-alpha/
 - 管理持仓信息
 - 计算交易记录、夏普比率、最大回撤等指标
 
-#### portfolio_strategy.py - 组合策略 (PortfolioStrategy)
+#### multi_stock_strategy.py - 多股票策略 (MultiStockStrategy)
 
 - 多股票组合策略，基于评分排名选股
 - 支持最大持仓数限制

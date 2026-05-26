@@ -13,7 +13,7 @@
   - signal_results (信号结果)
   - execution_results (回测结果)
   - execution_trades (交易记录)
-  - execution_portfolio_dailies (每日持仓)
+  - execution_strategy_dailies (每日持仓)
   - positions (持仓)
   - order_suggestions (订单建议)
   - tasks (异步任务)

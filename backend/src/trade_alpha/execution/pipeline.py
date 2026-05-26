@@ -122,7 +122,7 @@ class ExecutionPipeline:
             model_snapshot=ModelSnapshotEmbed(**{
                 k: v for k, v in self.model_config.model_dump().items()
                 if k in {f for f in ModelSnapshotEmbed.model_fields}
-            }),
+            }) if self.model_config else None,
             strategy_snapshot=StrategySnapshotEmbed(**{
                 k: v for k, v in self.strategy_config.model_dump().items()
                 if k in {f for f in StrategySnapshotEmbed.model_fields}
