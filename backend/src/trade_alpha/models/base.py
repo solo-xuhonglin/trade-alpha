@@ -37,6 +37,25 @@ class BasePredictor(ABC):
     async def predict(self, ts_code: str, target_names: List[str], current_date: str) -> Optional[Dict]:
         pass
 
+    async def predict_batch(self, ts_codes: List[str], target_names: List[str], current_date: str) -> Dict[str, Dict[str, List[float]]]:
+        """
+        Batch predict for multiple stocks.
+        
+        Args:
+            ts_codes: List of stock codes
+            target_names: List of target label names
+            current_date: Current date
+        
+        Returns:
+            Dictionary mapping ts_code to prediction probabilities
+        """
+        results = {}
+        for ts_code in ts_codes:
+            probs = await self.predict(ts_code, target_names, current_date)
+            if probs:
+                results[ts_code] = probs
+        return results
+
 
 def compute_scores(probs: Dict, close: float, horizons: list[int] = None) -> Dict:
     if horizons is None:

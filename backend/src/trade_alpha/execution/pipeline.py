@@ -122,11 +122,11 @@ class ExecutionPipeline:
             model_snapshot=ModelSnapshotEmbed(**{
                 k: v for k, v in self.model_config.model_dump().items()
                 if k in {f for f in ModelSnapshotEmbed.model_fields}
-            ),
+            }),
             strategy_snapshot=StrategySnapshotEmbed(**{
                 k: v for k, v in self.strategy_config.model_dump().items()
                 if k in {f for f in StrategySnapshotEmbed.model_fields}
-            ) if self.strategy_config else None,
+            }) if self.strategy_config else None,
             status="running",
         )
         await result.insert()
@@ -293,13 +293,11 @@ class ExecutionPipeline:
 
                 self.pending_orders.clear()
 
-            # Step 2: Predict T+1 signals
+            # Step 2: Predict T+1 signals (batch prediction for better performance)
             target_names = [f"label_{h}d" for h in self._config.classification_horizons]
+            pred_results_raw = await self.predictor.predict_batch(ts_codes, target_names, date)
             pred_results = {}
-            for ts_code in ts_codes:
-                probs = await self.predictor.predict(ts_code, target_names, date)
-                if probs is None:
-                    continue
+            for ts_code, probs in pred_results_raw.items():
                 close_price = close_prices.get(ts_code, 0)
                 pred_results[ts_code] = compute_scores(probs, close_price, self._config.classification_horizons)
             if not pred_results:
