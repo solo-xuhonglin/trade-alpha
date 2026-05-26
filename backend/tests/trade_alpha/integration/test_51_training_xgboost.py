@@ -39,9 +39,10 @@ class TestTrainingService:
         training = shared_training
         assert training.model_path is not None
         assert training.model_metrics["sample_count"] >= 20
-        assert isinstance(training.feature_fields, list)
-        assert len(training.feature_fields) > 0
-        assert training.classification_horizons == [3, 5]
+        assert training.model_snapshot is not None
+        assert isinstance(training.model_snapshot.feature_fields, list)
+        assert len(training.model_snapshot.feature_fields) > 0
+        assert training.model_snapshot.classification_horizons == [3, 5]
 
     @pytest.mark.asyncio
     async def test_prediction(self, test_model_config, shared_training):
