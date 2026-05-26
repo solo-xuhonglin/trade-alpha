@@ -17,7 +17,7 @@ from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.models.base import compute_scores
 from trade_alpha.strategy.base import PositionManager
-from trade_alpha.strategy.portfolio import PortfolioStrategy
+from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
@@ -79,7 +79,7 @@ class ExecutionPipeline:
             )
             self.single_stock_ts_code = target_code
         else:
-            self.strategy = PortfolioStrategy(
+            self.strategy = MultiStockStrategy(
                 account_config=account_config,
                 strategy_config=strategy_config,
                 max_positions=max_positions,
