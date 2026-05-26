@@ -24,11 +24,33 @@ class ModelSnapshotEmbed(BaseModel):
     name: str
     model_type: str
     feature_fields: List[str] = Field(default_factory=list)
+    standardize_fields: List[str] = Field(default_factory=list)
+    winsorize_fields: List[str] = Field(default_factory=list)
     classification_horizons: List[int] = Field(default_factory=list)
+    label_mode: str = "threshold"
     classification_threshold_3d: float = 0.01
     classification_threshold_5d: float = 0.015
     classification_threshold_10d: float = 0.02
-    label_mode: str = "threshold"
+    xgb_n_estimators: int = 100
+    xgb_max_depth: int = 5
+    xgb_learning_rate: float = 0.01
+    xgb_min_child_weight: int = 1
+    xgb_subsample: float = 0.8
+    xgb_colsample_bytree: float = 0.8
+    lstm_hidden_size: int = 128
+    lstm_num_layers: int = 2
+    lstm_dropout: float = 0.2
+    lstm_epochs: int = 50
+    lstm_batch_size: int = 64
+    lstm_learning_rate: float = 0.001
+    lstm_sequence_length: int = 20
+    lstm_normalization_window: int = 300
+    lstm_weight_decay: float = 0.0
+    lr_scheduler_factor: float = 0.5
+    lr_scheduler_patience: int = 5
+    val_size: float = 0.2
+    label_smoothing: float = 0.1
+    early_stopping_patience: int = 5
 
 
 class ExecutionResult(Document):

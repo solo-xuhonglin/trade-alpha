@@ -121,16 +121,10 @@ class ExecutionPipeline:
                 stamp_tax_rate=self.account_config.stamp_tax_rate,
                 min_fee=self.account_config.min_fee,
             ),
-            model_snapshot=ModelSnapshotEmbed(
-                name=self.model_config.name,
-                model_type=self.model_config.model_type,
-                feature_fields=self.model_config.feature_fields,
-                classification_horizons=self.model_config.classification_horizons,
-                classification_threshold_3d=self.model_config.classification_threshold_3d,
-                classification_threshold_5d=self.model_config.classification_threshold_5d,
-                classification_threshold_10d=self.model_config.classification_threshold_10d,
-                label_mode=self.model_config.label_mode,
-            ),
+            model_snapshot=ModelSnapshotEmbed(**{
+                k: v for k, v in self.model_config.model_dump().items()
+                if k in {f for f in ModelSnapshotEmbed.model_fields}
+            }),
             status="running",
         )
         await result.insert()

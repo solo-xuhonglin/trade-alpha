@@ -31,19 +31,12 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
 
     await TaskService.update_progress(task_id, 95, "正在保存结果...")
 
+    snapshot_fields = {k for k in ModelSnapshotEmbed.model_fields}
+    embed_data = {k: v for k, v in config.model_dump().items() if k in snapshot_fields}
     training = TrainingResult(
         config_id=config_id, name=name,
         ts_codes=ts_codes, start_date=start_date, end_date=end_date,
-        model_snapshot=ModelSnapshotEmbed(
-            name=config.name,
-            model_type=config.model_type,
-            feature_fields=config.feature_fields,
-            classification_horizons=config.classification_horizons,
-            classification_threshold_3d=config.classification_threshold_3d,
-            classification_threshold_5d=config.classification_threshold_5d,
-            classification_threshold_10d=config.classification_threshold_10d,
-            label_mode=config.label_mode,
-        ),
+        model_snapshot=ModelSnapshotEmbed(**embed_data),
         model_metrics=metrics,
         created_at=datetime.now(timezone.utc),
     )
