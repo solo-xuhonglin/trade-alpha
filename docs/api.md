@@ -664,6 +664,84 @@ PUT /api/account-configs/{account_config_id}
 DELETE /api/account-configs/{account_config_id}
 ```
 
+## 任务管理
+
+### 获取任务列表
+
+```
+GET /api/tasks
+```
+
+获取所有任务（回测、训练、数据分析）的列表，支持分页和过滤。
+
+**参数**:
+- `task_type` (query, optional): 任务类型筛选 `"backtest"` / `"training"` / `"data_analysis"`
+- `status` (query, optional): 状态筛选 `"pending"` / `"running"` / `"completed"` / `"failed"` / `"cancelled"`
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "task_id": "507f1f77bcf86cd799439011",
+      "type": "backtest",
+      "status": "failed",
+      "progress": 45.0,
+      "progress_message": "执行回测中...",
+      "error_message": "SingleStockStrategy.__init__() got an unexpected keyword argument 'buy_threshold'",
+      "result_id": null,
+      "created_at": "2024-01-01T00:00:00Z",
+      "started_at": "2024-01-01T00:00:05Z",
+      "completed_at": "2024-01-01T00:00:50Z",
+      "params": {
+        "account_config_id": "507f1f77bcf86cd799439013",
+        "training_id": "507f1f77bcf86cd799439014",
+        "start_date": "2025-01-01",
+        "end_date": "2025-12-31",
+        "mode": "single"
+      }
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
+**任务状态**:
+- `pending`: 任务等待执行
+- `running`: 任务执行中
+- `completed`: 任务成功完成
+- `failed`: 任务执行失败
+- `cancelled`: 任务被手动停止
+
+### 获取任务详情
+
+```
+GET /api/tasks/{task_id}
+```
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "type": "backtest",
+  "status": "failed",
+  "progress": 45.0,
+  "progress_message": "执行回测中...",
+  "error_message": "SingleStockStrategy.__init__() got an unexpected keyword argument 'buy_threshold'",
+  "result_id": null,
+  "created_at": "2024-01-01T00:00:00Z",
+  "started_at": "2024-01-01T00:00:05Z",
+  "completed_at": "2024-01-01T00:00:50Z",
+  "params": {},
+  "pid": 12345
+}
+```
+
 ## 回测管理
 
 ### 触发回测任务（subprocess 异步执行）

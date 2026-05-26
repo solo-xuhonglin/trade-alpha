@@ -195,6 +195,54 @@
 - trend_volume_n = corr(pct_chg, vol_ratio_n) * 100
 - trend_stability_n = 100 - mean(|close - ma_n| / ma_n) * 100
 
+## 标签计算方法
+
+### 分类标签（threshold 模式）
+
+根据未来收益是否超过阈值来标记：
+
+| 标签 | 条件 |
+|------|------|
+| 1（上涨）| 未来 N 天收益率 > 阈值 |
+| 0（持平）| -阈值 ≤ 未来 N 天收益率 ≤ 阈值 |
+| -1（下跌）| 未来 N 天收益率 < -阈值 |
+
+**默认阈值**：
+- label_3d: 1%
+- label_5d: 1.5%
+- label_10d: 2%
+
+### 趋势标签（trend 模式）
+
+根据均线趋势和技术指标来判断：
+
+| 标签 | 条件 |
+|------|------|
+| 1（上涨）| 未来收盘价 > 未来均线 AND 未来均线斜率 > 当前均线斜率 AND 未来收益率 > 阈值 |
+| 0（持平）| 其他情况 |
+| -1（下跌）| 未来收盘价 < 未来均线 AND 未来均线斜率 < 当前均线斜率 AND 未来收益率 < -阈值 |
+
+**均线配置**：
+| 周期 | 基准均线 | 斜率均线 | 前移天数 |
+|------|---------|---------|---------|
+| 3天 | ma_20 | ma_5 | 2 |
+| 5天 | ma_40 | ma_10 | 3 |
+| 10天 | ma_60 | ma_20 | 5 |
+
+**特点**：
+- 使用未来指标判断趋势，避免用当前指标预测未来收益不一致
+- 不填充均线数据的 NaN 值，有空值则该行标签为 0
+
+**示例**（label_3d）：
+```python
+close_future = close.shift(-2)       # 2天后收盘价
+ma_20_future = ma_20.shift(-2)       # 2天后ma_20
+ma_5_future = ma_5.shift(-2)         # 2天后ma_5
+
+trend_up = (close_future > ma_20_future) & (ma_5_future > ma_5)
+label = 1 if trend_up & (ret > threshold) else (-1 if trend_down & (ret < -threshold) else 0)
+```
+
 ## 默认配置字段
 
 ### 模型配置默认特征字段
@@ -247,6 +295,7 @@
 - 指标定义：[backend/src/trade_alpha/indicators/](file:///d:/projects/trade-alpha/backend/src/trade-alpha/indicators)
 - 数据模型：[backend/src/trade_alpha/dao/stock_daily.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/dao/stock_daily.py)
 - 服务接口：[backend/src/trade_alpha/indicators/service.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/indicators/service.py)
+- 标签计算：[backend/src/trade_alpha/models/training/helpers.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/models/training/helpers.py)
 
 ## 指标与价格绝对值关系分析
 

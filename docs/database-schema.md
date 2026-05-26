@@ -266,6 +266,7 @@ MACDStrategy:
 | `avg_hold_days` | float | 平均持仓天数 | - |
 | `account_snapshot` | object | 账户配置快照（嵌入） | - |
 | `model_snapshot` | object | 模型配置快照（嵌入） | - |
+| `strategy_snapshot` | object | 策略配置快照（嵌入） | - |
 | `created_at` | datetime | 创建时间 | now |
 | `status` | string | 状态 ("pending" / "running" / "completed" / "failed") | "completed" |
 
@@ -282,16 +283,52 @@ MACDStrategy:
 
 **model_snapshot（嵌入字段）**:
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `name` | string | 模型配置名称 |
-| `model_type` | string | 模型类型 |
-| `feature_fields` | array | 特征字段列表 |
-| `classification_horizons` | array | 分类预测周期 |
-| `label_mode` | string | "threshold" | 标签计算模式，可选 "threshold"(涨跌幅阈值) / "trend"(均线趋势) |
-| `classification_threshold_3d` | float | 0.01 | label_3d 的涨跌阈值 |
-| `classification_threshold_5d` | float | 0.015 | label_5d 的涨跌阈值 |
-| `classification_threshold_10d` | float | 0.02 | label_10d 的涨跌阈值 |
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `name` | string | 模型配置名称 | - |
+| `model_type` | string | 模型类型 | - |
+| `feature_fields` | array | 特征字段列表 | [] |
+| `standardize_fields` | array | Z-score 标准化字段列表 | [] |
+| `winsorize_fields` | array | 缩尾处理字段列表 | [] |
+| `classification_horizons` | array | 分类预测周期 | [] |
+| `label_mode` | string | 标签计算模式 ("threshold" / "trend") | "threshold" |
+| `classification_threshold_3d` | float | label_3d 涨跌阈值 | 0.01 |
+| `classification_threshold_5d` | float | label_5d 涨跌阈值 | 0.015 |
+| `classification_threshold_10d` | float | label_10d 涨跌阈值 | 0.02 |
+| `xgb_n_estimators` | int | XGBoost 树数量 | 100 |
+| `xgb_max_depth` | int | XGBoost 最大深度 | 5 |
+| `xgb_learning_rate` | float | XGBoost 学习率 | 0.01 |
+| `xgb_min_child_weight` | int | XGBoost 最小叶子权重 | 1 |
+| `xgb_subsample` | float | XGBoost 行采样比 | 0.8 |
+| `xgb_colsample_bytree` | float | XGBoost 列采样比 | 0.8 |
+| `lstm_hidden_size` | int | LSTM 隐藏层大小 | 128 |
+| `lstm_num_layers` | int | LSTM 层数 | 2 |
+| `lstm_dropout` | float | LSTM Dropout | 0.2 |
+| `lstm_epochs` | int | LSTM 训练轮数 | 50 |
+| `lstm_batch_size` | int | LSTM 批大小 | 64 |
+| `lstm_learning_rate` | float | LSTM 学习率 | 0.001 |
+| `lstm_sequence_length` | int | LSTM 序列长度 | 20 |
+| `lstm_normalization_window` | int | LSTM 归一化窗口 | 300 |
+| `lstm_weight_decay` | float | LSTM 权重衰减 | 0.0 |
+| `lr_scheduler_factor` | float | 学习率调度因子 | 0.5 |
+| `lr_scheduler_patience` | int | 学习率调度耐心值 | 5 |
+| `val_size` | float | 验证集比例 | 0.2 |
+| `label_smoothing` | float | 标签平滑值 | 0.1 |
+| `early_stopping_patience` | int | 早停耐心值 | 5 |
+
+**strategy_snapshot（嵌入字段）**:
+
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `name` | string | 策略名称 | - |
+| `type` | string | 策略类型 | - |
+| `min_order_value` | float | 最小订单金额 | 5000.0 |
+| `stop_loss_pct` | float | 止损百分比 | -0.1 |
+| `max_hold_days` | int | 最大持仓天数 | 30 |
+| `buy_threshold` | float | 买入阈值（预测分数 > 此值才买入） | 0.1 |
+| `sell_threshold` | float | 卖出阈值（预测分数 < 此值才卖出） | -0.1 |
+| `max_positions` | int | 最大持仓数量 | 10 |
+| `max_position_pct` | float | 最大持仓比例 | 0.3 |
 
 ### execution_daily_snapshots
 
@@ -404,10 +441,10 @@ MACDStrategy:
 | `standardize_fields` | array | Z-score 标准化的字段列表 (通常与feature_fields相同) |
 | `winsorize_fields` | array | 缩尾处理的字段列表 (通常为空) |
 | `classification_horizons` | array | 分类预测周期列表 |
-| `label_mode` | string | "threshold" | 标签计算模式，可选 "threshold"(涨跌幅阈值) / "trend"(均线趋势) |
-| `classification_threshold_3d` | float | 0.01 | label_3d 的涨跌阈值 |
-| `classification_threshold_5d` | float | 0.015 | label_5d 的涨跌阈值 |
-| `classification_threshold_10d` | float | 0.02 | label_10d 的涨跌阈值 |
+| `label_mode` | string | 标签计算模式，可选 "threshold"(涨跌幅阈值) / "trend"(均线趋势) |
+| `classification_threshold_3d` | float | label_3d 的涨跌阈值 |
+| `classification_threshold_5d` | float | label_5d 的涨跌阈值 |
+| `classification_threshold_10d` | float | label_10d 的涨跌阈值 |
 | `created_at` | datetime | 创建时间 |
 | `updated_at` | datetime | 更新时间 |
 
