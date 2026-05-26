@@ -125,7 +125,7 @@ async def get_backtest_trades(
                 "position_after": getattr(trade, "position_after", 0),
                 "status": trade.status,
                 "ts_code": trade.ts_code,
-                "stock_name": name_map.get(trade.ts_code, trade.ts_code),
+                "ts_name": name_map.get(trade.ts_code, trade.ts_code),
                 "reason": trade.reason,
             }
             for trade in trades
@@ -301,6 +301,9 @@ async def list_all_trades(
     total = await query.count()
     trades = await query.sort(ExecutionTrade.trade_date).skip((page - 1) * page_size).limit(page_size).to_list()
 
+    ts_codes = list({t.ts_code for t in trades})
+    name_map = await get_stock_names(ts_codes)
+
     return {
         "items": [
             {
@@ -313,6 +316,7 @@ async def list_all_trades(
                 "position_after": getattr(trade, "position_after", 0),
                 "status": trade.status,
                 "ts_code": trade.ts_code,
+                "ts_name": name_map.get(trade.ts_code, trade.ts_code),
                 "reason": trade.reason,
             }
             for trade in trades

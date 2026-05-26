@@ -10,6 +10,7 @@ export interface Trade {
   position_after: number
   status: string
   ts_code?: string
+  ts_name?: string
   reason?: string
 }
 

@@ -161,7 +161,7 @@ const statusOptionItems = [
 ]
 
 const headers = [
-  { title: '股票', key: 'stock_name' },
+  { title: '股票', key: 'ts_name' },
   { title: '日期', key: 'trade_date' },
   { title: '操作', key: 'action' },
   { title: '状态', key: 'status' },

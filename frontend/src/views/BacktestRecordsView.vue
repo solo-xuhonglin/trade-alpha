@@ -31,6 +31,9 @@
           {{ (item.total_return * 100).toFixed(2) }}%
         </span>
       </template>
+      <template v-slot:item.ts_code="{ item }">
+        {{ item.ts_name || item.stock_name || item.ts_code || '-' }}
+      </template>
       <template v-slot:item.excess_return="{ item }">
         <span :class="(item.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">
           {{ ((item.excess_return || 0) * 100).toFixed(2) }}%
@@ -188,7 +191,7 @@
             </v-chip>
           </template>
           <template v-slot:item.ts_code="{ item }">
-            {{ item.stock_name || item.ts_code }}
+            {{ item.ts_name || item.stock_name || item.ts_code }}
           </template>
           <template v-slot:item.status="{ item }">
             <v-chip v-if="item.status === 'filled'" color="success" size="small">成交</v-chip>

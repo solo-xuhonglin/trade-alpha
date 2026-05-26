@@ -37,6 +37,7 @@ export interface Trade {
   status: string
   ts_code?: string
   stock_name?: string
+  ts_name?: string
   reason?: string
 }
 
