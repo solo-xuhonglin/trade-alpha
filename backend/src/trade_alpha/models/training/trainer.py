@@ -111,7 +111,8 @@ async def predict_with_training(training_id: PydanticObjectId, ts_code: str) -> 
     current_date = latest[0].trade_date
     target_names = [f"label_{h}d" for h in config.classification_horizons]
 
-    probs = await predictor.predict(ts_code, target_names, current_date)
+    results = await predictor.predict_batch([ts_code], target_names, current_date)
+    probs = results.get(ts_code)
     if probs is None:
         raise ValueError(f"Prediction failed for {ts_code} at {current_date}")
 

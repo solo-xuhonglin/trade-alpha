@@ -436,10 +436,8 @@ class ExecutionPipeline:
 
         pred_results = {}
         target_names = [f"label_{h}d" for h in self._config.classification_horizons]
-        for ts_code in ts_codes:
-            probs = await self.predictor.predict(ts_code, target_names, date)
-            if probs is None:
-                continue
+        pred_results_raw = await self.predictor.predict_batch(ts_codes, target_names, date)
+        for ts_code, probs in pred_results_raw.items():
             close_price = close_prices.get(ts_code, 0)
             result = compute_scores(probs, close_price)
             if result["score"] > 0:

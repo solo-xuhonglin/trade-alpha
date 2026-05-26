@@ -62,24 +62,26 @@ def test_compute_scores_empty():
 
 
 @pytest.mark.asyncio
-async def test_xgboost_predictor_predict():
+async def test_xgboost_predictor_predict_batch():
     from trade_alpha.models.xgboost.predictor import XGBoostPredictor
     config = FakeConfig()
     config.model_type = "xgboost"
     pred = XGBoostPredictor(config, FakeClassifier(), FakeDataLoader())
-    result = await pred.predict("000001.SZ", ["label_3d", "label_5d"], "20240110")
-    assert result is not None
+    results = await pred.predict_batch(["000001.SZ"], ["label_3d", "label_5d"], "20240110")
+    assert "000001.SZ" in results
+    result = results["000001.SZ"]
     assert "label_3d" in result
     assert len(result["label_3d"]) == 3
 
 
 @pytest.mark.asyncio
-async def test_lstm_predictor_predict():
+async def test_lstm_predictor_predict_batch():
     from trade_alpha.models.lstm.predictor import LSTMPredictor
     config = FakeConfig()
     config.lstm_sequence_length = 3
     pred = LSTMPredictor(config, FakeClassifier(), FakeDataLoader())
-    result = await pred.predict("000001.SZ", ["label_3d", "label_5d"], "20240110")
-    assert result is not None
+    results = await pred.predict_batch(["000001.SZ"], ["label_3d", "label_5d"], "20240110")
+    assert "000001.SZ" in results
+    result = results["000001.SZ"]
     assert "label_3d" in result
     assert len(result["label_3d"]) == 3
