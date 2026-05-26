@@ -1,15 +1,15 @@
 """Execution pipeline - main orchestrator for backtest and live trading."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
-from trade_alpha.dao import StockList, StockDaily
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
+from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.models.training.config import get_config_by_id
@@ -22,9 +22,7 @@ from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
-from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.utils.date_utils import get_year_months
-from trade_alpha.models.training.helpers import create_labels
 
 logger = get_logger("execution.pipeline")
 
@@ -113,16 +111,8 @@ class ExecutionPipeline:
         for rank, stock in enumerate(scored_sorted, start=1):
             pred_results[stock.ts_code]["rank"] = rank
 
-    async def run_backtest(
-        self,
-        start_date: str,
-        end_date: str,
-        name: Optional[str] = None,
-        task_id: Optional[PydanticObjectId] = None,
-    ) -> ExecutionResult:
-        """Run backtest from start_date to end_date (inclusive)."""
+    async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
-
         result = ExecutionResult(
             account_config_id=self.account_config.id,
             training_id=self.training_id,
@@ -152,296 +142,230 @@ class ExecutionPipeline:
             status="running",
         )
         await result.insert()
-        backtest_id = result.id
+        logger.info(f"Backtest {result.id} started: {start_date} -> {end_date}")
+        return result
 
-        await TaskService.update_progress(task_id, 10, "正在初始化...")
+    async def _ensure_predictor(self, task_id: Optional[PydanticObjectId] = None) -> None:
         if self.predictor is None:
             training = await get_training_by_id(self.training_id)
             config = await get_config_by_id(training.config_id)
             classifier = create_classifier(config, training.model_path)
             self.predictor = create_predictor(config, classifier, data_loader=self.data_loader)
-        logger.info(f"Backtest {backtest_id} started: {start_date} -> {end_date}")
 
-        # Get stocks from the universe (same stocks used in training)
+    def _init_baseline(self, initial_capital: float) -> None:
+        self._baseline_daily_values = [initial_capital]
+        self._baseline_prev_close: Dict[str, float] = {}
 
-        if self.single_stock_ts_code:
-            limit = 1
-            await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
-            target_stock = await StockList.find_one(StockList.ts_code == self.single_stock_ts_code)
-            if not target_stock:
-                raise ValueError(f"Target stock {self.single_stock_ts_code} not found")
-            all_stocks = [target_stock]
-        else:
-            from beanie.odm.operators.find.comparison import NotIn
-            await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
-            all_stocks = await StockList.find(
-                StockList.sync_status == "active",
-                NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
-            ).sort(-StockList.total_mv).limit(self.top_n).to_list()
+    @staticmethod
+    def _skip_non_trading_day(date: str) -> bool:
+        return datetime.strptime(date, "%Y%m%d").weekday() >= 5
 
-        universe = {s.ts_code: s.name for s in all_stocks}
-        ts_codes = list(universe.keys())
+    @staticmethod
+    async def _update_progress(task_id: Optional[PydanticObjectId], date: str,
+                                year_months: list, total_months: int, last_idx: int) -> int:
+        current_ym = (int(date[:4]), int(date[4:6]) if len(date) >= 6 else 1)
+        for idx, (y, m) in enumerate(year_months):
+            if y == current_ym[0] and m == current_ym[1] and idx >= last_idx:
+                await TaskService.update_progress(task_id, 40 + idx / total_months * 50, f"正在回测 {y}年{m}月...")
+                return idx + 1
+        return last_idx
 
-        # Single-stock mode: set ts_code and stock_name
-        if self.single_stock_ts_code:
-            result.ts_code = self.single_stock_ts_code
-            result.stock_name = universe.get(self.single_stock_ts_code, self.single_stock_ts_code)
-            logger.info(f"Single-stock mode: {result.ts_code} ({result.stock_name})")
+    @staticmethod
+    async def _load_day_data(date: str, ts_codes: List[str], data_loader: DataLoader):
+        day_df = await data_loader.load_day_data(date, ts_codes)
+        if day_df.empty:
+            return None
+        return {
+            "open": dict(zip(day_df["ts_code"], day_df["open"])),
+            "high": dict(zip(day_df["ts_code"], day_df["high"])),
+            "low": dict(zip(day_df["ts_code"], day_df["low"])),
+            "close": dict(zip(day_df["ts_code"], day_df["close"])),
+        }
 
-        logger.info(f"Universe contains {len(ts_codes)} stocks (top {self.top_n})")
+    def _track_baseline(self, close_prices: Dict[str, float]) -> None:
+        returns = []
+        for code in self.ts_codes:
+            prev = self._baseline_prev_close.get(code)
+            cur = close_prices.get(code)
+            if prev and prev > 0 and cur:
+                returns.append((cur - prev) / prev)
+            self._baseline_prev_close[code] = cur or 0.0
+        if returns:
+            avg = sum(returns) / len(returns)
+            self._baseline_daily_values.append(self._baseline_daily_values[-1] * (1 + avg))
 
-        await TaskService.update_progress(task_id, 30, "正在准备回测...")
-        self.cash = self.account_config.initial_capital
-        self.positions = {}
-        self.prev_total_value = None
+    async def _settle_orders(self, date: str, backtest_id: PydanticObjectId,
+                              name_map: Dict[str, str], day_data: Dict) -> Tuple[int, float]:
+        if not self.pending_orders:
+            return 0, 0.0
+        filled_trades, unfilled_orders, net_cash = await self.strategy.settle_orders(
+            orders=self.pending_orders, date=date,
+            open_prices=day_data["open"], high_prices=day_data["high"],
+            low_prices=day_data["low"], backtest_id=backtest_id,
+        )
+        self.cash += net_cash
+        all_trades = filled_trades + [
+            ExecutionTrade(
+                backtest_id=backtest_id, ts_code=order.ts_code, trade_date=date,
+                action="buy" if order.order_shares > 0 else "sell",
+                price=0.0, shares=0, fee=0.0, cash_after=0.0,
+                status="cancelled", reason="cancelled",
+                entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
+            ) for order in unfilled_orders
+        ]
+        await ExecutionTrade.insert_many(all_trades)
+        total_fees = 0.0
+        for t in filled_trades:
+            total_fees += t.fee
+            if t.action == "sell":
+                total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
+        for t in filled_trades:
+            if t.action == "sell":
+                self.positions.pop(t.ts_code, None)
+            elif t.action == "buy":
+                self.positions[t.ts_code] = PositionEmbed(
+                    ts_code=t.ts_code, stock_name=name_map.get(t.ts_code, ""),
+                    buy_date=date, buy_price=t.price, shares=t.shares, fee=t.fee,
+                    entry_score=t.entry_score or 0, entry_3d_prob=t.up_prob_3d or 0,
+                    entry_5d_prob=t.up_prob_5d or 0, hold_days=0,
+                )
+        self.pending_orders.clear()
+        return len(filled_trades), total_fees
 
+    async def _predict(self, date: str, close_prices: Dict[str, float],
+                        name_map: Dict[str, str], start_date: str):
+        target_names = [f"label_{h}d" for h in self._config.classification_horizons]
+        pred_results_raw = await self.predictor.predict_batch(self.ts_codes, target_names, date)
+        pred_results = {}
+        for ts_code, probs in pred_results_raw.items():
+            close_price = close_prices.get(ts_code, 0)
+            pred_results[ts_code] = compute_scores(probs, close_price, self._config.classification_horizons)
+        if not pred_results:
+            return [], {}
+        self._smooth_scores(pred_results)
+        scored = [
+            ScoredStock(
+                ts_code=ts_code, stock_name=name_map.get(ts_code, ts_code),
+                close=r["close"], up_prob_3d=r["up_prob_3d"],
+                up_prob_5d=r["up_prob_5d"], score=r["score"],
+            ) for ts_code, r in pred_results.items()
+        ]
+        self._record_ranks(scored, pred_results)
+        if date == start_date:
+            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
+            if scored:
+                top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
+                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
+        return scored, pred_results
+
+    async def _make_orders(self, scored: List[ScoredStock],
+                            close_prices: Dict[str, float], date: str) -> None:
+        pending_orders = await self.strategy.make_decisions(
+            scored_stocks=scored, current_positions=self.positions,
+            cash=self.cash, trade_date=date, close_prices=close_prices,
+        )
+        for order in pending_orders:
+            order.trade_date = date
+            order.settle_date = _next_date(date)
+        self.pending_orders = pending_orders
+
+    async def _save_snapshot(self, date: str, backtest_id: PydanticObjectId,
+                              close_prices: Dict[str, float],
+                              pred_results: Dict[str, Dict]) -> Tuple[float, Optional[float]]:
+        snapshot = await self.strategy.daily_snapshot(
+            backtest_id=backtest_id, date=date, cash=self.cash,
+            positions=self.positions, close_prices=close_prices,
+            prev_total_value=self.prev_total_value, predictions=pred_results,
+        )
+        self.prev_total_value = snapshot.total_value
+        return snapshot.total_value, snapshot.day_return
+
+    async def run_backtest(
+        self,
+        start_date: str,
+        end_date: str,
+        name: Optional[str] = None,
+        task_id: Optional[PydanticObjectId] = None,
+    ) -> ExecutionResult:
+        result = await self._create_result(start_date, end_date, name)
+        await self._ensure_predictor(task_id)
+        name_map = await get_stock_names(self.ts_codes)
+
+        await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
+
+        self._init_baseline(result.initial_capital)
+
+        daily_values, daily_returns, total_trades, total_fees = \
+            await self._run_daily_loop(start_date, end_date, result.id, name_map, task_id)
+
+        await self._finalize_result(result, daily_values, daily_returns, total_trades, total_fees)
+        return result
+
+    async def _run_daily_loop(self, start_date, end_date, backtest_id, name_map, task_id):
         daily_values: List[float] = []
         daily_returns: List[float] = []
         total_trades = 0
         total_fees = 0.0
-
-        # Progress tracking by month
         year_months = get_year_months(start_date, end_date)
         total_months = len(year_months)
         last_idx = 0
 
-        # Load baseline prices
-        baseline_start_price = None
-        baseline_end_price = None
-        baseline_daily_prices: List[float] = []
-
-        if self.single_stock_ts_code:
-            baseline_records = await StockDaily.find(
-                StockDaily.ts_code == self.single_stock_ts_code,
-                StockDaily.trade_date >= start_date,
-                StockDaily.trade_date <= end_date,
-            ).sort(StockDaily.trade_date).to_list()
-
-            if baseline_records:
-                baseline_daily_prices = [r.close for r in baseline_records]
-                baseline_start_price = baseline_records[0].close
-                baseline_end_price = baseline_records[-1].close
-                logger.info(f"Baseline: {len(baseline_records)} records, {baseline_start_price} -> {baseline_end_price}")
-
-        # Multi-stock mode: initialize equal-weighted baseline tracking
-        if not self.single_stock_ts_code:
-            baseline_daily_values: List[float] = [self.account_config.initial_capital]
-            baseline_prev_close: Dict[str, float] = {}
-
         await TaskService.update_progress(task_id, 40, "正在执行回测...")
-
         date = start_date
         while date <= end_date:
-            weekday = datetime.strptime(date, "%Y%m%d").weekday()
-            if weekday >= 5:
+            if self._skip_non_trading_day(date):
                 date = _next_date(date)
                 continue
 
-            # Update progress by month
-            current_year = int(date[:4])
-            current_month = int(date[4:6]) if len(date) >= 6 else 1
-            for idx, (y, m) in enumerate(year_months):
-                if y == current_year and m == current_month and idx >= last_idx:
-                    last_idx = idx + 1
-                    await TaskService.update_progress(task_id, 40 + last_idx / total_months * 50, f"正在回测 {y}年{m}月...")
-                    break
+            last_idx = await self._update_progress(task_id, date, year_months, total_months, last_idx)
+            day_data = await self._load_day_data(date, self.ts_codes, self.data_loader)
+            if not day_data:
+                date = _next_date(date)
+                continue
+            close_prices = day_data["close"]
 
-            logger.debug(f"Processing {date}")
-            day_df = await self.data_loader.load_day_data(date, ts_codes)
-            if day_df.empty:
-                logger.debug(f"No day data for {date}, skipping")
+            self._track_baseline(close_prices)
+
+            trades_add, fees_add = await self._settle_orders(date, backtest_id, name_map, day_data)
+            total_trades += trades_add
+            total_fees += fees_add
+
+            scored, pred_results = await self._predict(date, close_prices, name_map, start_date)
+            if not scored:
                 date = _next_date(date)
                 continue
 
-            open_prices = dict(zip(day_df["ts_code"], day_df["open"]))
-            high_prices = dict(zip(day_df["ts_code"], day_df["high"]))
-            low_prices = dict(zip(day_df["ts_code"], day_df["low"]))
-            close_prices = dict(zip(day_df["ts_code"], day_df["close"]))
-            if not close_prices:
-                date = _next_date(date)
-                continue
-
-            # Track equal-weighted baseline portfolio for multi-stock mode
-            if not self.single_stock_ts_code:
-                returns = []
-                for ts_code in ts_codes:
-                    prev = baseline_prev_close.get(ts_code)
-                    cur = close_prices.get(ts_code)
-                    if prev and prev > 0 and cur:
-                        returns.append((cur - prev) / prev)
-                    baseline_prev_close[ts_code] = cur or 0.0
-                if returns:
-                    avg_return = sum(returns) / len(returns)
-                    baseline_daily_values.append(baseline_daily_values[-1] * (1 + avg_return))
-
-            # Step 1: Settle T-1 pending orders with T's OHLC
-            if self.pending_orders:
-                filled_trades, unfilled_orders, net_cash = await self.strategy.settle_orders(
-                    orders=self.pending_orders,
-                    date=date,
-                    open_prices=open_prices,
-                    high_prices=high_prices,
-                    low_prices=low_prices,
-                    backtest_id=backtest_id,
-                )
-                self.cash += net_cash
-                total_trades += len(filled_trades)
-
-                # Record all orders (filled + cancelled) as ExecutionTrade
-                all_trades = filled_trades + [
-                    ExecutionTrade(
-                        backtest_id=backtest_id,
-                        ts_code=order.ts_code,
-                        trade_date=date,
-                        action="buy" if order.order_shares > 0 else "sell",
-                        price=0.0,
-                        shares=0,
-                        fee=0.0,
-                        cash_after=0.0,
-                        status="cancelled",
-                        reason="cancelled",
-                        entry_score=order.score,
-                        up_prob_3d=order.up_prob_3d,
-                        up_prob_5d=order.up_prob_5d,
-                    )
-                    for order in unfilled_orders
-                ]
-                await ExecutionTrade.insert_many(all_trades)
-
-                for t in filled_trades:
-                    total_fees += t.fee
-                    if t.action == "sell":
-                        total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
-
-                for t in filled_trades:
-                    if t.action == "sell":
-                        self.positions.pop(t.ts_code, None)
-                    elif t.action == "buy":
-                        self.positions[t.ts_code] = PositionEmbed(
-                            ts_code=t.ts_code,
-                            stock_name=universe.get(t.ts_code, ""),
-                            buy_date=date,
-                            buy_price=t.price,
-                            shares=t.shares,
-                            fee=t.fee,
-                            entry_score=t.entry_score or 0,
-                            entry_3d_prob=t.up_prob_3d or 0,
-                            entry_5d_prob=t.up_prob_5d or 0,
-                            hold_days=0,
-                        )
-
-                self.pending_orders.clear()
-
-            # Step 2: Predict T+1 signals (batch prediction for better performance)
-            target_names = [f"label_{h}d" for h in self._config.classification_horizons]
-            pred_results_raw = await self.predictor.predict_batch(ts_codes, target_names, date)
-            pred_results = {}
-            for ts_code, probs in pred_results_raw.items():
-                close_price = close_prices.get(ts_code, 0)
-                pred_results[ts_code] = compute_scores(probs, close_price, self._config.classification_horizons)
-            if not pred_results:
-                logger.debug(f"No predictions for {date}, skipping")
-                date = _next_date(date)
-                continue
-
-            # Smooth scores with EWMA to reduce ranking volatility
-            self._smooth_scores(pred_results)
-
-            scored = [
-                ScoredStock(
-                    ts_code=ts_code,
-                    stock_name=universe.get(ts_code, ""),
-                    close=r["close"],
-                    up_prob_3d=r["up_prob_3d"],
-                    up_prob_5d=r["up_prob_5d"],
-                    score=r["score"],
-                )
-                for ts_code, r in pred_results.items()
-            ]
-
-            # Record ranks after sorting by smoothed score
-            self._record_ranks(scored, pred_results)
-
-            # Single-stock mode: filter to only the target stock
-            if self.single_stock_ts_code:
-                scored = [s for s in scored if s.ts_code == self.single_stock_ts_code]
-
-            # Log first day predictions for debugging
-            if date == start_date:
-                logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
-                if scored:
-                    top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
-                    logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
-
-            # Step 3: Generate new pending orders for T+1
-            pending_orders = await self.strategy.make_decisions(
-                scored_stocks=scored,
-                current_positions=self.positions,
-                cash=self.cash,
-                trade_date=date,
-                close_prices=close_prices,
-            )
-
-            for order in pending_orders:
-                order.trade_date = date
-                order.settle_date = _next_date(date)
-
-            self.pending_orders = pending_orders
-
-            snapshot = await self.strategy.daily_snapshot(
-                backtest_id=backtest_id,
-                date=date,
-                cash=self.cash,
-                positions=self.positions,
-                close_prices=close_prices,
-                prev_total_value=self.prev_total_value,
-                predictions=pred_results,
-            )
-            self.prev_total_value = snapshot.total_value
-            daily_values.append(snapshot.total_value)
-            if self.prev_total_value and snapshot.day_return is not None:
-                daily_returns.append(snapshot.day_return)
+            await self._make_orders(scored, close_prices, date)
+            day_val, day_ret = await self._save_snapshot(date, backtest_id, close_prices, pred_results)
+            daily_values.append(day_val)
+            if day_ret is not None:
+                daily_returns.append(day_ret)
 
             date = _next_date(date)
 
+        return daily_values, daily_returns, total_trades, total_fees
+
+    async def _finalize_result(self, result, daily_values, daily_returns, total_trades, total_fees):
         final_value = daily_values[-1] if daily_values else self.cash
         total_return = (final_value - self.account_config.initial_capital) / self.account_config.initial_capital
 
         max_drawdown = self._calc_max_drawdown(daily_values)
-        win_rate = await self._calc_win_rate(backtest_id)
+        win_rate = await self._calc_win_rate(result.id)
 
-        # Calculate new metrics
         metrics = self.strategy.calculate_metrics(daily_returns)
         result.sharpe_ratio = round(metrics["sharpe_ratio"], 4) if metrics["sharpe_ratio"] else None
         result.volatility = round(metrics["volatility"], 4) if metrics["volatility"] else None
         result.annual_return = round(metrics["annual_return"], 4) if metrics.get("annual_return") else None
 
-        # Calculate average hold days
         trade_metrics = await self.strategy.calculate_trade_metrics(
-            await ExecutionTrade.find(ExecutionTrade.backtest_id == backtest_id).to_list(),
-            []
+            await ExecutionTrade.find(ExecutionTrade.backtest_id == result.id).to_list(), []
         )
         result.avg_hold_days = round(trade_metrics["avg_hold_days"], 2) if trade_metrics["avg_hold_days"] else None
 
-        # Calculate baseline metrics
-        if self.single_stock_ts_code and baseline_start_price and baseline_end_price:
-            baseline_metrics = self.strategy.calculate_baseline_metrics(
-                baseline_start_price,
-                baseline_end_price,
-                baseline_daily_prices
-            )
-            result.baseline_return = round(baseline_metrics["baseline_return"], 4)
-            result.baseline_max_drawdown = round(baseline_metrics["baseline_max_drawdown"], 4)
-            result.baseline_annual_return = round(baseline_metrics["baseline_annual_return"], 4) if baseline_metrics.get("baseline_annual_return") else None
-            result.baseline_volatility = round(baseline_metrics["baseline_volatility"], 4) if baseline_metrics.get("baseline_volatility") else None
-            result.baseline_sharpe_ratio = round(baseline_metrics["baseline_sharpe_ratio"], 4) if baseline_metrics.get("baseline_sharpe_ratio") else None
-            result.excess_return = round(total_return - baseline_metrics["baseline_return"], 4)
-        elif not self.single_stock_ts_code and len(baseline_daily_values) > 1:
-            baseline_start = baseline_daily_values[0]
-            baseline_end = baseline_daily_values[-1]
-            baseline_ret = (baseline_end - baseline_start) / baseline_start
+        if len(self._baseline_daily_values) > 1:
+            baseline_ret = (self._baseline_daily_values[-1] - self._baseline_daily_values[0]) / self._baseline_daily_values[0]
             result.baseline_return = round(baseline_ret, 4)
-            result.baseline_max_drawdown = round(self._calc_max_drawdown(baseline_daily_values), 4)
+            result.baseline_max_drawdown = round(self._calc_max_drawdown(self._baseline_daily_values), 4)
             result.excess_return = round(total_return - baseline_ret, 4)
 
         result.final_value = round(final_value, 2)
@@ -453,14 +377,14 @@ class ExecutionPipeline:
         result.status = "completed"
         await result.save()
 
-        logger.info(f"Backtest {backtest_id} completed: return={total_return:.2%}, "
+        logger.info(f"Backtest {result.id} completed: return={total_return:.2%}, "
                     f"drawdown={max_drawdown:.2%}, trades={total_trades}")
         if result.baseline_return is not None:
             logger.info(f"  Baseline return: {result.baseline_return:.2%}, "
                         f"Excess return: {result.excess_return:.2%}")
         if result.sharpe_ratio is not None:
             logger.info(f"  Sharpe: {result.sharpe_ratio:.2f}, Volatility: {result.volatility:.2%}")
-        
+
         return result
 
     async def run_live(self, date: str) -> List[PendingOrder]:
