@@ -123,6 +123,40 @@
             ></v-text-field>
           </v-col>
         </v-row>
+
+        <v-divider class="my-4" v-if="form.type === 'portfolio'"></v-divider>
+
+        <v-row v-if="form.type === 'portfolio'">
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.sell_rank_n"
+              type="number"
+              label="卖出排名阈值"
+              hint="掉出此排名时考虑卖出（默认15）"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.hold_score_threshold"
+              type="number"
+              step="0.01"
+              label="持仓评分保护阈值"
+              hint="掉出排名但评分高于此值可继续持有（默认0.05）"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model="form.sell_score_threshold"
+              type="number"
+              step="0.01"
+              label="直接卖出评分阈值"
+              hint="评分低于此值直接卖出（默认0.02）"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+        </v-row>
       </v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
@@ -174,6 +208,9 @@ const form = ref({
   sell_threshold: -0.1,
   max_positions: 10,
   max_position_pct: 0.3,
+  sell_rank_n: 15,
+  hold_score_threshold: 0.05,
+  sell_score_threshold: 0.02,
 })
 
 const headers = [
@@ -205,6 +242,9 @@ const openDialog = (item?: Strategy) => {
       sell_threshold: item.sell_threshold ?? -0.1,
       max_positions: item.max_positions ?? 10,
       max_position_pct: item.max_position_pct ?? 0.3,
+      sell_rank_n: item.sell_rank_n ?? 15,
+      hold_score_threshold: item.hold_score_threshold ?? 0.05,
+      sell_score_threshold: item.sell_score_threshold ?? 0.02,
     }
   } else {
     editingId.value = null
@@ -218,6 +258,9 @@ const openDialog = (item?: Strategy) => {
       sell_threshold: -0.1,
       max_positions: 10,
       max_position_pct: 0.3,
+      sell_rank_n: 15,
+      hold_score_threshold: 0.05,
+      sell_score_threshold: 0.02,
     }
   }
   dialog.value = true
@@ -234,6 +277,9 @@ const saveStrategy = async () => {
       sell_threshold: form.value.sell_threshold,
       max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
+      sell_rank_n: form.value.type === 'portfolio' ? form.value.sell_rank_n : undefined,
+      hold_score_threshold: form.value.type === 'portfolio' ? form.value.hold_score_threshold : undefined,
+      sell_score_threshold: form.value.type === 'portfolio' ? form.value.sell_score_threshold : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -246,6 +292,9 @@ const saveStrategy = async () => {
       sell_threshold: form.value.sell_threshold,
       max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
+      sell_rank_n: form.value.type === 'portfolio' ? form.value.sell_rank_n : undefined,
+      hold_score_threshold: form.value.type === 'portfolio' ? form.value.hold_score_threshold : undefined,
+      sell_score_threshold: form.value.type === 'portfolio' ? form.value.sell_score_threshold : undefined,
     })
   }
   dialog.value = false

@@ -29,6 +29,9 @@ class PortfolioStrategy(PositionManager):
         max_hold_days = strategy_config.max_hold_days if strategy_config else 30
         cfg_max_positions = strategy_config.max_positions if strategy_config else 10
         max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
+        sell_rank_n = strategy_config.sell_rank_n if strategy_config else 15
+        hold_score_threshold = strategy_config.hold_score_threshold if strategy_config else 0.05
+        sell_score_threshold = strategy_config.sell_score_threshold if strategy_config else 0.02
 
         super().__init__(
             account_config=account_config,
@@ -41,6 +44,9 @@ class PortfolioStrategy(PositionManager):
             sell_threshold=sell_threshold,
         )
         self.ts_codes = ts_codes or []
+        self.sell_rank_n = sell_rank_n
+        self.hold_score_threshold = hold_score_threshold
+        self.sell_score_threshold = sell_score_threshold
 
     async def make_decisions(
         self,
@@ -56,14 +62,20 @@ class PortfolioStrategy(PositionManager):
 
         scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.score, reverse=True)
+        
         top_stocks = sorted_stocks[:self.max_positions]
         top_ts_codes = {s.ts_code for s in top_stocks}
+        
+        sell_rank_stocks = sorted_stocks[:self.sell_rank_n]
+        sell_rank_ts_codes = {s.ts_code for s in sell_rank_stocks}
+        
+        score_map = {s.ts_code: s.score for s in scored_stocks}
 
         orders: List[PendingOrder] = []
         cash_available = cash
 
         for ts_code, pos in current_positions.items():
-            if self._check_sell(pos, top_ts_codes, close_prices):
+            if self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices):
                 sell_price = close_prices.get(ts_code, pos.buy_price) if close_prices else pos.buy_price
                 sell_value = sell_price * pos.shares
                 sell_fee = max(sell_value * self.account_config.sell_fee_rate, self.account_config.min_fee)
@@ -100,17 +112,28 @@ class PortfolioStrategy(PositionManager):
         self,
         position: PositionEmbed,
         top_ts_codes: set,
+        sell_rank_ts_codes: set,
+        score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
     ) -> bool:
         """Check whether a position should be sold."""
-        if position.ts_code not in top_ts_codes:
+        current_score = score_map.get(position.ts_code, 0.0)
+        
+        if current_score < self.sell_score_threshold:
             return True
+        
         if position.hold_days >= self.max_hold_days:
             return True
+        
         if close_prices and position.ts_code in close_prices:
             current_price = close_prices[position.ts_code]
             if current_price < position.buy_price * (1 + self.stop_loss_pct):
                 return True
+        
+        if position.ts_code not in sell_rank_ts_codes:
+            if current_score < self.hold_score_threshold:
+                return True
+        
         return False
 
     def _allocate_buy(

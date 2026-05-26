@@ -11,6 +11,9 @@ export interface Strategy {
   sell_threshold: number
   max_positions?: number
   max_position_pct?: number
+  sell_rank_n?: number
+  hold_score_threshold?: number
+  sell_score_threshold?: number
   created_at: string
   updated_at?: string
 }
