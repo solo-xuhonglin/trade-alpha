@@ -291,10 +291,11 @@ const renderChart = () => {
           return idx >= 0 ? [idx, t.price] : null
         })
         .filter(Boolean),
-      symbol: 'pin',
-      symbolSize: 24,
+      symbol: 'triangle',
+      symbolSize: 20,
+      symbolRotate: 0,
       itemStyle: { color: '#ef5350', borderColor: '#c62828', borderWidth: 1 },
-      label: { show: true, formatter: '买', position: 'bottom', fontSize: 10, color: '#ef5350' },
+      label: { show: false },
       z: 10,
     })
     legendData.push('买入')
@@ -311,10 +312,11 @@ const renderChart = () => {
           return idx >= 0 ? [idx, t.price] : null
         })
         .filter(Boolean),
-      symbol: 'pin',
-      symbolSize: 24,
+      symbol: 'triangle',
+      symbolSize: 20,
+      symbolRotate: 180,
       itemStyle: { color: '#26a69a', borderColor: '#00796b', borderWidth: 1 },
-      label: { show: true, formatter: '卖', position: 'top', fontSize: 10, color: '#26a69a' },
+      label: { show: false },
       z: 10,
     })
     legendData.push('卖出')
