@@ -42,11 +42,14 @@
           />
         </v-col>
         <v-col cols="12" sm="3" md="3">
-          <v-text-field
+          <v-select
             v-if="currentMode === 'single'"
             v-model="form.ts_codes"
-            label="股票代码"
-            placeholder="多个代码用逗号分隔"
+            :items="stockOptions"
+            item-title="label"
+            item-value="value"
+            label="股票"
+            clearable
           />
           <v-text-field
             v-else
@@ -205,6 +208,12 @@ const trainingModelTypeMap = ref<Record<string, string>>({})
 const accountOptions = ref<{ label: string; value: string }[]>([])
 const strategyOptions = ref<{ label: string; value: string }[]>([])
 const strategyTypeMap = ref<Record<string, string>>({})
+const stockOptions = ref<{ label: string; value: string }[]>([
+  { label: '农业银行 (601288.SH)', value: '601288.SH' },
+  { label: '比亚迪 (002594.SZ)', value: '002594.SZ' },
+  { label: '贵州茅台 (600519.SH)', value: '600519.SH' },
+  { label: '新易盛 (300502.SZ)', value: '300502.SZ' },
+])
 
 const currentMode = computed(() => {
   const id = form.value.strategy_config_id
@@ -331,11 +340,10 @@ const runBacktest = async () => {
   }
 
   if (currentMode.value === 'single') {
-    const tsCodes = form.value.ts_codes.split(',').map(s => s.trim()).filter(Boolean)
-    if (tsCodes.length === 0) {
-      throw new Error('请至少输入一个股票代码')
+    if (!form.value.ts_codes) {
+      throw new Error('请选择股票')
     }
-    payload.ts_codes = tsCodes
+    payload.ts_codes = [form.value.ts_codes]
   } else {
     payload.max_positions = form.value.max_positions
   }
