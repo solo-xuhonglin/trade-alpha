@@ -39,12 +39,12 @@
         </v-btn>
       </v-card-title>
       <v-card-text>
-        <v-tabs v-model="activeTab" color="primary" v-if="form.type === 'portfolio'">
+        <v-tabs v-model="activeTab" color="primary" v-if="form.type === 'multi'">
           <v-tab value="basic">基本配置</v-tab>
-          <v-tab value="portfolio">组合配置</v-tab>
+          <v-tab value="multi">多股票配置</v-tab>
         </v-tabs>
 
-        <v-window v-model="activeTab" v-if="form.type === 'portfolio'" class="mt-4">
+        <v-window v-model="activeTab" v-if="form.type === 'multi'" class="mt-4">
           <v-window-item value="basic">
             <div>
               <v-row>
@@ -113,7 +113,7 @@
             </div>
           </v-window-item>
 
-          <v-window-item value="portfolio">
+          <v-window-item value="multi">
             <div>
               <v-row>
                 <v-col cols="12" md="6">
@@ -267,7 +267,7 @@ const deleteDialog = ref(false)
 const strategies = ref<Strategy[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<Strategy | null>(null)
-const strategyTypes = ['single', 'portfolio']
+const strategyTypes = ['single', 'multi']
 const activeTab = ref('basic')
 
 const form = ref({
@@ -345,10 +345,10 @@ const saveStrategy = async () => {
       max_hold_days: form.value.max_hold_days,
       buy_threshold: form.value.buy_threshold,
       sell_threshold: form.value.sell_threshold,
-      max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
-      max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
-      sell_rank_n: form.value.type === 'portfolio' ? form.value.sell_rank_n : undefined,
-      hold_score_threshold: form.value.type === 'portfolio' ? form.value.hold_score_threshold : undefined,
+      max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
+      max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
+      sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
+      hold_score_threshold: form.value.type === 'multi' ? form.value.hold_score_threshold : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -359,10 +359,10 @@ const saveStrategy = async () => {
       max_hold_days: form.value.max_hold_days,
       buy_threshold: form.value.buy_threshold,
       sell_threshold: form.value.sell_threshold,
-      max_positions: form.value.type === 'portfolio' ? form.value.max_positions : undefined,
-      max_position_pct: form.value.type === 'portfolio' ? form.value.max_position_pct : undefined,
-      sell_rank_n: form.value.type === 'portfolio' ? form.value.sell_rank_n : undefined,
-      hold_score_threshold: form.value.type === 'portfolio' ? form.value.hold_score_threshold : undefined,
+      max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
+      max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
+      sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
+      hold_score_threshold: form.value.type === 'multi' ? form.value.hold_score_threshold : undefined,
     })
   }
   dialog.value = false

@@ -217,8 +217,8 @@ const stockOptions = ref<{ label: string; value: string }[]>([
 
 const currentMode = computed(() => {
   const id = form.value.strategy_config_id
-  if (!id) return 'portfolio'
-  return strategyTypeMap.value[id] === 'single' ? 'single' : 'portfolio'
+  if (!id) return 'multi'
+  return strategyTypeMap.value[id] === 'single' ? 'single' : 'multi'
 })
 
 watch(() => form.value.training_id, (newId) => {
