@@ -151,6 +151,31 @@ async def get_backtest_trades(
     }
 
 
+@router.get("/{result_id}/trades/{ts_code}")
+async def get_trades_by_ts_code(result_id: str, ts_code: str):
+    """Get trades for a specific stock in a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    trades = await ExecutionTrade.find(
+        ExecutionTrade.backtest_id == obj_id,
+        ExecutionTrade.ts_code == ts_code,
+    ).sort(ExecutionTrade.trade_date).to_list()
+
+    return {
+        "items": [
+            {
+                "trade_date": t.trade_date,
+                "action": t.action,
+                "price": t.price,
+            }
+            for t in trades
+        ],
+    }
+
+
 @router.get("/{result_id}/prediction-stocks")
 async def get_prediction_stocks(result_id: str):
     """Get stocks traded in a backtest result (from positions with predictions)."""
