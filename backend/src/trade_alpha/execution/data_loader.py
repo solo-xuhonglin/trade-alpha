@@ -16,6 +16,18 @@ class DataLoader:
 
     def __init__(self):
         self._history_cache: Dict[str, List] = {}
+        self._weekly_cache: Dict[str, pd.DataFrame] = {}
+
+    def _weekly_cache_key(self, ts_codes: List[str], start: str, end: str) -> str:
+        return f"{'_'.join(sorted(ts_codes))}_{start}_{end}"
+
+    async def _get_weekly_cached(self, ts_codes: List[str], start: str, end: str) -> pd.DataFrame:
+        key = self._weekly_cache_key(ts_codes, start, end)
+        if key in self._weekly_cache:
+            return self._weekly_cache[key]
+        df = await load_weekly_data(ts_codes, start, end)
+        self._weekly_cache[key] = df
+        return df
 
     def _get_cache_start(self, ts_code: str):
         """Get the earliest date in cache for a stock."""
@@ -77,8 +89,8 @@ class DataLoader:
         df = pd.DataFrame([r.model_dump() for r in records])
         df = df.sort_values("ts_code")
 
-        # 合并周线特征
-        weekly_df = await load_weekly_data(ts_codes, date[:4] + "0101", date)
+        # 合并周线特征（使用缓存避免每天重复查询）
+        weekly_df = await self._get_weekly_cached(ts_codes, date[:4] + "0101", date)
         if not weekly_df.empty:
             df = merge_weekly_features(df, weekly_df)
 
@@ -127,9 +139,9 @@ class DataLoader:
 
         df = pd.DataFrame([r.model_dump() for r in all_records])
 
-        # 合并周线特征
+        # 合并周线特征（使用缓存避免每天重复查询）
         load_start = self._calc_start_date(end_date, keep_days)
-        weekly_df = await load_weekly_data(ts_codes, load_start, end_date)
+        weekly_df = await self._get_weekly_cached(ts_codes, load_start, end_date)
         if not weekly_df.empty:
             df = merge_weekly_features(df, weekly_df)
 

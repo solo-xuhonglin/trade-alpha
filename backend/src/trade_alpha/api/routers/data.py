@@ -159,9 +159,10 @@ async def fetch_data_endpoint(request: DataFetchRequest):
 
 @router.delete("/{ts_code}")
 async def delete_data_endpoint(ts_code: str):
-    """Delete stock data."""
-    count = await delete_stock_daily_by_ts_code(ts_code)
-    return {"deleted_count": count}
+    """Delete stock data (daily + weekly)."""
+    daily_count = await delete_stock_daily_by_ts_code(ts_code)
+    weekly_count = await delete_stock_weekly_by_ts_code(ts_code)
+    return {"daily_deleted": daily_count, "weekly_deleted": weekly_count}
 
 
 @router.get("/{ts_code}/weekly")

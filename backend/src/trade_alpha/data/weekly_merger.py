@@ -2,6 +2,7 @@
 
 import pandas as pd
 from typing import List, Optional
+from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao.stock_weekly import StockWeekly
 
 
@@ -14,13 +15,13 @@ async def load_weekly_data(
     records = await StockWeekly.find(
         StockWeekly.trade_date >= start_date,
         StockWeekly.trade_date <= end_date,
+        In(StockWeekly.ts_code, ts_codes),
     ).sort(StockWeekly.trade_date).to_list()
 
     if not records:
         return pd.DataFrame()
 
     df = pd.DataFrame([r.model_dump() for r in records])
-    df = df[df["ts_code"].isin(ts_codes)]
     return df
 
 
