@@ -13,7 +13,8 @@ class ExecutionTrade(Document):
     ts_code: str
     trade_date: str
     action: str
-    price: float
+    filled_price: float
+    order_price: float
     shares: int
     fee: float
     cash_after: float

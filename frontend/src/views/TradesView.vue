@@ -17,7 +17,7 @@
         variant="outlined"
         hide-details
         clearable
-        style="max-width: 150px; margin-right: 8px"
+        style="min-width: 180px; margin-right: 12px"
         @update:model-value="loadTrades"
       ></v-select>
 
@@ -31,7 +31,7 @@
         variant="outlined"
         hide-details
         clearable
-        style="max-width: 150px; margin-right: 8px"
+        style="min-width: 180px; margin-right: 12px"
         @update:model-value="loadTrades"
       ></v-select>
 
@@ -45,7 +45,7 @@
         variant="outlined"
         hide-details
         clearable
-        style="max-width: 150px; margin-right: 8px"
+        style="min-width: 180px; margin-right: 12px"
         @update:model-value="loadTrades"
       ></v-select>
 
@@ -59,7 +59,7 @@
         variant="outlined"
         hide-details
         clearable
-        style="max-width: 150px; margin-right: 8px"
+        style="min-width: 180px; margin-right: 12px"
         @update:model-value="loadTrades"
       ></v-select>
 
@@ -73,7 +73,7 @@
         variant="outlined"
         hide-details
         clearable
-        style="max-width: 100px; margin-right: 8px"
+        style="min-width: 120px; margin-right: 12px"
         @update:model-value="loadTrades"
       ></v-select>
 
@@ -107,7 +107,7 @@
         <v-chip v-else color="grey" size="small">未成交</v-chip>
       </template>
       <template v-slot:item.price="{ item }">
-        {{ item.status === 'cancelled' ? '-' : item.price.toFixed(2) }}
+        {{ item.status === 'cancelled' ? '-' : item.filled_price.toFixed(2) }}
       </template>
       <template v-slot:item.shares="{ item }">
         {{ item.status === 'cancelled' ? '-' : item.shares }}
@@ -177,7 +177,10 @@ const loadFilterOptions = async () => {
   try {
     const res = await tradeApi.getOptions()
     filterOptions.value = res.data
-    tsCodeOptions.value = res.data.ts_codes.map((t: string) => ({ label: t, value: t }))
+    tsCodeOptions.value = res.data.ts_codes.map((t: { code: string; name: string }) => ({ 
+      label: `${t.code} - ${t.name}`, 
+      value: t.code 
+    }))
   } catch (e) {
     console.error('Failed to load filter options:', e)
   }

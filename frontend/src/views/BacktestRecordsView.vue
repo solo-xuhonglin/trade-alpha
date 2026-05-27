@@ -200,7 +200,7 @@
             <v-chip v-else color="grey" size="small">未成交</v-chip>
           </template>
           <template v-slot:item.price="{ item }">
-            {{ item.status === 'cancelled' ? '-' : item.price.toFixed(2) }}
+            {{ item.status === 'cancelled' ? '-' : item.filled_price.toFixed(2) }}
           </template>
           <template v-slot:item.shares="{ item }">
             {{ item.status === 'cancelled' ? '-' : item.shares }}

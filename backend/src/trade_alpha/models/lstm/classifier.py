@@ -11,6 +11,7 @@ from trade_alpha.models.base import BaseClassifier
 from trade_alpha.models.lstm.normalizer import create_sequences
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.helpers import create_labels, _load_year_data
+from trade_alpha.data.analysis_service import compute_field_analysis
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
 
@@ -100,6 +101,11 @@ class LSTMClassifier(BaseClassifier):
         y_2d = np.array(y_2d, dtype=np.float64)
         valid_mask = ~np.isnan(y_2d).any(axis=1)
         X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
+
+        # 提取滚动窗口标准化后的 2D 特征数据（每个序列最后一个时间步）
+        normalized_2d = X_3d[:, -1, :]
+        normalized_df = pd.DataFrame(normalized_2d, columns=config.feature_fields)
+        normalized_data_analysis = compute_field_analysis(normalized_df, config.feature_fields)
 
         # 按时间划分训练集和验证集
         val_ratio = getattr(config, 'val_size', 0.2)
@@ -293,6 +299,7 @@ class LSTMClassifier(BaseClassifier):
             class_dist = {str(int(k)): float(v) / total for k, v in zip(unique, counts)}
             metrics.setdefault("class_distribution", {})[target] = class_dist
 
+        metrics["normalized_data_analysis"] = normalized_data_analysis
         return metrics
 
     def predict_proba(self, features, target_names):

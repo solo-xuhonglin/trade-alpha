@@ -22,6 +22,7 @@
 | 20 | test_20_dao_daily.py | TestDataLifecycle | 验证数据生命周期（pending → fetch → indicator → active） |
 | 21 | test_21_dao_stock_list.py | TestStockList | 验证 StockList DAO 业务方法 |
 | 25 | test_25_indicators_integration.py | TestIndicatorsIntegration | 验证指标计算服务 |
+| 26 | test_26_weekly_data.py | TestWeeklyData | 验证周线数据获取、指标计算、特征合并 |
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
 | 33 | test_33_service_data_analysis.py | TestServiceDataAnalysis | 验证数据分析服务 |
@@ -63,10 +64,14 @@ Layer 3: 业务逻辑
                                 └─────────────────────────┘
 
 Layer 3.5: 指标计算
-┌─────────────────────────┐
-│TestIndicatorsIntegration│
-│        (25)             │
-└─────────────────────────┘
+┌─────────────────────────┐     ┌─────────────────────────┐
+│TestIndicatorsIntegration│     │  TestWeeklyData (26)    │
+│        (25)             │     │  (周线数据全流程验证)    │
+└─────────────────────────┘     └─────────────────────────┘
+         (指标计算完成)                     │
+              │                             │ 依赖于 Tushare
+              └──────────┬──────────────────┘
+                         ▼
 
 Layer 3.75: 数据分析
 ┌─────────────────────────┐
@@ -179,6 +184,7 @@ Layer 6: 回测
 | 默认记录 | 用途 | 创建位置 |
 |---------|------|---------|
 | 002594.SZ (stock_daily) | Layer 4/5/6 测试数据 | test_20 + test_25 生命周期测试 |
+| 002594.SZ (stock_weekly) | Layer 3 周线测试数据 | test_26 周线全流程测试 |
 | test_account_config | Layer 6 回测账户 | TestAccountConfigService.test_ensure_default_account_config |
 | test_strategy | Layer 6 回测策略 | TestStrategyService.test_ensure_default_strategy |
 | test_model_config | Layer 5 训练配置 | TestModelConfigService.test_ensure_default_config |

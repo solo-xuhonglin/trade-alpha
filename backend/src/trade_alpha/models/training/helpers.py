@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockDaily, StockList
+from trade_alpha.data.weekly_merger import merge_weekly_features, load_weekly_data
 
 
 def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02) -> pd.DataFrame:
@@ -101,7 +102,18 @@ async def _load_year_data(year: int, ts_codes: List[str], horizon: int, extra_da
         df["ts_code"] = ts_code
         year_dfs.append(df)
 
-    return pd.concat(year_dfs, ignore_index=True) if year_dfs else None
+    if not year_dfs:
+        return None
+
+    result_df = pd.concat(year_dfs, ignore_index=True)
+
+    # 合并周线特征
+    weekly_start = str(year - 1) + "0101"
+    weekly_df = await load_weekly_data(ts_codes, weekly_start, future_end)
+    if not weekly_df.empty:
+        result_df = merge_weekly_features(result_df, weekly_df)
+
+    return result_df
 
 
 async def _evaluate_classifier(classifier, X: np.ndarray, y: np.ndarray, feature_names: List[str], targets: List[str]) -> Dict:

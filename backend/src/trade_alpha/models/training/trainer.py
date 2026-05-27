@@ -31,6 +31,8 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
 
     await TaskService.update_progress(task_id, 95, "正在保存结果...")
 
+    normalized_data_analysis = metrics.pop("normalized_data_analysis", None)
+
     snapshot_fields = {k for k in ModelSnapshotEmbed.model_fields}
     embed_data = {k: v for k, v in config.model_dump().items() if k in snapshot_fields}
     training = TrainingResult(
@@ -38,6 +40,7 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
         ts_codes=ts_codes, start_date=start_date, end_date=end_date,
         model_snapshot=ModelSnapshotEmbed(**embed_data),
         model_metrics=metrics,
+        normalized_data_analysis=normalized_data_analysis,
         created_at=datetime.now(timezone.utc),
     )
     await training.insert()

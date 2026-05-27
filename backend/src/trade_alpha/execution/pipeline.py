@@ -208,7 +208,7 @@ class ExecutionPipeline:
             ExecutionTrade(
                 backtest_id=backtest_id, ts_code=order.ts_code, trade_date=date,
                 action="buy" if order.order_shares > 0 else "sell",
-                price=0.0, shares=0, fee=0.0, cash_after=0.0,
+                filled_price=0.0, order_price=order.order_price, shares=0, fee=0.0, cash_after=0.0,
                 status="cancelled", reason="cancelled",
                 entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
             ) for order in unfilled_orders
@@ -218,14 +218,14 @@ class ExecutionPipeline:
         for t in filled_trades:
             total_fees += t.fee
             if t.action == "sell":
-                total_fees += abs(t.shares) * t.price * self.account_config.stamp_tax_rate
+                total_fees += abs(t.shares) * t.filled_price * self.account_config.stamp_tax_rate
         for t in filled_trades:
             if t.action == "sell":
                 self.positions.pop(t.ts_code, None)
             elif t.action == "buy":
                 self.positions[t.ts_code] = PositionEmbed(
                     ts_code=t.ts_code, stock_name=name_map.get(t.ts_code, ""),
-                    buy_date=date, buy_price=t.price, shares=t.shares, fee=t.fee,
+                    buy_date=date, buy_price=t.filled_price, shares=t.shares, fee=t.fee,
                     entry_score=t.entry_score or 0, entry_3d_prob=t.up_prob_3d or 0,
                     entry_5d_prob=t.up_prob_5d or 0, hold_days=0,
                 )

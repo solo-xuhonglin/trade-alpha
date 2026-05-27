@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockList, StockDaily
+from trade_alpha.data.weekly_merger import merge_weekly_features, load_weekly_data
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.data_loader")
@@ -75,6 +76,12 @@ class DataLoader:
             return pd.DataFrame()
         df = pd.DataFrame([r.model_dump() for r in records])
         df = df.sort_values("ts_code")
+
+        # 合并周线特征
+        weekly_df = await load_weekly_data(ts_codes, date[:4] + "0101", date)
+        if not weekly_df.empty:
+            df = merge_weekly_features(df, weekly_df)
+
         return df
 
     async def _load_from_db(self, start_date: str, end_date: str, ts_codes: List[str]):
@@ -119,4 +126,11 @@ class DataLoader:
             return pd.DataFrame()
 
         df = pd.DataFrame([r.model_dump() for r in all_records])
+
+        # 合并周线特征
+        load_start = self._calc_start_date(end_date, keep_days)
+        weekly_df = await load_weekly_data(ts_codes, load_start, end_date)
+        if not weekly_df.empty:
+            df = merge_weekly_features(df, weekly_df)
+
         return df

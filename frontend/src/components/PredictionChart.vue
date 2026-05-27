@@ -78,7 +78,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onUnmounted, computed } from 'vue'
 import * as echarts from 'echarts'
-import { backtestRecordApi, type PredictionStock, type PredictionItem } from '@/api/backtestRecord'
+import { backtestRecordApi, type PredictionStock, type PredictionItem, type DailySnapshot } from '@/api/backtestRecord'
 import { dataApi } from '@/api/data'
 
 const props = defineProps<{
@@ -124,6 +124,12 @@ const horizons = ref<number[]>([3, 5])
 
 const buyTrades = ref<{ trade_date: string; price: number }[]>([])
 const sellTrades = ref<{ trade_date: string; price: number }[]>([])
+const buyCancelledTrades = ref<{ trade_date: string; price: number }[]>([])
+const sellCancelledTrades = ref<{ trade_date: string; price: number }[]>([])
+
+const dailySnapshots = ref<DailySnapshot[]>([])
+const strategyReturns = ref<number[]>([])
+const baselineReturns = ref<number[]>([])
 
 const accuracyMap = computed(() => {
   const result: Record<number, { pct: number; correct: number; total: number }> = {}
@@ -160,6 +166,26 @@ const loadStocks = async () => {
   }
 }
 
+const calculateReturns = () => {
+  if (dailySnapshots.value.length === 0) {
+    strategyReturns.value = []
+    baselineReturns.value = []
+    return
+  }
+
+  const firstStrategyValue = dailySnapshots.value[0].total_value
+  const firstBaselineValue = dailySnapshots.value[0].baseline_value
+
+  strategyReturns.value = dailySnapshots.value.map(snap => {
+    return ((snap.total_value - firstStrategyValue) / firstStrategyValue) * 100
+  })
+
+  baselineReturns.value = dailySnapshots.value.map(snap => {
+    if (firstBaselineValue === 0) return 0
+    return ((snap.baseline_value - firstBaselineValue) / firstBaselineValue) * 100
+  })
+}
+
 const loadChartData = async () => {
   if (!selectedTsCode.value) return
   loadingChart.value = true
@@ -186,11 +212,27 @@ const loadChartData = async () => {
     // 加载买卖点（独立 try/catch，不阻塞 K 线）
     try {
       const tradeRes = await backtestRecordApi.getTradesByTsCode(props.backtestId, selectedTsCode.value.ts_code)
-      buyTrades.value = tradeRes.data.items.filter(t => t.action === 'buy')
-      sellTrades.value = tradeRes.data.items.filter(t => t.action === 'sell')
+      const allTrades = tradeRes.data.items
+      buyTrades.value = allTrades.filter(t => t.action === 'buy' && t.status === 'filled').map(t => ({ trade_date: t.trade_date, price: t.filled_price }))
+      sellTrades.value = allTrades.filter(t => t.action === 'sell' && t.status === 'filled').map(t => ({ trade_date: t.trade_date, price: t.filled_price }))
+      buyCancelledTrades.value = allTrades.filter(t => t.action === 'buy' && t.status === 'cancelled').map(t => ({ trade_date: t.trade_date, price: t.order_price }))
+      sellCancelledTrades.value = allTrades.filter(t => t.action === 'sell' && t.status === 'cancelled').map(t => ({ trade_date: t.trade_date, price: t.order_price }))
     } catch (e) {
       buyTrades.value = []
       sellTrades.value = []
+      buyCancelledTrades.value = []
+      sellCancelledTrades.value = []
+    }
+
+    // 加载每日快照用于收益率曲线（独立 try/catch）
+    try {
+      const snapRes = await backtestRecordApi.getDailySnapshots(props.backtestId)
+      dailySnapshots.value = snapRes.data.items
+      calculateReturns()
+    } catch (e) {
+      dailySnapshots.value = []
+      strategyReturns.value = []
+      baselineReturns.value = []
     }
   } catch (e) {
     console.error('Failed to load chart data:', e)
@@ -322,6 +364,90 @@ const renderChart = () => {
     legendData.push('卖出')
     legendSelected['卖出'] = true
   }
+  // 买入未成交标记
+  if (buyCancelledTrades.value.length > 0) {
+    series.push({
+      name: '买入（未成交）',
+      type: 'scatter',
+      data: buyCancelledTrades.value
+        .map(t => {
+          const idx = dates.indexOf(t.trade_date)
+          return idx >= 0 ? [idx, t.price] : null
+        })
+        .filter(Boolean),
+      symbol: 'triangle',
+      symbolSize: 20,
+      symbolRotate: 0,
+      itemStyle: { color: '#9e9e9e', borderColor: '#757575', borderWidth: 1, opacity: 0.7 },
+      label: { show: false },
+      z: 10,
+    })
+    legendData.push('买入（未成交）')
+    legendSelected['买入（未成交）'] = true
+  }
+  // 卖出未成交标记
+  if (sellCancelledTrades.value.length > 0) {
+    series.push({
+      name: '卖出（未成交）',
+      type: 'scatter',
+      data: sellCancelledTrades.value
+        .map(t => {
+          const idx = dates.indexOf(t.trade_date)
+          return idx >= 0 ? [idx, t.price] : null
+        })
+        .filter(Boolean),
+      symbol: 'triangle',
+      symbolSize: 20,
+      symbolRotate: 180,
+      itemStyle: { color: '#9e9e9e', borderColor: '#757575', borderWidth: 1, opacity: 0.7 },
+      label: { show: false },
+      z: 10,
+    })
+    legendData.push('卖出（未成交）')
+    legendSelected['卖出（未成交）'] = true
+  }
+
+  // 策略收益率曲线
+  if (strategyReturns.value.length > 0) {
+    const returnData: (number | null)[] = dates.map(date => {
+      const idx = dailySnapshots.value.findIndex(s => s.date === date)
+      return idx >= 0 ? strategyReturns.value[idx] : null
+    })
+    const validReturnData = returnData.map(v => v ?? null)
+    
+    series.push({
+      name: '策略收益率',
+      type: 'line',
+      data: validReturnData,
+      yAxisIndex: 2,
+      smooth: true,
+      lineStyle: { width: 2, color: '#ff9800' },
+      symbol: 'none',
+    })
+    legendData.push('策略收益率')
+     legendSelected['策略收益率'] = false
+  }
+
+  // 基准收益率曲线
+  if (baselineReturns.value.length > 0) {
+    const baselineData: (number | null)[] = dates.map(date => {
+      const idx = dailySnapshots.value.findIndex(s => s.date === date)
+      return idx >= 0 ? baselineReturns.value[idx] : null
+    })
+    const validBaselineData = baselineData.map(v => v ?? null)
+    
+    series.push({
+      name: '基准收益率',
+      type: 'line',
+      data: validBaselineData,
+      yAxisIndex: 2,
+      smooth: true,
+      lineStyle: { width: 2, color: '#9c27b0', type: 'dashed' },
+      symbol: 'none',
+    })
+    legendData.push('基准收益率')
+    legendSelected['基准收益率'] = false
+  }
 
   chartInstance.setOption({
     tooltip: {
@@ -367,7 +493,7 @@ const renderChart = () => {
       selected: legendSelected,
     },
     grid: {
-      left: '10%', right: '10%', bottom: '15%', top: '10%',
+      left: '15%', right: '15%', bottom: '18%', top: '15%',
     },
     xAxis: {
       type: 'category',
@@ -375,8 +501,9 @@ const renderChart = () => {
       axisLabel: { rotate: 45, fontSize: 10 },
     },
     yAxis: [
-      { type: 'value', scale: true, name: '价格' },
-      { type: 'value', scale: true, name: '概率/分', min: -1, max: 1 },
+      { type: 'value', scale: true, name: '价格', position: 'left', offset: 0 },
+      { type: 'value', scale: true, name: '概率/分', min: -1, max: 1, position: 'left', offset: 50 },
+      { type: 'value', scale: true, name: '收益率(%)', position: 'right', axisLabel: { formatter: '{value}%' }, offset: 0 },
     ],
     series,
   })

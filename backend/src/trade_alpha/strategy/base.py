@@ -52,16 +52,16 @@ class PositionManager:
     @staticmethod
     def match_order(order: PendingOrder, open_px: float, high_px: float, low_px: float) -> Optional[float]:
         """Match a pending order against next day's OHLC. Returns matched price or None."""
-        if order.order_shares > 0:  # Buy
+        if order.order_shares > 0:  # Buy - 限价买入，价格需不高于 order_price
             if order.order_price >= open_px:
                 return open_px
-            if high_px >= order.order_price:
+            if low_px <= order.order_price:
                 return order.order_price
             return None
-        else:  # Sell
+        else:  # Sell - 限价卖出，价格需不低于 order_price
             if order.order_price <= open_px:
                 return open_px
-            if low_px <= order.order_price:
+            if high_px >= order.order_price:
                 return order.order_price
             return None
 
@@ -109,7 +109,8 @@ class PositionManager:
                 ts_code=order.ts_code,
                 trade_date=date,
                 action=action,
-                price=matched_price,
+                filled_price=matched_price,
+                order_price=order.order_price,
                 shares=shares if action == "buy" else -shares,
                 fee=fee,
                 cash_after=cash_after,

@@ -132,7 +132,8 @@ async def get_backtest_trades(
             {
                 "trade_date": trade.trade_date,
                 "action": trade.action,
-                "price": trade.price,
+                "filled_price": trade.filled_price,
+                "order_price": trade.order_price,
                 "shares": trade.shares,
                 "fee": trade.fee,
                 "cash_after": trade.cash_after,
@@ -169,7 +170,9 @@ async def get_trades_by_ts_code(result_id: str, ts_code: str):
             {
                 "trade_date": t.trade_date,
                 "action": t.action,
-                "price": t.price,
+                "filled_price": t.filled_price,
+                "order_price": t.order_price,
+                "status": t.status,
             }
             for t in trades
         ],
@@ -316,32 +319,57 @@ async def list_all_trades(
     ts_code: Optional[str] = None,
 ):
     """List all trades with optional filters."""
-    query = ExecutionTrade.find_all()
+    # 首先找到符合条件的 ExecutionResult IDs
+    result_filters = {}
+    if account_config_id:
+        try:
+            result_filters["account_config_id"] = PydanticObjectId(account_config_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid account config ID")
+    if backtest_id:
+        try:
+            result_filters["_id"] = PydanticObjectId(backtest_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid backtest ID")
+    if training_id:
+        try:
+            result_filters["training_id"] = PydanticObjectId(training_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid training ID")
 
-    if account_config_id or backtest_id or training_id or ts_code:
-        filters = {}
-        if account_config_id:
-            try:
-                filters["account_config_id"] = PydanticObjectId(account_config_id)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid account config ID")
-        if backtest_id:
-            try:
-                filters["_id"] = PydanticObjectId(backtest_id)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid backtest ID")
-        if training_id:
-            try:
-                filters["training_id"] = PydanticObjectId(training_id)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid training ID")
-        if ts_code:
-            filters["ts_code"] = ts_code
+    # 查找符合条件的 ExecutionResult，只获取 id
+    if result_filters:
+        # 直接在 MongoDB 中获取 id 列表，避免加载完整文档
+        from trade_alpha.dao.mongodb import get_database
+        db = await get_database()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database not initialized")
+        result_ids = await db.execution_results.distinct("_id", result_filters)
+    else:
+        result_ids = None
 
-        results = await ExecutionResult.find(filters).project(ExecutionResult.id).to_list()
-        result_ids = [r.id for r in results]
+    # 构建 ExecutionTrade 查询
+    query_conditions = []
+    if result_ids is not None:
+        if not result_ids:
+            return {
+                "items": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+            }
+        query_conditions.append({"backtest_id": {"$in": result_ids}})
+    if ts_code:
+        query_conditions.append({"ts_code": ts_code})
 
-        query = ExecutionTrade.find(ExecutionTrade.backtest_id.in_(result_ids)) if result_ids else ExecutionTrade.find(ExecutionTrade.backtest_id == PydanticObjectId("000000000000000000000000"))
+    if query_conditions:
+        query = ExecutionTrade.find_all()
+        for cond in query_conditions:
+            for key, val in cond.items():
+                query = query.find(getattr(ExecutionTrade, key) == val)
+    else:
+        query = ExecutionTrade.find_all()
 
     total = await query.count()
     trades = await query.sort(ExecutionTrade.trade_date).skip((page - 1) * page_size).limit(page_size).to_list()
@@ -354,7 +382,8 @@ async def list_all_trades(
             {
                 "trade_date": trade.trade_date,
                 "action": trade.action,
-                "price": trade.price,
+                "filled_price": trade.filled_price,
+                "order_price": trade.order_price,
                 "shares": trade.shares,
                 "fee": trade.fee,
                 "cash_after": trade.cash_after,
@@ -371,6 +400,31 @@ async def list_all_trades(
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
     }
+
+
+@router.get("/{result_id}/daily-snapshots")
+async def get_daily_snapshots(result_id: str):
+    """Get daily snapshots for a backtest result (for strategy equity curve)."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    snapshots = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(ExecutionDailySnapshot.date).to_list()
+
+    items = [
+        {
+            "date": snap.date,
+            "total_value": snap.total_value,
+            "baseline_value": snap.baseline_value,
+            "day_return": snap.day_return,
+        }
+        for snap in snapshots
+    ]
+
+    return {"items": items}
 
 
 @router.get("/trades/options")

@@ -2,6 +2,7 @@
 
 import os
 import pickle
+import pandas as pd
 import xgboost as xgb
 import numpy as np
 from typing import List, Dict
@@ -9,6 +10,7 @@ from trade_alpha.models.base import BaseClassifier
 from trade_alpha.models.xgboost.normalizer import normalize as xgb_normalize
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.helpers import create_labels, _load_year_data, _evaluate_classifier
+from trade_alpha.data.analysis_service import compute_field_analysis
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 
 
@@ -33,6 +35,7 @@ class XGBoostClassifier(BaseClassifier):
         years = sorted(set(y for y, _ in _get_year_months(start_date, end_date)))
 
         all_X, all_y = [], []
+        all_norm_dfs = []
 
         for year_idx, year in enumerate(years):
             year_df = await _load_year_data(year, ts_codes, horizon)
@@ -48,8 +51,10 @@ class XGBoostClassifier(BaseClassifier):
             year_norm = year_norm.dropna(subset=config.feature_fields)
             year_labels = year_df.loc[year_norm.index, target_names]
             if not year_norm.empty:
-                all_X.append(year_norm[config.feature_fields].values)
+                norm_data = year_norm[config.feature_fields]
+                all_X.append(norm_data.values)
                 all_y.append(year_labels.values)
+                all_norm_dfs.append(norm_data)
             await TaskService.update_progress(
                 task_id, 20 + (year_idx + 1) / len(years) * 30,
                 f"正在处理 {year} 年数据..."
@@ -60,6 +65,10 @@ class XGBoostClassifier(BaseClassifier):
 
         X = np.vstack(all_X)
         y = np.vstack(all_y)
+
+        # 收集所有标准化后的数据用于分析
+        combined_norm_df = pd.concat(all_norm_dfs, ignore_index=True)
+        normalized_data_analysis = compute_field_analysis(combined_norm_df, config.feature_fields)
         self.models = {}
         self._label_mapping = {}
 
@@ -91,6 +100,7 @@ class XGBoostClassifier(BaseClassifier):
         await TaskService.update_progress(task_id, 80, "正在评估模型...")
         metrics = await _evaluate_classifier(self, X, y, config.feature_fields, target_names)
         metrics["sample_count"] = len(X)
+        metrics["normalized_data_analysis"] = normalized_data_analysis
 
         return metrics
 

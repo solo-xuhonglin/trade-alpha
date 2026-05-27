@@ -31,7 +31,8 @@ export interface Backtest {
 export interface Trade {
   trade_date: string
   action: string
-  price: number
+  filled_price: number
+  order_price: number
   shares: number
   fee: number
   cash_after: number
@@ -80,6 +81,13 @@ export interface PredictionResponse {
   items: PredictionItem[]
 }
 
+export interface DailySnapshot {
+  date: string
+  total_value: number
+  baseline_value: number
+  day_return: number
+}
+
 export const backtestRecordApi = {
   get: (id: string) => api.get<Backtest>(`/backtest/results/${id}`),
 
@@ -96,9 +104,12 @@ export const backtestRecordApi = {
     api.get<PredictionResponse>(`/backtests/${id}/predictions/${tsCode}`),
 
   getTradesByTsCode: (id: string, tsCode: string) =>
-    api.get<{ items: { trade_date: string; action: string; price: number }[] }>(
+    api.get<{ items: { trade_date: string; action: string; filled_price: number; order_price: number; status: string }[] }>(
       `/backtests/${id}/trades/${tsCode}`
     ),
+
+  getDailySnapshots: (id: string) =>
+    api.get<{ items: DailySnapshot[] }>(`/backtests/${id}/daily-snapshots`),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }
