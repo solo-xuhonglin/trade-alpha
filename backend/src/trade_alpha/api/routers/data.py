@@ -15,6 +15,7 @@ from trade_alpha.data.service import (
     delete_stock_daily_by_ts_code,
     delete_stock_weekly_by_ts_code,
 )
+from trade_alpha.dao import StockList
 from trade_alpha.indicators.service import calculate_all_indicators, calculate_all_indicators_weekly
 from trade_alpha.scheduler.data_sync import update_single_stock_data_count
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
@@ -159,9 +160,15 @@ async def fetch_data_endpoint(request: DataFetchRequest):
 
 @router.delete("/{ts_code}")
 async def delete_data_endpoint(ts_code: str):
-    """Delete stock data (daily + weekly)."""
+    """Delete stock data (daily + weekly) and reset stock status."""
     daily_count = await delete_stock_daily_by_ts_code(ts_code)
     weekly_count = await delete_stock_weekly_by_ts_code(ts_code)
+    stock = await StockList.find_one(StockList.ts_code == ts_code)
+    if stock:
+        stock.sync_status = "pending"
+        stock.data_count = 0
+        stock.latest_date = None
+        await stock.save()
     return {"daily_deleted": daily_count, "weekly_deleted": weekly_count}
 
 
