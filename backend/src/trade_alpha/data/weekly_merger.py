@@ -31,22 +31,15 @@ def merge_weekly_features(
 ) -> pd.DataFrame:
     """Merge previous week's weekly features into daily dataframe.
 
-    For each daily row, finds the previous Friday's weekly data
-    and appends it as _w suffixed columns, then forward-fills
-    within each stock to handle any missing weekly records.
+    For each daily row, finds the previous Friday's weekly data,
+    appends it as _w suffixed columns, then forward-fills within
+    each stock so Mon-Fri all carry the same weekly value.
     """
     if weekly_df.empty:
-        daily = daily_df.copy()
-        weekly_fields = [c for c in weekly_df.columns if c not in ["ts_code", "trade_date"]]
-        weekly_renamed = {f: f"{f}_w" for f in weekly_fields}
-        # Add _w columns as NaN when no weekly data exists
-        for col in weekly_renamed.values():
-            daily[col] = None
-        return daily
+        return daily_df.copy()
 
     daily = daily_df.copy()
     daily_dt = pd.to_datetime(daily["trade_date"], format="%Y%m%d")
-    # 上一周周五 = dayofweek(0=Mon), +3天到上周五
     last_friday = daily_dt - pd.to_timedelta(daily_dt.dt.dayofweek + 3, unit="D")
     daily["_week_key"] = last_friday.dt.strftime("%Y%m%d")
 
@@ -66,7 +59,6 @@ def merge_weekly_features(
     )
     merged = merged.drop(columns=["_week_key"])
 
-    # 按股票 forward-fill 周线字段，确保同周内缺漏的日期也拿到值
     w_cols = list(weekly_renamed.values())
     if w_cols:
         merged[w_cols] = merged.groupby("ts_code", group_keys=False)[w_cols].ffill()

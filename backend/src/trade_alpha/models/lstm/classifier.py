@@ -82,16 +82,8 @@ class LSTMClassifier(BaseClassifier):
         combined_df = pd.concat(all_dfs, ignore_index=True)
         combined_df = combined_df.sort_values('trade_date')
 
-        # 只使用实际存在的特征字段（_w 字段可能因周线数据缺失而不存在）
-        available_fields = [f for f in config.feature_fields if f in combined_df.columns]
-        if not available_fields:
-            raise ValueError("No available feature fields in combined data")
-        if len(available_fields) < len(config.feature_fields):
-            missing = set(config.feature_fields) - set(available_fields)
-            await TaskService.update_progress(task_id, 50, f"缺失特征字段（跳过）: {missing}")
-
         X_3d, y_2d, dates = create_sequences(
-            combined_df, available_fields, target_names,
+            combined_df, config.feature_fields, target_names,
             sequence_length=seq_len,
             normalization_window=normalization_window,
         )
@@ -99,7 +91,7 @@ class LSTMClassifier(BaseClassifier):
         if len(X_3d) == 0:
             raise ValueError("No sequences created from available data")
 
-        await TaskService.update_progress(task_id, 55, "正在创建模型...")
+        await TaskService.update_progress(task_id, 55, "Creating model...")
 
         self.input_size = X_3d.shape[2]
         self.models = {}
@@ -111,12 +103,11 @@ class LSTMClassifier(BaseClassifier):
         valid_mask = ~np.isnan(y_2d).any(axis=1)
         X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
 
-        # 提取滚动窗口标准化后的 2D 特征数据（每个序列最后一个时间步）
         normalized_2d = X_3d[:, -1, :]
-        normalized_df = pd.DataFrame(normalized_2d, columns=available_fields)
-        normalized_data_analysis = compute_field_analysis(normalized_df, available_fields)
+        normalized_df = pd.DataFrame(normalized_2d, columns=config.feature_fields)
+        normalized_data_analysis = compute_field_analysis(normalized_df, config.feature_fields)
 
-        # 按时间划分训练集和验证集
+        # Train / val split by time
         val_ratio = getattr(config, 'val_size', 0.2)
         unique_dates = np.unique(dates)
         unique_dates_sorted = np.sort(unique_dates)
