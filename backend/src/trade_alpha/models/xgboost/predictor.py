@@ -19,16 +19,20 @@ class XGBoostPredictor(BasePredictor):
             stock = df[df["ts_code"] == ts_code]
             if stock.empty:
                 continue
-            
+
+            for col in self.config.feature_fields:
+                if col not in stock.columns:
+                    stock[col] = np.nan
+
             norm = normalize(stock, self.config.feature_fields,
                              self.config.standardize_fields, self.config.winsorize_fields)
             features = norm[self.config.feature_fields].iloc[-1:].values
-            
+
             if np.isnan(features).any():
                 continue
-            
+
             probs = self.classifier.predict_proba(features, target_names)
             if probs:
                 results[ts_code] = probs
-        
+
         return results

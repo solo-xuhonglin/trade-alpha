@@ -21,7 +21,11 @@ class LSTMPredictor(BasePredictor):
             stock = df[df["ts_code"] == ts_code].sort_values("trade_date")
             if len(stock) < normalization_window:
                 continue
-            
+
+            for col in self.config.feature_fields:
+                if col not in stock.columns:
+                    stock[col] = np.nan
+
             data = stock[self.config.feature_fields].values.astype(float)
             normalization_data = data[-normalization_window:]
             feed = data[-seq_len:]
