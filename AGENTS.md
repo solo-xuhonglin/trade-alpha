@@ -76,6 +76,8 @@ trade-alpha/
 
 ### 日志
 - 所有日志消息必须使用英文
+- **用户界面展示的进度消息（如 TaskService.update_progress）使用中文**
+- **代码注释使用英文**
 - 每个模块顶层创建 logger：`logger = get_logger("模块名")`
 - 级别使用：`info`(流程节点) / `warning`(可恢复) / `debug`(细节) / `error`(不可恢复)
 
