@@ -87,7 +87,7 @@ async def create_config(
     lstm_dropout: float = 0.2,
     lstm_epochs: int = 25,
     lstm_batch_size: int = 256,
-    lstm_learning_rate: float = 0.001,
+    lstm_learning_rate: float = 0.0001,
     lstm_sequence_length: int = 60,
     lstm_normalization_window: int = 300,
     label_smoothing: float = 0.1,
@@ -121,11 +121,11 @@ async def create_config(
         lstm_dropout: LSTM dropout ratio, defaults to 0.2
         lstm_epochs: LSTM training epochs, defaults to 50
         lstm_batch_size: LSTM batch size, defaults to 256
-        lstm_learning_rate: LSTM learning rate, defaults to 0.001
+        lstm_learning_rate: LSTM learning rate, defaults to 0.0001
         lstm_sequence_length: LSTM input sequence length, defaults to 60
         label_smoothing: Label smoothing coefficient, defaults to 0.1
         early_stopping_patience: Early stopping patience, defaults to 10
-        lstm_weight_decay: LSTM L2 regularization weight, defaults to 1e-4
+        lstm_weight_decay: LSTM L2 regularization weight, defaults to 0.001
         lr_scheduler_factor: Learning rate scheduler decay factor, defaults to 0.5
         lr_scheduler_patience: Learning rate scheduler patience, defaults to 3
         val_size: Validation set ratio (by date), defaults to 0.2

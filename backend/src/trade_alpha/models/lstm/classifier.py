@@ -153,7 +153,7 @@ class LSTMClassifier(BaseClassifier):
             optimizer = torch.optim.Adam(
                 model.parameters(), 
                 lr=config.lstm_learning_rate,
-                weight_decay=getattr(config, 'lstm_weight_decay', 1e-4)
+                weight_decay=getattr(config, 'lstm_weight_decay', 0.001)
             )
             
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(

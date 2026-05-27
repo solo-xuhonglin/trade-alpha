@@ -103,7 +103,7 @@ async def test_lstm_config():
         lstm_dropout=0.2,
         lstm_epochs=5,
         lstm_batch_size=32,
-        lstm_learning_rate=0.001,
+        lstm_learning_rate=0.0001,
         lstm_sequence_length=10
     )
     return config

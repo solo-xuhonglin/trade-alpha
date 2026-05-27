@@ -354,11 +354,11 @@ POST /api/model-configs
 | `lstm_dropout` | float | 0.2 | Dropout 比例 |
 | `lstm_epochs` | int | 50 | 训练 epoch 数 |
 | `lstm_batch_size` | int | 256 | 训练 batch 大小 |
-| `lstm_learning_rate` | float | 0.001 | 学习率 |
+| `lstm_learning_rate` | float | 0.0001 | 学习率 |
 | `lstm_sequence_length` | int | 60 | 序列长度 |
 | `label_smoothing` | float | 0.1 | 标签平滑系数 |
 | `early_stopping_patience` | int | 10 | 早停耐心值（验证AUC不提升时停止训练的轮数） |
-| `lstm_weight_decay` | float | 1e-4 | L2 正则化系数 |
+| `lstm_weight_decay` | float | 0.001 | L2 正则化系数 |
 | `lr_scheduler_factor` | float | 0.5 | 学习率衰减因子 |
 | `lr_scheduler_patience` | int | 3 | 学习率调度器等待轮数 |
 | `val_size` | float | 0.2 | 验证集比例（按日期划分） |

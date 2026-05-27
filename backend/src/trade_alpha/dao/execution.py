@@ -58,10 +58,10 @@ class ModelSnapshotEmbed(BaseModel):
     lstm_dropout: float = 0.2
     lstm_epochs: int = 50
     lstm_batch_size: int = 64
-    lstm_learning_rate: float = 0.001
+    lstm_learning_rate: float = 0.0001
     lstm_sequence_length: int = 20
     lstm_normalization_window: int = 300
-    lstm_weight_decay: float = 0.0
+    lstm_weight_decay: float = 0.001
     lr_scheduler_factor: float = 0.5
     lr_scheduler_patience: int = 5
     val_size: float = 0.2

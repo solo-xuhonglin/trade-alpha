@@ -148,7 +148,7 @@
                     <v-text-field v-model.number="form.lstm_weight_decay" label="weight_decay" type="number" step="0.0001" hint="L2 正则化系数" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.001" hint="学习率" persistent-hint></v-text-field>
+                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.0001" hint="学习率" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lr_scheduler_factor" label="lr_scheduler_factor" type="number" step="0.1" hint="验证 AUC 停滞时学习率衰减因子" persistent-hint></v-text-field>
@@ -260,7 +260,7 @@ const defaultForm = {
   lstm_dropout: 0.2,
   lstm_epochs: 50,
   lstm_batch_size: 256,
-  lstm_learning_rate: 0.001,
+  lstm_learning_rate: 0.0001,
   lstm_sequence_length: 60,
   lstm_normalization_window: 300,
   lstm_weight_decay: 0.0001,
@@ -316,10 +316,10 @@ const lstmRecommendedParams = {
   lstm_dropout: 0.2,
   lstm_epochs: 50,
   lstm_batch_size: 256,
-  lstm_learning_rate: 0.001,
+  lstm_learning_rate: 0.0001,
   lstm_sequence_length: 60,
   lstm_normalization_window: 300,
-  lstm_weight_decay: 0.0001,
+  lstm_weight_decay: 0.001,
   lr_scheduler_factor: 0.5,
   lr_scheduler_patience: 3,
   val_size: 0.2,
@@ -377,10 +377,10 @@ const openDialog = (item?: ModelConfig) => {
       lstm_dropout: (item as any).lstm_dropout || 0.1,
       lstm_epochs: (item as any).lstm_epochs || 50,
       lstm_batch_size: (item as any).lstm_batch_size || 256,
-      lstm_learning_rate: (item as any).lstm_learning_rate || 0.001,
+      lstm_learning_rate: (item as any).lstm_learning_rate || 0.0001,
       lstm_sequence_length: (item as any).lstm_sequence_length || 60,
       lstm_normalization_window: (item as any).lstm_normalization_window || 300,
-      lstm_weight_decay: (item as any).lstm_weight_decay ?? 0.0001,
+      lstm_weight_decay: (item as any).lstm_weight_decay ?? 0.001,
       lr_scheduler_factor: (item as any).lr_scheduler_factor ?? 0.5,
       lr_scheduler_patience: (item as any).lr_scheduler_patience ?? 3,
       val_size: (item as any).val_size ?? 0.2,
