@@ -75,6 +75,8 @@ class StrategyCreateRequest(BaseModel):
     sell_threshold: Optional[float] = -0.1
     max_positions: Optional[int] = 10
     max_position_pct: Optional[float] = 0.3
+    sell_rank_n: Optional[int] = 15
+    hold_score_threshold: Optional[float] = 0.05
 
 
 class StrategyUpdateRequest(BaseModel):

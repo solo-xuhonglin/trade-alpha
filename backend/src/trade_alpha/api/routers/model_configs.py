@@ -39,6 +39,11 @@ class ConfigCreate(BaseModel):
     lstm_batch_size: Optional[int] = None
     lstm_learning_rate: Optional[float] = None
     lstm_sequence_length: Optional[int] = None
+    lstm_normalization_window: Optional[int] = None
+    lstm_weight_decay: Optional[float] = None
+    lr_scheduler_factor: Optional[float] = None
+    lr_scheduler_patience: Optional[int] = None
+    val_size: Optional[float] = None
     label_smoothing: Optional[float] = None
     early_stopping_patience: Optional[int] = None
 
@@ -66,6 +71,11 @@ class ConfigUpdate(BaseModel):
     lstm_batch_size: Optional[int] = None
     lstm_learning_rate: Optional[float] = None
     lstm_sequence_length: Optional[int] = None
+    lstm_normalization_window: Optional[int] = None
+    lstm_weight_decay: Optional[float] = None
+    lr_scheduler_factor: Optional[float] = None
+    lr_scheduler_patience: Optional[int] = None
+    val_size: Optional[float] = None
     label_smoothing: Optional[float] = None
     early_stopping_patience: Optional[int] = None
 
@@ -97,6 +107,11 @@ def config_to_dict(c):
         "lstm_batch_size": c.lstm_batch_size,
         "lstm_learning_rate": c.lstm_learning_rate,
         "lstm_sequence_length": c.lstm_sequence_length,
+        "lstm_normalization_window": c.lstm_normalization_window,
+        "lstm_weight_decay": c.lstm_weight_decay,
+        "lr_scheduler_factor": c.lr_scheduler_factor,
+        "lr_scheduler_patience": c.lr_scheduler_patience,
+        "val_size": c.val_size,
         "label_smoothing": c.label_smoothing,
         "early_stopping_patience": c.early_stopping_patience,
         "created_at": c.created_at,
@@ -132,6 +147,11 @@ async def create_config(body: ConfigCreate):
             lstm_batch_size=body.lstm_batch_size or 256,
             lstm_learning_rate=body.lstm_learning_rate or 0.001,
             lstm_sequence_length=body.lstm_sequence_length or 60,
+            lstm_normalization_window=body.lstm_normalization_window or 300,
+            lstm_weight_decay=body.lstm_weight_decay or 0.0001,
+            lr_scheduler_factor=body.lr_scheduler_factor or 0.5,
+            lr_scheduler_patience=body.lr_scheduler_patience or 3,
+            val_size=body.val_size or 0.2,
             label_smoothing=body.label_smoothing or 0.1,
             early_stopping_patience=body.early_stopping_patience or 5,
         )

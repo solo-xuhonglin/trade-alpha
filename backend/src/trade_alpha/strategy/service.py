@@ -19,6 +19,8 @@ async def create_strategy(
     sell_threshold: float = -0.1,
     max_positions: Optional[int] = 10,
     max_position_pct: Optional[float] = 0.3,
+    sell_rank_n: Optional[int] = 15,
+    hold_score_threshold: Optional[float] = 0.05,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -37,6 +39,8 @@ async def create_strategy(
         sell_threshold=sell_threshold,
         max_positions=max_positions,
         max_position_pct=max_position_pct,
+        sell_rank_n=sell_rank_n,
+        hold_score_threshold=hold_score_threshold,
         created_at=datetime.now(timezone.utc),
     )
 

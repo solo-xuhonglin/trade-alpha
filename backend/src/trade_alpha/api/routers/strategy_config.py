@@ -72,6 +72,8 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             sell_threshold=request.sell_threshold,
             max_positions=request.max_positions,
             max_position_pct=request.max_position_pct,
+            sell_rank_n=request.sell_rank_n,
+            hold_score_threshold=request.hold_score_threshold,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
