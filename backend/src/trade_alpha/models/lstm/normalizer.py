@@ -21,7 +21,11 @@ def create_sequences(
     X_list, y_list, date_list = [], [], []
     for _, group in df.groupby("ts_code"):
         group = group.sort_values("trade_date")
-        values = group[feature_fields].values.astype(np.float64)
+        # 只使用实际存在的特征字段（处理 _w 字段可能缺失的情况）
+        available_fields = [f for f in feature_fields if f in group.columns]
+        if not available_fields:
+            continue
+        values = group[available_fields].values.astype(np.float64)
         labels = group[target_names].values.astype(np.float64)
         dates = group["trade_date"].values
         if len(values) < normalization_window:
