@@ -254,6 +254,11 @@ const lossChartRef = ref<HTMLDivElement | null>(null)
 let classDistChartInstance: echarts.ECharts | null = null
 let lossChartInstance: echarts.ECharts | null = null
 
+const handleResize = () => {
+  classDistChartInstance?.resize()
+  lossChartInstance?.resize()
+}
+
 const getAccuracyColor = (acc: string | number) => {
   const value = typeof acc === 'string' ? parseFloat(acc) : acc
   if (value >= 0.5) return 'success'
@@ -414,9 +419,7 @@ const renderClassDistChart = () => {
     series: series
   })
   
-  window.addEventListener('resize', () => {
-    classDistChartInstance?.resize()
-  })
+  window.addEventListener('resize', handleResize)
 }
 
 const renderLossChart = () => {
@@ -547,12 +550,11 @@ const renderLossChart = () => {
     } : undefined
   })
   
-  window.addEventListener('resize', () => {
-    lossChartInstance?.resize()
-  })
+  window.addEventListener('resize', handleResize)
 }
 
 const closeDetailDialog = () => {
+  window.removeEventListener('resize', handleResize)
   if (classDistChartInstance) {
     classDistChartInstance.dispose()
     classDistChartInstance = null
@@ -572,27 +574,21 @@ const openDetailDialog = async (item: Training) => {
   detailDialog.value = true
   
   await nextTick()
-  
-  setTimeout(() => {
-    renderClassDistChart()
-  }, 100)
+  renderClassDistChart()
 }
 
 watch(detailTab, async (newTab) => {
   await nextTick()
-  
-  setTimeout(() => {
-    if (newTab === 'overview') {
-      renderClassDistChart()
-    } else if (newTab === 'loss') {
-      renderLossChart()
-    }
-  }, 100)
-})
+  if (newTab === 'overview') {
+    renderClassDistChart()
+  } else if (newTab === 'loss') {
+    renderLossChart()
+  }
+}, { flush: 'post' })
 
 watch(selectedEpochKey, () => {
   if (detailTab.value === 'loss') {
-    nextTick(() => setTimeout(renderLossChart, 100))
+    nextTick(renderLossChart)
   }
 })
 
@@ -621,6 +617,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
   if (classDistChartInstance) {
     classDistChartInstance.dispose()
   }

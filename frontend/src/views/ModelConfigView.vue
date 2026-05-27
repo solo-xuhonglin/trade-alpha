@@ -211,6 +211,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
+import { formatDate } from '@/utils/date'
 import {
   DAILY_BASIC_FIELDS,
   INDICATOR_FIELDS,
@@ -227,6 +228,7 @@ const deleteDialog = ref(false)
 const models = ref<ModelConfig[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<ModelConfig | null>(null)
+const error = ref('')
 
 const allFeatureFields = ALL_FEATURE_FIELDS
 
@@ -269,13 +271,6 @@ const defaultForm = {
 }
 
 const form = ref({ ...defaultForm })
-
-const formatDate = (val: string | undefined) => {
-  if (!val) return ''
-  const d = val.split('T')[0]
-  const t = val.split('T')[1]?.split('.')[0]?.substring(0, 5)
-  return t ? `${d} ${t}` : d
-}
 
 const headers = [
   { title: '名称', key: 'name' },
@@ -344,9 +339,16 @@ watch(() => form.value.model_type, (newType) => {
 
 const loadModels = async () => {
   loading.value = true
-  const res = await modelConfigApi.list()
-  models.value = res.data
-  loading.value = false
+  error.value = ''
+  try {
+    const res = await modelConfigApi.list()
+    models.value = res.data
+  } catch (e) {
+    console.error('Failed to load models:', e)
+    error.value = '加载失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 const openDialog = (item?: ModelConfig) => {
@@ -398,13 +400,22 @@ const openDialog = (item?: ModelConfig) => {
 }
 
 const saveConfig = async () => {
-  if (editingId.value) {
-    await modelConfigApi.update(editingId.value, form.value)
-  } else {
-    await modelConfigApi.create(form.value)
+  loading.value = true
+  error.value = ''
+  try {
+    if (editingId.value) {
+      await modelConfigApi.update(editingId.value, form.value)
+    } else {
+      await modelConfigApi.create(form.value)
+    }
+    dialog.value = false
+    await loadModels()
+  } catch (e) {
+    console.error('Failed to save config:', e)
+    error.value = '保存失败'
+  } finally {
+    loading.value = false
   }
-  dialog.value = false
-  await loadModels()
 }
 
 const confirmDelete = (item: ModelConfig) => {
@@ -414,10 +425,19 @@ const confirmDelete = (item: ModelConfig) => {
 
 const deleteConfig = async () => {
   if (!deletingItem.value) return
-  await modelConfigApi.delete(deletingItem.value.id)
-  deleteDialog.value = false
-  deletingItem.value = null
-  await loadModels()
+  loading.value = true
+  error.value = ''
+  try {
+    await modelConfigApi.delete(deletingItem.value.id)
+    deleteDialog.value = false
+    deletingItem.value = null
+    await loadModels()
+  } catch (e) {
+    console.error('Failed to delete config:', e)
+    error.value = '删除失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {

@@ -141,22 +141,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { trainingApi, type TaskStatusResponse } from '@/api/training'
 import { modelConfigApi } from '@/api/modelConfig'
+import { getStatusColor, getStatusText } from '@/utils/taskStatus'
+import { formatDate, formatDateTime, formatDateInput } from '@/utils/date'
+import { useTaskPolling } from '@/composables/useTaskPolling'
 
 const running = ref(false)
 const configs = ref<{ id: string; name: string; model_type: string }[]>([])
-const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 const stopDialog = ref({ show: false, loading: false, task_id: '', force: false })
-
-const formatDateTime = () => {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-}
 
 const form = ref({
   config_id: '',
@@ -166,13 +162,6 @@ const form = ref({
   start_date: '2021-01-01',
   end_date: '2024-12-31',
 })
-
-const formatDate = (val: string | undefined) => {
-  if (!val) return ''
-  const d = val.split('T')[0]
-  const t = val.split('T')[1]?.split('.')[0]?.substring(0, 5)
-  return t ? `${d} ${t}` : d
-}
 
 const activeTaskHeaders = [
   { title: '任务ID', key: 'task_id' },
@@ -184,7 +173,6 @@ const activeTaskHeaders = [
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
-
 const configModelTypeMap = ref<Record<string, string>>({})
 
 watch(() => form.value.config_id, (newId) => {
@@ -196,60 +184,11 @@ watch(() => form.value.config_id, (newId) => {
   }
 })
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'pending': return 'info'
-    case 'running': return 'warning'
-    case 'completed': return 'success'
-    case 'failed': return 'error'
-    case 'cancelled': return 'grey'
-    default: return ''
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'pending': return '等待中'
-    case 'running': return '运行中'
-    case 'completed': return '已完成'
-    case 'failed': return '失败'
-    case 'cancelled': return '已取消'
-    default: return status
-  }
-}
-
-let pollInterval: number | null = null
-
-const startPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-  pollActiveTasks()
-  pollInterval = window.setInterval(pollActiveTasks, 3000)
-}
-
-const stopPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-}
-
-const pollActiveTasks = async () => {
-  try {
-    const res = await trainingApi.listTasks(1, 20)
-    const items = res.data.items.filter(t => t.status !== 'completed')
-    activeTasks.value = items as any
-
-    const hasActiveTasks = items.some(t => t.status === 'pending' || t.status === 'running')
-    if (!hasActiveTasks && pollInterval) {
-      stopPolling()
-    }
-  } catch (e) {
-    console.error('Poll error:', e)
-  }
-}
+const { activeTasks, startPolling, stopPolling } = useTaskPolling<TaskStatusResponse>({
+  pollFn: () => trainingApi.listTasks(1, 20),
+  filterFn: (t) => t.status !== 'completed',
+  autoStart: true,
+})
 
 const loadConfigs = async () => {
   const res = await modelConfigApi.list()
@@ -262,28 +201,26 @@ const runTraining = async () => {
   running.value = true
   error.value = ''
 
-  const payload = {
-    config_id: form.value.config_id,
-    name: form.value.name || `training_${formatDateTime()}`,
-    start_rank: form.value.mv_rank_start,
-    end_rank: form.value.mv_rank_end,
-    start_date: form.value.start_date.replace(/-/g, ''),
-    end_date: form.value.end_date.replace(/-/g, ''),
-  }
+  try {
+    const payload = {
+      config_id: form.value.config_id,
+      name: form.value.name || `training_${formatDateTime()}`,
+      start_rank: form.value.mv_rank_start,
+      end_rank: form.value.mv_rank_end,
+      start_date: formatDateInput(form.value.start_date),
+      end_date: formatDateInput(form.value.end_date),
+    }
 
-  const res = await trainingApi.create(payload)
-  const taskId = res.data.task_id
-  startPolling()
+    const res = await trainingApi.create(payload)
+    const taskId = res.data.task_id
+    startPolling()
 
-  // 等待任务真正开始执行（60秒超时）
-  const startTime = Date.now()
-  const timeout = 60000
-  while (Date.now() - startTime < timeout) {
-    const statusRes = await trainingApi.getTask(taskId)
-    if (statusRes.data.status !== 'pending') break
-    await new Promise(r => setTimeout(r, 500))
+    // 不阻塞等待，直接完成
+  } catch (e) {
+    console.error('Failed to run training:', e)
+  } finally {
+    running.value = false
   }
-  running.value = false
 }
 
 const stopTask = async (taskId: string, force: boolean) => {
@@ -293,9 +230,12 @@ const stopTask = async (taskId: string, force: boolean) => {
 
 const confirmStop = async () => {
   stopDialog.value.loading = true
-  await stopTask(stopDialog.value.task_id, stopDialog.value.force)
-  stopDialog.value.show = false
-  stopDialog.value.loading = false
+  try {
+    await stopTask(stopDialog.value.task_id, stopDialog.value.force)
+    stopDialog.value.show = false
+  } finally {
+    stopDialog.value.loading = false
+  }
 }
 
 const deleteTask = async (taskId: string) => {
@@ -305,18 +245,16 @@ const deleteTask = async (taskId: string) => {
 
 const confirmDelete = async () => {
   deleteDialog.value.loading = true
-  await trainingApi.deleteTask(deleteDialog.value.task_id)
-  activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
-  deleteDialog.value.show = false
-  deleteDialog.value.loading = false
+  try {
+    await trainingApi.deleteTask(deleteDialog.value.task_id)
+    activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
+    deleteDialog.value.show = false
+  } finally {
+    deleteDialog.value.loading = false
+  }
 }
 
 onMounted(() => {
   loadConfigs()
-  startPolling()
-})
-
-onUnmounted(() => {
-  stopPolling()
 })
 </script>

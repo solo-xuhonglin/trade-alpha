@@ -166,21 +166,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
 import { accountConfigApi } from '@/api/accountConfig'
 import { trainingRecordApi } from '@/api/trainingRecord'
 import { strategyConfigApi } from '@/api/strategyConfig'
-
-const formatDateTime = () => {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`
-}
+import { getStatusColor, getStatusText } from '@/utils/taskStatus'
+import { formatDate, formatDateTime, formatDateInput } from '@/utils/date'
+import { useTaskPolling } from '@/composables/useTaskPolling'
 
 const loading = ref(false)
 const running = ref(false)
-const activeTasks = ref<TaskStatusResponse[]>([])
 const error = ref('')
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 const stopDialog = ref({ show: false, loading: false, task_id: '', force: false })
@@ -196,13 +192,6 @@ const form = ref({
   training_id: '',
   strategy_config_id: '',
 })
-
-const formatDate = (val: string | undefined) => {
-  if (!val) return ''
-  const d = val.split('T')[0]
-  const t = val.split('T')[1]?.split('.')[0]?.substring(0, 5)
-  return t ? `${d} ${t}` : d
-}
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const trainingModelTypeMap = ref<Record<string, string>>({})
@@ -240,60 +229,11 @@ const activeTaskHeaders = [
   { title: '操作', key: 'actions', sortable: false },
 ]
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'pending': return 'info'
-    case 'running': return 'warning'
-    case 'completed': return 'success'
-    case 'failed': return 'error'
-    case 'cancelled': return 'grey'
-    default: return ''
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'pending': return '等待中'
-    case 'running': return '运行中'
-    case 'completed': return '已完成'
-    case 'failed': return '失败'
-    case 'cancelled': return '已取消'
-    default: return status
-  }
-}
-
-let pollInterval: number | null = null
-
-const startPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-  pollActiveTasks()
-  pollInterval = window.setInterval(pollActiveTasks, 3000)
-}
-
-const stopPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-}
-
-const pollActiveTasks = async () => {
-  try {
-    const res = await backtestApi.listTasks(1, 20)
-    const items = res.data.items.filter(t => t.status !== 'completed')
-    activeTasks.value = items as any
-
-    const hasActiveTasks = items.some(t => t.status === 'pending' || t.status === 'running')
-    if (!hasActiveTasks && pollInterval) {
-      stopPolling()
-    }
-  } catch (e) {
-    console.error('Poll error:', e)
-  }
-}
+const { activeTasks, startPolling, stopPolling } = useTaskPolling<TaskStatusResponse>({
+  pollFn: () => backtestApi.listTasks(1, 20),
+  filterFn: (t) => t.status !== 'completed',
+  autoStart: true,
+})
 
 const loadTrainings = async () => {
   const res = await trainingRecordApi.list()
@@ -320,46 +260,46 @@ const runBacktest = async () => {
   running.value = true
   error.value = ''
 
-  if (!form.value.training_id) {
-    throw new Error('请先选择训练结果')
-  }
-  if (!form.value.account_config_id) {
-    throw new Error('请先选择账户配置')
-  }
-
-  const payload: Record<string, any> = {
-    training_id: form.value.training_id,
-    account_config_id: form.value.account_config_id,
-    start_date: form.value.start_date.replace(/-/g, ''),
-    end_date: form.value.end_date.replace(/-/g, ''),
-    name: form.value.name || `backtest_${formatDateTime()}`,
-    mode: currentMode.value,
-  }
-
-  if (form.value.strategy_config_id) {
-    payload.strategy_config_id = form.value.strategy_config_id
-  }
-
-  if (currentMode.value === 'single') {
-    if (!form.value.ts_codes) {
-      throw new Error('请选择股票')
+  try {
+    if (!form.value.training_id) {
+      throw new Error('请先选择训练结果')
     }
-    payload.ts_codes = [form.value.ts_codes]
-  } else {
-    payload.top_n = form.value.top_n
-  }
+    if (!form.value.account_config_id) {
+      throw new Error('请先选择账户配置')
+    }
 
-  const res = await backtestApi.run(payload)
-  const taskId = res.data.task_id
-  startPolling()
+    const payload: Record<string, any> = {
+      training_id: form.value.training_id,
+      account_config_id: form.value.account_config_id,
+      start_date: formatDateInput(form.value.start_date),
+      end_date: formatDateInput(form.value.end_date),
+      name: form.value.name || `backtest_${formatDateTime()}`,
+      mode: currentMode.value,
+    }
 
-  // 等待任务真正开始执行
-  while (true) {
-    const statusRes = await backtestApi.getTask(taskId)
-    if (statusRes.data.status !== 'pending') break
-    await new Promise(r => setTimeout(r, 500))
+    if (form.value.strategy_config_id) {
+      payload.strategy_config_id = form.value.strategy_config_id
+    }
+
+    if (currentMode.value === 'single') {
+      if (!form.value.ts_codes) {
+        throw new Error('请选择股票')
+      }
+      payload.ts_codes = [form.value.ts_codes]
+    } else {
+      payload.top_n = form.value.top_n
+    }
+
+    const res = await backtestApi.run(payload)
+    const taskId = res.data.task_id
+    startPolling()
+
+    // 不阻塞等待，直接完成
+  } catch (e) {
+    console.error('Failed to run backtest:', e)
+  } finally {
+    running.value = false
   }
-  running.value = false
 }
 
 const stopTask = async (taskId: string, force: boolean) => {
@@ -369,9 +309,12 @@ const stopTask = async (taskId: string, force: boolean) => {
 
 const confirmStop = async () => {
   stopDialog.value.loading = true
-  await stopTask(stopDialog.value.task_id, stopDialog.value.force)
-  stopDialog.value.show = false
-  stopDialog.value.loading = false
+  try {
+    await stopTask(stopDialog.value.task_id, stopDialog.value.force)
+    stopDialog.value.show = false
+  } finally {
+    stopDialog.value.loading = false
+  }
 }
 
 const deleteTask = async (taskId: string) => {
@@ -381,20 +324,18 @@ const deleteTask = async (taskId: string) => {
 
 const confirmDelete = async () => {
   deleteDialog.value.loading = true
-  await backtestApi.deleteTask(deleteDialog.value.task_id)
-  activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
-  deleteDialog.value.show = false
-  deleteDialog.value.loading = false
+  try {
+    await backtestApi.deleteTask(deleteDialog.value.task_id)
+    activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
+    deleteDialog.value.show = false
+  } finally {
+    deleteDialog.value.loading = false
+  }
 }
 
 onMounted(() => {
   loadTrainings()
   loadAccounts()
   loadStrategies()
-  startPolling()
-})
-
-onUnmounted(() => {
-  stopPolling()
 })
 </script>

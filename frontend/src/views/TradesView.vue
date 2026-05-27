@@ -171,10 +171,13 @@ const headers = [
   { title: '现金', key: 'cash_after' },
 ]
 
+const tsCodeOptions = ref<{ label: string; value: string }[]>([])
+
 const loadFilterOptions = async () => {
   try {
     const res = await tradeApi.getOptions()
     filterOptions.value = res.data
+    tsCodeOptions.value = res.data.ts_codes.map((t: string) => ({ label: t, value: t }))
   } catch (e) {
     console.error('Failed to load filter options:', e)
   }

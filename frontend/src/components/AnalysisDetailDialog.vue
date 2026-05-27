@@ -101,11 +101,15 @@ const histogramChartRef = ref<HTMLElement>()
 let boxplotChartInstance: echarts.ECharts | null = null
 let histogramChartInstance: echarts.ECharts | null = null
 
+const handleResize = () => {
+  boxplotChartInstance?.resize()
+  histogramChartInstance?.resize()
+}
+
 const renderBoxplot = () => {
   if (!boxplotChartRef.value || !props.result || !boxplotField.value || !props.result.boxplots[boxplotField.value]) return
   if (boxplotChartInstance) {
     boxplotChartInstance.dispose()
-    boxplotChartInstance = null
   }
   boxplotChartInstance = echarts.init(boxplotChartRef.value)
 
@@ -132,13 +136,14 @@ const renderBoxplot = () => {
       },
     ],
   }, true)
+  
+  window.addEventListener('resize', handleResize)
 }
 
 const renderHistogram = () => {
   if (!histogramChartRef.value || !props.result || !histogramField.value || !props.result.histograms[histogramField.value]) return
   if (histogramChartInstance) {
     histogramChartInstance.dispose()
-    histogramChartInstance = null
   }
   histogramChartInstance = echarts.init(histogramChartRef.value)
 
@@ -155,11 +160,8 @@ const renderHistogram = () => {
       data: hist.counts,
     }],
   }, true)
-}
-
-const handleResize = () => {
-  boxplotChartInstance?.resize()
-  histogramChartInstance?.resize()
+  
+  window.addEventListener('resize', handleResize)
 }
 
 watch([() => props.result, tab], () => {
@@ -189,12 +191,22 @@ watch(() => props.dialog, (newVal) => {
         histogramField.value = fields[0]
       }
     }
+  } else if (!newVal) {
+    window.removeEventListener('resize', handleResize)
+    if (boxplotChartInstance) {
+      boxplotChartInstance.dispose()
+      boxplotChartInstance = null
+    }
+    if (histogramChartInstance) {
+      histogramChartInstance.dispose()
+      histogramChartInstance = null
+    }
   }
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
   boxplotChartInstance?.dispose()
   histogramChartInstance?.dispose()
-  window.removeEventListener('resize', handleResize)
 })
 </script>
