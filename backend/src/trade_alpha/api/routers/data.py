@@ -134,16 +134,27 @@ async def get_data_paginated(
 
 @router.post("")
 async def fetch_data_endpoint(request: DataFetchRequest):
-    """Fetch and store stock data, then calculate all indicators."""
-    count = await fetch_and_store(
+    """Fetch and store stock data, then calculate all indicators (daily + weekly)."""
+    daily_count = await fetch_and_store(
         ts_code=request.ts_code,
         start_date=request.start_date,
         end_date=request.end_date,
     )
-    if count > 0:
+    if daily_count > 0:
         await calculate_all_indicators(ts_code=request.ts_code)
+
+    weekly_count = await fetch_and_store_stock_weekly(
+        ts_code=request.ts_code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+    )
+    if weekly_count > 0:
+        await calculate_all_indicators_weekly(ts_code=request.ts_code)
+
+    if daily_count > 0 or weekly_count > 0:
         await update_single_stock_data_count(ts_code=request.ts_code)
-    return {"ts_code": request.ts_code, "stored_count": count}
+
+    return {"ts_code": request.ts_code, "daily_stored": daily_count, "weekly_stored": weekly_count}
 
 
 @router.delete("/{ts_code}")
