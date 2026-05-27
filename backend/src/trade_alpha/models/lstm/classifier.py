@@ -91,7 +91,7 @@ class LSTMClassifier(BaseClassifier):
         if len(X_3d) == 0:
             raise ValueError("No sequences created from available data")
 
-        await TaskService.update_progress(task_id, 55, "Creating model...")
+        await TaskService.update_progress(task_id, 55, "正在创建模型...")
 
         self.input_size = X_3d.shape[2]
         self.models = {}
