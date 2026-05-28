@@ -98,6 +98,7 @@ class ExecutionResult(Document):
     sharpe_ratio: Optional[float] = None
     volatility: Optional[float] = None
     avg_hold_days: Optional[float] = None
+    trade_win_rate: Optional[float] = None
     account_snapshot: Optional[AccountSnapshotEmbed] = None
     model_snapshot: Optional[ModelSnapshotEmbed] = None
     strategy_snapshot: Optional[StrategySnapshotEmbed] = None
