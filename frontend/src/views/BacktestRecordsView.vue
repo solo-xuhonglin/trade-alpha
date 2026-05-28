@@ -56,11 +56,21 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
-          <v-btn size="small" variant="text" prepend-icon="mdi-eye" @click="viewResult(item)">指标</v-btn>
-          <v-btn size="small" variant="text" color="info" prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">分析</v-btn>
-          <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-btn>
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn size="small" variant="text" color="secondary" v-bind="props" prepend-icon="mdi-chart-box-outline">分析</v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item prepend-icon="mdi-chart-bar" @click="viewResult(item)">统计</v-list-item>
+              <v-list-item prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">K线</v-list-item>
+              <v-list-item prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-list-item>
+            </v-list>
+          </v-menu>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
+      </template>
+      <template v-slot:item.config_action="{ item }">
+        <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-cog" @click="openBacktestConfig(item)">配置</v-btn>
       </template>
     </v-data-table-server>
   </v-card>
@@ -303,6 +313,52 @@
   </v-dialog>
 
   <PredictionChart v-model="predictionDialog" :backtest-id="predictionBacktestId" />
+
+  <v-dialog v-model="backtestConfigDialog" max-width="650px">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
+        <div class="d-flex align-center ga-2">
+          <v-icon color="primary">mdi-cog</v-icon>
+          回测配置
+          <v-chip v-if="backtestConfigItem" size="small" variant="outlined" class="ml-2">{{ backtestConfigItem.name }}</v-chip>
+        </div>
+        <v-btn icon variant="text" size="small" @click="backtestConfigDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-divider />
+      <v-card-text class="pa-0">
+        <v-tabs v-model="backtestConfigTab" color="primary" class="px-4 pt-2">
+          <v-tab value="model">模型配置</v-tab>
+          <v-tab value="strategy">策略配置</v-tab>
+        </v-tabs>
+        <v-window v-model="backtestConfigTab" class="pa-4">
+          <v-window-item value="model">
+            <v-table v-if="backtestModelConfig" density="compact">
+              <tbody>
+                <tr v-for="row in backtestModelConfig" :key="row.label">
+                  <td class="text-body-2 text-medium-emphasis" style="width: 200px;">{{ row.label }}</td>
+                  <td class="text-body-2">{{ row.value }}</td>
+                </tr>
+              </tbody>
+            </v-table>
+            <div v-else class="text-center text-medium-emphasis py-8">无模型配置</div>
+          </v-window-item>
+          <v-window-item value="strategy">
+            <v-table v-if="backtestStrategyConfig" density="compact">
+              <tbody>
+                <tr v-for="row in backtestStrategyConfig" :key="row.label">
+                  <td class="text-body-2 text-medium-emphasis" style="width: 200px;">{{ row.label }}</td>
+                  <td class="text-body-2">{{ row.value }}</td>
+                </tr>
+              </tbody>
+            </v-table>
+            <div v-else class="text-center text-medium-emphasis py-8">无策略配置</div>
+          </v-window-item>
+        </v-window>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -329,6 +385,11 @@ const pnlLoading = ref(false)
 const amountChartRef = ref<HTMLDivElement>()
 const countChartRef = ref<HTMLDivElement>()
 const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_pnl_amount', order: 'desc' }])
+const backtestConfigDialog = ref(false)
+const backtestConfigTab = ref('model')
+const backtestConfigItem = ref<Backtest | null>(null)
+const backtestModelConfig = ref<{ label: string; value: string }[] | null>(null)
+const backtestStrategyConfig = ref<{ label: string; value: string }[] | null>(null)
 let amountChart: echarts.ECharts | null = null
 let countChart: echarts.ECharts | null = null
 
@@ -353,6 +414,7 @@ const historyHeaders = [
   { title: '超额收益', key: 'excess_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '夏普比', key: 'sharpe_ratio' },
+  { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80 },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
@@ -391,6 +453,67 @@ const viewResult = (item: Backtest) => {
   selectedResult.value = item
   resultDialog.value = true
   nextTick(() => loadPnlDetails(item.id))
+}
+
+const openBacktestConfig = (item: Backtest) => {
+  backtestConfigItem.value = item
+  backtestConfigTab.value = 'model'
+  backtestModelConfig.value = null
+  backtestStrategyConfig.value = null
+  backtestConfigDialog.value = true
+
+  if (item.model_snapshot) {
+    const ms = item.model_snapshot
+    const rows: { label: string; value: string }[] = [
+      { label: '名称', value: ms.name || '-' },
+      { label: '模型类型', value: ms.model_type || '-' },
+      { label: '分类周期', value: ms.classification_horizons?.join(', ') || '-' },
+      { label: '标签模式', value: ms.label_mode || '-' },
+      { label: '阈值 3d', value: ms.classification_threshold_3d?.toString() },
+      { label: '阈值 5d', value: ms.classification_threshold_5d?.toString() },
+      { label: '阈值 10d', value: ms.classification_threshold_10d?.toString() },
+    ]
+    if (ms.model_type === 'xgboost') {
+      rows.push(
+        { label: 'XGB 学习率', value: ms.xgb_learning_rate?.toString() },
+        { label: 'XGB 最大深度', value: ms.xgb_max_depth?.toString() },
+        { label: 'XGB 子采样', value: ms.xgb_subsample?.toString() },
+        { label: 'XGB 列采样', value: ms.xgb_colsample_bytree?.toString() },
+        { label: 'XGB 最小子节点权重', value: ms.xgb_min_child_weight?.toString() },
+        { label: 'XGB 树数量', value: ms.xgb_n_estimators?.toString() },
+      )
+    } else if (ms.model_type === 'lstm') {
+      rows.push(
+        { label: 'LSTM 隐藏层大小', value: ms.lstm_hidden_size?.toString() },
+        { label: 'LSTM 层数', value: ms.lstm_num_layers?.toString() },
+        { label: 'LSTM Dropout', value: ms.lstm_dropout?.toString() },
+        { label: 'LSTM 学习率', value: ms.lstm_learning_rate?.toString() },
+        { label: 'LSTM 权重衰减', value: ms.lstm_weight_decay?.toString() },
+        { label: 'LSTM Epochs', value: ms.lstm_epochs?.toString() },
+        { label: 'LSTM 批大小', value: ms.lstm_batch_size?.toString() },
+        { label: 'LSTM 序列长度', value: ms.lstm_sequence_length?.toString() },
+        { label: 'LSTM 归一化窗口', value: ms.lstm_normalization_window?.toString() },
+      )
+    }
+    rows.push({ label: '验证集比例', value: ms.val_size?.toString() })
+    backtestModelConfig.value = rows
+  }
+
+  const rows2: { label: string; value: string }[] = []
+  if (item.strategy_name) {
+    rows2.push({ label: '名称', value: item.strategy_name })
+    rows2.push({ label: '类型', value: item.strategy_type || '-' })
+    rows2.push({ label: '止盈阈值', value: item.sell_threshold?.toString() ?? '-' })
+    rows2.push({ label: '止损阈值', value: item.buy_threshold?.toString() ?? '-' })
+    rows2.push({ label: '止损比例', value: item.stop_loss_pct?.toString() ?? '-' })
+    rows2.push({ label: '最大持仓天数', value: item.max_hold_days?.toString() ?? '-' })
+    rows2.push({ label: '最小交易金额', value: item.min_order_value?.toString() ?? '-' })
+    rows2.push({ label: '最大持仓数量', value: item.max_positions?.toString() ?? '-' })
+    rows2.push({ label: '单只上限比例', value: item.max_position_pct?.toString() ?? '-' })
+    rows2.push({ label: '卖出排名 N', value: item.sell_rank_n?.toString() ?? '-' })
+    rows2.push({ label: '持有分数阈值', value: item.hold_score_threshold?.toString() ?? '-' })
+  }
+  backtestStrategyConfig.value = rows2.length > 0 ? rows2 : null
 }
 
 const viewTrades = async (item: Backtest) => {

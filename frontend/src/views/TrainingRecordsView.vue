@@ -26,10 +26,20 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
-          <v-btn size="small" variant="text" color="info" prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-btn>
-          <v-btn size="small" variant="text" color="secondary" prepend-icon="mdi-chart-box-outline" @click="openAnalysisDialog(item)">分析</v-btn>
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn size="small" variant="text" color="secondary" v-bind="props" prepend-icon="mdi-chart-box-outline">分析</v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-list-item>
+              <v-list-item prepend-icon="mdi-chart-bell-curve" @click="openAnalysisDialog(item)">标准化</v-list-item>
+            </v-list>
+          </v-menu>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
+      </template>
+      <template v-slot:item.config_action="{ item }">
+        <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-cog" @click="openConfigDialog(item)">配置</v-btn>
       </template>
     </v-data-table>
   </v-card>
@@ -223,6 +233,34 @@
     :title="analysisTitle"
     :result="analysisResult"
   />
+
+  <v-dialog v-model="configDialog" max-width="600px">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
+        <div class="d-flex align-center ga-2">
+          <v-icon color="primary">mdi-cog</v-icon>
+          模型配置
+          <v-chip v-if="configItem" size="small" variant="outlined" class="ml-2">{{ configItem.name }}</v-chip>
+        </div>
+        <v-btn icon variant="text" size="small" @click="configDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-divider />
+      <v-card-text v-if="configLoading" class="text-center text-medium-emphasis py-8">加载中...</v-card-text>
+      <v-card-text v-else-if="configDetail" class="pa-4">
+        <v-table density="compact">
+          <tbody>
+            <tr v-for="row in configDetail" :key="row.label">
+              <td class="text-body-2 text-medium-emphasis" style="width: 200px;">{{ row.label }}</td>
+              <td class="text-body-2">{{ row.value }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+      <v-card-text v-else class="text-center text-medium-emphasis py-8">无法加载配置</v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -248,6 +286,10 @@ const detailTab = ref('overview')
 const featureTarget = ref('label_3d')
 const selectedEpochTarget = ref('')
 const error = ref('')
+const configDialog = ref(false)
+const configLoading = ref(false)
+const configItem = ref<Training | null>(null)
+const configDetail = ref<{ label: string; value: string }[] | null>(null)
 
 const classDistChartRef = ref<HTMLDivElement | null>(null)
 const lossChartRef = ref<HTMLDivElement | null>(null)
@@ -323,7 +365,8 @@ const headers = [
   { title: '日期', key: 'date_range', width: 190, nowrap: true },
   { title: '样本', key: 'sample_count', width: 80, nowrap: true },
   { title: '准确率', key: 'accuracy', width: 100, nowrap: true },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 240, nowrap: true },
+  { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 160, nowrap: true },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
@@ -354,6 +397,55 @@ const loadTrainings = async () => {
 const confirmDelete = (item: Training) => {
   deletingItem.value = item
   deleteDialog.value = true
+}
+
+const openConfigDialog = async (item: Training) => {
+  configItem.value = item
+  configLoading.value = true
+  configDialog.value = true
+  configDetail.value = null
+  try {
+    const res = await modelConfigApi.get(item.config_id)
+    const c = res.data
+    const rows: { label: string; value: string }[] = [
+      { label: '模型类型', value: c.model_type },
+      { label: '分类周期', value: c.classification_horizons?.join(', ') || '-' },
+      { label: '标签模式', value: c.label_mode },
+      { label: '阈值 3d', value: c.classification_threshold_3d?.toString() },
+      { label: '阈值 5d', value: c.classification_threshold_5d?.toString() },
+      { label: '阈值 10d', value: c.classification_threshold_10d?.toString() },
+    ]
+    if (c.model_type === 'xgboost') {
+      rows.push(
+        { label: 'XGB 学习率', value: c.xgb_learning_rate?.toString() },
+        { label: 'XGB 最大深度', value: c.xgb_max_depth?.toString() },
+        { label: 'XGB 子采样', value: c.xgb_subsample?.toString() },
+        { label: 'XGB 列采样', value: c.xgb_colsample_bytree?.toString() },
+        { label: 'XGB 最小子节点权重', value: c.xgb_min_child_weight?.toString() },
+        { label: 'XGB 树数量', value: c.xgb_n_estimators?.toString() },
+      )
+    } else if (c.model_type === 'lstm') {
+      rows.push(
+        { label: 'LSTM 隐藏层大小', value: c.lstm_hidden_size?.toString() },
+        { label: 'LSTM 层数', value: c.lstm_num_layers?.toString() },
+        { label: 'LSTM Dropout', value: c.lstm_dropout?.toString() },
+        { label: 'LSTM 学习率', value: c.lstm_learning_rate?.toString() },
+        { label: 'LSTM 权重衰减', value: c.lstm_weight_decay?.toString() },
+        { label: 'LSTM Epochs', value: c.lstm_epochs?.toString() },
+        { label: 'LSTM 批大小', value: c.lstm_batch_size?.toString() },
+        { label: 'LSTM 序列长度', value: c.lstm_sequence_length?.toString() },
+        { label: 'LSTM 归一化窗口', value: c.lstm_normalization_window?.toString() },
+      )
+    }
+    rows.push(
+      { label: '验证集比例', value: c.val_size?.toString() },
+    )
+    configDetail.value = rows
+  } catch {
+    configDetail.value = null
+  } finally {
+    configLoading.value = false
+  }
 }
 
 const renderClassDistChart = () => {
