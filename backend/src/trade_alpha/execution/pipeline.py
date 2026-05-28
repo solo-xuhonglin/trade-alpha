@@ -364,10 +364,22 @@ class ExecutionPipeline:
         result.avg_hold_days = round(trade_metrics["avg_hold_days"], 2) if trade_metrics["avg_hold_days"] else None
 
         if len(self._baseline_daily_values) > 1:
-            baseline_ret = (self._baseline_daily_values[-1] - self._baseline_daily_values[0]) / self._baseline_daily_values[0]
+            baseline_vals = self._baseline_daily_values
+            baseline_ret = (baseline_vals[-1] - baseline_vals[0]) / baseline_vals[0]
             result.baseline_return = round(baseline_ret, 4)
-            result.baseline_max_drawdown = round(self._calc_max_drawdown(self._baseline_daily_values), 4)
+            result.baseline_max_drawdown = round(self._calc_max_drawdown(baseline_vals), 4)
             result.excess_return = round(total_return - baseline_ret, 4)
+
+            baseline_daily_returns = [
+                (baseline_vals[i] - baseline_vals[i - 1]) / baseline_vals[i - 1]
+                for i in range(1, len(baseline_vals))
+                if baseline_vals[i - 1] > 0
+            ]
+            if baseline_daily_returns:
+                baseline_metrics = self.strategy.calculate_metrics(baseline_daily_returns)
+                result.baseline_annual_return = round(baseline_metrics["annual_return"], 4)
+                result.baseline_volatility = round(baseline_metrics["volatility"], 4)
+                result.baseline_sharpe_ratio = round(baseline_metrics["sharpe_ratio"], 4)
 
         result.final_value = round(final_value, 2)
         result.total_return = round(total_return, 4)
