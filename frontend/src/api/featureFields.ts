@@ -22,12 +22,7 @@ export const INDICATOR_FIELDS = [
   'obv_chg_5', 'obv_chg_10', 'obv_chg_20',
 ]
 
-export const WEEKLY_FIELDS = [
-  'open_w', 'high_w', 'low_w', 'close_w', 'vol_w', 'amount_w',
-  ...INDICATOR_FIELDS.map(f => f + '_w'),
-]
-
-export const ALL_FEATURE_FIELDS = [...DAILY_BASIC_FIELDS, ...INDICATOR_FIELDS, ...WEEKLY_FIELDS]
+export const ALL_FEATURE_FIELDS = [...DAILY_BASIC_FIELDS, ...INDICATOR_FIELDS]
 
 export const PRICE_INDEPENDENT_FIELDS = [
   'pct_chg',

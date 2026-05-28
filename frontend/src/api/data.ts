@@ -78,12 +78,4 @@ export const dataApi = {
   deleteData: (tsCode: string) =>
     api.delete(`/data/${tsCode}`),
 
-  getWeeklyData: (tsCode: string, startDate?: string, endDate?: string) =>
-    api.get<DataRecord[]>(`/data/${tsCode}/weekly`, { params: { start_date: startDate, end_date: endDate } }),
-
-  fetchWeeklyData: (tsCode: string, startDate: string, endDate: string) =>
-    api.post('/data/weekly', { ts_code: tsCode, start_date: startDate, end_date: endDate }),
-
-  deleteWeeklyData: (tsCode: string) =>
-    api.delete(`/data/${tsCode}/weekly`),
 }

@@ -165,7 +165,7 @@ POST /api/data
 ```json
 {
   "ts_code": "000001.SZ",
-  "stored_count": 242
+  "daily_stored": 242
 }
 ```
 
@@ -178,7 +178,7 @@ DELETE /api/data/{ts_code}
 **响应**:
 ```json
 {
-  "deleted_count": 242
+  "daily_deleted": 242
 }
 ```
 

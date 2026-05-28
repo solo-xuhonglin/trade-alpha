@@ -2,7 +2,6 @@
 
 import pandas as pd
 from trade_alpha.dao import StockDaily
-from trade_alpha.dao.stock_weekly import StockWeekly
 from trade_alpha.indicators.ma import calculate_ma
 from trade_alpha.indicators.macd import calculate_macd
 from trade_alpha.indicators.custom import (
@@ -222,51 +221,3 @@ ALL_INDICATOR_FIELDS = [
     "candle_body_pct", "candle_upper_pct", "candle_lower_pct",
     "close_location_pct", "gap_pct", "gap_fill_pct",
 ]
-
-
-async def _calculate_and_store_indicators(ts_code: str, model_class, document_name: str) -> int:
-    """Generic indicator calculation for any model class (StockDaily or StockWeekly)."""
-    records = await model_class.find(model_class.ts_code == ts_code).to_list()
-    if not records:
-        logger.warning(f"No data found for {ts_code} in {document_name}")
-        return 0
-
-    df = pd.DataFrame([r.model_dump() for r in records])
-    df = df.sort_values("trade_date").reset_index(drop=True)
-
-    df = calculate_ma(df, periods=[5, 10, 20, 40, 60])
-    df = calculate_macd(df)
-    df = calculate_pct_chg(df)
-    df = calculate_bias(df, periods=[5, 10, 20, 60])
-    df = calculate_close_position(df)
-    df = calculate_vol_ratio(df)
-    df = calculate_kdj(df)
-    df = calculate_boll(df)
-    df = calculate_rsi(df)
-    df = calculate_atr(df)
-    df = calculate_obv(df)
-
-    prev_close_series = df["close"].shift(1)
-    df = calculate_candle_features(df, prev_close_series)
-    df = calculate_trend(df)
-
-    updated_count = 0
-    for _, row in df.iterrows():
-        update_data = {}
-        for f in ALL_INDICATOR_FIELDS:
-            if f in row and pd.notna(row[f]):
-                update_data[f] = row[f]
-        if update_data:
-            await model_class.find_one(
-                model_class.ts_code == ts_code,
-                model_class.trade_date == row["trade_date"]
-            ).update({"$set": update_data})
-            updated_count += 1
-
-    logger.info(f"Calculated indicators for {ts_code} in {document_name}: {updated_count} records")
-    return updated_count
-
-
-async def calculate_all_indicators_weekly(ts_code: str) -> int:
-    """Calculate all indicators for weekly data using the stock_weekly collection."""
-    return await _calculate_and_store_indicators(ts_code, StockWeekly, "stock_weekly")

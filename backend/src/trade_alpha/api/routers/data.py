@@ -5,18 +5,15 @@ from fastapi import APIRouter, Query
 from trade_alpha.api.schemas import DataFetchRequest, StockListResponse, StockDailyListResponse
 from trade_alpha.data.service import (
     fetch_and_store,
-    fetch_and_store_stock_weekly,
     update_stock_list,
     list_stocks,
     list_stocks_by_mv_rank,
     find_stock_daily_by_ts_code,
-    find_stock_weekly_by_ts_code,
     find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
-    delete_stock_weekly_by_ts_code,
 )
 from trade_alpha.dao import StockList
-from trade_alpha.indicators.service import calculate_all_indicators, calculate_all_indicators_weekly
+from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.scheduler.data_sync import update_single_stock_data_count
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
 from trade_alpha.api.validators import TradeDateQuery
@@ -135,7 +132,7 @@ async def get_data_paginated(
 
 @router.post("")
 async def fetch_data_endpoint(request: DataFetchRequest):
-    """Fetch and store stock data, then calculate all indicators (daily + weekly)."""
+    """Fetch and store stock data, then calculate all indicators."""
     daily_count = await fetch_and_store(
         ts_code=request.ts_code,
         start_date=request.start_date,
@@ -144,64 +141,20 @@ async def fetch_data_endpoint(request: DataFetchRequest):
     if daily_count > 0:
         await calculate_all_indicators(ts_code=request.ts_code)
 
-    weekly_count = await fetch_and_store_stock_weekly(
-        ts_code=request.ts_code,
-        start_date=request.start_date,
-        end_date=request.end_date,
-    )
-    if weekly_count > 0:
-        await calculate_all_indicators_weekly(ts_code=request.ts_code)
-
-    if daily_count > 0 or weekly_count > 0:
+    if daily_count > 0:
         await update_single_stock_data_count(ts_code=request.ts_code)
 
-    return {"ts_code": request.ts_code, "daily_stored": daily_count, "weekly_stored": weekly_count}
+    return {"ts_code": request.ts_code, "daily_stored": daily_count}
 
 
 @router.delete("/{ts_code}")
 async def delete_data_endpoint(ts_code: str):
-    """Delete stock data (daily + weekly) and reset stock status."""
+    """Delete stock data and reset stock status."""
     daily_count = await delete_stock_daily_by_ts_code(ts_code)
-    weekly_count = await delete_stock_weekly_by_ts_code(ts_code)
     stock = await StockList.find_one(StockList.ts_code == ts_code)
     if stock:
         stock.sync_status = "pending"
         stock.data_count = 0
         stock.latest_date = None
         await stock.save()
-    return {"daily_deleted": daily_count, "weekly_deleted": weekly_count}
-
-
-@router.get("/{ts_code}/weekly")
-async def get_weekly_data(
-    ts_code: str,
-    start_date: TradeDateQuery = None,
-    end_date: TradeDateQuery = None,
-):
-    """Get stock weekly data by date range."""
-    records = await find_stock_weekly_by_ts_code(
-        ts_code,
-        to_db_format(start_date) if start_date else None,
-        to_db_format(end_date) if end_date else None,
-    )
-    return records
-
-
-@router.post("/weekly")
-async def fetch_weekly_data_endpoint(request: DataFetchRequest):
-    """Fetch and store weekly data, then calculate indicators."""
-    count = await fetch_and_store_stock_weekly(
-        ts_code=request.ts_code,
-        start_date=request.start_date,
-        end_date=request.end_date,
-    )
-    if count > 0:
-        await calculate_all_indicators_weekly(ts_code=request.ts_code)
-    return {"ts_code": request.ts_code, "stored_count": count}
-
-
-@router.delete("/{ts_code}/weekly")
-async def delete_weekly_data_endpoint(ts_code: str):
-    """Delete stock weekly data."""
-    count = await delete_stock_weekly_by_ts_code(ts_code)
-    return {"deleted_count": count}
+    return {"daily_deleted": daily_count}

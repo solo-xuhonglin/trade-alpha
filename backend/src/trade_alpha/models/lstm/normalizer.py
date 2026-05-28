@@ -27,16 +27,17 @@ def create_sequences(
         if len(values) < normalization_window:
             continue
         for i in range(normalization_window - 1, len(values)):
-            window = values[i - normalization_window + 1 : i + 1].copy()
+            window = values[i - normalization_window + 1 : i + 1]
             label = labels[i]
             date = dates[i]
-            if np.isnan(window).any() or np.isnan(label).any():
+            seq = window[-sequence_length:]
+            if np.isnan(seq).any() or np.isnan(label).any():
                 continue
-            mean = window.mean(axis=0)
-            std = window.std(axis=0)
+            mean = np.nanmean(window, axis=0)
+            std = np.nanstd(window, axis=0)
             std[std == 0] = 1.0
-            seq = (window[-sequence_length:] - mean) / std
-            X_list.append(seq)
+            X_seq = ((seq - mean) / std).astype(np.float64)
+            X_list.append(X_seq)
             y_list.append(label)
             date_list.append(date)
     if not X_list:

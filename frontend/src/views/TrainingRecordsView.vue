@@ -512,7 +512,7 @@ const renderLossChart = () => {
         min: 'dataMin',
         max: 'dataMax',
         axisLabel: {
-          formatter: '{value:.4f}'
+          formatter: (value: number) => value.toFixed(4)
         }
       },
       {
@@ -523,7 +523,7 @@ const renderLossChart = () => {
         min: 0,
         max: 1,
         axisLabel: {
-          formatter: '{value:.4f}'
+          formatter: (value: number) => value.toFixed(4)
         }
       }
     ],

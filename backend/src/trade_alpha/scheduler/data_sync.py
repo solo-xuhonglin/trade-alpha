@@ -11,8 +11,8 @@ from beanie.odm.operators.find.comparison import NotIn, In
 
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
-from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_weekly, fetch_and_store_stock_list, update_stock_data_count
-from trade_alpha.indicators.service import calculate_all_indicators, calculate_all_indicators_weekly
+from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
+from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
@@ -101,12 +101,6 @@ async def process_single_stock(stock: StockList) -> bool:
         await asyncio.sleep(API_REQUEST_DELAY)
         await calculate_all_indicators(stock.ts_code)
         logger.info(f"Completed daily indicators for {stock.ts_code}")
-
-        weekly_count = await fetch_and_store_stock_weekly(stock.ts_code, start_date, end_date)
-        logger.info(f"Fetched {weekly_count} weekly records for {stock.ts_code}")
-        await asyncio.sleep(API_REQUEST_DELAY)
-        await calculate_all_indicators_weekly(stock.ts_code)
-        logger.info(f"Completed weekly indicators for {stock.ts_code}")
 
         stock.sync_status = "active"
         await stock.save()

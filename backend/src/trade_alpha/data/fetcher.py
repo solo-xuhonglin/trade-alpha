@@ -39,22 +39,6 @@ def fetch_stock_data(ts_code: str, start_date: str, end_date: str) -> pd.DataFra
     return df.sort_values("trade_date")
 
 
-def fetch_stock_weekly_data(ts_code: str, start_date: str, end_date: str) -> pd.DataFrame | None:
-    """Fetch stock weekly data from Tushare."""
-    api = get_pro_api()
-    df = ts.pro_bar(
-        api=api,
-        ts_code=ts_code,
-        start_date=start_date,
-        end_date=end_date,
-        adj="qfq",
-        freq="W"
-    )
-    if df is None or df.empty:
-        return None
-    return df.sort_values("trade_date")
-
-
 def fetch_stock_list() -> pd.DataFrame | None:
     """Fetch A stock list from Tushare.
 

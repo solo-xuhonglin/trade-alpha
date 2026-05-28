@@ -29,7 +29,6 @@ async def init_db():
     from trade_alpha.dao.prediction import PredictionResult
     from trade_alpha.dao.signal import SignalResult
     from trade_alpha.dao.stock_daily import StockDaily
-    from trade_alpha.dao.stock_weekly import StockWeekly
     from trade_alpha.dao.stock_list import StockList
     from trade_alpha.dao.order_suggestion import OrderSuggestion
     from trade_alpha.task.dao import Task
@@ -48,7 +47,6 @@ async def init_db():
             PredictionResult,
             SignalResult,
             StockDaily,
-            StockWeekly,
             StockList,
             OrderSuggestion,
             Task,

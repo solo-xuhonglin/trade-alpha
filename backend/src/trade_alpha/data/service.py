@@ -3,9 +3,8 @@
 import pandas as pd
 from datetime import datetime, timezone
 from typing import List, Tuple
-from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_weekly_data, fetch_stock_list, fetch_daily_basic
+from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic
 from trade_alpha.dao import StockDaily, StockList
-from trade_alpha.dao.stock_weekly import StockWeekly
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.logging import get_logger
 
@@ -179,49 +178,3 @@ async def delete_stock_daily_by_ts_code(ts_code: str) -> int:
 
 fetch_and_store = fetch_and_store_stock_daily
 update_stock_list = fetch_and_store_stock_list
-
-
-async def fetch_and_store_stock_weekly(ts_code: str, start_date: str, end_date: str) -> int:
-    """Fetch weekly data from Tushare and store to MongoDB."""
-    logger.info(f"Fetching weekly data for {ts_code} from {start_date} to {end_date}")
-    df = fetch_stock_weekly_data(ts_code, start_date, end_date)
-    if df is None or df.empty:
-        logger.warning(f"No weekly data fetched for {ts_code}")
-        return 0
-
-    records = df.to_dict("records")
-    for record in records:
-        record["trade_date"] = str(record["trade_date"])
-
-    REQUIRED_FIELDS = ["open", "high", "low", "close", "vol", "amount"]
-    records = [r for r in records if all(r.get(f) is not None for f in REQUIRED_FIELDS)]
-
-    existing = await StockWeekly.find(StockWeekly.ts_code == ts_code).to_list()
-    existing_dates = {r.trade_date for r in existing}
-    new_records = [r for r in records if r["trade_date"] not in existing_dates]
-
-    if new_records:
-        await StockWeekly.insert_many([StockWeekly(**r) for r in new_records])
-
-    return len(new_records)
-
-
-async def find_stock_weekly_by_ts_code(
-    ts_code: str,
-    start_date: str = None,
-    end_date: str = None,
-) -> list[StockWeekly]:
-    """Find stock weekly records by ts_code with optional date filter."""
-    conditions = [StockWeekly.ts_code == ts_code]
-    if start_date:
-        conditions.append(StockWeekly.trade_date >= start_date)
-    if end_date:
-        conditions.append(StockWeekly.trade_date <= end_date)
-    query = StockWeekly.find(*conditions)
-    return await query.sort(StockWeekly.trade_date).to_list()
-
-
-async def delete_stock_weekly_by_ts_code(ts_code: str) -> int:
-    """Delete stock weekly records by ts_code."""
-    result = await StockWeekly.find(StockWeekly.ts_code == ts_code).delete()
-    return result.deleted_count

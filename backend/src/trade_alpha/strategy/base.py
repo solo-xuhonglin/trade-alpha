@@ -132,6 +132,7 @@ class PositionManager:
         close_prices: Dict[str, float],
         prev_total_value: Optional[float] = None,
         predictions: Optional[Dict[str, Dict]] = None,
+        baseline_value: Optional[float] = None,
     ) -> ExecutionDailySnapshot:
         """Create and save daily portfolio snapshot."""
         pos_list: List[PositionEmbed] = []
@@ -182,6 +183,7 @@ class PositionManager:
             total_value=total_value,
             day_return=day_return,
             predictions=_convert_to_native(predictions) if predictions else {},
+            baseline_value=baseline_value or 0.0,
         )
         await snapshot.insert()
         return snapshot

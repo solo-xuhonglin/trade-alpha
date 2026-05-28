@@ -148,9 +148,8 @@ class ExecutionPipeline:
     async def _ensure_predictor(self, task_id: Optional[PydanticObjectId] = None) -> None:
         if self.predictor is None:
             training = await get_training_by_id(self.training_id)
-            config = await get_config_by_id(training.config_id)
-            classifier = create_classifier(config, training.model_path)
-            self.predictor = create_predictor(config, classifier, data_loader=self.data_loader)
+            classifier = create_classifier(self.model_config, training.model_path)
+            self.predictor = create_predictor(self.model_config, classifier, data_loader=self.data_loader)
 
     def _init_baseline(self, initial_capital: float) -> None:
         self._baseline_daily_values = [initial_capital]
@@ -272,10 +271,12 @@ class ExecutionPipeline:
     async def _save_snapshot(self, date: str, backtest_id: PydanticObjectId,
                               close_prices: Dict[str, float],
                               pred_results: Dict[str, Dict]) -> Tuple[float, Optional[float]]:
+        baseline_value = self._baseline_daily_values[-1] if len(self._baseline_daily_values) > 0 else self.cash
         snapshot = await self.strategy.daily_snapshot(
             backtest_id=backtest_id, date=date, cash=self.cash,
             positions=self.positions, close_prices=close_prices,
             prev_total_value=self.prev_total_value, predictions=pred_results,
+            baseline_value=baseline_value,
         )
         self.prev_total_value = snapshot.total_value
         return snapshot.total_value, snapshot.day_return

@@ -12,7 +12,6 @@ from trade_alpha.dao.execution_portfolio_daily import ExecutionPortfolioDaily
 from trade_alpha.dao.prediction import PredictionResult
 from trade_alpha.dao.signal import SignalResult
 from trade_alpha.dao.stock_daily import StockDaily
-from trade_alpha.dao.stock_weekly import StockWeekly
 from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.order_suggestion import OrderSuggestion
@@ -35,7 +34,6 @@ __all__ = [
     "PredictionResult",
     "SignalResult",
     "StockDaily",
-    "StockWeekly",
     "StockList",
     "PositionEmbed",
 ]
