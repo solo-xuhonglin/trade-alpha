@@ -21,7 +21,7 @@
         <span v-else>{{ item.ts_codes.join(', ') }}</span>
       </template>
       <template v-slot:item.accuracy="{ item }">
-        <v-chip v-if="item.accuracy !== '-'" size="small" :color="getAccuracyColor(item.accuracy)">{{ item.accuracy }}</v-chip>
+        <v-chip v-if="item.accuracy_3d != null" size="small" :color="getAccuracyColor(item.accuracy_3d)">{{ item.accuracy_3d }}</v-chip>
         <span v-else>-</span>
       </template>
       <template v-slot:item.analysis_action="{ item }">
@@ -189,8 +189,8 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(loss, idx) in currentEpochLosses" :key="idx" :class="{ 'bg-primary/10': idx + 1 === currentBestEpoch }">
-                      <td>{{ idx + 1 }}</td>
+                    <tr v-for="(loss, idx) in currentEpochLosses" :key="idx" :class="{ 'bg-primary/10': Number(idx) + 1 === currentBestEpoch }">
+                      <td>{{ Number(idx) + 1 }}</td>
                       <td>{{ loss.toFixed(4) }}</td>
                       <td>{{ currentEpochValLosses?.[idx]?.toFixed(4) || '-' }}</td>
                       <td>{{ currentEpochValAucs?.[idx]?.toFixed(4) || '-' }}</td>
@@ -459,7 +459,7 @@ const renderClassDistChart = () => {
   const colors = ['#ef5350', '#9e9e9e', '#26a69a']
   
   const xAxisData: string[] = []
-  const series: any[] = classNames.map((cls, clsIdx) => ({
+  const series: any[] = classNames.map((_, clsIdx) => ({
     name: classLabels[clsIdx],
     type: 'bar',
     data: [] as number[],
@@ -468,7 +468,7 @@ const renderClassDistChart = () => {
   
   labels.forEach(label => {
     xAxisData.push(label)
-    const dist = detailItem.value!.model_metrics.class_distribution[label]
+    const dist = detailItem.value!.model_metrics!.class_distribution![label]
     if (dist) {
       classNames.forEach((cls, clsIdx) => {
         series[clsIdx].data.push(((dist[cls] || 0) * 100).toFixed(2) as any)
