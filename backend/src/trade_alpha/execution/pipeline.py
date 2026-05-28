@@ -220,7 +220,6 @@ class ExecutionPipeline:
                 entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
             ) for order in unfilled_orders
         ]
-        await ExecutionTrade.insert_many(all_trades)
         total_fees = 0.0
         for t in filled_trades:
             total_fees += t.fee
@@ -233,6 +232,7 @@ class ExecutionPipeline:
                     sell_revenue = t.filled_price * abs(t.shares) - t.fee - stamp_tax
                     t.pnl_amount = round(sell_revenue - cost_basis, 2)
                     t.pnl_pct = round(t.pnl_amount / cost_basis, 4) if cost_basis > 0 else None
+        await ExecutionTrade.insert_many(all_trades)
         for t in filled_trades:
             if t.action == "sell":
                 self.positions.pop(t.ts_code, None)
