@@ -212,6 +212,8 @@ async def list_trainings(config_id: str = Query(None)):
             "end_date": to_api_format(t.end_date),
             "sample_count": t.model_metrics.get("sample_count"),
             "accuracy_3d": t.model_metrics.get("accuracy", {}).get("label_3d"),
+            "accuracy_5d": t.model_metrics.get("accuracy", {}).get("label_5d"),
+            "accuracy_10d": t.model_metrics.get("accuracy", {}).get("label_10d"),
             "created_at": t.created_at,
         })
 

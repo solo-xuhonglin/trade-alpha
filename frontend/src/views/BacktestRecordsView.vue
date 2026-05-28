@@ -402,16 +402,16 @@ const tradesPage = ref(1)
 const tradesPageSize = ref(20)
 
 const historyHeaders = [
-  { title: '名称', key: 'name', width: 150 },
+  { title: '名称', key: 'name', width: 140, nowrap: true },
   { title: '股票', key: 'ts_codes' },
   { title: '创建时间', key: 'created_at' },
   { title: '总收益', key: 'total_return' },
   { title: '超额收益', key: 'excess_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '夏普比', key: 'sharpe_ratio' },
-  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 220, nowrap: true },
-  { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80 },
-  { title: '操作', key: 'actions', sortable: false, align: 'center' as const, width: 80 },
+  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 200, nowrap: true },
+  { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, align: 'center' as const, width: 80, nowrap: true },
 ]
 
 const tradesHeaders = [

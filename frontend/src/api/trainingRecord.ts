@@ -27,6 +27,8 @@ export interface Training {
   end_date: string
   sample_count?: number
   accuracy_3d?: number
+  accuracy_5d?: number
+  accuracy_10d?: number
   created_at: string
 }
 

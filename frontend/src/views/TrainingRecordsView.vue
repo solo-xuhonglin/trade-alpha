@@ -21,7 +21,7 @@
         <span v-else>{{ item.ts_codes.join(', ') }}</span>
       </template>
       <template v-slot:item.accuracy="{ item }">
-        <v-chip v-if="item.accuracy_3d != null" size="small" :color="getAccuracyColor(item.accuracy_3d)">{{ item.accuracy_3d }}</v-chip>
+        <v-chip v-if="item.accuracy_3d != null" size="small" :color="getAccuracyColor(avgAccuracy(item))">{{ avgAccuracy(item).toFixed(4) }}</v-chip>
         <span v-else>-</span>
       </template>
       <template v-slot:item.analysis_action="{ item }">
@@ -303,6 +303,12 @@ const getAccuracyColor = (acc: string | number) => {
   return 'error'
 }
 
+const avgAccuracy = (item: Training) => {
+  const vals = [item.accuracy_3d, item.accuracy_5d, item.accuracy_10d].filter((v): v is number => v != null)
+  if (vals.length === 0) return 0
+  return vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
 const sortedFeatureImportance = computed(() => {
   if (!detailItem.value?.model_metrics.feature_importance?.[featureTarget.value]) return {}
   const fi = detailItem.value.model_metrics.feature_importance[featureTarget.value]
@@ -354,13 +360,13 @@ const currentBestEpoch = computed(() => extractPerTargetValue(detailItem.value?.
 const currentBestAuc = computed(() => extractPerTargetValue(detailItem.value?.model_metrics.best_auc))
 
 const headers = [
-  { title: '名称', key: 'name', width: 180, nowrap: true },
-  { title: '配置', key: 'configName', width: 150, nowrap: true },
-  { title: '股票', key: 'ts_codes', width: 120, nowrap: true },
-  { title: '日期', key: 'date_range', width: 190, nowrap: true },
+  { title: '名称', key: 'name', width: 140, nowrap: true },
+  { title: '配置', key: 'configName', width: 120, nowrap: true },
+  { title: '股票', key: 'ts_codes', width: 100, nowrap: true },
+  { title: '日期', key: 'date_range', width: 160, nowrap: true },
   { title: '样本', key: 'sample_count', width: 80, nowrap: true },
-  { title: '准确率', key: 'accuracy', width: 100, nowrap: true },
-  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 160, nowrap: true },
+  { title: '准确率', key: 'accuracy', width: 110, nowrap: true },
+  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 140, nowrap: true },
   { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80, nowrap: true },
   { title: '操作', key: 'actions', sortable: false, align: 'center' as const, width: 80, nowrap: true },
 ]
