@@ -146,6 +146,74 @@
               </tr>
             </tbody>
           </v-table>
+          <v-divider class="my-2"></v-divider>
+          <div class="pa-4">
+            <div class="text-subtitle-1 mb-3 font-weight-bold">盈亏分析</div>
+
+            <v-row v-if="pnlSummary">
+              <v-col cols="6" sm="3">
+                <v-card variant="tonal" :color="(pnlSummary.total_pnl_amount || 0) >= 0 ? 'success' : 'error'">
+                  <v-card-text class="text-center pa-2">
+                    <div class="text-caption text-medium-emphasis">总盈亏</div>
+                    <div class="text-h6">¥{{ (pnlSummary.total_pnl_amount || 0).toFixed(2) }}</div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="6" sm="3">
+                <v-card variant="tonal" color="success">
+                  <v-card-text class="text-center pa-2">
+                    <div class="text-caption text-medium-emphasis">盈利次数</div>
+                    <div class="text-h6">{{ pnlSummary.total_profit_trades }}</div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="6" sm="3">
+                <v-card variant="tonal" color="error">
+                  <v-card-text class="text-center pa-2">
+                    <div class="text-caption text-medium-emphasis">亏损次数</div>
+                    <div class="text-h6">{{ pnlSummary.total_loss_trades }}</div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="6" sm="3">
+                <v-card variant="tonal" :color="(pnlSummary.overall_win_rate || 0) >= 0.5 ? 'success' : 'error'">
+                  <v-card-text class="text-center pa-2">
+                    <div class="text-caption text-medium-emphasis">胜率</div>
+                    <div class="text-h6">{{ ((pnlSummary.overall_win_rate || 0) * 100).toFixed(1) }}%</div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <v-row class="mt-2">
+              <v-col cols="12" md="6">
+                <div ref="amountChartRef" style="height: 300px;"></div>
+              </v-col>
+              <v-col cols="12" md="6">
+                <div ref="countChartRef" style="height: 300px;"></div>
+              </v-col>
+            </v-row>
+
+            <v-data-table
+              v-if="pnlDetails.length > 0"
+              :headers="pnlHeaders"
+              :items="pnlDetails"
+              density="compact"
+              hide-default-footer
+              class="mt-2"
+            >
+              <template v-slot:item.total_pnl_amount="{ item }">
+                <span :class="item.total_pnl_amount >= 0 ? 'text-success' : 'text-error'">
+                  ¥{{ item.total_pnl_amount.toFixed(2) }}
+                </span>
+              </template>
+              <template v-slot:item.trade_win_rate="{ item }">
+                <span :class="item.trade_win_rate >= 0.5 ? 'text-success' : 'text-error'">
+                  {{ (item.trade_win_rate * 100).toFixed(1) }}%
+                </span>
+              </template>
+            </v-data-table>
+          </div>
         </div>
       </v-card-text>
     </v-card>
@@ -225,8 +293,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { backtestRecordApi, type Backtest, type Trade } from '@/api/backtestRecord'
+import { ref, nextTick } from 'vue'
+import { backtestRecordApi, type Backtest, type Trade, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
+import * as echarts from 'echarts'
 import PredictionChart from '@/components/PredictionChart.vue'
 
 const loading = ref(false)
@@ -240,6 +309,13 @@ const predictionBacktestId = ref('')
 const deletingItem = ref<Backtest | null>(null)
 const viewingBacktest = ref<Backtest | null>(null)
 const selectedResult = ref<Backtest | null>(null)
+const pnlDetails = ref<PnlDetailItem[]>([])
+const pnlSummary = ref<PnlDetailSummary | null>(null)
+const pnlLoading = ref(false)
+const amountChartRef = ref<HTMLDivElement>()
+const countChartRef = ref<HTMLDivElement>()
+let amountChart: echarts.ECharts | null = null
+let countChart: echarts.ECharts | null = null
 
 const viewPredictions = (item: Backtest) => {
   predictionBacktestId.value = item.id
@@ -299,6 +375,7 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
 const viewResult = (item: Backtest) => {
   selectedResult.value = item
   resultDialog.value = true
+  nextTick(() => loadPnlDetails(item.id))
 }
 
 const viewTrades = async (item: Backtest) => {
@@ -331,4 +408,76 @@ const deleteBacktest = async () => {
   await loadBacktests()
   loadingDelete.value = false
 }
+
+const loadPnlDetails = async (resultId: string) => {
+  pnlLoading.value = true
+  try {
+    const res = await backtestRecordApi.getPnlDetails(resultId)
+    pnlDetails.value = res.data.items
+    pnlSummary.value = res.data.summary
+    nextTick(() => renderCharts())
+  } catch {
+    pnlDetails.value = []
+    pnlSummary.value = null
+  } finally {
+    pnlLoading.value = false
+  }
+}
+
+const renderCharts = () => {
+  if (!amountChartRef.value || !countChartRef.value) return
+
+  amountChart?.dispose()
+  countChart?.dispose()
+
+  amountChart = echarts.init(amountChartRef.value)
+  countChart = echarts.init(countChartRef.value)
+
+  const amountData = pnlDetails.value
+    .filter(item => item.total_pnl_amount !== 0)
+    .map(item => ({
+      name: item.stock_name || item.ts_code,
+      value: Math.abs(item.total_pnl_amount),
+      itemStyle: { color: item.total_pnl_amount >= 0 ? '#4caf50' : '#f44336' },
+    }))
+
+  amountChart.setOption({
+    title: { text: '盈亏金额分布', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+    series: [{
+      type: 'pie', radius: ['30%', '70%'],
+      data: amountData,
+      label: { formatter: '{b}\n¥{c}', fontSize: 11 },
+      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+    }],
+  })
+
+  const countData = pnlDetails.value
+    .filter(item => item.total_sells > 0)
+    .map(item => ({
+      name: item.stock_name || item.ts_code,
+      value: item.total_sells,
+      itemStyle: { color: item.total_pnl_amount >= 0 ? '#4caf50' : '#f44336' },
+    }))
+
+  countChart.setOption({
+    title: { text: '交易次数分布', left: 'center', textStyle: { fontSize: 14 } },
+    tooltip: { trigger: 'item', formatter: '{b}: {c}次 ({d}%)' },
+    series: [{
+      type: 'pie', radius: ['30%', '70%'],
+      data: countData,
+      label: { formatter: '{b}\n{c}次', fontSize: 11 },
+      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+    }],
+  })
+}
+
+const pnlHeaders = [
+  { title: '股票', key: 'stock_name' },
+  { title: '总盈亏', key: 'total_pnl_amount' },
+  { title: '盈利次数', key: 'profit_count' },
+  { title: '亏损次数', key: 'loss_count' },
+  { title: '卖出次数', key: 'total_sells' },
+  { title: '胜率', key: 'trade_win_rate' },
+]
 </script>
