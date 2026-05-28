@@ -24,19 +24,19 @@
         <v-chip v-if="item.accuracy !== '-'" size="small" :color="getAccuracyColor(item.accuracy)">{{ item.accuracy }}</v-chip>
         <span v-else>-</span>
       </template>
+      <template v-slot:item.analysis_action="{ item }">
+        <v-menu>
+          <template v-slot:activator="{ props }">
+            <v-btn size="small" variant="text" color="secondary" v-bind="props" prepend-icon="mdi-chart-box-outline">分析</v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-list-item>
+            <v-list-item prepend-icon="mdi-chart-bell-curve" @click="openAnalysisDialog(item)">标准化</v-list-item>
+          </v-list>
+        </v-menu>
+      </template>
       <template v-slot:item.actions="{ item }">
-        <div class="d-flex ga-1 justify-end">
-          <v-menu>
-            <template v-slot:activator="{ props }">
-              <v-btn size="small" variant="text" color="secondary" v-bind="props" prepend-icon="mdi-chart-box-outline">分析</v-btn>
-            </template>
-            <v-list density="compact">
-              <v-list-item prepend-icon="mdi-information-outline" @click="openDetailDialog(item)">详情</v-list-item>
-              <v-list-item prepend-icon="mdi-chart-bell-curve" @click="openAnalysisDialog(item)">标准化</v-list-item>
-            </v-list>
-          </v-menu>
-          <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
-        </div>
+        <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
       </template>
       <template v-slot:item.config_action="{ item }">
         <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-cog" @click="openConfigDialog(item)">配置</v-btn>
@@ -365,8 +365,9 @@ const headers = [
   { title: '日期', key: 'date_range', width: 190, nowrap: true },
   { title: '样本', key: 'sample_count', width: 80, nowrap: true },
   { title: '准确率', key: 'accuracy', width: 100, nowrap: true },
+  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 80, nowrap: true },
   { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80, nowrap: true },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' as const, width: 160, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, align: 'center' as const, width: 80, nowrap: true },
 ]
 
 const configOptions = ref<{ title: string; value: string }[]>([])
