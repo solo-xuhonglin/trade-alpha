@@ -1,5 +1,7 @@
 export const DAILY_BASIC_FIELDS = [
   'open', 'high', 'low', 'close', 'vol', 'amount',
+  'week_open', 'week_high', 'week_low', 'week_close',
+  'week_vol_avg', 'week_amount_avg',
 ]
 
 export const INDICATOR_FIELDS = [

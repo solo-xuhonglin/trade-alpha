@@ -79,6 +79,12 @@ class StockDaily(Document):
     close_location_pct: Optional[float] = None
     gap_pct: Optional[float] = None
     gap_fill_pct: Optional[float] = None
+    week_open: Optional[float] = None
+    week_high: Optional[float] = None
+    week_low: Optional[float] = None
+    week_close: Optional[float] = None
+    week_vol_avg: Optional[float] = None
+    week_amount_avg: Optional[float] = None
 
     class Settings:
         name = "stock_daily"

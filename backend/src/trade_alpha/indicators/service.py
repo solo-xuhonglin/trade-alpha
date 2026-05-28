@@ -16,6 +16,7 @@ from trade_alpha.indicators.custom import (
     calculate_obv,
     calculate_candle_features,
     calculate_trend,
+    calculate_weekly_basic_features,
 )
 from trade_alpha.logging import get_logger
 
@@ -144,6 +145,7 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
     prev_close_series = df["close"].shift(1)
     df = calculate_candle_features(df, prev_close_series)
     df = calculate_trend(df)
+    df = calculate_weekly_basic_features(df)
 
     updated_count = 0
     for _, row in df.iterrows():
@@ -192,6 +194,12 @@ async def calculate_and_store_custom_indicators(ts_code: str) -> int:
             "close_location_pct": row.get("close_location_pct"),
             "gap_pct": row.get("gap_pct"),
             "gap_fill_pct": row.get("gap_fill_pct"),
+            "week_open": row.get("week_open"),
+            "week_high": row.get("week_high"),
+            "week_low": row.get("week_low"),
+            "week_close": row.get("week_close"),
+            "week_vol_avg": row.get("week_vol_avg"),
+            "week_amount_avg": row.get("week_amount_avg"),
         }
         await StockDaily.find_one(
             StockDaily.ts_code == ts_code,
