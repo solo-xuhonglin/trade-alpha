@@ -4,14 +4,17 @@ import type { AnalysisResult } from './dataAnalysis'
 export interface TrainingMetrics {
   sample_count: number
   accuracy?: Record<string, number>
+  auc?: Record<string, number>
   final_train_loss?: number
-  loss_per_epoch?: number[]
-  val_loss_per_epoch?: number[]
+  loss_per_epoch?: Record<string, number[]>
+  val_loss_per_epoch?: Record<string, number[]>
+  val_auc_per_epoch?: Record<string, number[]>
   feature_importance?: Record<string, Record<string, number>>
   class_distribution?: Record<string, Record<string, number>>
   actual_epochs?: number
   early_stopped?: boolean
-  best_epoch?: number
+  best_epoch?: Record<string, number>
+  best_auc?: Record<string, number>
 }
 
 export interface Training {

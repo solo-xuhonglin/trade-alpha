@@ -106,7 +106,7 @@
               <v-col cols="12" sm="3">
                 <v-card variant="outlined" class="h-full">
                   <v-card-text class="text-center py-4">
-                    <div class="text-h4">{{ ((detailItem.model_metrics.best_auc || 0) * 100).toFixed(1) }}%</div>
+                    <div class="text-h4">{{ (currentBestAuc * 100).toFixed(1) }}%</div>
                     <div class="text-caption mt-1">最佳 AUC</div>
                   </v-card-text>
                 </v-card>
@@ -166,8 +166,8 @@
                 ></v-select>
               </div>
               <div class="text-caption mb-4">
-                最佳轮次: 第 {{ detailItem.model_metrics.best_epoch }} 轮 | 
-                最佳 AUC: {{ detailItem.model_metrics.best_auc?.toFixed(4) }} |
+                最佳轮次: 第 {{ currentBestEpoch }} 轮 | 
+                最佳 AUC: {{ currentBestAuc.toFixed(4) }} |
                 最终 Loss: {{ detailItem.model_metrics.final_train_loss?.toFixed(4) }}
               </div>
               
@@ -184,7 +184,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(loss, idx) in currentEpochLosses" :key="idx" :class="{ 'bg-primary/10': idx + 1 === detailItem.model_metrics.best_epoch }">
+                    <tr v-for="(loss, idx) in currentEpochLosses" :key="idx" :class="{ 'bg-primary/10': idx + 1 === currentBestEpoch }">
                       <td>{{ idx + 1 }}</td>
                       <td>{{ loss.toFixed(4) }}</td>
                       <td>{{ currentEpochValLosses?.[idx]?.toFixed(4) || '-' }}</td>
@@ -304,6 +304,17 @@ const extractEpochData = (data: any) => {
 const currentEpochLosses = computed(() => extractEpochData(detailItem.value?.model_metrics.loss_per_epoch))
 const currentEpochValLosses = computed(() => extractEpochData(detailItem.value?.model_metrics.val_loss_per_epoch))
 const currentEpochValAucs = computed(() => extractEpochData(detailItem.value?.model_metrics.val_auc_per_epoch))
+
+const extractPerTargetValue = (data: any) => {
+  if (!data) return 0
+  if (typeof data === 'number') return data
+  if (selectedEpochKey.value && data[selectedEpochKey.value] !== undefined) return data[selectedEpochKey.value]
+  const keys = Object.keys(data).sort()
+  return keys.length > 0 ? (data[keys[0]] || 0) : 0
+}
+
+const currentBestEpoch = computed(() => extractPerTargetValue(detailItem.value?.model_metrics.best_epoch))
+const currentBestAuc = computed(() => extractPerTargetValue(detailItem.value?.model_metrics.best_auc))
 
 const headers = [
   { title: '名称', key: 'name', width: 180, nowrap: true },
@@ -434,7 +445,7 @@ const renderLossChart = () => {
   const trainLoss = currentEpochLosses.value
   const valLoss = currentEpochValLosses.value
   const valAuc = currentEpochValAucs.value
-  const bestEpoch = detailItem.value?.model_metrics.best_epoch || 0
+  const bestEpoch = currentBestEpoch.value
   
   const xAxisData = trainLoss.map((_, i) => `Epoch ${i + 1}`)
   

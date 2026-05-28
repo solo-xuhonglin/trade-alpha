@@ -131,6 +131,8 @@ class LSTMClassifier(BaseClassifier):
         per_target_epoch_losses = {}
         per_target_val_losses = {}
         per_target_val_aucs = {}
+        per_target_best_epoch = {}
+        per_target_best_auc = {}
 
         for target_idx, target in enumerate(target_names):
             y_i = y_2d[:, target_idx].astype(int)
@@ -252,6 +254,8 @@ class LSTMClassifier(BaseClassifier):
             per_target_epoch_losses[target] = epoch_losses
             per_target_val_losses[target] = val_epoch_losses
             per_target_val_aucs[target] = val_epoch_aucs
+            per_target_best_epoch[target] = best_epoch
+            per_target_best_auc[target] = best_val_auc
 
             # 只记录最后一个目标的 AUC 历史用于前端展示
             if target_idx == len(target_names) - 1:
@@ -270,8 +274,8 @@ class LSTMClassifier(BaseClassifier):
             "sample_count": len(X_3d),
             "actual_epochs": actual_epochs,
             "early_stopped": early_stopped,
-            "best_epoch": best_epoch,
-            "best_auc": best_auc,
+            "best_epoch": per_target_best_epoch,
+            "best_auc": per_target_best_auc,
         }
 
         for target_idx, target in enumerate(target_names):
