@@ -228,7 +228,7 @@ class ExecutionPipeline:
                 total_fees += stamp_tax
                 position = self.positions.get(t.ts_code)
                 if position and position.buy_price > 0:
-                    cost_basis = position.buy_price * abs(t.shares)
+                    cost_basis = position.buy_price * abs(t.shares) + position.fee
                     sell_revenue = t.filled_price * abs(t.shares) - t.fee - stamp_tax
                     t.pnl_amount = round(sell_revenue - cost_basis, 2)
                     t.pnl_pct = round(t.pnl_amount / cost_basis, 4) if cost_basis > 0 else None
