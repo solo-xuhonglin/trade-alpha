@@ -8,6 +8,7 @@ export interface Backtest {
   ts_codes: Array<{ ts_code: string; ts_name: string }>
   ts_code?: string
   ts_name?: string
+  stock_name?: string
   start_date: string
   end_date: string
   initial_capital: number
@@ -22,9 +23,13 @@ export interface Backtest {
   total_fees: number
   volatility?: number
   baseline_return?: number
+  baseline_annual_return?: number
+  baseline_volatility?: number
+  baseline_sharpe_ratio?: number
   excess_return?: number
   baseline_max_drawdown?: number
   avg_hold_days?: number
+  trade_win_rate?: number
   created_at?: string
 }
 

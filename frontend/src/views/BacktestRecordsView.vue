@@ -205,10 +205,12 @@
 
                 <v-data-table
                   v-if="pnlDetails.length > 0"
+                  v-model:sort-by="pnlSortBy"
                   :headers="pnlHeaders"
                   :items="pnlDetails"
                   density="compact"
                   hide-default-footer
+                  items-per-page="-1"
                   class="mt-2"
                 >
                   <template v-slot:item.total_pnl_amount="{ item }">
@@ -326,6 +328,7 @@ const pnlSummary = ref<PnlDetailSummary | null>(null)
 const pnlLoading = ref(false)
 const amountChartRef = ref<HTMLDivElement>()
 const countChartRef = ref<HTMLDivElement>()
+const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_pnl_amount', order: 'desc' }])
 let amountChart: echarts.ECharts | null = null
 let countChart: echarts.ECharts | null = null
 
@@ -445,13 +448,19 @@ const renderCharts = () => {
   amountChart = echarts.init(amountChartRef.value)
   countChart = echarts.init(countChartRef.value)
 
+  const sortKey = pnlSortBy.value[0]?.key || 'total_pnl_amount'
+  const sortOrder = pnlSortBy.value[0]?.order || 'desc'
+  const sortMultiplier = sortOrder === 'desc' ? 1 : -1
+
   const amountData = pnlDetails.value
     .filter(item => item.total_pnl_amount !== 0)
     .map(item => ({
       name: item.stock_name || item.ts_code,
       value: Math.abs(item.total_pnl_amount),
+      sortValue: item[sortKey as keyof PnlDetailItem] as number || 0,
       itemStyle: { color: item.total_pnl_amount >= 0 ? '#4caf50' : '#f44336' },
     }))
+    .sort((a, b) => (b.sortValue - a.sortValue) * sortMultiplier)
 
   amountChart.setOption({
     title: { text: '盈亏金额分布', left: 'center', textStyle: { fontSize: 14 } },
@@ -461,6 +470,7 @@ const renderCharts = () => {
       data: amountData,
       label: { formatter: '{b}\n¥{c}', fontSize: 11 },
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+      sort: 'none',
     }],
   })
 
@@ -469,8 +479,10 @@ const renderCharts = () => {
     .map(item => ({
       name: item.stock_name || item.ts_code,
       value: item.total_sells,
+      sortValue: item[sortKey as keyof PnlDetailItem] as number || 0,
       itemStyle: { color: item.total_pnl_amount >= 0 ? '#4caf50' : '#f44336' },
     }))
+    .sort((a, b) => (b.sortValue - a.sortValue) * sortMultiplier)
 
   countChart.setOption({
     title: { text: '交易次数分布', left: 'center', textStyle: { fontSize: 14 } },
@@ -480,6 +492,7 @@ const renderCharts = () => {
       data: countData,
       label: { formatter: '{b}\n{c}次', fontSize: 11 },
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+      sort: 'none',
     }],
   })
 }
