@@ -179,6 +179,92 @@ async def get_trades_by_ts_code(result_id: str, ts_code: str):
     }
 
 
+@router.get("/{result_id}/pnl-details")
+async def get_pnl_details(result_id: str):
+    """Get PnL details grouped by stock for a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    from trade_alpha.dao.mongodb import get_database
+    db = await get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    pipeline = [
+        {"$match": {"backtest_id": obj_id, "action": "sell", "status": "filled"}},
+        {"$group": {
+            "_id": "$ts_code",
+            "total_pnl_amount": {"$sum": "$pnl_amount"},
+            "profit_trades": {"$sum": {"$cond": [{"$gt": ["$pnl_amount", 0]}, 1, 0]}},
+            "loss_trades": {"$sum": {"$cond": [{"$lt": ["$pnl_amount", 0]}, 1, 0]}},
+            "total_sells": {"$sum": 1},
+            "total_profit_amount": {
+                "$sum": {"$cond": [{"$gt": ["$pnl_amount", 0]}, "$pnl_amount", 0]}
+            },
+            "total_loss_amount": {
+                "$sum": {"$cond": [{"$lt": ["$pnl_amount", 0]}, "$pnl_amount", 0]}
+            },
+        }},
+    ]
+
+    raw_items = await db["execution_trades"].aggregate(pipeline).to_list()
+
+    ts_codes = [item["_id"] for item in raw_items]
+    name_map = await get_stock_names(ts_codes) if ts_codes else {}
+
+    items = []
+    total_sells = 0
+    total_pnl = 0.0
+    total_profit_trades = 0
+    total_loss_trades = 0
+    total_profit_amount = 0.0
+    total_loss_amount = 0.0
+
+    for item in raw_items:
+        ts_code = item["_id"]
+        total_pnl_amount = round(item.get("total_pnl_amount") or 0, 2)
+        profit_count = item.get("profit_trades", 0)
+        loss_count = item.get("loss_trades", 0)
+        sell_count = item.get("total_sells", 0)
+        profit_amount = round(item.get("total_profit_amount") or 0, 2)
+        loss_amount = round(item.get("total_loss_amount") or 0, 2)
+        win_rate = round(profit_count / sell_count, 4) if sell_count > 0 else 0.0
+
+        items.append({
+            "ts_code": ts_code,
+            "stock_name": name_map.get(ts_code, ts_code),
+            "total_pnl_amount": total_pnl_amount,
+            "profit_count": profit_count,
+            "loss_count": loss_count,
+            "total_sells": sell_count,
+            "trade_win_rate": win_rate,
+            "total_profit_amount": profit_amount,
+            "total_loss_amount": loss_amount,
+        })
+
+        total_sells += sell_count
+        total_pnl += total_pnl_amount
+        total_profit_trades += profit_count
+        total_loss_trades += loss_count
+        total_profit_amount += profit_amount
+        total_loss_amount += loss_amount
+
+    return {
+        "items": items,
+        "summary": {
+            "total_sell_trades": total_sells,
+            "total_pnl_amount": round(total_pnl, 2),
+            "total_profit_trades": total_profit_trades,
+            "total_loss_trades": total_loss_trades,
+            "total_profit_amount": round(total_profit_amount, 2),
+            "total_loss_amount": round(total_loss_amount, 2),
+            "overall_win_rate": round(total_profit_trades / total_sells, 4) if total_sells > 0 else 0.0,
+        },
+    }
+
+
 @router.get("/{result_id}/prediction-stocks")
 async def get_prediction_stocks(result_id: str):
     """Get stocks traded in a backtest result (from positions with predictions)."""
