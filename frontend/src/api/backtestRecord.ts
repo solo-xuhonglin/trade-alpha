@@ -88,6 +88,33 @@ export interface DailySnapshot {
   day_return: number
 }
 
+export interface PnlDetailItem {
+  ts_code: string
+  stock_name: string
+  total_pnl_amount: number
+  profit_count: number
+  loss_count: number
+  total_sells: number
+  trade_win_rate: number
+  total_profit_amount: number
+  total_loss_amount: number
+}
+
+export interface PnlDetailSummary {
+  total_sell_trades: number
+  total_pnl_amount: number
+  total_profit_trades: number
+  total_loss_trades: number
+  total_profit_amount: number
+  total_loss_amount: number
+  overall_win_rate: number
+}
+
+export interface PnlDetailResponse {
+  items: PnlDetailItem[]
+  summary: PnlDetailSummary
+}
+
 export const backtestRecordApi = {
   get: (id: string) => api.get<Backtest>(`/backtest/results/${id}`),
 
@@ -110,6 +137,9 @@ export const backtestRecordApi = {
 
   getDailySnapshots: (id: string) =>
     api.get<{ items: DailySnapshot[] }>(`/backtests/${id}/daily-snapshots`),
+
+  getPnlDetails: (id: string) =>
+    api.get<PnlDetailResponse>(`/backtests/${id}/pnl-details`),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }
