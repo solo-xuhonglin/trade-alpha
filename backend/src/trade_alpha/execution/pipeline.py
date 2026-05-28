@@ -378,6 +378,15 @@ class ExecutionPipeline:
         )
         result.avg_hold_days = round(trade_metrics["avg_hold_days"], 2) if trade_metrics["avg_hold_days"] else None
 
+        sell_trades = await ExecutionTrade.find(
+            ExecutionTrade.backtest_id == result.id,
+            ExecutionTrade.action == "sell",
+            ExecutionTrade.status == "filled",
+        ).to_list()
+        if sell_trades:
+            profit_sells = sum(1 for t in sell_trades if t.pnl_amount and t.pnl_amount > 0)
+            result.trade_win_rate = round(profit_sells / len(sell_trades), 4)
+
         if len(self._baseline_daily_values) > 1:
             baseline_vals = self._baseline_daily_values
             baseline_ret = (baseline_vals[-1] - baseline_vals[0]) / baseline_vals[0]
