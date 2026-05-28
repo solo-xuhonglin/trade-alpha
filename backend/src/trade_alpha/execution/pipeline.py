@@ -225,7 +225,14 @@ class ExecutionPipeline:
         for t in filled_trades:
             total_fees += t.fee
             if t.action == "sell":
-                total_fees += abs(t.shares) * t.filled_price * self.account_config.stamp_tax_rate
+                stamp_tax = abs(t.shares) * t.filled_price * self.account_config.stamp_tax_rate
+                total_fees += stamp_tax
+                position = self.positions.get(t.ts_code)
+                if position and position.buy_price > 0:
+                    cost_basis = position.buy_price * abs(t.shares)
+                    sell_revenue = t.filled_price * abs(t.shares) - t.fee - stamp_tax
+                    t.pnl_amount = round(sell_revenue - cost_basis, 2)
+                    t.pnl_pct = round(t.pnl_amount / cost_basis, 4) if cost_basis > 0 else None
         for t in filled_trades:
             if t.action == "sell":
                 self.positions.pop(t.ts_code, None)
