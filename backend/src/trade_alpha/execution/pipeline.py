@@ -153,7 +153,8 @@ class ExecutionPipeline:
 
     def _init_baseline(self, initial_capital: float) -> None:
         self._baseline_daily_values = [initial_capital]
-        self._baseline_prev_close: Dict[str, float] = {}
+        self._baseline_shares: Dict[str, float] = {}
+        self._baseline_initialized = False
 
     @staticmethod
     def _skip_non_trading_day(date: str) -> bool:
@@ -182,16 +183,23 @@ class ExecutionPipeline:
         }
 
     def _track_baseline(self, close_prices: Dict[str, float]) -> None:
-        returns = []
-        for code in self.ts_codes:
-            prev = self._baseline_prev_close.get(code)
-            cur = close_prices.get(code)
-            if prev and prev > 0 and cur:
-                returns.append((cur - prev) / prev)
-            self._baseline_prev_close[code] = cur or 0.0
-        if returns:
-            avg = sum(returns) / len(returns)
-            self._baseline_daily_values.append(self._baseline_daily_values[-1] * (1 + avg))
+        if not self._baseline_initialized:
+            capital_per_stock = self.account_config.initial_capital / len(self.ts_codes)
+            for code in self.ts_codes:
+                price = close_prices.get(code)
+                if price and price > 0:
+                    self._baseline_shares[code] = capital_per_stock / price
+            self._baseline_initialized = True
+
+        total = 0.0
+        has_data = False
+        for code, shares in self._baseline_shares.items():
+            price = close_prices.get(code)
+            if price and price > 0:
+                total += shares * price
+                has_data = True
+        if has_data:
+            self._baseline_daily_values.append(total)
 
     async def _settle_orders(self, date: str, backtest_id: PydanticObjectId,
                               name_map: Dict[str, str], day_data: Dict) -> Tuple[int, float]:
