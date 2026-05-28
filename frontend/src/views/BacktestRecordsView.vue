@@ -55,16 +55,11 @@
         {{ item.created_at ? item.created_at.split('T')[0] + ' ' + item.created_at.split('T')[1].split('.')[0].substring(0, 5) : '' }}
       </template>
       <template v-slot:item.analysis_action="{ item }">
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn size="small" variant="text" color="secondary" v-bind="props" prepend-icon="mdi-chart-box-outline">分析</v-btn>
-          </template>
-          <v-list density="compact">
-            <v-list-item prepend-icon="mdi-chart-bar" @click="viewResult(item)">统计</v-list-item>
-            <v-list-item prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">K线</v-list-item>
-            <v-list-item prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-list-item>
-          </v-list>
-        </v-menu>
+        <div class="d-flex ga-1">
+          <v-btn size="small" variant="text" prepend-icon="mdi-chart-bar" @click="viewResult(item)">统计</v-btn>
+          <v-btn size="small" variant="text" color="info" prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">K线</v-btn>
+          <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-btn>
+        </div>
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
@@ -414,7 +409,7 @@ const historyHeaders = [
   { title: '超额收益', key: 'excess_return' },
   { title: '最大回撤', key: 'max_drawdown' },
   { title: '夏普比', key: 'sharpe_ratio' },
-  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 80 },
+  { title: '分析', key: 'analysis_action', sortable: false, align: 'center' as const, width: 220, nowrap: true },
   { title: '配置', key: 'config_action', sortable: false, align: 'center' as const, width: 80 },
   { title: '操作', key: 'actions', sortable: false, align: 'center' as const, width: 80 },
 ]
