@@ -65,7 +65,7 @@
     </v-data-table-server>
   </v-card>
 
-  <v-dialog v-model="resultDialog" max-width="750px">
+  <v-dialog v-model="resultDialog" max-width="1050px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
         <div class="d-flex align-center ga-2">
@@ -78,142 +78,153 @@
         </v-btn>
       </v-card-title>
       <v-divider />
-      <v-card-text class="pa-0">
+      <v-card-text class="overflow-hidden" style="max-height: 90vh;">
         <div v-if="selectedResult">
-          <v-table density="compact" class="metrics-table">
-            <thead>
-              <tr>
-                <th class="text-left" style="width: 160px;">指标</th>
-                <th class="text-center">策略</th>
-                <th class="text-center">基准</th>
-                <th class="text-center" style="width: 130px;">对比</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="text-body-2">总收益率</td>
-                <td class="text-center" :class="selectedResult.total_return >= 0 ? 'text-success' : 'text-error'">{{ (selectedResult.total_return * 100).toFixed(2) }}%</td>
-                <td class="text-center">{{ ((selectedResult.baseline_return || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="(selectedResult.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.excess_return || 0) * 100).toFixed(2) }}%</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">年化收益</td>
-                <td class="text-center" :class="(selectedResult.annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.annual_return || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="(selectedResult.baseline_annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.baseline_annual_return || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) >= 0 ? 'text-success' : 'text-error'">{{ (((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) * 100).toFixed(2) }}%</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">最大回撤</td>
-                <td class="text-center" :class="selectedResult.max_drawdown < 0.1 ? 'text-warning' : 'text-error'">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="(selectedResult.baseline_max_drawdown || 0) < 0.1 ? 'text-warning' : 'text-error'">{{ ((selectedResult.baseline_max_drawdown || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="selectedResult.max_drawdown <= (selectedResult.baseline_max_drawdown || 0) ? 'text-success' : 'text-error'">{{ ((selectedResult.max_drawdown - (selectedResult.baseline_max_drawdown || 0)) * 100).toFixed(2) }}%</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">波动率</td>
-                <td class="text-center">{{ ((selectedResult.volatility || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center">{{ ((selectedResult.baseline_volatility || 0) * 100).toFixed(2) }}%</td>
-                <td class="text-center" :class="(selectedResult.volatility || 0) <= (selectedResult.baseline_volatility || 0) ? 'text-success' : 'text-warning'">{{ ((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0) > 0 ? '+' : '') }}{{ (((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0)) * 100).toFixed(2) }}%</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">夏普比率</td>
-                <td class="text-center" :class="(selectedResult.sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.sharpe_ratio || 0).toFixed(2) }}</td>
-                <td class="text-center" :class="(selectedResult.baseline_sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.baseline_sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.baseline_sharpe_ratio || 0).toFixed(2) }}</td>
-                <td class="text-center" :class="((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0) > 0 ? '+' : '') }}{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)).toFixed(2) }}</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">胜率</td>
-                <td class="text-center" :class="(selectedResult.win_rate || 0) >= 0.5 ? 'text-success' : 'text-error'">{{ ((selectedResult.win_rate || 0) * 100).toFixed(1) }}%</td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">交易次数</td>
-                <td class="text-center">{{ selectedResult.total_trades }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">平均持仓天数</td>
-                <td class="text-center">{{ selectedResult.avg_hold_days || 0 }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-              </tr>
-              <tr>
-                <td class="text-body-2">总手续费</td>
-                <td class="text-center">{{ (selectedResult.total_fees || 0).toFixed(2) }}</td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-              </tr>
-            </tbody>
-          </v-table>
-          <v-divider class="my-2"></v-divider>
-          <div class="pa-4">
-            <div class="text-subtitle-1 mb-3 font-weight-bold">盈亏分析</div>
+          <v-tabs v-model="resultTab" color="primary">
+            <v-tab value="overview">概览</v-tab>
+            <v-tab value="pnl">盈亏分析</v-tab>
+          </v-tabs>
 
-            <v-row v-if="pnlSummary">
-              <v-col cols="6" sm="3">
-                <v-card variant="tonal" :color="(pnlSummary.total_pnl_amount || 0) >= 0 ? 'success' : 'error'">
-                  <v-card-text class="text-center pa-2">
-                    <div class="text-caption text-medium-emphasis">总盈亏</div>
-                    <div class="text-h6">¥{{ (pnlSummary.total_pnl_amount || 0).toFixed(2) }}</div>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-              <v-col cols="6" sm="3">
-                <v-card variant="tonal" color="success">
-                  <v-card-text class="text-center pa-2">
-                    <div class="text-caption text-medium-emphasis">盈利次数</div>
-                    <div class="text-h6">{{ pnlSummary.total_profit_trades }}</div>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-              <v-col cols="6" sm="3">
-                <v-card variant="tonal" color="error">
-                  <v-card-text class="text-center pa-2">
-                    <div class="text-caption text-medium-emphasis">亏损次数</div>
-                    <div class="text-h6">{{ pnlSummary.total_loss_trades }}</div>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-              <v-col cols="6" sm="3">
-                <v-card variant="tonal" :color="(pnlSummary.overall_win_rate || 0) >= 0.5 ? 'success' : 'error'">
-                  <v-card-text class="text-center pa-2">
-                    <div class="text-caption text-medium-emphasis">胜率</div>
-                    <div class="text-h6">{{ ((pnlSummary.overall_win_rate || 0) * 100).toFixed(1) }}%</div>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-            </v-row>
+          <v-window v-model="resultTab" class="mt-4" style="max-height: calc(90vh - 160px); overflow-y: auto;">
+            <v-window-item value="overview">
+              <v-table density="compact" class="metrics-table">
+                <thead>
+                  <tr>
+                    <th class="text-left" style="width: 160px;">指标</th>
+                    <th class="text-center">策略</th>
+                    <th class="text-center">基准</th>
+                    <th class="text-center" style="width: 130px;">对比</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="text-body-2">总收益率</td>
+                    <td class="text-center" :class="selectedResult.total_return >= 0 ? 'text-success' : 'text-error'">{{ (selectedResult.total_return * 100).toFixed(2) }}%</td>
+                    <td class="text-center">{{ ((selectedResult.baseline_return || 0) * 100).toFixed(2) }}%</td>
+                    <td class="text-center" :class="(selectedResult.excess_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.excess_return || 0) * 100).toFixed(2) }}%</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">年化收益</td>
+                    <td class="text-center" :class="(selectedResult.annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.annual_return || 0) * 100).toFixed(2) }}%</td>
+                    <td class="text-center" :class="(selectedResult.baseline_annual_return || 0) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.baseline_annual_return || 0) * 100).toFixed(2) }}%</td>
+                    <td class="text-center" :class="((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) >= 0 ? 'text-success' : 'text-error'">{{ (((selectedResult.annual_return || 0) - (selectedResult.baseline_annual_return || 0)) * 100).toFixed(2) }}%</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">最大回撤</td>
+                    <td class="text-center" :class="selectedResult.max_drawdown < 0.1 ? 'text-warning' : 'text-error'">{{ (selectedResult.max_drawdown * 100).toFixed(2) }}%</td>
+                    <td class="text-center" :class="(selectedResult.baseline_max_drawdown || 0) < 0.1 ? 'text-warning' : 'text-error'">{{ ((selectedResult.baseline_max_drawdown || 0) * 100).toFixed(2) }}%</td>
+                    <td class="text-center" :class="selectedResult.max_drawdown <= (selectedResult.baseline_max_drawdown || 0) ? 'text-success' : 'text-error'">{{ ((selectedResult.max_drawdown - (selectedResult.baseline_max_drawdown || 0)) * 100).toFixed(2) }}%</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">波动率</td>
+                    <td class="text-center">{{ ((selectedResult.volatility || 0) * 100).toFixed(2) }}%</td>
+                    <td class="text-center">{{ ((selectedResult.baseline_volatility || 0) * 100).toFixed(2) }}%</td>
+                    <td class="text-center" :class="(selectedResult.volatility || 0) <= (selectedResult.baseline_volatility || 0) ? 'text-success' : 'text-warning'">{{ ((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0) > 0 ? '+' : '') }}{{ (((selectedResult.volatility || 0) - (selectedResult.baseline_volatility || 0)) * 100).toFixed(2) }}%</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">夏普比率</td>
+                    <td class="text-center" :class="(selectedResult.sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.sharpe_ratio || 0).toFixed(2) }}</td>
+                    <td class="text-center" :class="(selectedResult.baseline_sharpe_ratio || 0) >= 1 ? 'text-success' : (selectedResult.baseline_sharpe_ratio || 0) >= 0 ? 'text-warning' : 'text-error'">{{ (selectedResult.baseline_sharpe_ratio || 0).toFixed(2) }}</td>
+                    <td class="text-center" :class="((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)) >= 0 ? 'text-success' : 'text-error'">{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0) > 0 ? '+' : '') }}{{ ((selectedResult.sharpe_ratio || 0) - (selectedResult.baseline_sharpe_ratio || 0)).toFixed(2) }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">胜率</td>
+                    <td class="text-center" :class="(selectedResult.win_rate || 0) >= 0.5 ? 'text-success' : 'text-error'">{{ ((selectedResult.win_rate || 0) * 100).toFixed(1) }}%</td>
+                    <td class="text-center">-</td>
+                    <td class="text-center">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">交易次数</td>
+                    <td class="text-center">{{ selectedResult.total_trades }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-center">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">平均持仓天数</td>
+                    <td class="text-center">{{ selectedResult.avg_hold_days || 0 }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-center">-</td>
+                  </tr>
+                  <tr>
+                    <td class="text-body-2">总手续费</td>
+                    <td class="text-center">{{ (selectedResult.total_fees || 0).toFixed(2) }}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-center">-</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-window-item>
 
-            <v-row class="mt-2">
-              <v-col cols="12" md="6">
-                <div ref="amountChartRef" style="height: 300px;"></div>
-              </v-col>
-              <v-col cols="12" md="6">
-                <div ref="countChartRef" style="height: 300px;"></div>
-              </v-col>
-            </v-row>
+            <v-window-item value="pnl">
+              <div v-if="pnlLoading" class="text-center text-medium-emphasis py-8">加载中...</div>
+              <div v-else-if="!pnlSummary" class="text-center text-medium-emphasis py-8">暂无盈亏数据</div>
+              <div v-else>
+                <v-row>
+                  <v-col cols="6" sm="3">
+                    <v-card variant="tonal" :color="pnlSummary.total_pnl_amount >= 0 ? 'success' : 'error'">
+                      <v-card-text class="text-center pa-2">
+                        <div class="text-caption text-medium-emphasis">总盈亏</div>
+                        <div class="text-h6">¥{{ pnlSummary.total_pnl_amount.toFixed(2) }}</div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="6" sm="3">
+                    <v-card variant="tonal" color="success">
+                      <v-card-text class="text-center pa-2">
+                        <div class="text-caption text-medium-emphasis">盈利次数</div>
+                        <div class="text-h6">{{ pnlSummary.total_profit_trades }}</div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="6" sm="3">
+                    <v-card variant="tonal" color="error">
+                      <v-card-text class="text-center pa-2">
+                        <div class="text-caption text-medium-emphasis">亏损次数</div>
+                        <div class="text-h6">{{ pnlSummary.total_loss_trades }}</div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="6" sm="3">
+                    <v-card variant="tonal" :color="pnlSummary.overall_win_rate >= 0.5 ? 'success' : 'error'">
+                      <v-card-text class="text-center pa-2">
+                        <div class="text-caption text-medium-emphasis">胜率</div>
+                        <div class="text-h6">{{ (pnlSummary.overall_win_rate * 100).toFixed(1) }}%</div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
 
-            <v-data-table
-              v-if="pnlDetails.length > 0"
-              :headers="pnlHeaders"
-              :items="pnlDetails"
-              density="compact"
-              hide-default-footer
-              class="mt-2"
-            >
-              <template v-slot:item.total_pnl_amount="{ item }">
-                <span :class="item.total_pnl_amount >= 0 ? 'text-success' : 'text-error'">
-                  ¥{{ item.total_pnl_amount.toFixed(2) }}
-                </span>
-              </template>
-              <template v-slot:item.trade_win_rate="{ item }">
-                <span :class="item.trade_win_rate >= 0.5 ? 'text-success' : 'text-error'">
-                  {{ (item.trade_win_rate * 100).toFixed(1) }}%
-                </span>
-              </template>
-            </v-data-table>
-          </div>
+                <v-row class="mt-2">
+                  <v-col cols="12" md="6">
+                    <div ref="amountChartRef" style="height: 300px;"></div>
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div ref="countChartRef" style="height: 300px;"></div>
+                  </v-col>
+                </v-row>
+
+                <v-data-table
+                  v-if="pnlDetails.length > 0"
+                  :headers="pnlHeaders"
+                  :items="pnlDetails"
+                  density="compact"
+                  hide-default-footer
+                  class="mt-2"
+                >
+                  <template v-slot:item.total_pnl_amount="{ item }">
+                    <span :class="item.total_pnl_amount >= 0 ? 'text-success' : 'text-error'">
+                      ¥{{ item.total_pnl_amount.toFixed(2) }}
+                    </span>
+                  </template>
+                  <template v-slot:item.trade_win_rate="{ item }">
+                    <span :class="item.trade_win_rate >= 0.5 ? 'text-success' : 'text-error'">
+                      {{ (item.trade_win_rate * 100).toFixed(1) }}%
+                    </span>
+                  </template>
+                </v-data-table>
+              </div>
+            </v-window-item>
+          </v-window>
         </div>
       </v-card-text>
     </v-card>
@@ -293,7 +304,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { backtestRecordApi, type Backtest, type Trade, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
 import * as echarts from 'echarts'
 import PredictionChart from '@/components/PredictionChart.vue'
@@ -309,6 +320,7 @@ const predictionBacktestId = ref('')
 const deletingItem = ref<Backtest | null>(null)
 const viewingBacktest = ref<Backtest | null>(null)
 const selectedResult = ref<Backtest | null>(null)
+const resultTab = ref('overview')
 const pnlDetails = ref<PnlDetailItem[]>([])
 const pnlSummary = ref<PnlDetailSummary | null>(null)
 const pnlLoading = ref(false)
@@ -480,4 +492,10 @@ const pnlHeaders = [
   { title: '卖出次数', key: 'total_sells' },
   { title: '胜率', key: 'trade_win_rate' },
 ]
+
+watch(resultTab, () => {
+  if (resultTab.value === 'pnl') {
+    nextTick(() => renderCharts())
+  }
+})
 </script>
