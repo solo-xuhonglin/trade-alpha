@@ -16,10 +16,12 @@ from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.order_suggestion import OrderSuggestion
 from trade_alpha.dao.data_analysis_result import DataAnalysisResult
+from trade_alpha.dao.trade_calendar import TradeCalendar
 
 __all__ = [
     "OrderSuggestion",
     "DataAnalysisResult",
+    "TradeCalendar",
     "init_db",
     "get_db",
     "close_db",

@@ -24,9 +24,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import AppLayout from '@/components/AppLayout.vue'
-import { notifyService, type Notification } from '@/utils/notify'
+import { notifyService } from '@/utils/notify'
 
 const notifications = notifyService.notifications
 const activeNotifications = ref<Record<number, boolean>>({})

@@ -132,7 +132,7 @@ const headers = [
   { title: '印花税', key: 'stamp_tax_rate' },
   { title: '最低手续费', key: 'min_fee' },
   { title: '创建时间', key: 'created_at' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const formatMoney = (val: number) => {

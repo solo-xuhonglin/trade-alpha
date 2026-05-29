@@ -199,7 +199,7 @@ const headers = [
   { title: '状态', key: 'sync_status', width: '80px' },
   { title: '条数', key: 'data_count', width: '60px' },
   { title: '最新日期', key: 'latest_date', width: '100px' },
-  { title: '操作', key: 'actions', sortable: false, width: '80px', align: 'end' },
+  { title: '操作', key: 'actions', sortable: false, width: '80px', align: 'end' as const },
 ]
 
 const loadStocks = async () => {
@@ -318,7 +318,6 @@ const loadMoreHistory = async () => {
   }
   const res = await dataApi.getDataPaginated(selectedStock.value.ts_code, nextPage, maxPageSize)
   const newData = [...res.data.items].reverse()
-  const prevDates = stockData.value.map(d => d.trade_date)
   stockData.value = [...newData, ...stockData.value]
   currentPage.value = nextPage
   hasMoreData.value = currentPage.value < totalPages.value

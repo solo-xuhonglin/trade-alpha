@@ -167,7 +167,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { backtestApi, type TaskStatusResponse } from '@/api/backtest'
+import { backtestApi } from '@/api/backtest'
 import { accountConfigApi } from '@/api/accountConfig'
 import { trainingRecordApi } from '@/api/trainingRecord'
 import { strategyConfigApi } from '@/api/strategyConfig'
@@ -175,7 +175,6 @@ import { getStatusColor, getStatusText } from '@/utils/taskStatus'
 import { formatDate, formatDateTime, formatDateInput } from '@/utils/date'
 import { useTaskPolling } from '@/composables/useTaskPolling'
 
-const loading = ref(false)
 const running = ref(false)
 const error = ref('')
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
@@ -229,8 +228,11 @@ const activeTaskHeaders = [
   { title: '操作', key: 'actions', sortable: false },
 ]
 
-const { activeTasks, startPolling, stopPolling } = useTaskPolling<TaskStatusResponse>({
-  pollFn: () => backtestApi.listTasks(1, 20),
+const { activeTasks, startPolling } = useTaskPolling({
+  pollFn: async () => {
+    const res = await backtestApi.listTasks(1, 20)
+    return { data: { items: res.data.items } }
+  },
   filterFn: (t) => t.status !== 'completed',
   autoStart: true,
 })
@@ -268,30 +270,14 @@ const runBacktest = async () => {
       throw new Error('请先选择账户配置')
     }
 
-    const payload: Record<string, any> = {
+    await backtestApi.run({
       training_id: form.value.training_id,
       account_config_id: form.value.account_config_id,
       start_date: formatDateInput(form.value.start_date),
       end_date: formatDateInput(form.value.end_date),
       name: form.value.name || `backtest_${formatDateTime()}`,
       mode: currentMode.value,
-    }
-
-    if (form.value.strategy_config_id) {
-      payload.strategy_config_id = form.value.strategy_config_id
-    }
-
-    if (currentMode.value === 'single') {
-      if (!form.value.ts_codes) {
-        throw new Error('请选择股票')
-      }
-      payload.ts_codes = [form.value.ts_codes]
-    } else {
-      payload.top_n = form.value.top_n
-    }
-
-    const res = await backtestApi.run(payload)
-    const taskId = res.data.task_id
+    })
     startPolling()
 
     // 不阻塞等待，直接完成
@@ -315,11 +301,6 @@ const confirmStop = async () => {
   } finally {
     stopDialog.value.loading = false
   }
-}
-
-const deleteTask = async (taskId: string) => {
-  deleteDialog.value.task_id = taskId
-  deleteDialog.value.show = true
 }
 
 const confirmDelete = async () => {

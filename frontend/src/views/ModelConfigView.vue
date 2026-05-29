@@ -213,7 +213,6 @@ import { ref, onMounted, watch } from 'vue'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 import { formatDate } from '@/utils/date'
 import {
-  DAILY_BASIC_FIELDS,
   INDICATOR_FIELDS,
   ALL_FEATURE_FIELDS,
   PRICE_INDEPENDENT_FIELDS,

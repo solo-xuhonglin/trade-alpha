@@ -4,6 +4,7 @@ export interface Trade {
   trade_date: string
   action: string
   price: number
+  filled_price?: number
   shares: number
   fee: number
   cash_after: number

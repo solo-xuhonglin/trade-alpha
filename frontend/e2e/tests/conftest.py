@@ -21,6 +21,8 @@ def page(browser, request):
     console_messages = []
 
     base_url = request.config.getoption("--base-url", default="http://localhost:3000")
+    if not base_url:
+        base_url = "http://localhost:3000"
 
     context = browser.new_context()
     page = context.new_page()
@@ -41,6 +43,9 @@ def goto_page(page: Page, request):
     def _goto(path: str) -> Page:
         global console_messages
         console_messages.clear()
+        nonlocal base_url
+        if not base_url:
+            base_url = "http://localhost:3000"
         page.goto(f"{base_url.rstrip('/')}{path}")
         page.wait_for_load_state("networkidle")
 

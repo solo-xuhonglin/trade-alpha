@@ -27,6 +27,10 @@
             :to="'/data/analysis/records'"
             title="分析记录"
           />
+          <v-list-item
+            :to="'/data/trade-calendar'"
+            title="交易日历"
+          />
         </v-list-group>
 
         <v-list-group value="config">

@@ -90,4 +90,5 @@ class StockDaily(Document):
         name = "stock_daily"
         indexes = [
             [("ts_code", 1), ("trade_date", -1)],
+            "trade_date",
         ]

@@ -65,6 +65,28 @@ def _map_market(ts_code: str) -> str:
     return "主板"
 
 
+def fetch_trading_calendar(start_date: str, end_date: str) -> pd.DataFrame | None:
+    """Fetch trading calendar from Tushare.
+
+    Args:
+        start_date: Start date (YYYYMMDD)
+        end_date: End date (YYYYMMDD)
+
+    Returns:
+        DataFrame with exchange, cal_date, is_open, pretrade_date, or None if failed
+    """
+    api = get_pro_api()
+    df = api.trade_cal(
+        exchange="",
+        start_date=start_date,
+        end_date=end_date,
+        fields="exchange,cal_date,is_open,pretrade_date",
+    )
+    if df is None or df.empty:
+        return None
+    return df
+
+
 def fetch_daily_basic(trade_date: str | None = None) -> pd.DataFrame | None:
     """Fetch daily basic data from Tushare."""
     api = get_pro_api()

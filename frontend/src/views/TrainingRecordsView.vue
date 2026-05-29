@@ -360,7 +360,7 @@ const currentBestEpoch = computed(() => extractPerTargetValue(detailItem.value?.
 const currentBestAuc = computed(() => extractPerTargetValue(detailItem.value?.model_metrics.best_auc))
 
 const headers = [
-  { title: '名称', key: 'name', width: 140, nowrap: true },
+  { title: '名称', key: 'name', width: 100, nowrap: true },
   { title: '配置', key: 'configName', width: 120, nowrap: true },
   { title: '股票', key: 'ts_codes', width: 100, nowrap: true },
   { title: '日期', key: 'date_range', width: 160, nowrap: true },

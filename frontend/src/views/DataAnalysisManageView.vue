@@ -67,7 +67,7 @@
           </div>
         </template>
         <template v-slot:item.created_at="{ item }">
-          <span class="text-caption">{{ new Date(item.created_at).toLocaleString() }}</span>
+          <span class="text-caption">{{ item.created_at ? new Date(item.created_at).toLocaleString() : '' }}</span>
         </template>
       </v-data-table>
       <div v-else class="text-center text-medium-emphasis pa-4">暂无运行中的任务</div>
@@ -159,7 +159,7 @@ const triggerAnalysis = async () => {
   loadingAnalysis.value = true
   error.value = ''
   try {
-    const res = await dataAnalysisApi.triggerAnalysis({
+    await dataAnalysisApi.triggerAnalysis({
       name: form.value.name || `analysis_${formatDateTime()}`,
       start_rank: form.value.start_rank,
       end_rank: form.value.end_rank,

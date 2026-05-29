@@ -23,6 +23,11 @@ const routes = [
         path: 'analysis/records',
         name: 'DataAnalysisRecords',
         component: () => import('@/views/DataAnalysisRecordsView.vue')
+      },
+      {
+        path: 'trade-calendar',
+        name: 'TradeCalendar',
+        component: () => import('@/views/TradeCalendarView.vue')
       }
     ]
   },

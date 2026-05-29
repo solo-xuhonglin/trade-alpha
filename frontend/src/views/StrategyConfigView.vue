@@ -290,7 +290,7 @@ const headers = [
   { title: '最小订单', key: 'min_order_value' },
   { title: '止损比例', key: 'stop_loss_pct' },
   { title: '持仓天数', key: 'max_hold_days' },
-  { title: '操作', key: 'actions', sortable: false, align: 'end' },
+  { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
 const loadStrategies = async () => {

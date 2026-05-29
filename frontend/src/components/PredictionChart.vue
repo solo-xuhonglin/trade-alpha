@@ -78,7 +78,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onUnmounted, computed } from 'vue'
 import * as echarts from 'echarts'
-import { backtestRecordApi, type PredictionStock, type PredictionItem, type DailySnapshot } from '@/api/backtestRecord'
+import { backtestRecordApi, type PredictionItem, type DailySnapshot } from '@/api/backtestRecord'
 import { dataApi } from '@/api/data'
 
 const props = defineProps<{

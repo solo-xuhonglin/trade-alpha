@@ -142,7 +142,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { trainingApi, type TaskStatusResponse } from '@/api/training'
+import { trainingApi } from '@/api/training'
 import { modelConfigApi } from '@/api/modelConfig'
 import { getStatusColor, getStatusText } from '@/utils/taskStatus'
 import { formatDate, formatDateTime, formatDateInput } from '@/utils/date'
@@ -184,8 +184,11 @@ watch(() => form.value.config_id, (newId) => {
   }
 })
 
-const { activeTasks, startPolling, stopPolling } = useTaskPolling<TaskStatusResponse>({
-  pollFn: () => trainingApi.listTasks(1, 20),
+const { activeTasks, startPolling } = useTaskPolling({
+  pollFn: async () => {
+    const res = await trainingApi.listTasks(1, 20)
+    return { data: { items: res.data.items } }
+  },
   filterFn: (t) => t.status !== 'completed',
   autoStart: true,
 })
@@ -211,8 +214,7 @@ const runTraining = async () => {
       end_date: formatDateInput(form.value.end_date),
     }
 
-    const res = await trainingApi.create(payload)
-    const taskId = res.data.task_id
+    await trainingApi.create(payload)
     startPolling()
 
     // 不阻塞等待，直接完成
@@ -236,11 +238,6 @@ const confirmStop = async () => {
   } finally {
     stopDialog.value.loading = false
   }
-}
-
-const deleteTask = async (taskId: string) => {
-  deleteDialog.value.task_id = taskId
-  deleteDialog.value.show = true
 }
 
 const confirmDelete = async () => {
