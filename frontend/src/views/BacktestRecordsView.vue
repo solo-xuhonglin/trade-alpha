@@ -309,46 +309,201 @@
 
   <PredictionChart v-model="predictionDialog" :backtest-id="predictionBacktestId" />
 
-  <v-dialog v-model="backtestConfigDialog" max-width="650px">
+  <v-dialog v-model="backtestConfigDialog" max-width="800" scrollable>
     <v-card>
-      <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
-        <div class="d-flex align-center ga-2">
-          <v-icon color="primary">mdi-cog</v-icon>
+      <v-toolbar flat>
+        <v-toolbar-title>
+          <v-icon start>mdi-cog</v-icon>
           回测配置
           <v-chip v-if="backtestConfigItem" size="small" variant="outlined" class="ml-2">{{ backtestConfigItem.name }}</v-chip>
-        </div>
-        <v-btn icon variant="text" size="small" @click="backtestConfigDialog = false">
+        </v-toolbar-title>
+        <v-spacer />
+        <v-btn icon variant="text" @click="backtestConfigDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
-      </v-card-title>
+      </v-toolbar>
+      <v-tabs v-model="backtestConfigTab" bg-color="surface">
+        <v-tab value="model">模型配置</v-tab>
+        <v-tab value="strategy">策略配置</v-tab>
+        <v-tab value="features">特征配置</v-tab>
+      </v-tabs>
       <v-divider />
-      <v-card-text class="pa-0">
-        <v-tabs v-model="backtestConfigTab" color="primary" class="px-4 pt-2">
-          <v-tab value="model">模型配置</v-tab>
-          <v-tab value="strategy">策略配置</v-tab>
-        </v-tabs>
-        <v-window v-model="backtestConfigTab" class="pa-4">
+      <v-card-text>
+        <v-window v-model="backtestConfigTab">
           <v-window-item value="model">
-            <v-table v-if="backtestModelConfig" density="compact">
-              <tbody>
-                <tr v-for="row in backtestModelConfig" :key="row.label">
-                  <td class="text-body-2 text-medium-emphasis" style="width: 200px;">{{ row.label }}</td>
-                  <td class="text-body-2">{{ row.value }}</td>
-                </tr>
-              </tbody>
-            </v-table>
-            <div v-else class="text-center text-medium-emphasis py-8">无模型配置</div>
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-information-outline</v-icon> 基本信息
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">名称</span><br />{{ backtestModelConfig?.name || '-' }}</v-col>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">模型类型</span><br />{{ backtestModelConfig?.model_type || '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-tune</v-icon> 训练参数
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">分类周期</span><br />{{ backtestModelConfig?.classification_horizons?.join(', ') || '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">标签模式</span><br />{{ backtestModelConfig?.label_mode || '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">验证集比例</span><br />{{ backtestModelConfig?.val_size ?? '-' }}</v-col>
+                </v-row>
+                <v-divider class="my-2" />
+                <div class="text-caption text-medium-emphasis mb-1">阈值</div>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">3d</span><br />{{ backtestModelConfig?.classification_threshold_3d ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">5d</span><br />{{ backtestModelConfig?.classification_threshold_5d ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">10d</span><br />{{ backtestModelConfig?.classification_threshold_10d ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card v-if="backtestModelConfig?.model_type === 'xgboost'" variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-chart-line</v-icon> XGB 参数
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Learning Rate</span><br />{{ backtestModelConfig?.xgb_learning_rate ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Max Depth</span><br />{{ backtestModelConfig?.xgb_max_depth ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Subsample</span><br />{{ backtestModelConfig?.xgb_subsample ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Colsample By Tree</span><br />{{ backtestModelConfig?.xgb_colsample_bytree ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Min Child Weight</span><br />{{ backtestModelConfig?.xgb_min_child_weight ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">N Estimators</span><br />{{ backtestModelConfig?.xgb_n_estimators ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card v-if="backtestModelConfig?.model_type === 'lstm'" variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-neural</v-icon> LSTM 参数
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Hidden Size</span><br />{{ backtestModelConfig?.lstm_hidden_size ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Num Layers</span><br />{{ backtestModelConfig?.lstm_num_layers ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Dropout</span><br />{{ backtestModelConfig?.lstm_dropout ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Epochs</span><br />{{ backtestModelConfig?.lstm_epochs ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Batch Size</span><br />{{ backtestModelConfig?.lstm_batch_size ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Learning Rate</span><br />{{ backtestModelConfig?.lstm_learning_rate ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Sequence Length</span><br />{{ backtestModelConfig?.lstm_sequence_length ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Norm Window</span><br />{{ backtestModelConfig?.lstm_normalization_window ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Weight Decay</span><br />{{ backtestModelConfig?.lstm_weight_decay ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
           </v-window-item>
+
           <v-window-item value="strategy">
-            <v-table v-if="backtestStrategyConfig" density="compact">
-              <tbody>
-                <tr v-for="row in backtestStrategyConfig" :key="row.label">
-                  <td class="text-body-2 text-medium-emphasis" style="width: 200px;">{{ row.label }}</td>
-                  <td class="text-body-2">{{ row.value }}</td>
-                </tr>
-              </tbody>
-            </v-table>
-            <div v-else class="text-center text-medium-emphasis py-8">无策略配置</div>
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-information-outline</v-icon> 策略信息
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">名称</span><br />{{ backtestStrategyConfig?.name || '-' }}</v-col>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">类型</span><br />{{ backtestStrategyConfig?.type || '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-swap-vertical</v-icon> 交易规则
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">买入阈值</span><br />{{ backtestStrategyConfig?.buy_threshold ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">卖出阈值</span><br />{{ backtestStrategyConfig?.sell_threshold ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">止损比例</span><br />{{ backtestStrategyConfig?.stop_loss_pct ? (backtestStrategyConfig.stop_loss_pct * 100).toFixed(0) + '%' : '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">最大持仓天数</span><br />{{ backtestStrategyConfig?.max_hold_days ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">最小交易金额</span><br />{{ backtestStrategyConfig?.min_order_value ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">持仓评分阈值</span><br />{{ backtestStrategyConfig?.hold_score_threshold ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-lock-pattern</v-icon> 持仓限制
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">最大持仓数</span><br />{{ backtestStrategyConfig?.max_positions ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">单只持仓上限</span><br />{{ backtestStrategyConfig?.max_position_pct ? (backtestStrategyConfig.max_position_pct * 100).toFixed(0) + '%' : '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">卖出排名N</span><br />{{ backtestStrategyConfig?.sell_rank_n ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+          </v-window-item>
+
+          <v-window-item value="features">
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-chart-timeline-variant</v-icon> 特征字段
+                <v-chip size="small" variant="flat" color="primary" class="ml-2">{{ backtestModelConfig?.feature_fields?.length || 0 }} 个</v-chip>
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <template v-if="backtestModelConfig?.feature_fields?.length">
+                  <div class="text-caption text-medium-emphasis mb-1">日线基础字段</div>
+                  <div class="d-flex flex-wrap ga-1 mb-3">
+                    <v-chip v-for="f in backtestModelConfig.feature_fields.filter(isBasicField)" :key="f" size="x-small" variant="flat" color="indigo">{{ f }}</v-chip>
+                    <span v-if="!backtestModelConfig.feature_fields.filter(isBasicField).length" class="text-caption text-disabled">无</span>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mb-1">技术指标字段</div>
+                  <div class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="f in backtestModelConfig.feature_fields.filter(f => !isBasicField(f))" :key="f" size="x-small" variant="flat" color="teal">{{ f }}</v-chip>
+                    <span v-if="!backtestModelConfig.feature_fields.filter(f => !isBasicField(f)).length" class="text-caption text-disabled">无</span>
+                  </div>
+                </template>
+                <div v-else class="text-caption text-disabled">无特征字段配置</div>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-ruler-square-compass</v-icon> 标准化字段
+                <v-chip size="small" variant="flat" color="orange" class="ml-2">{{ backtestModelConfig?.standardize_fields?.length || 0 }} 个</v-chip>
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <template v-if="backtestModelConfig?.standardize_fields?.length">
+                  <div class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="f in backtestModelConfig.standardize_fields" :key="f" size="x-small" variant="flat" color="orange">{{ f }}</v-chip>
+                  </div>
+                </template>
+                <div v-else class="text-caption text-disabled">无配置</div>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-alpha-x-circle-outline</v-icon> 去极值字段
+                <v-chip size="small" variant="flat" color="deep-purple" class="ml-2">{{ backtestModelConfig?.winsorize_fields?.length || 0 }} 个</v-chip>
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <template v-if="backtestModelConfig?.winsorize_fields?.length">
+                  <div class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="f in backtestModelConfig.winsorize_fields" :key="f" size="x-small" variant="flat" color="deep-purple">{{ f }}</v-chip>
+                  </div>
+                </template>
+                <div v-else class="text-caption text-disabled">无配置</div>
+              </v-card-text>
+            </v-card>
           </v-window-item>
         </v-window>
       </v-card-text>
@@ -359,6 +514,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
 import { backtestRecordApi, type Backtest, type Trade, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
+import { type Strategy } from '@/api/strategyConfig'
 import * as echarts from 'echarts'
 import PredictionChart from '@/components/PredictionChart.vue'
 
@@ -383,10 +539,20 @@ const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_p
 const backtestConfigDialog = ref(false)
 const backtestConfigTab = ref('model')
 const backtestConfigItem = ref<Backtest | null>(null)
-const backtestModelConfig = ref<{ label: string; value: string }[] | null>(null)
-const backtestStrategyConfig = ref<{ label: string; value: string }[] | null>(null)
+const backtestModelConfig = ref<Record<string, any> | null>(null)
+const backtestStrategyConfig = ref<Partial<Strategy> | null>(null)
 let amountChart: echarts.ECharts | null = null
 let countChart: echarts.ECharts | null = null
+
+const BASIC_FIELD_NAMES = new Set([
+  'open', 'high', 'low', 'close', 'vol', 'amount',
+  'pct_chg',
+  'week_open', 'week_high', 'week_low', 'week_close',
+  'week_vol_avg', 'week_amount_avg',
+  'candle_body_pct', 'candle_upper_pct', 'candle_lower_pct',
+])
+
+const isBasicField = (name: string) => BASIC_FIELD_NAMES.has(name)
 
 const viewPredictions = (item: Backtest) => {
   predictionBacktestId.value = item.id
@@ -455,62 +621,23 @@ const viewResult = (item: Backtest) => {
 const openBacktestConfig = (item: Backtest) => {
   backtestConfigItem.value = item
   backtestConfigTab.value = 'model'
-  backtestModelConfig.value = null
-  backtestStrategyConfig.value = null
+  backtestModelConfig.value = item.model_snapshot ? { ...item.model_snapshot } : null
+  backtestStrategyConfig.value = item.strategy_name
+    ? {
+        name: item.strategy_name,
+        type: item.strategy_type || '',
+        min_order_value: item.min_order_value ?? 0,
+        stop_loss_pct: item.stop_loss_pct ?? 0,
+        max_hold_days: item.max_hold_days ?? 0,
+        buy_threshold: item.buy_threshold ?? 0,
+        sell_threshold: item.sell_threshold ?? 0,
+        max_positions: item.max_positions,
+        max_position_pct: item.max_position_pct,
+        sell_rank_n: item.sell_rank_n,
+        hold_score_threshold: item.hold_score_threshold,
+      }
+    : null
   backtestConfigDialog.value = true
-
-  if (item.model_snapshot) {
-    const ms = item.model_snapshot
-    const rows: { label: string; value: string }[] = [
-      { label: '名称', value: ms.name || '-' },
-      { label: '模型类型', value: ms.model_type || '-' },
-      { label: '分类周期', value: ms.classification_horizons?.join(', ') || '-' },
-      { label: '标签模式', value: ms.label_mode || '-' },
-      { label: '阈值 3d', value: ms.classification_threshold_3d?.toString() },
-      { label: '阈值 5d', value: ms.classification_threshold_5d?.toString() },
-      { label: '阈值 10d', value: ms.classification_threshold_10d?.toString() },
-    ]
-    if (ms.model_type === 'xgboost') {
-      rows.push(
-        { label: 'XGB 学习率', value: ms.xgb_learning_rate?.toString() },
-        { label: 'XGB 最大深度', value: ms.xgb_max_depth?.toString() },
-        { label: 'XGB 子采样', value: ms.xgb_subsample?.toString() },
-        { label: 'XGB 列采样', value: ms.xgb_colsample_bytree?.toString() },
-        { label: 'XGB 最小子节点权重', value: ms.xgb_min_child_weight?.toString() },
-        { label: 'XGB 树数量', value: ms.xgb_n_estimators?.toString() },
-      )
-    } else if (ms.model_type === 'lstm') {
-      rows.push(
-        { label: 'LSTM 隐藏层大小', value: ms.lstm_hidden_size?.toString() },
-        { label: 'LSTM 层数', value: ms.lstm_num_layers?.toString() },
-        { label: 'LSTM Dropout', value: ms.lstm_dropout?.toString() },
-        { label: 'LSTM 学习率', value: ms.lstm_learning_rate?.toString() },
-        { label: 'LSTM 权重衰减', value: ms.lstm_weight_decay?.toString() },
-        { label: 'LSTM Epochs', value: ms.lstm_epochs?.toString() },
-        { label: 'LSTM 批大小', value: ms.lstm_batch_size?.toString() },
-        { label: 'LSTM 序列长度', value: ms.lstm_sequence_length?.toString() },
-        { label: 'LSTM 归一化窗口', value: ms.lstm_normalization_window?.toString() },
-      )
-    }
-    rows.push({ label: '验证集比例', value: ms.val_size?.toString() })
-    backtestModelConfig.value = rows
-  }
-
-  const rows2: { label: string; value: string }[] = []
-  if (item.strategy_name) {
-    rows2.push({ label: '名称', value: item.strategy_name })
-    rows2.push({ label: '类型', value: item.strategy_type || '-' })
-    rows2.push({ label: '止盈阈值', value: item.sell_threshold?.toString() ?? '-' })
-    rows2.push({ label: '止损阈值', value: item.buy_threshold?.toString() ?? '-' })
-    rows2.push({ label: '止损比例', value: item.stop_loss_pct?.toString() ?? '-' })
-    rows2.push({ label: '最大持仓天数', value: item.max_hold_days?.toString() ?? '-' })
-    rows2.push({ label: '最小交易金额', value: item.min_order_value?.toString() ?? '-' })
-    rows2.push({ label: '最大持仓数量', value: item.max_positions?.toString() ?? '-' })
-    rows2.push({ label: '单只上限比例', value: item.max_position_pct?.toString() ?? '-' })
-    rows2.push({ label: '卖出排名 N', value: item.sell_rank_n?.toString() ?? '-' })
-    rows2.push({ label: '持有分数阈值', value: item.hold_score_threshold?.toString() ?? '-' })
-  }
-  backtestStrategyConfig.value = rows2.length > 0 ? rows2 : null
 }
 
 const viewTrades = async (item: Backtest) => {

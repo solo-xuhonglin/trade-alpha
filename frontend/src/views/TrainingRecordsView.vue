@@ -229,29 +229,158 @@
     :result="analysisResult"
   />
 
-  <v-dialog v-model="configDialog" max-width="600px">
+  <v-dialog v-model="configDialog" max-width="800" scrollable>
     <v-card>
-      <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
-        <div class="d-flex align-center ga-2">
-          <v-icon color="primary">mdi-cog</v-icon>
-          模型配置
+      <v-toolbar flat>
+        <v-toolbar-title>
+          <v-icon start>mdi-cog</v-icon>
+          训练配置
           <v-chip v-if="configItem" size="small" variant="outlined" class="ml-2">{{ configItem.name }}</v-chip>
-        </div>
-        <v-btn icon variant="text" size="small" @click="configDialog = false">
+        </v-toolbar-title>
+        <v-spacer />
+        <v-btn icon variant="text" @click="configDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
-      </v-card-title>
+      </v-toolbar>
       <v-divider />
       <v-card-text v-if="configLoading" class="text-center text-medium-emphasis py-8">加载中...</v-card-text>
-      <v-card-text v-else-if="configDetail" class="pa-4">
-        <v-table density="compact">
-          <tbody>
-            <tr v-for="row in configDetail" :key="row.label">
-              <td class="text-body-2 text-medium-emphasis" style="width: 200px;">{{ row.label }}</td>
-              <td class="text-body-2">{{ row.value }}</td>
-            </tr>
-          </tbody>
-        </v-table>
+      <v-card-text v-else-if="configData">
+        <v-tabs v-model="configTab" bg-color="surface" class="mb-2">
+          <v-tab value="model">模型配置</v-tab>
+          <v-tab value="features">特征配置</v-tab>
+        </v-tabs>
+        <v-window v-model="configTab">
+          <v-window-item value="model">
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-information-outline</v-icon> 基本信息
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">名称</span><br />{{ configData.name || '-' }}</v-col>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">模型类型</span><br />{{ configData.model_type || '-' }}</v-col>
+                  <v-col cols="6" class="py-1"><span class="text-caption text-medium-emphasis">创建时间</span><br />{{ configData.created_at ? new Date(configData.created_at).toLocaleString() : '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-tune</v-icon> 训练参数
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">分类周期</span><br />{{ configData.classification_horizons?.join(', ') || '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">标签模式</span><br />{{ configData.label_mode || '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">验证集比例</span><br />{{ configData.val_size ?? '-' }}</v-col>
+                </v-row>
+                <v-divider class="my-2" />
+                <div class="text-caption text-medium-emphasis mb-1">阈值</div>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">3d</span><br />{{ configData.classification_threshold_3d ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">5d</span><br />{{ configData.classification_threshold_5d ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">10d</span><br />{{ configData.classification_threshold_10d ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card v-if="configData.model_type === 'xgboost'" variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-chart-line</v-icon> XGB 参数
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Learning Rate</span><br />{{ configData.xgb_learning_rate ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Max Depth</span><br />{{ configData.xgb_max_depth ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Subsample</span><br />{{ configData.xgb_subsample ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Colsample By Tree</span><br />{{ configData.xgb_colsample_bytree ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Min Child Weight</span><br />{{ configData.xgb_min_child_weight ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">N Estimators</span><br />{{ configData.xgb_n_estimators ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card v-if="configData.model_type === 'lstm'" variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-neural</v-icon> LSTM 参数
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Hidden Size</span><br />{{ configData.lstm_hidden_size ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Num Layers</span><br />{{ configData.lstm_num_layers ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Dropout</span><br />{{ configData.lstm_dropout ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Epochs</span><br />{{ configData.lstm_epochs ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Batch Size</span><br />{{ configData.lstm_batch_size ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Learning Rate</span><br />{{ configData.lstm_learning_rate ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Sequence Length</span><br />{{ configData.lstm_sequence_length ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Norm Window</span><br />{{ configData.lstm_normalization_window ?? '-' }}</v-col>
+                  <v-col cols="4" class="py-1"><span class="text-caption text-medium-emphasis">Weight Decay</span><br />{{ configData.lstm_weight_decay ?? '-' }}</v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+          </v-window-item>
+
+          <v-window-item value="features">
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-chart-timeline-variant</v-icon> 特征字段
+                <v-chip size="small" variant="flat" color="primary" class="ml-2">{{ configData.feature_fields?.length || 0 }} 个</v-chip>
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <template v-if="configData.feature_fields?.length">
+                  <div class="text-caption text-medium-emphasis mb-1">日线基础字段</div>
+                  <div class="d-flex flex-wrap ga-1 mb-3">
+                    <v-chip v-for="f in configData.feature_fields.filter(isBasicField)" :key="f" size="x-small" variant="flat" color="indigo">{{ f }}</v-chip>
+                    <span v-if="!configData.feature_fields.filter(isBasicField).length" class="text-caption text-disabled">无</span>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mb-1">技术指标字段</div>
+                  <div class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="f in configData.feature_fields.filter(f => !isBasicField(f))" :key="f" size="x-small" variant="flat" color="teal">{{ f }}</v-chip>
+                    <span v-if="!configData.feature_fields.filter(f => !isBasicField(f)).length" class="text-caption text-disabled">无</span>
+                  </div>
+                </template>
+                <div v-else class="text-caption text-disabled">无特征字段配置</div>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-ruler-square-compass</v-icon> 标准化字段
+                <v-chip size="small" variant="flat" color="orange" class="ml-2">{{ configData.standardize_fields?.length || 0 }} 个</v-chip>
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <template v-if="configData.standardize_fields?.length">
+                  <div class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="f in configData.standardize_fields" :key="f" size="x-small" variant="flat" color="orange">{{ f }}</v-chip>
+                  </div>
+                </template>
+                <div v-else class="text-caption text-disabled">无配置</div>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mb-4">
+              <v-card-title class="text-subtitle-1 d-flex align-center">
+                <v-icon start>mdi-alpha-x-circle-outline</v-icon> 去极值字段
+                <v-chip size="small" variant="flat" color="deep-purple" class="ml-2">{{ configData.winsorize_fields?.length || 0 }} 个</v-chip>
+              </v-card-title>
+              <v-divider />
+              <v-card-text>
+                <template v-if="configData.winsorize_fields?.length">
+                  <div class="d-flex flex-wrap ga-1">
+                    <v-chip v-for="f in configData.winsorize_fields" :key="f" size="x-small" variant="flat" color="deep-purple">{{ f }}</v-chip>
+                  </div>
+                </template>
+                <div v-else class="text-caption text-disabled">无配置</div>
+              </v-card-text>
+            </v-card>
+          </v-window-item>
+        </v-window>
       </v-card-text>
       <v-card-text v-else class="text-center text-medium-emphasis py-8">无法加载配置</v-card-text>
     </v-card>
@@ -262,7 +391,7 @@
 import { ref, onMounted, watch, computed, nextTick, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import { trainingRecordApi, type Training, type TrainingDetail } from '@/api/trainingRecord'
-import { modelConfigApi } from '@/api/modelConfig'
+import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 import AnalysisDetailDialog from '@/components/AnalysisDetailDialog.vue'
 import type { AnalysisResult } from '@/api/dataAnalysis'
 
@@ -284,7 +413,18 @@ const error = ref('')
 const configDialog = ref(false)
 const configLoading = ref(false)
 const configItem = ref<Training | null>(null)
-const configDetail = ref<{ label: string; value: string }[] | null>(null)
+const configData = ref<ModelConfig | null>(null)
+const configTab = ref('model')
+
+const BASIC_FIELD_NAMES = new Set([
+  'open', 'high', 'low', 'close', 'vol', 'amount',
+  'pct_chg',
+  'week_open', 'week_high', 'week_low', 'week_close',
+  'week_vol_avg', 'week_amount_avg',
+  'candle_body_pct', 'candle_upper_pct', 'candle_lower_pct',
+])
+
+const isBasicField = (name: string) => BASIC_FIELD_NAMES.has(name)
 
 const classDistChartRef = ref<HTMLDivElement | null>(null)
 const lossChartRef = ref<HTMLDivElement | null>(null)
@@ -404,47 +544,14 @@ const confirmDelete = (item: Training) => {
 const openConfigDialog = async (item: Training) => {
   configItem.value = item
   configLoading.value = true
+  configTab.value = 'model'
   configDialog.value = true
-  configDetail.value = null
+  configData.value = null
   try {
     const res = await modelConfigApi.get(item.config_id)
-    const c = res.data
-    const rows: { label: string; value: string }[] = [
-      { label: '模型类型', value: c.model_type },
-      { label: '分类周期', value: c.classification_horizons?.join(', ') || '-' },
-      { label: '标签模式', value: c.label_mode },
-      { label: '阈值 3d', value: c.classification_threshold_3d?.toString() },
-      { label: '阈值 5d', value: c.classification_threshold_5d?.toString() },
-      { label: '阈值 10d', value: c.classification_threshold_10d?.toString() },
-    ]
-    if (c.model_type === 'xgboost') {
-      rows.push(
-        { label: 'XGB 学习率', value: c.xgb_learning_rate?.toString() },
-        { label: 'XGB 最大深度', value: c.xgb_max_depth?.toString() },
-        { label: 'XGB 子采样', value: c.xgb_subsample?.toString() },
-        { label: 'XGB 列采样', value: c.xgb_colsample_bytree?.toString() },
-        { label: 'XGB 最小子节点权重', value: c.xgb_min_child_weight?.toString() },
-        { label: 'XGB 树数量', value: c.xgb_n_estimators?.toString() },
-      )
-    } else if (c.model_type === 'lstm') {
-      rows.push(
-        { label: 'LSTM 隐藏层大小', value: c.lstm_hidden_size?.toString() },
-        { label: 'LSTM 层数', value: c.lstm_num_layers?.toString() },
-        { label: 'LSTM Dropout', value: c.lstm_dropout?.toString() },
-        { label: 'LSTM 学习率', value: c.lstm_learning_rate?.toString() },
-        { label: 'LSTM 权重衰减', value: c.lstm_weight_decay?.toString() },
-        { label: 'LSTM Epochs', value: c.lstm_epochs?.toString() },
-        { label: 'LSTM 批大小', value: c.lstm_batch_size?.toString() },
-        { label: 'LSTM 序列长度', value: c.lstm_sequence_length?.toString() },
-        { label: 'LSTM 归一化窗口', value: c.lstm_normalization_window?.toString() },
-      )
-    }
-    rows.push(
-      { label: '验证集比例', value: c.val_size?.toString() },
-    )
-    configDetail.value = rows
+    configData.value = res.data
   } catch {
-    configDetail.value = null
+    configData.value = null
   } finally {
     configLoading.value = false
   }
