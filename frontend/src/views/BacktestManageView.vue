@@ -270,6 +270,10 @@ const runBacktest = async () => {
       throw new Error('请先选择账户配置')
     }
 
+    if (currentMode.value === 'single' && !form.value.ts_codes) {
+      throw new Error('请先选择股票')
+    }
+
     await backtestApi.run({
       training_id: form.value.training_id,
       account_config_id: form.value.account_config_id,
@@ -277,6 +281,9 @@ const runBacktest = async () => {
       end_date: formatDateInput(form.value.end_date),
       name: form.value.name || `backtest_${formatDateTime()}`,
       mode: currentMode.value,
+      top_n: currentMode.value !== 'single' ? form.value.top_n : undefined,
+      ts_codes: currentMode.value === 'single' ? [form.value.ts_codes] : undefined,
+      strategy_config_id: form.value.strategy_config_id || undefined,
     })
     startPolling()
 
