@@ -207,13 +207,13 @@ async def get_pnl_details(result_id: str):
             "_id": "$ts_code",
             "total_pnl_amount": {"$sum": "$pnl_amount"},
             "profit_trades": {"$sum": {"$cond": [{"$gt": ["$pnl_amount", 0]}, 1, 0]}},
-            "loss_trades": {"$sum": {"$cond": [{"$lt": ["$pnl_amount", 0]}, 1, 0]}},
+            "loss_trades": {"$sum": {"$cond": [{"$lte": ["$pnl_amount", 0]}, 1, 0]}},
             "total_sells": {"$sum": 1},
             "total_profit_amount": {
                 "$sum": {"$cond": [{"$gt": ["$pnl_amount", 0]}, "$pnl_amount", 0]}
             },
             "total_loss_amount": {
-                "$sum": {"$cond": [{"$lt": ["$pnl_amount", 0]}, "$pnl_amount", 0]}
+                "$sum": {"$cond": [{"$lte": ["$pnl_amount", 0]}, "$pnl_amount", 0]}
             },
         }},
     ]

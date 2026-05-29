@@ -448,6 +448,7 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
 const viewResult = (item: Backtest) => {
   selectedResult.value = item
   resultDialog.value = true
+  resultTab.value = 'overview'
   nextTick(() => loadPnlDetails(item.id))
 }
 
@@ -549,7 +550,10 @@ const loadPnlDetails = async (resultId: string) => {
     const res = await backtestRecordApi.getPnlDetails(resultId)
     pnlDetails.value = res.data.items
     pnlSummary.value = res.data.summary
-    nextTick(() => renderCharts())
+    if (resultTab.value === 'pnl') {
+      await nextTick()
+      renderCharts()
+    }
   } catch {
     pnlDetails.value = []
     pnlSummary.value = null
