@@ -75,10 +75,6 @@ class MultiStockStrategy(PositionManager):
         for ts_code, pos in current_positions.items():
             if self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices):
                 sell_price = close_prices.get(ts_code, pos.buy_price) if close_prices else pos.buy_price
-                sell_value = sell_price * pos.shares
-                sell_fee = max(sell_value * self.account_config.sell_fee_rate, self.account_config.min_fee)
-                stamp_tax = sell_value * self.account_config.stamp_tax_rate
-                cash_available += sell_value - sell_fee - stamp_tax
                 orders.append(PendingOrder(
                     ts_code=pos.ts_code,
                     stock_name=pos.stock_name,
@@ -155,13 +151,13 @@ class MultiStockStrategy(PositionManager):
             shares = 100
 
         total_cost = shares * price
-        fee = max(total_cost * fee_rate, self.account_config.min_fee)
+        fee = self.calc_buy_fee(total_cost, fee_rate, self.account_config.min_fee)
         if total_cost + fee > cash:
             shares = int((cash - self.account_config.min_fee) / price / 100) * 100
             if shares < 100:
                 return None
             total_cost = shares * price
-            fee = max(total_cost * fee_rate, self.account_config.min_fee)
+            fee = self.calc_buy_fee(total_cost, fee_rate, self.account_config.min_fee)
             if total_cost + fee > cash:
                 return None
 

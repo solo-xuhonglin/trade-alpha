@@ -55,17 +55,12 @@ class SingleStockStrategy(PositionManager):
         logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, score={target_stock.score:.3f}")
 
         orders: List[PendingOrder] = []
-        cash_available = cash
         current_position = current_positions.get(self.target_ts_code)
 
         if current_position:
             if self._should_sell(target_stock, current_position, close_prices):
                 logger.debug(f"{trade_date} - Selling {self.target_ts_code}")
                 sell_price = close_prices.get(self.target_ts_code, current_position.buy_price) if close_prices else current_position.buy_price
-                sell_value = sell_price * current_position.shares
-                sell_fee = max(sell_value * self.account_config.sell_fee_rate, self.account_config.min_fee)
-                stamp_tax = sell_value * self.account_config.stamp_tax_rate
-                cash_available += sell_value - sell_fee - stamp_tax
                 orders.append(PendingOrder(
                     ts_code=current_position.ts_code,
                     stock_name=current_position.stock_name,
@@ -77,11 +72,11 @@ class SingleStockStrategy(PositionManager):
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
                 ))
-                current_position = None
+                return orders
 
         if not current_position and self._should_buy(target_stock):
             logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
-            buy_order = self._allocate_buy(cash_available, target_stock, trade_date)
+            buy_order = self._allocate_buy(cash, target_stock, trade_date)
             if buy_order is not None:
                 orders.append(buy_order)
 
@@ -129,13 +124,13 @@ class SingleStockStrategy(PositionManager):
             shares = 100
 
         total_cost = shares * price
-        fee = max(total_cost * fee_rate, self.account_config.min_fee)
+        fee = self.calc_buy_fee(total_cost, fee_rate, self.account_config.min_fee)
         if total_cost + fee > cash:
             shares = int((cash - self.account_config.min_fee) / price / 100) * 100
             if shares < 100:
                 return None
             total_cost = shares * price
-            fee = max(total_cost * fee_rate, self.account_config.min_fee)
+            fee = self.calc_buy_fee(total_cost, fee_rate, self.account_config.min_fee)
             if total_cost + fee > cash:
                 return None
 

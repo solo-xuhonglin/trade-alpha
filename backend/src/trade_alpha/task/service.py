@@ -105,8 +105,10 @@ class TaskService:
         logger.info(f"Task deleted: {task_id}")
 
     @staticmethod
-    async def update_progress(task_id: PydanticObjectId, progress: float, message: str) -> None:
-        """Update task progress atomically."""
+    async def update_progress(task_id: Optional[PydanticObjectId], progress: float, message: str) -> None:
+        """Update task progress atomically. No-op if task_id is None."""
+        if task_id is None:
+            return
         await Task.find_one(Task.id == task_id).update(
             {"$set": {"progress": progress, "progress_message": message}}
         )

@@ -205,10 +205,18 @@ class ExecutionPipeline:
                               name_map: Dict[str, str], day_data: Dict) -> Tuple[int, float]:
         if not self.pending_orders:
             return 0, 0.0
+
+        for order in self.pending_orders:
+            if order.order_shares > 0:
+                cost = order.order_price * order.order_shares
+                fee = PositionManager.calc_buy_fee(cost, self.account_config.buy_fee_rate, self.account_config.min_fee)
+                self.cash += cost + fee
+
         filled_trades, unfilled_orders, net_cash = await self.strategy.settle_orders(
             orders=self.pending_orders, date=date,
             open_prices=day_data["open"], high_prices=day_data["high"],
             low_prices=day_data["low"], backtest_id=backtest_id,
+            cash=self.cash,
         )
         self.cash += net_cash
         all_trades = filled_trades + [
@@ -281,6 +289,10 @@ class ExecutionPipeline:
         for order in pending_orders:
             order.trade_date = date
             order.settle_date = _next_date(date)
+            if order.order_shares > 0:
+                cost = order.order_price * order.order_shares
+                fee = PositionManager.calc_buy_fee(cost, self.account_config.buy_fee_rate, self.account_config.min_fee)
+                self.cash -= cost + fee
         self.pending_orders = pending_orders
 
     async def _save_snapshot(self, date: str, backtest_id: PydanticObjectId,
@@ -351,11 +363,12 @@ class ExecutionPipeline:
                 date = _next_date(date)
                 continue
 
-            await self._make_orders(scored, close_prices, date)
             day_val, day_ret = await self._save_snapshot(date, backtest_id, close_prices, pred_results)
             daily_values.append(day_val)
             if day_ret is not None:
                 daily_returns.append(day_ret)
+
+            await self._make_orders(scored, close_prices, date)
 
             date = _next_date(date)
 

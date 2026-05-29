@@ -50,6 +50,11 @@ class PositionManager:
         raise NotImplementedError("Subclasses must implement make_decisions")
 
     @staticmethod
+    def calc_buy_fee(cost: float, fee_rate: float, min_fee: float) -> float:
+        """Calculate buy fee as cost * fee_rate, floored by min_fee."""
+        return max(cost * fee_rate, min_fee)
+
+    @staticmethod
     def match_order(order: PendingOrder, open_px: float, high_px: float, low_px: float) -> Optional[float]:
         """Match a pending order against next day's OHLC. Returns matched price or None."""
         if order.order_shares > 0:  # Buy - 限价买入，价格需不高于 order_price
@@ -73,13 +78,21 @@ class PositionManager:
         high_prices: Dict[str, float],
         low_prices: Dict[str, float],
         backtest_id: Optional[PydanticObjectId] = None,
+        cash: Optional[float] = None,
     ) -> Tuple[List[ExecutionTrade], List[PendingOrder], float]:
-        """Settle pending orders using T+1 OHLC matching."""
+        """Settle pending orders using T+1 OHLC matching.
+
+        Processes sell orders first to increase available cash, then processes buy
+        orders with a cash sufficiency check to prevent negative cash balance.
+        """
         filled_trades: List[ExecutionTrade] = []
         unfilled_orders: List[PendingOrder] = []
         net_cash_change = 0.0
 
-        for order in orders:
+        sell_orders = [o for o in orders if o.order_shares < 0]
+        buy_orders = [o for o in orders if o.order_shares > 0]
+
+        for order in sell_orders + buy_orders:
             open_px = open_prices.get(order.ts_code)
             high_px = high_prices.get(order.ts_code)
             low_px = low_prices.get(order.ts_code)
@@ -96,8 +109,12 @@ class PositionManager:
             action = "buy" if order.order_shares > 0 else "sell"
 
             if action == "buy":
-                fee = max(matched_price * shares * self.account_config.buy_fee_rate, self.account_config.min_fee)
-                cash_after = -matched_price * shares - fee
+                fee = self.calc_buy_fee(matched_price * shares, self.account_config.buy_fee_rate, self.account_config.min_fee)
+                cost = matched_price * shares + fee
+                if cash is not None and cash + net_cash_change < cost:
+                    unfilled_orders.append(order)
+                    continue
+                cash_after = -cost
             else:
                 fee = max(matched_price * shares * self.account_config.sell_fee_rate, self.account_config.min_fee)
                 stamp_tax = matched_price * shares * self.account_config.stamp_tax_rate
@@ -214,7 +231,8 @@ class PositionManager:
 
         cumulative_return = float(np.prod(1 + returns) - 1)
         n_days = len(returns)
-        annual_return = (1 + cumulative_return) ** (TRADING_DAYS / n_days) - 1 if n_days > 0 else 0.0
+        total_return_factor = max(1 + cumulative_return, 0)
+        annual_return = total_return_factor ** (TRADING_DAYS / n_days) - 1 if n_days > 0 else 0.0
 
         return {
             "sharpe_ratio": float(sharpe_ratio),
