@@ -226,7 +226,7 @@ class PositionManager:
         std_return = np.std(returns)
 
         daily_rf = RISK_FREE_RATE / TRADING_DAYS
-        sharpe_ratio = (mean_return - daily_rf) / std_return if std_return > 0 else 0.0
+        sharpe_ratio = (mean_return - daily_rf) / std_return * np.sqrt(TRADING_DAYS) if std_return > 0 else 0.0
         volatility = std_return * np.sqrt(TRADING_DAYS)
 
         cumulative_return = float(np.prod(1 + returns) - 1)
@@ -284,7 +284,7 @@ class PositionManager:
         mean_return = np.mean(returns)
         std_return = np.std(returns)
         daily_rf = RISK_FREE_RATE / TRADING_DAYS
-        baseline_sharpe_ratio = (mean_return - daily_rf) / std_return if std_return > 0 else 0.0
+        baseline_sharpe_ratio = (mean_return - daily_rf) / std_return * np.sqrt(TRADING_DAYS) if std_return > 0 else 0.0
         baseline_volatility = std_return * np.sqrt(TRADING_DAYS)
 
         n_days = len(daily_prices)
