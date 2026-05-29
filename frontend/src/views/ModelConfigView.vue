@@ -133,7 +133,44 @@
 
               <template v-if="form.model_type === 'lstm'">
                 <v-divider class="my-4"></v-divider>
-                <div class="text-subtitle-2 text-medium-emphasis mb-2">LSTM 超参数</div>
+                <div class="text-subtitle-2 text-medium-emphasis mb-2">训练控制</div>
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_epochs" label="epochs" type="number" hint="最大训练轮数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.early_stopping_patience" label="early_stopping_patience" type="number" hint="验证 AUC 不提升时提前停止的轮数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number" hint="每批训练样本数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.val_size" label="val_size" type="number" step="0.05" hint="验证集比例（按日期划分）" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.label_smoothing" label="label_smoothing" type="number" step="0.05" hint="标签平滑系数，防止过拟合（0=不启用）" persistent-hint></v-text-field>
+                  </v-col>
+                </v-row>
+
+                <v-divider class="my-4"></v-divider>
+                <div class="text-subtitle-2 text-medium-emphasis mb-2">学习率调度</div>
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.0001" hint="学习率" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lr_scheduler_factor" label="lr_scheduler_factor" type="number" step="0.1" hint="验证 AUC 停滞时学习率衰减因子" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lr_scheduler_patience" label="lr_scheduler_patience" type="number" hint="学习率调度器等待轮数" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field v-model.number="form.lstm_weight_decay" label="weight_decay" type="number" step="0.0001" hint="L2 正则化系数" persistent-hint></v-text-field>
+                  </v-col>
+                </v-row>
+
+                <v-divider class="my-4"></v-divider>
+                <div class="text-subtitle-2 text-medium-emphasis mb-2">网络结构</div>
                 <v-row>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_hidden_size" label="hidden_size" type="number" hint="隐藏层维度，控制模型容量" persistent-hint></v-text-field>
@@ -144,35 +181,16 @@
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_dropout" label="dropout" type="number" step="0.1" hint="Dropout 比例，防止过拟合" persistent-hint></v-text-field>
                   </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_weight_decay" label="weight_decay" type="number" step="0.0001" hint="L2 正则化系数" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_learning_rate" label="learning_rate" type="number" step="0.0001" hint="学习率" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lr_scheduler_factor" label="lr_scheduler_factor" type="number" step="0.1" hint="验证 AUC 停滞时学习率衰减因子" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_epochs" label="epochs" type="number" hint="最大训练轮数" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number" hint="每批训练样本数" persistent-hint></v-text-field>
-                  </v-col>
+                </v-row>
+
+                <v-divider class="my-4"></v-divider>
+                <div class="text-subtitle-2 text-medium-emphasis mb-2">数据窗口</div>
+                <v-row>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_sequence_length" label="sequence_length" type="number" hint="输入序列长度（天数）" persistent-hint></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_normalization_window" label="normalization_window" type="number" hint="标准化统计窗口（天数）" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.lr_scheduler_patience" label="lr_scheduler_patience" type="number" hint="学习率调度器等待轮数" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.early_stopping_patience" label="early_stopping_patience" type="number" hint="验证 AUC 不提升时停止的轮数" persistent-hint></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field v-model.number="form.val_size" label="val_size" type="number" step="0.05" hint="验证集比例（按日期划分）" persistent-hint></v-text-field>
                   </v-col>
                 </v-row>
               </template>
@@ -266,6 +284,7 @@ const defaultForm = {
   lr_scheduler_factor: 0.5,
   lr_scheduler_patience: 3,
   val_size: 0.2,
+  label_smoothing: 0.1,
   early_stopping_patience: 10,
 }
 
@@ -322,6 +341,7 @@ const lstmRecommendedParams = {
   lr_scheduler_factor: 0.5,
   lr_scheduler_patience: 3,
   val_size: 0.2,
+  label_smoothing: 0.1,
   early_stopping_patience: 10,
 }
 
@@ -383,6 +403,7 @@ const openDialog = (item?: ModelConfig) => {
       lr_scheduler_factor: (item as any).lr_scheduler_factor ?? 0.5,
       lr_scheduler_patience: (item as any).lr_scheduler_patience ?? 3,
       val_size: (item as any).val_size ?? 0.2,
+      label_smoothing: (item as any).label_smoothing ?? 0.1,
       early_stopping_patience: (item as any).early_stopping_patience || 10,
     }
   } else {
