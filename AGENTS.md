@@ -196,7 +196,9 @@ cd backend
 
 #### 前端 E2E
 
-Python 3.14+ 全局安装，依赖 playwright：
+Python 3.14+ 全局安装，playwright 和依赖已全局安装，无需重复安装。
+
+如需首次安装：
 
 ```bash
 pip install playwright pytest-playwright
