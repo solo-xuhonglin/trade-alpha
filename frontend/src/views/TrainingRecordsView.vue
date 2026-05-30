@@ -516,17 +516,21 @@ const confirmDelete = (item: Training) => {
 
 const openConfigDialog = async (item: Training) => {
   configItem.value = item
-  configLoading.value = true
   configTab.value = 'model'
   configDialog.value = true
-  configData.value = null
-  try {
-    const res = await modelConfigApi.get(item.config_id)
-    configData.value = res.data
-  } catch {
+  if (item.model_snapshot) {
+    configData.value = item.model_snapshot as any
+  } else {
+    configLoading.value = true
     configData.value = null
-  } finally {
-    configLoading.value = false
+    try {
+      const res = await modelConfigApi.get(item.config_id)
+      configData.value = res.data
+    } catch {
+      configData.value = null
+    } finally {
+      configLoading.value = false
+    }
   }
 }
 

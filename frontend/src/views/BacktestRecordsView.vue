@@ -84,6 +84,7 @@
         <div v-if="selectedResult">
           <v-tabs v-model="resultTab" color="primary">
             <v-tab value="overview">概览</v-tab>
+            <v-tab value="explosion">暴涨排除</v-tab>
             <v-tab value="pnl">盈亏分析</v-tab>
           </v-tabs>
 
@@ -157,7 +158,24 @@
               </v-table>
             </v-window-item>
 
-            <v-window-item value="pnl">
+          <v-window-item value="explosion">
+            <div v-if="excludedLoading" class="text-center text-medium-emphasis py-8">加载中...</div>
+            <div v-else-if="excludedStocks.length === 0" class="text-center text-medium-emphasis py-8">无暴涨排除记录</div>
+            <v-data-table v-else :headers="excludedHeaders" :items="excludedStocks" density="compact"
+              hide-default-footer items-per-page="-1" class="mt-2"
+              @click:row="(_, { item }) => toggleExcludedDetail(item)" style="cursor: pointer;">
+              <template v-slot:item.excluded_dates="{ item }">
+                <div v-if="item._detail">
+                  <div v-for="d in item.excluded_dates" :key="d.date" class="text-caption">
+                    {{ d.date }} 涨 {{ (d.price_surge_pct * 100).toFixed(1) }}% 量比 {{ d.volume_ratio.toFixed(1) }}x
+                  </div>
+                </div>
+                <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.excluded_count }} 次)</span>
+              </template>
+            </v-data-table>
+          </v-window-item>
+
+          <v-window-item value="pnl">
               <div v-if="pnlLoading" class="text-center text-medium-emphasis py-8">加载中...</div>
               <div v-else-if="!pnlSummary" class="text-center text-medium-emphasis py-8">暂无盈亏数据</div>
               <div v-else>
@@ -493,6 +511,8 @@ const backtestConfigTab = ref('model')
 const backtestConfigItem = ref<Backtest | null>(null)
 const backtestModelConfig = ref<Record<string, any> | null>(null)
 const backtestStrategyConfig = ref<Partial<Strategy> | null>(null)
+const excludedStocks = ref<any[]>([])
+const excludedLoading = ref(false)
 let amountChart: echarts.ECharts | null = null
 let countChart: echarts.ECharts | null = null
 
@@ -542,6 +562,12 @@ const tradesHeaders = [
   { title: '现金', key: 'cash_after' },
 ]
 
+const excludedHeaders = [
+  { title: '股票', key: 'stock_name' },
+  { title: '排除次数', key: 'excluded_count', align: 'center' as const },
+  { title: '排除明细（点击展开）', key: 'excluded_dates' },
+]
+
 const loadBacktests = async () => {
   loading.value = true
   const res = await backtestRecordApi.list(page.value, pageSize.value)
@@ -560,16 +586,19 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
   tradesPage.value = options.page
   tradesPageSize.value = options.itemsPerPage
   loadTrades()
-}
+  }
 
-const viewResult = (item: Backtest) => {
-  selectedResult.value = item
-  resultDialog.value = true
-  resultTab.value = 'overview'
-  nextTick(() => loadPnlDetails(item.id))
-}
+  const viewResult = (item: Backtest) => {
+    selectedResult.value = item
+    resultDialog.value = true
+    resultTab.value = 'overview'
+    nextTick(() => {
+      loadPnlDetails(item.id)
+      loadExcludedStocks(item.id)
+    })
+  }
 
-const openBacktestConfig = (item: Backtest) => {
+  const openBacktestConfig = (item: Backtest) => {
   backtestConfigItem.value = item
   backtestConfigTab.value = 'model'
   backtestModelConfig.value = item.model_snapshot ? { ...item.model_snapshot } : null
@@ -622,7 +651,23 @@ const deleteBacktest = async () => {
   loadingDelete.value = false
 }
 
-const loadPnlDetails = async (resultId: string) => {
+const toggleExcludedDetail = (item: any) => {
+  item._detail = !item._detail
+}
+
+const loadExcludedStocks = async (resultId: string) => {
+  excludedLoading.value = true
+  try {
+    const res = await backtestRecordApi.getExcludedStocks(resultId)
+    excludedStocks.value = res.data.items.map((s: any) => ({ ...s, _detail: false }))
+  } catch {
+    excludedStocks.value = []
+  } finally {
+    excludedLoading.value = false
+  }
+}
+
+const loadPnlDetails = async (backtestId: string) => {
   pnlLoading.value = true
   try {
     const res = await backtestRecordApi.getPnlDetails(resultId)

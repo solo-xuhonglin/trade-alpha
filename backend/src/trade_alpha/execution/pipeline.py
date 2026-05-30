@@ -21,6 +21,7 @@ from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.dao.position import PositionEmbed
+from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.logging import get_logger
 from trade_alpha.utils.date_utils import get_year_months
 
@@ -82,6 +83,7 @@ class ExecutionPipeline:
         self.prev_total_value: Optional[float] = None
         self.pending_orders: List[PendingOrder] = []
         self._score_buffer: Dict[str, List[float]] = {}  # ts_code -> EWMA history
+        self._score_buffer_momentum: Dict[str, List[float]] = {}  # ts_code -> momentum window
 
     def _smooth_scores(self, pred_results: Dict[str, Dict]) -> None:
         """Apply EWMA smoothing to scores in-place on pred_results.
@@ -110,6 +112,89 @@ class ExecutionPipeline:
         scored_sorted = sorted(scored, key=lambda s: s.score, reverse=True)
         for rank, stock in enumerate(scored_sorted, start=1):
             pred_results[stock.ts_code]["rank"] = rank
+
+    def _apply_momentum_boost(self, pred_results: Dict[str, Dict]) -> None:
+        """Apply momentum boost to ranking score based on positive score consistency.
+
+        Maintains a buffer per stock of the last N smoothed scores.
+        composite_score = score + positive_ratio * max_momentum_bonus.
+        Only applied when strategy config has use_momentum_boost=True.
+        """
+        if not self.strategy_config or not self.strategy_config.use_momentum_boost:
+            for ts_code, r in pred_results.items():
+                r["raw_score"] = r["score"]
+                r["composite_score"] = r["score"]
+                r["momentum_bonus"] = 0.0
+            return
+
+        window = self.strategy_config.momentum_window
+        max_bonus = self.strategy_config.max_momentum_bonus
+
+        for ts_code, r in pred_results.items():
+            raw = r["score"]
+            buf = self._score_buffer_momentum.setdefault(ts_code, [])
+            buf.append(raw)
+            if len(buf) > window:
+                buf.pop(0)
+
+            r["raw_score"] = raw
+
+            if len(buf) >= window:
+                positive_count = sum(1 for v in buf if v > 0)
+                ratio = positive_count / window
+                bonus = ratio * max_bonus
+                r["score"] = raw + bonus
+                r["composite_score"] = raw + bonus
+                r["momentum_bonus"] = bonus
+            else:
+                r["composite_score"] = raw
+                r["momentum_bonus"] = 0.0
+
+    async def _filter_explosions(self, pred_results: Dict[str, Dict],
+                                  trade_date: str) -> None:
+        """Mark stocks with price+volume explosion as excluded.
+
+        Uses the predictions dict to mark is_excluded flags.
+        Only applied when strategy config has use_explosion_filter=True.
+        """
+        if not self.strategy_config or not self.strategy_config.use_explosion_filter:
+            for r in pred_results.values():
+                r["is_excluded"] = False
+            return
+
+        threshold = self.strategy_config.explosion_price_threshold
+        volume_ratio_threshold = self.strategy_config.explosion_volume_ratio
+        window = self.strategy_config.explosion_window
+
+        for ts_code, r in pred_results.items():
+            close = r.get("close", 0)
+            if close <= 0:
+                r["is_excluded"] = False
+                continue
+
+            records = await StockDaily.find(
+                StockDaily.ts_code == ts_code,
+                StockDaily.trade_date < trade_date,
+            ).sort(-StockDaily.trade_date).limit(window + 1).to_list()
+
+            if len(records) < window + 1:
+                r["is_excluded"] = False
+                continue
+
+            closes = [rec.close for rec in records[:window]]
+            vols = [rec.vol for rec in records[:window]]
+            current_vol = records[0].vol
+
+            avg_close = sum(closes) / len(closes) if closes else close
+            avg_vol = sum(vols) / len(vols) if vols else 1
+
+            price_surge = (close / avg_close) - 1
+            vol_ratio = current_vol / avg_vol if avg_vol > 0 else 1
+
+            is_excluded = price_surge > threshold and vol_ratio > volume_ratio_threshold
+            r["is_excluded"] = is_excluded
+            r["price_surge_pct"] = price_surge
+            r["volume_ratio"] = vol_ratio
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -265,11 +350,14 @@ class ExecutionPipeline:
         if not pred_results:
             return [], {}
         self._smooth_scores(pred_results)
+        self._apply_momentum_boost(pred_results)
+        await self._filter_explosions(pred_results, date)
         scored = [
             ScoredStock(
                 ts_code=ts_code, stock_name=name_map.get(ts_code, ts_code),
                 close=r["close"], up_prob_3d=r["up_prob_3d"],
                 up_prob_5d=r["up_prob_5d"], score=r["score"],
+                is_excluded=r.get("is_excluded", False),
             ) for ts_code, r in pred_results.items()
         ]
         self._record_ranks(scored, pred_results)

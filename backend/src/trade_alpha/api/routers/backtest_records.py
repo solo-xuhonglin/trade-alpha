@@ -358,6 +358,10 @@ async def get_stock_predictions(result_id: str, ts_code: str):
             item = {
                 "trade_date": snap.date,
                 "score": pred.get("score"),
+                "raw_score": pred.get("raw_score"),
+                "composite_score": pred.get("composite_score"),
+                "momentum_bonus": pred.get("momentum_bonus"),
+                "is_excluded": pred.get("is_excluded", False),
             }
             for h in horizons:
                 item[f"up_prob_{h}d"] = pred.get(f"up_prob_{h}d")
@@ -402,6 +406,56 @@ async def get_stock_predictions(result_id: str, ts_code: str):
         "end_date": items[-1]["trade_date"] if items else None,
         "items": items,
     }
+
+
+@router.get("/{result_id}/excluded-stocks")
+async def get_excluded_stocks(result_id: str):
+    """Get explosion filter statistics for a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    from trade_alpha.dao.mongodb import get_database
+    from trade_alpha.dao.stock_name_cache import get_stock_names
+
+    db = await get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    snapshots = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(ExecutionDailySnapshot.date).to_list()
+
+    excluded_map: Dict[str, list] = {}
+    for snap in snapshots:
+        for ts_code, pred in snap.predictions.items():
+            if pred.get("is_excluded"):
+                if ts_code not in excluded_map:
+                    excluded_map[ts_code] = []
+                excluded_map[ts_code].append({
+                    "date": snap.date,
+                    "price_surge_pct": round(pred.get("price_surge_pct", 0), 4),
+                    "volume_ratio": round(pred.get("volume_ratio", 0), 2),
+                })
+
+    if not excluded_map:
+        return {"items": []}
+
+    ts_codes = list(excluded_map.keys())
+    name_map = await get_stock_names(ts_codes)
+
+    items = []
+    for ts_code, dates in excluded_map.items():
+        items.append({
+            "ts_code": ts_code,
+            "stock_name": name_map.get(ts_code, ts_code),
+            "excluded_count": len(dates),
+            "excluded_dates": dates,
+        })
+
+    items.sort(key=lambda x: x["excluded_count"], reverse=True)
+    return {"items": items}
 
 
 @router.get("/trades")

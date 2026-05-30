@@ -227,6 +227,37 @@ POST /api/indicators/macd
 }
 ```
 
+### 批量计算所有指标
+
+```
+POST /api/indicators/calculate-all
+```
+
+**请求体**:
+```json
+{
+  "ts_code": "000001.SZ",
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ts_code` | string | 是 | 股票代码 |
+| `start_date` | string | 否 | 开始日期 (YYYY-MM-DD 或 YYYYMMDD)，不传则计算全部历史 |
+| `end_date` | string | 否 | 结束日期，不传则计算到最新 |
+
+**响应**:
+```json
+{
+  "ts_code": "000001.SZ",
+  "updated_count": 242
+}
+```
+
+支持指定日期范围，增量更新时只计算新日期的指标，避免全量重算。
+
 ## 预测
 
 ### 获取预测结果
@@ -405,16 +436,23 @@ GET /api/trainings
     "id": "507f1f77bcf86cd799439012",
     "config_id": "507f1f77bcf86cd799439011",
     "name": "训练-2024",
+    "model_type": "lstm",
     "ts_codes": ["000001.SZ", "600000.SH"],
     "start_date": "2023-01-01",
     "end_date": "2023-12-31",
-    "metrics": {
-      "open_mse": 0.15,
-      "open_mae": 0.35,
-      "close_mse": 0.12,
-      "close_mae": 0.28,
-      "sample_count": 1000
-    }
+    "sample_count": 1000,
+    "accuracy_3d": 0.65,
+    "accuracy_5d": 0.72,
+    "accuracy_10d": 0.68,
+    "model_snapshot": {
+      "name": "lstm_config",
+      "model_type": "lstm",
+      "feature_fields": ["ma_5", "ma_10", "pct_chg"],
+      "classification_horizons": [3, 5, 10],
+      "lstm_hidden_size": 64,
+      "lstm_num_layers": 2
+    },
+    "created_at": "2024-01-01T00:00:00Z"
   }
 ]
 ```

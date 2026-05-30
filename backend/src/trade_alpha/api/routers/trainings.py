@@ -196,17 +196,13 @@ async def list_trainings(config_id: str = Query(None)):
         raise HTTPException(status_code=400, detail="Invalid config ID format")
 
     results = []
-    config_cache = {}
     for t in trainings:
-        cid = str(t.config_id)
-        if cid not in config_cache:
-            config = await training.get_config_by_id(t.config_id)
-            config_cache[cid] = config.model_type if config else None
+        model_snapshot = t.model_snapshot.model_dump() if t.model_snapshot else None
         results.append({
             "id": str(t.id),
             "config_id": str(t.config_id),
             "name": t.name,
-            "model_type": config_cache[cid],
+            "model_type": model_snapshot.get("model_type") if model_snapshot else None,
             "ts_codes": t.ts_codes,
             "start_date": to_api_format(t.start_date),
             "end_date": to_api_format(t.end_date),
@@ -214,9 +210,10 @@ async def list_trainings(config_id: str = Query(None)):
             "accuracy_3d": t.model_metrics.get("accuracy", {}).get("label_3d"),
             "accuracy_5d": t.model_metrics.get("accuracy", {}).get("label_5d"),
             "accuracy_10d": t.model_metrics.get("accuracy", {}).get("label_10d"),
+            "model_snapshot": model_snapshot,
             "created_at": t.created_at,
         })
-
+    
     return results
 
 
@@ -232,19 +229,18 @@ async def get_training(training_id: str):
     if not t:
         raise HTTPException(status_code=404, detail="Training not found")
     
-    # 获取配置以获取 model_type
-    config = await training.get_config_by_id(t.config_id)
-    model_type = config.model_type if config else None
+    model_snapshot = t.model_snapshot.model_dump() if t.model_snapshot else None
     
     return {
         "id": str(t.id),
         "config_id": str(t.config_id),
         "name": t.name,
-        "model_type": model_type,
+        "model_type": model_snapshot.get("model_type") if model_snapshot else None,
         "ts_codes": t.ts_codes,
         "start_date": to_api_format(t.start_date),
         "end_date": to_api_format(t.end_date),
         "model_metrics": t.model_metrics,
+        "model_snapshot": model_snapshot,
         "normalized_data_analysis": t.normalized_data_analysis,
         "created_at": t.created_at,
     }

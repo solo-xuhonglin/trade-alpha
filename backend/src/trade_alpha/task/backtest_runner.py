@@ -42,9 +42,7 @@ class BacktestRunner(BaseRunner):
 
             model_config = training_record.model_snapshot
             if not model_config:
-                model_config = await training_module.get_config_by_id(training_record.config_id)
-            if not model_config:
-                await TaskService.fail_task(self.task_id, f"Model config not found: {training_record.config_id}")
+                await TaskService.fail_task(self.task_id, f"Training result has no model snapshot: {params['training_id']}")
                 return
 
             strategy_config = None

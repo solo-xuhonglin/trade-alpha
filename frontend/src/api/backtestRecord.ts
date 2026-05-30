@@ -133,6 +133,19 @@ export interface PnlDetailResponse {
   summary: PnlDetailSummary
 }
 
+export interface ExcludedStockDate {
+  date: string
+  price_surge_pct: number
+  volume_ratio: number
+}
+
+export interface ExcludedStock {
+  ts_code: string
+  stock_name: string
+  excluded_count: number
+  excluded_dates: ExcludedStockDate[]
+}
+
 export const backtestRecordApi = {
   get: (id: string) => api.get<Backtest>(`/backtest/results/${id}`),
 
@@ -158,6 +171,9 @@ export const backtestRecordApi = {
 
   getPnlDetails: (id: string) =>
     api.get<PnlDetailResponse>(`/backtests/${id}/pnl-details`),
+
+  getExcludedStocks: (id: string) =>
+    api.get<{ items: ExcludedStock[] }>(`/backtests/${id}/excluded-stocks`),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }

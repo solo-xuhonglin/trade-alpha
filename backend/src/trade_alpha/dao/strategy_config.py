@@ -20,6 +20,13 @@ class StrategyConfig(Document):
     max_position_pct: Optional[float] = 0.3
     sell_rank_n: Optional[int] = 15
     hold_score_threshold: Optional[float] = 0.05
+    use_momentum_boost: bool = False
+    momentum_window: int = 8
+    max_momentum_bonus: float = 0.1
+    use_explosion_filter: bool = False
+    explosion_price_threshold: float = 0.15
+    explosion_volume_ratio: float = 3.0
+    explosion_window: int = 5
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

@@ -13,6 +13,7 @@ class ScoredStock:
     up_prob_3d: float
     up_prob_5d: float
     score: float
+    is_excluded: bool = False
 
 
 @dataclass

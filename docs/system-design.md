@@ -80,7 +80,8 @@ trade-alpha/
 │   │   │   ├── schemas.py          # 数据结构定义
 │   │   │   └── service.py          # 执行结果查询服务
 │   │   ├── scheduler/          # 定时任务模块
-│   │   │   └── data_sync.py       # 数据同步定时任务
+│   │   │   ├── data_sync.py       # 全量数据初始化同步
+│   │   │   └── daily_update.py    # 每日增量数据更新（含除权检测）
 │   │   ├── task/               # 异步任务模块（子进程执行）
 │   │   │   ├── dao.py              # 任务 Document + TaskStatus/TaskType
 │   │   │   ├── service.py          # 任务生命周期管理
@@ -512,9 +513,10 @@ name 字段具备唯一索引，支持按名称直接查询。
 
 ### 15. 调度器模块 (scheduler)
 
-数据同步定时任务，集成到 FastAPI 生命周期：
+通过 APScheduler 管理定时任务，集成到 FastAPI 生命周期：
 
-- `DataSyncScheduler`: APScheduler 调度器封装
+#### 全量初始化同步（`scheduler/data_sync.py`）
+
 - `run_data_sync_job()`: 每分钟执行的同步任务
 - `get_data_period()`: 动态计算数据获取时间窗口函数
 
@@ -529,25 +531,27 @@ name 字段具备唯一索引，支持按名称直接查询。
    - API 请求间隔 0.2 秒
 4. 汇总成功和失败数量并记录日志
 
-**状态流转**:
-- `pending` → `active`（处理完成后直接更新）
+**状态流转**: `pending` → `active`
 
-**并发控制**:
-- 使用 `asyncio.Semaphore` 限制最多 10 只股票同时处理
-- 提高同步效率同时避免 API 限流
+#### 每日增量更新（`scheduler/daily_update.py`）
 
-**数据时间窗口**:
-- `end_date`: 当天日期
-- `start_date`: 往前推 `data_years` 年
-- 确保数据覆盖足够长的历史周期
+- `run_daily_update()`: 每天 18:00 执行的增量更新任务
 
-**排除机制**:
+**任务逻辑**:
+1. 获取最新交易日（从交易日历查询）
+2. 遍历所有 `sync_status == "active"` 的股票
+3. 顺序处理，每只股票间隔 0.3 秒（限速 200次/分钟）：
+   - 从 Tushare 拉取 `[latest_date, 最新交易日]` 范围的数据
+   - 对比 `latest_date` 的 close：不同 → 除权 → 标记 `pending`
+   - 写入新日期数据 → 计算技术指标 → 更新 data_count
+4. 汇总日志：处理数 / 跳过数 / 除权数 / 失败数
+
+**状态流转**: `active` → `pending`（检测到除权时）
+
+#### 共享机制
+
 - 定时任务自动排除测试股票（`TEST_EXCLUDED_TS_CODES`）
-- 避免影响集成测试数据完整性
-
-**目标活跃股票**:
-- 默认 3000 只股票，可通过环境变量 `TARGET_ACTIVE_STOCKS` 配置
-- 达到目标后停止自动同步
+- 默认目标活跃股票 3000 只，可通过环境变量 `TARGET_ACTIVE_STOCKS` 配置
 
 ### 16. API 路由（已移至上方）
 

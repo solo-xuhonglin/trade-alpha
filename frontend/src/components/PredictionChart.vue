@@ -259,6 +259,7 @@ const renderChart = () => {
   const dates = chartData.value.map(d => d.trade_date)
   const klineData = chartData.value.map(d => [d.open, d.close, d.low, d.high])
   const scores = chartData.value.map(d => d.score)
+  const rawScores = chartData.value.map(d => d.raw_score)
 
   const series: any[] = [
     {
@@ -274,7 +275,7 @@ const renderChart = () => {
       },
     },
     {
-      name: '预测分',
+      name: '复合评分',
       type: 'line',
       data: scores,
       yAxisIndex: 1,
@@ -284,8 +285,22 @@ const renderChart = () => {
     },
   ]
 
-  const legendData = ['K线', '预测分']
-  const legendSelected: Record<string, boolean> = { 'K线': true, '预测分': true }
+  const legendData = ['K线', '复合评分']
+  const legendSelected: Record<string, boolean> = { 'K线': true, '复合评分': true }
+
+  if (rawScores.some(v => v != null)) {
+    series.push({
+      name: '原始评分',
+      type: 'line',
+      data: rawScores,
+      yAxisIndex: 1,
+      smooth: true,
+      lineStyle: { width: 1.5, type: 'dashed', color: '#9e9e9e' },
+      symbol: 'none',
+    })
+    legendData.push('原始评分')
+    legendSelected['原始评分'] = true
+  }
 
   const lineStyles = [
     { type: 'dashed', color: '#ef5350' },

@@ -36,14 +36,31 @@ Tushare API（前复权日线）
 ### 1.3 数据同步
 
 通过 APScheduler 定时任务自动同步：
-- `stock_daily` 表的 `sync_status` 字段标记同步状态（`pending` / `active` / `failed`）
-- 仅 `sync_status == "active"` 的股票参与训练和回测
+
+**全量初始化同步**（`scheduler/data_sync.py`）：
+- 每分钟执行，直到达到目标活跃股票数（默认 3000）
+- 仅处理 `sync_status == "pending"` 的股票
+- 拉取全部历史数据 → 计算全部技术指标 → 更新为 `active`
+- 达到目标后停止
+
+**每日增量更新**（`scheduler/daily_update.py`）：
+- 每天 18:00 执行
+- 仅处理 `sync_status == "active"` 的股票
+- 自动补齐最新的交易日数据
+- **除权检测**：每次拉取时会多查已有数据的最后一天，对比新拉的 close 是否一致
+  - 不一致 → 发生除权除息 → 该股票标记为 `pending` → 等待全量同步重新拉取
+- 限速 200次/分钟，顺序处理
+- 写入新数据后立即计算新日期的技术指标
+
+**状态流转**:
+- `pending` → `active`：全量初始化同步处理
+- `active` → `pending`：每日增量更新检测到除权
 
 ---
 
 ## 二、技术指标计算
 
-### 2.1 指标列表（共 26 个）
+### 2.1 指标列表（共 30 个）
 
 | 类别 | 指标 | 字段名 | 计算方式 |
 |------|------|--------|----------|
@@ -61,7 +78,9 @@ Tushare API（前复权日线）
 
 ### 2.2 计算入口
 
-`indicators/service.py` → `calculate_all_indicators(ts_code)` 统一调度上述所有指标计算，结果写回 `stock_daily` 文档。
+`indicators/service.py` → `calculate_all_indicators(ts_code, start_date, end_date)` 统一调度上述所有指标计算，结果写回 `stock_daily` 文档。
+
+支持指定日期范围（`start_date`/`end_date`），增量更新时只计算新日期的指标。
 
 ---
 

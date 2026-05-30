@@ -6,6 +6,7 @@ from typing import List
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from beanie.odm.operators.find.comparison import NotIn, In
 
@@ -16,6 +17,7 @@ from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
+from trade_alpha.scheduler.daily_update import run_daily_update
 
 logger = get_logger("data_sync")
 
@@ -188,6 +190,14 @@ def create_scheduler() -> AsyncIOScheduler:
         trigger=IntervalTrigger(hours=1),
         id="update_data_count_job",
         name="Update Stock Data Count Job",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        run_daily_update,
+        trigger=CronTrigger(hour=18, minute=0),
+        id="daily_update_job",
+        name="Daily Stock Data Update",
         replace_existing=True,
     )
 

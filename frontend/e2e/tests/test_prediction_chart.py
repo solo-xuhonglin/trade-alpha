@@ -17,8 +17,8 @@ class TestPredictionChart:
         rows = page.locator("[class*='v-data-table'] tbody tr")
         expect(rows.first).to_be_visible()
 
-        # 点击第一条记录的"分析"按钮
-        analyze_btn = page.locator("button", has_text="分析").first
+        # 点击第一条记录的"K线"按钮打开预测图表
+        analyze_btn = page.locator("button", has_text="K线").first
         expect(analyze_btn).to_be_visible()
         analyze_btn.click()
 

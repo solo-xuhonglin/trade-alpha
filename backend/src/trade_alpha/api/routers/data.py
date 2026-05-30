@@ -139,7 +139,11 @@ async def fetch_data_endpoint(request: DataFetchRequest):
         end_date=request.end_date,
     )
     if daily_count > 0:
-        await calculate_all_indicators(ts_code=request.ts_code)
+        await calculate_all_indicators(
+            ts_code=request.ts_code,
+            start_date=request.start_date,
+            end_date=request.end_date,
+        )
 
     if daily_count > 0:
         await update_single_stock_data_count(ts_code=request.ts_code)

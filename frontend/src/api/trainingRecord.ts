@@ -29,12 +29,14 @@ export interface Training {
   accuracy_3d?: number
   accuracy_5d?: number
   accuracy_10d?: number
+  model_snapshot?: Record<string, any> | null
   created_at: string
 }
 
 export interface TrainingDetail extends Training {
   model_type?: string
   model_metrics: TrainingMetrics
+  model_snapshot?: Record<string, any> | null
   normalized_data_analysis: AnalysisResult | null
 }
 

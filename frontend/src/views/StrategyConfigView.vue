@@ -42,6 +42,7 @@
         <v-tabs v-model="activeTab" color="primary" v-if="form.type === 'multi'">
           <v-tab value="basic">基本配置</v-tab>
           <v-tab value="multi">多股票配置</v-tab>
+          <v-tab value="ranking">排名优化</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab" v-if="form.type === 'multi'" class="mt-4">
@@ -157,6 +158,53 @@
                     hint="掉出排名但评分高于此值可继续持有"
                     persistent-hint
                   ></v-text-field>
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
+
+          <v-window-item value="ranking">
+            <div>
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_momentum_boost" hide-details density="compact" color="primary"
+                  class="mr-2" label="动量加权"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">连续正向评分加成</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.momentum_window" type="number" label="窗口天数"
+                    hint="统计过去 N 天评分 > 0 的比例" persistent-hint
+                    :disabled="!form.use_momentum_boost"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.max_momentum_bonus" type="number" step="0.01"
+                    label="最大动量加成" hint="排名分 = 评分 + 比例 × 最大加成" persistent-hint
+                    :disabled="!form.use_momentum_boost"></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_explosion_filter" hide-details density="compact" color="primary"
+                  class="mr-2" label="暴涨排除"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="warning">放量暴涨不买入</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.explosion_price_threshold" type="number" step="0.01"
+                    label="涨幅阈值" hint="高于参考均价此比例" persistent-hint
+                    :disabled="!form.use_explosion_filter"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.explosion_volume_ratio" type="number" step="0.5"
+                    label="量比阈值" hint="当前量/均量超过此倍数" persistent-hint
+                    :disabled="!form.use_explosion_filter"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.explosion_window" type="number"
+                    label="参考窗口" hint="均价和均量的计算天数" persistent-hint
+                    :disabled="!form.use_explosion_filter"></v-text-field>
                 </v-col>
               </v-row>
             </div>
@@ -282,6 +330,13 @@ const form = ref({
   max_position_pct: 0.3,
   sell_rank_n: 15,
   hold_score_threshold: 0.05,
+  use_momentum_boost: false,
+  momentum_window: 8,
+  max_momentum_bonus: 0.1,
+  use_explosion_filter: false,
+  explosion_price_threshold: 0.15,
+  explosion_volume_ratio: 3.0,
+  explosion_window: 5,
 })
 
 const headers = [
@@ -316,6 +371,13 @@ const openDialog = (item?: Strategy) => {
       max_position_pct: item.max_position_pct ?? 0.3,
       sell_rank_n: item.sell_rank_n ?? 15,
       hold_score_threshold: item.hold_score_threshold ?? 0.05,
+      use_momentum_boost: item.use_momentum_boost ?? false,
+      momentum_window: item.momentum_window ?? 8,
+      max_momentum_bonus: item.max_momentum_bonus ?? 0.1,
+      use_explosion_filter: item.use_explosion_filter ?? false,
+      explosion_price_threshold: item.explosion_price_threshold ?? 0.15,
+      explosion_volume_ratio: item.explosion_volume_ratio ?? 3.0,
+      explosion_window: item.explosion_window ?? 5,
     }
   } else {
     editingId.value = null
@@ -349,6 +411,13 @@ const saveStrategy = async () => {
       max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
       sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
       hold_score_threshold: form.value.type === 'multi' ? form.value.hold_score_threshold : undefined,
+      use_momentum_boost: form.value.type === 'multi' ? form.value.use_momentum_boost : undefined,
+      momentum_window: form.value.type === 'multi' ? form.value.momentum_window : undefined,
+      max_momentum_bonus: form.value.type === 'multi' ? form.value.max_momentum_bonus : undefined,
+      use_explosion_filter: form.value.type === 'multi' ? form.value.use_explosion_filter : undefined,
+      explosion_price_threshold: form.value.type === 'multi' ? form.value.explosion_price_threshold : undefined,
+      explosion_volume_ratio: form.value.type === 'multi' ? form.value.explosion_volume_ratio : undefined,
+      explosion_window: form.value.type === 'multi' ? form.value.explosion_window : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -363,6 +432,13 @@ const saveStrategy = async () => {
       max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
       sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
       hold_score_threshold: form.value.type === 'multi' ? form.value.hold_score_threshold : undefined,
+      use_momentum_boost: form.value.type === 'multi' ? form.value.use_momentum_boost : undefined,
+      momentum_window: form.value.type === 'multi' ? form.value.momentum_window : undefined,
+      max_momentum_bonus: form.value.type === 'multi' ? form.value.max_momentum_bonus : undefined,
+      use_explosion_filter: form.value.type === 'multi' ? form.value.use_explosion_filter : undefined,
+      explosion_price_threshold: form.value.type === 'multi' ? form.value.explosion_price_threshold : undefined,
+      explosion_volume_ratio: form.value.type === 'multi' ? form.value.explosion_volume_ratio : undefined,
+      explosion_window: form.value.type === 'multi' ? form.value.explosion_window : undefined,
     })
   }
   dialog.value = false

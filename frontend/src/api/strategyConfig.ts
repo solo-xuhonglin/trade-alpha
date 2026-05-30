@@ -13,6 +13,13 @@ export interface Strategy {
   max_position_pct?: number
   sell_rank_n?: number
   hold_score_threshold?: number
+  use_momentum_boost?: boolean
+  momentum_window?: number
+  max_momentum_bonus?: number
+  use_explosion_filter?: boolean
+  explosion_price_threshold?: number
+  explosion_volume_ratio?: number
+  explosion_window?: number
   created_at: string
   updated_at?: string
 }
