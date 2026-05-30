@@ -67,7 +67,7 @@ class ContextLogger:
     def _log(self, method: str, msg: str, level: int = logging.INFO, *args, **kwargs):
         _module_var.set(self._module)
         _method_var.set(method)
-        self._logger.log(level, msg, *args, **kwargs)
+        self._logger.log(level, msg, *args, stacklevel=4, **kwargs)
 
     def _log_with_fallback(self, method: str, msg: str, level: int, *args, **kwargs):
         if not msg:
