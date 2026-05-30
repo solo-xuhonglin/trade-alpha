@@ -35,7 +35,7 @@ def setup_logging(log_level: Optional[str] = None, log_dir: Optional[str] = None
     log_file = log_path / "trade_alpha.log"
 
     formatter = StructuredFormatter(
-        fmt="%(asctime)s.%(msecs)03d [%(levelname)s] [%(request_id)s] [%(module)s] [%(method)s] %(message)s",
+        fmt="%(asctime)s.%(msecs)03d [%(levelname)s] [%(request_id)s] [%(filename)s:%(lineno)d] [%(method)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
