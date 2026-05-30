@@ -64,6 +64,9 @@ class PortfolioManager:
         Returns:
             (success, shares, fee) — success=True means cash is pre-deducted.
         """
+        if price <= 0:
+            return False, 0, 0
+
         total_value = self.cash
         for tsc, pos in self.positions.items():
             px = close_prices.get(tsc, 0)
