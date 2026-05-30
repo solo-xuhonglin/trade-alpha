@@ -132,3 +132,85 @@ trade-alpha/
 - [前端设计文档](./docs/frontend.md) - 前端架构、页面设计
 - [股票字段与技术指标](./docs/features-indicators.md) - 字段定义、指标计算方法
 - [后端脚本说明](./docs/scripts.md) - 脚本工具使用指南
+
+## 全量测试指南
+
+### 重启项目
+
+```powershell
+cd d:\projects\trade-alpha
+.\service.bat restart
+```
+
+等待后端就绪后验证：
+
+```powershell
+cd backend
+python scripts/check_server.py
+```
+
+Expected: `✓ Server is running at http://localhost:8000`
+
+### 运行后端集成测试
+
+```powershell
+cd backend
+.venv\Scripts\pytest tests\trade_alpha\integration\ -v
+```
+
+覆盖 6 个层级、18 个文件、共 **87 个**测试用例：
+
+| 层级 | 说明 | 文件数 |
+|------|------|--------|
+| Layer 1 | 外部依赖（Tushare API 连通性） | 1 |
+| Layer 2 | 基础设施（MongoDB 基本操作） | 1 |
+| Layer 3 | 业务逻辑（数据生命周期+指标+服务） | 6 |
+| Layer 4 | 基础配置（账户/模型/策略） | 3 |
+| Layer 5 | 训练（XGBoost + LSTM） | 4 |
+| Layer 6 | 回测（LSTM 回测 + Task 子进程） | 3 |
+
+测试顺序按文件名数字排序（test_01 → test_10 → test_20 ... test_61）。
+
+### 运行前端 E2E 测试
+
+前置条件：后端 8000 + 前端 3000 均运行中。
+
+```powershell
+cd frontend\e2e
+pytest -v --base-url=http://localhost:3000
+```
+
+覆盖 11 个页面、共 **41 个**测试用例。
+
+### 依赖准备
+
+#### 后端
+
+已在 `backend\.venv\` 中安装，无需额外操作。如需重装：
+
+```powershell
+cd backend
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\pip install pytest pytest-asyncio
+```
+
+#### 前端 E2E
+
+Python 3.14+ 全局安装，依赖 playwright：
+
+```bash
+pip install playwright pytest-playwright
+playwright install chromium
+```
+
+### 测试数据说明
+
+- 后端集成测试自行管理测试数据，`test_*_temp` 命名自动清理
+- 比亚迪 `002594.SZ` 的数据由生命周期测试维护
+- 前端 E2E 测试仅读取不写入，依赖后端集成测试创建的数据
+- 定时任务自动排除集成测试使用的股票代码
+
+### 避坑
+
+- 不要在后端 `.venv` 以外的目录安装 Python 依赖（前端 E2E 用全局 Python）
+- Windows PowerShell 不支持 `&&`，用 `;` 分隔命令

@@ -23,7 +23,9 @@
 | 6 | test_models_page.py | TestModelsPage | 模型管理页面测试 |
 | 7 | test_trainings_page.py | TestTrainingsPage | 训练记录页面测试 |
 | 8 | test_backtest_page.py | TestBacktestPage | 回测页面测试 |
-| 9 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
+| 9 | test_prediction_chart.py | TestPredictionChart | 预测图表页面测试 |
+| 10 | test_trade_calendar_page.py | TestTradeCalendarPage | 交易日历页面测试 |
+| 11 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
 
 ## 测试覆盖
 
@@ -37,6 +39,8 @@
 | 模型管理 | `/models` | 导航、加载配置列表、验证表头、新建配置按钮 |
 | 训练记录 | `/trainings` | 导航、加载训练列表、验证表头、配置筛选 |
 | 回测 | `/backtest` | 导航、验证表头、验证运行按钮、验证数据 |
+| 预测图表 | `/backtest/records` | 打开回测记录、K线按钮、下拉选股 |
+| 交易日历 | `/calendar` | 导航、日历网格、同步按钮、导航、图例 |
 | 交易记录 | `/trades` | 导航、加载交易列表、验证表头、验证数据 |
 
 ## 依赖关系
