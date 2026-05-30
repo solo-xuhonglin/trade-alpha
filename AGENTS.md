@@ -135,23 +135,15 @@ trade-alpha/
 
 ## 全量测试指南
 
-### 重启项目
+### 执行顺序
 
-```powershell
-cd d:\projects\trade-alpha
-.\service.bat restart
+```
+1. 运行后端集成测试（创建测试数据）
+2. 重启后端服务（让 REST API 载入最新数据）
+3. 运行前端 E2E 测试
 ```
 
-等待后端就绪后验证：
-
-```powershell
-cd backend
-python scripts/check_server.py
-```
-
-Expected: `✓ Server is running at http://localhost:8000`
-
-### 运行后端集成测试
+### 步骤 1：运行后端集成测试
 
 ```powershell
 cd backend
@@ -171,7 +163,23 @@ cd backend
 
 测试顺序按文件名数字排序（test_01 → test_10 → test_20 ... test_61）。
 
-### 运行前端 E2E 测试
+### 步骤 2：重启后端
+
+```powershell
+cd d:\projects\trade-alpha
+.\service.bat restart
+```
+
+等待后端就绪后验证：
+
+```powershell
+cd backend
+python scripts/check_server.py
+```
+
+Expected: `✓ Server is running at http://localhost:8000`
+
+### 步骤 3：运行前端 E2E 测试
 
 前置条件：后端 8000 + 前端 3000 均运行中。
 
