@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
+from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.logging import get_logger
@@ -42,12 +43,14 @@ class SingleStockStrategy(PositionManager):
     async def make_decisions(
         self,
         scored_stocks: List[ScoredStock],
-        current_positions: Dict[str, PositionEmbed],
-        cash: float,
+        portfolio: PortfolioManager,
         trade_date: str,
         close_prices: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
-        """Make decisions based on prediction probabilities."""
+        """Make decisions based on prediction probabilities.
+
+        Uses portfolio.reserve_funds for buy feasibility.
+        """
         target_stock = next((s for s in scored_stocks if s.ts_code == self.target_ts_code), None)
         if not target_stock:
             return []
@@ -55,12 +58,13 @@ class SingleStockStrategy(PositionManager):
         logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, score={target_stock.score:.3f}")
 
         orders: List[PendingOrder] = []
-        current_position = current_positions.get(self.target_ts_code)
+        close_prices = close_prices or {}
+        current_position = portfolio.positions.get(self.target_ts_code)
 
         if current_position:
             if self._should_sell(target_stock, current_position, close_prices):
                 logger.debug(f"{trade_date} - Selling {self.target_ts_code}")
-                sell_price = close_prices.get(self.target_ts_code, current_position.buy_price) if close_prices else current_position.buy_price
+                sell_price = close_prices.get(self.target_ts_code, current_position.buy_price)
                 orders.append(PendingOrder(
                     ts_code=current_position.ts_code,
                     stock_name=current_position.stock_name,
@@ -74,11 +78,23 @@ class SingleStockStrategy(PositionManager):
                 ))
                 return orders
 
-        if not current_position and self._should_buy(target_stock):
+        if not current_position and target_stock.score > self.buy_threshold:
             logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
-            buy_order = self._allocate_buy(cash, target_stock, trade_date)
-            if buy_order is not None:
-                orders.append(buy_order)
+            success, shares, _fee = portfolio.reserve_funds(
+                self.target_ts_code, target_stock.close, close_prices,
+            )
+            if success:
+                orders.append(PendingOrder(
+                    ts_code=target_stock.ts_code,
+                    stock_name=target_stock.stock_name,
+                    order_price=target_stock.close,
+                    order_shares=shares,
+                    score=target_stock.score,
+                    up_prob_3d=target_stock.up_prob_3d,
+                    up_prob_5d=target_stock.up_prob_5d,
+                    trade_date=trade_date,
+                    settle_date=self._next_trade_date(trade_date),
+                ))
 
         return orders
 
@@ -102,46 +118,3 @@ class SingleStockStrategy(PositionManager):
             if current_price < position.buy_price * (1 + self.stop_loss_pct):
                 return True
         return False
-
-    def _allocate_buy(
-        self,
-        cash: float,
-        scored_stock: ScoredStock,
-        trade_date: str,
-    ) -> Optional[PendingOrder]:
-        """Allocate cash to buy a stock (higher position size)."""
-        max_cost = cash * self.max_position_pct
-        if max_cost < self.min_order_value:
-            return None
-
-        fee_rate = self.account_config.buy_fee_rate
-        price = scored_stock.close
-        if price <= 0:
-            return None
-
-        shares = int(max_cost / (price * (1 + fee_rate)) / 100) * 100
-        if shares < 100:
-            shares = 100
-
-        total_cost = shares * price
-        fee = self.calc_buy_fee(total_cost, fee_rate, self.account_config.min_fee)
-        if total_cost + fee > cash:
-            shares = int((cash - self.account_config.min_fee) / price / 100) * 100
-            if shares < 100:
-                return None
-            total_cost = shares * price
-            fee = self.calc_buy_fee(total_cost, fee_rate, self.account_config.min_fee)
-            if total_cost + fee > cash:
-                return None
-
-        return PendingOrder(
-            ts_code=scored_stock.ts_code,
-            stock_name=scored_stock.stock_name,
-            order_price=price,
-            order_shares=shares,
-            score=scored_stock.score,
-            up_prob_3d=scored_stock.up_prob_3d,
-            up_prob_5d=scored_stock.up_prob_5d,
-            trade_date=trade_date,
-            settle_date=self._next_trade_date(trade_date),
-        )

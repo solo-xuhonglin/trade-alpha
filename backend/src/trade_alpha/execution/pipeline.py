@@ -13,14 +13,13 @@ from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.models.training.config import get_config_by_id
+from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.models.base import compute_scores
-from trade_alpha.strategy.base import PositionManager
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
-from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.logging import get_logger
 from trade_alpha.utils.date_utils import get_year_months
@@ -78,8 +77,13 @@ class ExecutionPipeline:
                 ts_codes=self.ts_codes,
             )
 
-        self.cash: float = account_config.initial_capital
-        self.positions: Dict[str, PositionEmbed] = {}
+        self.portfolio = PortfolioManager(
+            account_config=self.account_config,
+            initial_capital=account_config.initial_capital,
+            max_positions=getattr(strategy_config, 'max_positions', 10),
+            max_position_pct=getattr(strategy_config, 'max_position_pct', 0.3),
+            min_order_value=getattr(strategy_config, 'min_order_value', 5000.0),
+        )
         self.prev_total_value: Optional[float] = None
         self.pending_orders: List[PendingOrder] = []
         self._score_buffer: Dict[str, List[float]] = {}  # ts_code -> EWMA history
@@ -300,19 +304,13 @@ class ExecutionPipeline:
         if not self.pending_orders:
             return 0, 0.0
 
-        for order in self.pending_orders:
-            if order.order_shares > 0:
-                cost = order.order_price * order.order_shares
-                fee = PositionManager.calc_buy_fee(cost, self.account_config.buy_fee_rate, self.account_config.min_fee)
-                self.cash += cost + fee
-
         filled_trades, unfilled_orders, net_cash = await self.strategy.settle_orders(
             orders=self.pending_orders, date=date,
             open_prices=day_data["open"], high_prices=day_data["high"],
             low_prices=day_data["low"], backtest_id=backtest_id,
-            cash=self.cash,
+            cash=self.portfolio.cash,
         )
-        self.cash += net_cash
+
         all_trades = filled_trades + [
             ExecutionTrade(
                 backtest_id=backtest_id, ts_code=order.ts_code, trade_date=date,
@@ -322,29 +320,35 @@ class ExecutionPipeline:
                 entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
             ) for order in unfilled_orders
         ]
+
         total_fees = 0.0
         for t in filled_trades:
             total_fees += t.fee
             if t.action == "sell":
-                stamp_tax = abs(t.shares) * t.filled_price * self.account_config.stamp_tax_rate
+                stamp_tax = self.portfolio.calc_stamp_tax(abs(t.shares) * t.filled_price)
                 total_fees += stamp_tax
-                position = self.positions.get(t.ts_code)
+                position = self.portfolio.positions.get(t.ts_code)
                 if position and position.buy_price > 0:
                     cost_basis = position.buy_price * abs(t.shares) + position.fee
                     sell_revenue = t.filled_price * abs(t.shares) - t.fee - stamp_tax
                     t.pnl_amount = round(sell_revenue - cost_basis, 2)
                     t.pnl_pct = round(t.pnl_amount / cost_basis, 4) if cost_basis > 0 else None
+
         await ExecutionTrade.insert_many(all_trades)
+
         for t in filled_trades:
-            if t.action == "sell":
-                self.positions.pop(t.ts_code, None)
-            elif t.action == "buy":
-                self.positions[t.ts_code] = PositionEmbed(
-                    ts_code=t.ts_code, stock_name=name_map.get(t.ts_code, ""),
-                    buy_date=date, buy_price=t.filled_price, shares=t.shares, fee=t.fee,
-                    entry_score=t.entry_score or 0, entry_3d_prob=t.up_prob_3d or 0,
-                    entry_5d_prob=t.up_prob_5d or 0, hold_days=0,
+            if t.action == "buy":
+                self.portfolio.settle_buy(
+                    t.ts_code, name_map.get(t.ts_code, ""),
+                    t.shares, t.order_price, t.filled_price,
                 )
+            elif t.action == "sell":
+                self.portfolio.settle_sell(t.ts_code, abs(t.shares), t.filled_price)
+
+        for order in unfilled_orders:
+            if order.order_shares > 0:
+                self.portfolio.cancel_reservation(order.ts_code, order.order_shares, order.order_price)
+
         self.pending_orders.clear()
         return len(filled_trades), total_fees
 
@@ -381,25 +385,21 @@ class ExecutionPipeline:
     async def _make_orders(self, scored: List[ScoredStock],
                             close_prices: Dict[str, float], date: str) -> None:
         pending_orders = await self.strategy.make_decisions(
-            scored_stocks=scored, current_positions=self.positions,
-            cash=self.cash, trade_date=date, close_prices=close_prices,
+            scored_stocks=scored, portfolio=self.portfolio,
+            trade_date=date, close_prices=close_prices,
         )
         for order in pending_orders:
             order.trade_date = date
             order.settle_date = _next_date(date)
-            if order.order_shares > 0:
-                cost = order.order_price * order.order_shares
-                fee = PositionManager.calc_buy_fee(cost, self.account_config.buy_fee_rate, self.account_config.min_fee)
-                self.cash -= cost + fee
         self.pending_orders = pending_orders
 
     async def _save_snapshot(self, date: str, backtest_id: PydanticObjectId,
                               close_prices: Dict[str, float],
                               pred_results: Dict[str, Dict]) -> Tuple[float, Optional[float]]:
-        baseline_value = self._baseline_daily_values[-1] if len(self._baseline_daily_values) > 0 else self.cash
+        baseline_value = self._baseline_daily_values[-1] if len(self._baseline_daily_values) > 0 else self.portfolio.cash
         snapshot = await self.strategy.daily_snapshot(
-            backtest_id=backtest_id, date=date, cash=self.cash,
-            positions=self.positions, close_prices=close_prices,
+            backtest_id=backtest_id, date=date, cash=self.portfolio.cash,
+            positions=self.portfolio.positions, close_prices=close_prices,
             prev_total_value=self.prev_total_value, predictions=pred_results,
             baseline_value=baseline_value,
         )
@@ -474,7 +474,7 @@ class ExecutionPipeline:
         return daily_values, daily_returns, total_trades, total_fees
 
     async def _finalize_result(self, result, daily_values, daily_returns, total_trades, total_fees):
-        final_value = daily_values[-1] if daily_values else self.cash
+        final_value = daily_values[-1] if daily_values else self.portfolio.cash
         total_return = (final_value - self.account_config.initial_capital) / self.account_config.initial_capital
 
         max_drawdown = self._calc_max_drawdown(daily_values)
@@ -592,8 +592,7 @@ class ExecutionPipeline:
 
         pending_orders = await self.strategy.make_decisions(
             scored_stocks=scored,
-            current_positions=self.positions,
-            cash=self.cash,
+            portfolio=self.portfolio,
             trade_date=date,
             close_prices=close_prices,
         )
