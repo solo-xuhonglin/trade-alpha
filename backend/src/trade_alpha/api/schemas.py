@@ -77,6 +77,13 @@ class StrategyCreateRequest(BaseModel):
     max_position_pct: Optional[float] = 0.3
     sell_rank_n: Optional[int] = 15
     hold_score_threshold: Optional[float] = 0.05
+    use_momentum_boost: Optional[bool] = False
+    momentum_window: Optional[int] = 8
+    max_momentum_bonus: Optional[float] = 0.1
+    use_explosion_filter: Optional[bool] = False
+    explosion_price_threshold: Optional[float] = 0.15
+    explosion_volume_ratio: Optional[float] = 3.0
+    explosion_window: Optional[int] = 5
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -90,6 +97,13 @@ class StrategyUpdateRequest(BaseModel):
     max_position_pct: Optional[float] = None
     sell_rank_n: Optional[int] = None
     hold_score_threshold: Optional[float] = None
+    use_momentum_boost: Optional[bool] = None
+    momentum_window: Optional[int] = None
+    max_momentum_bonus: Optional[float] = None
+    use_explosion_filter: Optional[bool] = None
+    explosion_price_threshold: Optional[float] = None
+    explosion_volume_ratio: Optional[float] = None
+    explosion_window: Optional[int] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

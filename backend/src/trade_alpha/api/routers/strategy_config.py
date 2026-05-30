@@ -29,6 +29,13 @@ def _strategy_to_dict(s) -> dict:
         "max_position_pct": s.max_position_pct,
         "sell_rank_n": s.sell_rank_n,
         "hold_score_threshold": s.hold_score_threshold,
+        "use_momentum_boost": s.use_momentum_boost,
+        "momentum_window": s.momentum_window,
+        "max_momentum_bonus": s.max_momentum_bonus,
+        "use_explosion_filter": s.use_explosion_filter,
+        "explosion_price_threshold": s.explosion_price_threshold,
+        "explosion_volume_ratio": s.explosion_volume_ratio,
+        "explosion_window": s.explosion_window,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -74,6 +81,13 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             max_position_pct=request.max_position_pct,
             sell_rank_n=request.sell_rank_n,
             hold_score_threshold=request.hold_score_threshold,
+            use_momentum_boost=request.use_momentum_boost or False,
+            momentum_window=request.momentum_window or 8,
+            max_momentum_bonus=request.max_momentum_bonus or 0.1,
+            use_explosion_filter=request.use_explosion_filter or False,
+            explosion_price_threshold=request.explosion_price_threshold or 0.15,
+            explosion_volume_ratio=request.explosion_volume_ratio or 3.0,
+            explosion_window=request.explosion_window or 5,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -101,6 +115,13 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             max_position_pct=request.max_position_pct,
             sell_rank_n=request.sell_rank_n,
             hold_score_threshold=request.hold_score_threshold,
+            use_momentum_boost=request.use_momentum_boost,
+            momentum_window=request.momentum_window,
+            max_momentum_bonus=request.max_momentum_bonus,
+            use_explosion_filter=request.use_explosion_filter,
+            explosion_price_threshold=request.explosion_price_threshold,
+            explosion_volume_ratio=request.explosion_volume_ratio,
+            explosion_window=request.explosion_window,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

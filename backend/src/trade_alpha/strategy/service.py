@@ -21,6 +21,13 @@ async def create_strategy(
     max_position_pct: Optional[float] = 0.3,
     sell_rank_n: Optional[int] = 15,
     hold_score_threshold: Optional[float] = 0.05,
+    use_momentum_boost: bool = False,
+    momentum_window: int = 8,
+    max_momentum_bonus: float = 0.1,
+    use_explosion_filter: bool = False,
+    explosion_price_threshold: float = 0.15,
+    explosion_volume_ratio: float = 3.0,
+    explosion_window: int = 5,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -41,6 +48,13 @@ async def create_strategy(
         max_position_pct=max_position_pct,
         sell_rank_n=sell_rank_n,
         hold_score_threshold=hold_score_threshold,
+        use_momentum_boost=use_momentum_boost,
+        momentum_window=momentum_window,
+        max_momentum_bonus=max_momentum_bonus,
+        use_explosion_filter=use_explosion_filter,
+        explosion_price_threshold=explosion_price_threshold,
+        explosion_volume_ratio=explosion_volume_ratio,
+        explosion_window=explosion_window,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -76,6 +90,13 @@ async def update_strategy(
     max_position_pct: Optional[float] = None,
     sell_rank_n: Optional[int] = None,
     hold_score_threshold: Optional[float] = None,
+    use_momentum_boost: Optional[bool] = None,
+    momentum_window: Optional[int] = None,
+    max_momentum_bonus: Optional[float] = None,
+    use_explosion_filter: Optional[bool] = None,
+    explosion_price_threshold: Optional[float] = None,
+    explosion_volume_ratio: Optional[float] = None,
+    explosion_window: Optional[int] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -106,6 +127,20 @@ async def update_strategy(
         strategy.sell_rank_n = sell_rank_n
     if hold_score_threshold is not None:
         strategy.hold_score_threshold = hold_score_threshold
+    if use_momentum_boost is not None:
+        strategy.use_momentum_boost = use_momentum_boost
+    if momentum_window is not None:
+        strategy.momentum_window = momentum_window
+    if max_momentum_bonus is not None:
+        strategy.max_momentum_bonus = max_momentum_bonus
+    if use_explosion_filter is not None:
+        strategy.use_explosion_filter = use_explosion_filter
+    if explosion_price_threshold is not None:
+        strategy.explosion_price_threshold = explosion_price_threshold
+    if explosion_volume_ratio is not None:
+        strategy.explosion_volume_ratio = explosion_volume_ratio
+    if explosion_window is not None:
+        strategy.explosion_window = explosion_window
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
