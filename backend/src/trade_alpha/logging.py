@@ -84,9 +84,11 @@ class ContextLogger:
         self._log_with_fallback(method, msg, logging.WARNING, *args, **kwargs)
 
     def error(self, method: str, msg: str = "", *args, **kwargs):
+        kwargs.setdefault("exc_info", True)
         self._log_with_fallback(method, msg, logging.ERROR, *args, **kwargs)
 
     def exception(self, method: str, msg: str = "", *args, **kwargs):
+        kwargs.setdefault("exc_info", True)
         self._log_with_fallback(method, msg, logging.ERROR, *args, **kwargs)
 
 
