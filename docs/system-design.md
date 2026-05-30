@@ -74,9 +74,8 @@ trade-alpha/
 │   │   ├── backtest/          # 回测模块
 │   │   ├── execution/         # 统一执行框架
 │   │   │   ├── pipeline.py         # 统一流程编排
+│   │   │   ├── portfolio.py        # 投资组合管理（资金/持仓/费用）
 │   │   │   ├── data_loader.py      # 数据加载器
-│   │   │   ├── signal_generator.py # 信号生成器
-│   │   │   ├── position_manager.py # 仓位管理器
 │   │   │   ├── schemas.py          # 数据结构定义
 │   │   │   └── service.py          # 执行结果查询服务
 │   │   ├── scheduler/          # 定时任务模块
@@ -308,32 +307,25 @@ trade-alpha/
 #### multi_stock_strategy.py - 多股票策略 (MultiStockStrategy)
 
 - 多股票组合策略，基于评分排名选股
-- 支持最大持仓数限制
-- 支持单只股票最大仓位限制
-- 支持止损和最大持仓天数
-
-**核心方法**:
-- `make_decisions()`: 基于评分排名做出买卖决策
+- `make_decisions()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds` 获取可买股数
+- 支持最大持仓数限制、单只股票最大仓位限制、止损和最大持仓天数
 
 #### single_stock.py - 单股票策略 (SingleStockStrategy)
 
 - 单股票策略，基于预测概率和评分
-- 自动根据评分调整仓位
+- `make_decisions()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds`
 - 支持止损和最大持仓天数
-
-**核心方法**:
-- `make_decisions()`: 基于预测概率做出买卖决策
 
 ### 9. 执行模块 (execution)
 
 #### pipeline.py - 统一流程编排
 
-- 协调数据加载、预测、策略决策、仓位管理的完整流程
-- 支持组合策略模式和单股票策略模式
-- 支持回测模式和实盘模式
+- 协调数据加载、预测、策略决策的完整回测/实盘流程
+- 支持多股票组合策略和单股票策略模式
+- 资金、持仓、费用计算委托给 `PortfolioManager`
 - 执行上下文管理，确保状态一致性
-- 新增基线对比功能（买入持有策略）
-- 新增夏普比率、波动率等指标计算
+- 基线对比功能（买入持有策略）
+- 夏普比率、波动率等指标计算
 
 **核心方法**:
 - `run_backtest()`: 回测模式执行
@@ -342,6 +334,21 @@ trade-alpha/
 **策略模式**:
 - `multi`: 多股票组合策略，基于评分排名
 - `single`: 单股票策略，基于预测概率
+
+#### portfolio.py - 投资组合管理
+
+集中管理回测/实盘中的资金、持仓和费用计算，对外暴露精细的资金操作接口：
+
+**核心方法**:
+- `reserve_funds(ts_code, price, close_prices) → (success, shares, fee)`: 买入预扣款。内部检查持仓数上限、单股资金上限（`max_position_pct`），计算可买股数（100的倍数），成功后预扣现金
+- `settle_buy(ts_code, name, shares, order_price, matched_price)`: 买入成交结算。撤销预扣款→按成交价重算→合并或新增持仓（加权均价）
+- `settle_sell(ts_code, shares, price)`: 卖出成交结算。收入资金（扣手续费+印花税）→移除持仓
+- `cancel_reservation(ts_code, shares, price)`: 撤销未成交买入，归还预扣款
+
+**设计要点**:
+- 费用全部内部计算，调用方不传 fee 参数
+- 加仓时合并股数、加权均价、保留原买入信息
+- 新买入受 `max_positions` 和 `max_position_pct` 双重限制
 
 #### data_loader.py - 数据加载器
 
@@ -613,7 +620,7 @@ create_training(
 - [x] 分析层：技术指标计算（MA、MACD、pct_chg、bias、close_position、vol_ratio、KDJ、BOLL、RSI、ATR、OBV、candle）
 - [x] 预测层：价格预测（XGBoost、LSTM），支持下跌概率输出
 - [x] 训练层：样本混合训练、模型持久化、训练评估指标
-- [x] 执行层：统一流程编排、数据加载器、预测管理器、组合策略、单股票策略、仓位管理器
+- [x] 执行层：统一流程编排、数据加载器、PortfolioManager 投资组合管理、多股票策略、单股票策略
 - [x] 账户层：资金管理、交易记录
 - [x] 回测层：策略回测、基线对比、夏普比率、波动率、最大回撤、胜率等指标计算
 - [x] 数据分析层：特征统计、直方图、箱线图、缺失值分析、异步执行
