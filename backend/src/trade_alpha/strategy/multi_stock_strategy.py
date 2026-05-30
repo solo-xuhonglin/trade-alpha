@@ -89,10 +89,33 @@ class MultiStockStrategy(PositionManager):
                 ))
 
         held_ts_codes = set(current_positions.keys())
+
+        total_value = cash
+        if close_prices:
+            for ts_code, pos in current_positions.items():
+                price = close_prices.get(ts_code, 0)
+                if price > 0:
+                    total_value += pos.shares * price
+        max_allowed_per_stock = total_value * self.max_position_pct
+
+        sell_ts_codes = {order.ts_code for order in orders}
         for stock in top_stocks:
-            if stock.ts_code in held_ts_codes:
+            if stock.ts_code in sell_ts_codes:
                 continue
-            buy_order = self._allocate_buy(cash_available, stock, trade_date)
+            if stock.ts_code in held_ts_codes:
+                if not close_prices:
+                    continue
+                pos = current_positions[stock.ts_code]
+                current_price = close_prices.get(stock.ts_code, 0)
+                if current_price <= 0:
+                    continue
+                pos_value = pos.shares * current_price
+                remaining_capacity = max_allowed_per_stock - pos_value
+                if remaining_capacity <= self.min_order_value:
+                    continue
+                buy_order = self._allocate_buy(cash_available, stock, trade_date, remaining_capacity)
+            else:
+                buy_order = self._allocate_buy(cash_available, stock, trade_date)
             if buy_order is not None:
                 cash_available -= buy_order.order_price * buy_order.order_shares
                 cash_available -= max(
@@ -136,9 +159,10 @@ class MultiStockStrategy(PositionManager):
         cash: float,
         scored_stock: ScoredStock,
         trade_date: str,
+        max_cost_override: Optional[float] = None,
     ) -> Optional[PendingOrder]:
         """Allocate cash to buy a stock."""
-        max_cost = cash * self.max_position_pct
+        max_cost = max_cost_override if max_cost_override is not None else cash * self.max_position_pct
         if max_cost < self.min_order_value:
             return None
 

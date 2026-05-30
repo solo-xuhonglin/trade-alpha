@@ -151,7 +151,8 @@ class ExecutionPipeline:
                 r["momentum_bonus"] = 0.0
 
     async def _filter_explosions(self, pred_results: Dict[str, Dict],
-                                  trade_date: str) -> None:
+                                  trade_date: str,
+                                  current_vol_dict: Optional[Dict[str, float]] = None) -> None:
         """Mark stocks with price+volume explosion as excluded.
 
         Uses the predictions dict to mark is_excluded flags.
@@ -166,24 +167,31 @@ class ExecutionPipeline:
         volume_ratio_threshold = self.strategy_config.explosion_volume_ratio
         window = self.strategy_config.explosion_window
 
+        ts_codes = list(pred_results.keys())
+        history_df = await self.data_loader.load_history_data(trade_date, ts_codes, window + 1)
+
+        records_by_code: Dict[str, List[Dict]] = {}
+        if not history_df.empty:
+            for ts_code in ts_codes:
+                stock_df = history_df[history_df["ts_code"] == ts_code].sort_values("trade_date", ascending=False)
+                if len(stock_df) >= window + 1:
+                    records_by_code[ts_code] = stock_df.head(window + 1).to_dict("records")
+
         for ts_code, r in pred_results.items():
             close = r.get("close", 0)
             if close <= 0:
                 r["is_excluded"] = False
                 continue
 
-            records = await StockDaily.find(
-                StockDaily.ts_code == ts_code,
-                StockDaily.trade_date < trade_date,
-            ).sort(-StockDaily.trade_date).limit(window + 1).to_list()
+            records = records_by_code.get(ts_code, [])
 
             if len(records) < window + 1:
                 r["is_excluded"] = False
                 continue
 
-            closes = [rec.close for rec in records[:window]]
-            vols = [rec.vol for rec in records[:window]]
-            current_vol = records[0].vol
+            closes = [rec["close"] for rec in records[:window]]
+            vols = [rec["vol"] for rec in records[:window]]
+            current_vol = current_vol_dict.get(ts_code, 0) if current_vol_dict else 0
 
             avg_close = sum(closes) / len(closes) if closes else close
             avg_vol = sum(vols) / len(vols) if vols else 1
@@ -265,6 +273,7 @@ class ExecutionPipeline:
             "high": dict(zip(day_df["ts_code"], day_df["high"])),
             "low": dict(zip(day_df["ts_code"], day_df["low"])),
             "close": dict(zip(day_df["ts_code"], day_df["close"])),
+            "vol": dict(zip(day_df["ts_code"], day_df["vol"])),
         }
 
     def _track_baseline(self, close_prices: Dict[str, float]) -> None:
@@ -340,7 +349,8 @@ class ExecutionPipeline:
         return len(filled_trades), total_fees
 
     async def _predict(self, date: str, close_prices: Dict[str, float],
-                        name_map: Dict[str, str], start_date: str):
+                        name_map: Dict[str, str], start_date: str,
+                        vol_prices: Optional[Dict[str, float]] = None):
         target_names = [f"label_{h}d" for h in self._config.classification_horizons]
         pred_results_raw = await self.predictor.predict_batch(self.ts_codes, target_names, date)
         pred_results = {}
@@ -351,7 +361,7 @@ class ExecutionPipeline:
             return [], {}
         self._smooth_scores(pred_results)
         self._apply_momentum_boost(pred_results)
-        await self._filter_explosions(pred_results, date)
+        await self._filter_explosions(pred_results, date, vol_prices)
         scored = [
             ScoredStock(
                 ts_code=ts_code, stock_name=name_map.get(ts_code, ts_code),
@@ -446,7 +456,8 @@ class ExecutionPipeline:
             total_trades += trades_add
             total_fees += fees_add
 
-            scored, pred_results = await self._predict(date, close_prices, name_map, start_date)
+            vol_prices = day_data.get("vol", {})
+            scored, pred_results = await self._predict(date, close_prices, name_map, start_date, vol_prices)
             if not scored:
                 date = _next_date(date)
                 continue
@@ -560,6 +571,11 @@ class ExecutionPipeline:
         if not pred_results:
             return []
 
+        vol_prices = dict(zip(day_df["ts_code"], day_df["vol"])) if not day_df.empty else {}
+        self._smooth_scores(pred_results)
+        self._apply_momentum_boost(pred_results)
+        await self._filter_explosions(pred_results, date, vol_prices)
+
         scored = [
             ScoredStock(
                 ts_code=ts_code,
@@ -569,6 +585,7 @@ class ExecutionPipeline:
                 up_prob_5d=r.get("up_prob_5d", 0),
                 up_prob_10d=r.get("up_prob_10d", 0),
                 score=r["score"],
+                is_excluded=r.get("is_excluded", False),
             )
             for ts_code, r in pred_results.items()
         ]

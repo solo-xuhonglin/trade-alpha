@@ -84,8 +84,8 @@
         <div v-if="selectedResult">
           <v-tabs v-model="resultTab" color="primary">
             <v-tab value="overview">概览</v-tab>
-            <v-tab value="explosion">暴涨排除</v-tab>
             <v-tab value="pnl">盈亏分析</v-tab>
+            <v-tab value="explosion">暴涨排除</v-tab>
           </v-tabs>
 
           <v-window v-model="resultTab" class="mt-4" style="max-height: calc(90vh - 160px); overflow-y: auto;">
@@ -158,23 +158,6 @@
               </v-table>
             </v-window-item>
 
-          <v-window-item value="explosion">
-            <div v-if="excludedLoading" class="text-center text-medium-emphasis py-8">加载中...</div>
-            <div v-else-if="excludedStocks.length === 0" class="text-center text-medium-emphasis py-8">无暴涨排除记录</div>
-            <v-data-table v-else :headers="excludedHeaders" :items="excludedStocks" density="compact"
-              hide-default-footer items-per-page="-1" class="mt-2"
-              @click:row="(_, { item }) => toggleExcludedDetail(item)" style="cursor: pointer;">
-              <template v-slot:item.excluded_dates="{ item }">
-                <div v-if="item._detail">
-                  <div v-for="d in item.excluded_dates" :key="d.date" class="text-caption">
-                    {{ d.date }} 涨 {{ (d.price_surge_pct * 100).toFixed(1) }}% 量比 {{ d.volume_ratio.toFixed(1) }}x
-                  </div>
-                </div>
-                <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.excluded_count }} 次)</span>
-              </template>
-            </v-data-table>
-          </v-window-item>
-
           <v-window-item value="pnl">
               <div v-if="pnlLoading" class="text-center text-medium-emphasis py-8">加载中...</div>
               <div v-else-if="!pnlSummary" class="text-center text-medium-emphasis py-8">暂无盈亏数据</div>
@@ -246,6 +229,23 @@
                 </v-data-table>
               </div>
             </v-window-item>
+
+          <v-window-item value="explosion">
+            <div v-if="excludedLoading" class="text-center text-medium-emphasis py-8">加载中...</div>
+            <div v-else-if="excludedStocks.length === 0" class="text-center text-medium-emphasis py-8">无暴涨排除记录</div>
+            <v-data-table v-else :headers="excludedHeaders" :items="excludedStocks" density="compact"
+              hide-default-footer items-per-page="-1" class="mt-2"
+              @click:row="(_, { item }) => toggleExcludedDetail(item)" style="cursor: pointer;">
+              <template v-slot:item.excluded_dates="{ item }">
+                <div v-if="item._detail">
+                  <div v-for="d in item.excluded_dates" :key="d.date" class="text-caption">
+                    {{ d.date }} 涨 {{ (d.price_surge_pct * 100).toFixed(1) }}% 量比 {{ d.volume_ratio.toFixed(1) }}x
+                  </div>
+                </div>
+                <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.excluded_count }} 次)</span>
+              </template>
+            </v-data-table>
+          </v-window-item>
           </v-window>
         </div>
       </v-card-text>
@@ -670,7 +670,7 @@ const loadExcludedStocks = async (resultId: string) => {
 const loadPnlDetails = async (backtestId: string) => {
   pnlLoading.value = true
   try {
-    const res = await backtestRecordApi.getPnlDetails(resultId)
+    const res = await backtestRecordApi.getPnlDetails(backtestId)
     pnlDetails.value = res.data.items
     pnlSummary.value = res.data.summary
     if (resultTab.value === 'pnl') {
