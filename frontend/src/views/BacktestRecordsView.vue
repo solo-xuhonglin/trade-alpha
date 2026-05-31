@@ -338,79 +338,14 @@
         </v-btn>
       </v-toolbar>
       <v-tabs v-model="backtestConfigTab" bg-color="surface">
-        <v-tab value="model">模型配置</v-tab>
         <v-tab value="account">账户配置</v-tab>
         <v-tab value="strategy">策略配置</v-tab>
+        <v-tab value="model">模型配置</v-tab>
         <v-tab value="features">特征配置</v-tab>
       </v-tabs>
       <v-divider />
       <v-card-text>
         <v-window v-model="backtestConfigTab">
-          <v-window-item value="model">
-            <div class="text-subtitle-2 font-weight-medium mb-1">基本信息</div>
-            <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">名称：</span>{{ backtestModelConfig?.name || '-' }}</v-col>
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">模型类型：</span>{{ backtestModelConfig?.model_type || '-' }}</v-col>
-            </v-row>
-
-            <v-divider class="my-2" />
-            <div class="text-subtitle-2 font-weight-medium mb-1">训练参数</div>
-            <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">分类周期：</span>{{ backtestModelConfig?.classification_horizons?.join(', ') || '-' }}</v-col>
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">标签模式：</span>{{ backtestModelConfig?.label_mode || '-' }}</v-col>
-            </v-row>
-            <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">验证集比例：</span>{{ backtestModelConfig?.val_size ?? '-' }}</v-col>
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">阈值 3d：</span>{{ backtestModelConfig?.classification_threshold_3d ?? '-' }}</v-col>
-            </v-row>
-            <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">阈值 5d：</span>{{ backtestModelConfig?.classification_threshold_5d ?? '-' }}</v-col>
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">阈值 10d：</span>{{ backtestModelConfig?.classification_threshold_10d ?? '-' }}</v-col>
-            </v-row>
-
-            <template v-if="backtestModelConfig?.model_type === 'xgboost'">
-              <v-divider class="my-2" />
-              <div class="text-subtitle-2 font-weight-medium mb-1">XGB 参数</div>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Learning Rate：</span>{{ backtestModelConfig?.xgb_learning_rate ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Max Depth：</span>{{ backtestModelConfig?.xgb_max_depth ?? '-' }}</v-col>
-              </v-row>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Subsample：</span>{{ backtestModelConfig?.xgb_subsample ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Colsample By Tree：</span>{{ backtestModelConfig?.xgb_colsample_bytree ?? '-' }}</v-col>
-              </v-row>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Min Child Weight：</span>{{ backtestModelConfig?.xgb_min_child_weight ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">N Estimators：</span>{{ backtestModelConfig?.xgb_n_estimators ?? '-' }}</v-col>
-              </v-row>
-            </template>
-
-            <template v-if="backtestModelConfig?.model_type === 'lstm'">
-              <v-divider class="my-2" />
-              <div class="text-subtitle-2 font-weight-medium mb-1">LSTM 参数</div>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Hidden Size：</span>{{ backtestModelConfig?.lstm_hidden_size ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Num Layers：</span>{{ backtestModelConfig?.lstm_num_layers ?? '-' }}</v-col>
-              </v-row>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Dropout：</span>{{ backtestModelConfig?.lstm_dropout ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Epochs：</span>{{ backtestModelConfig?.lstm_epochs ?? '-' }}</v-col>
-              </v-row>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Batch Size：</span>{{ backtestModelConfig?.lstm_batch_size ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Learning Rate：</span>{{ backtestModelConfig?.lstm_learning_rate ?? '-' }}</v-col>
-              </v-row>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Sequence Length：</span>{{ backtestModelConfig?.lstm_sequence_length ?? '-' }}</v-col>
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Norm Window：</span>{{ backtestModelConfig?.lstm_normalization_window ?? '-' }}</v-col>
-              </v-row>
-              <v-row class="py-0">
-                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Weight Decay：</span>{{ backtestModelConfig?.lstm_weight_decay ?? '-' }}</v-col>
-                <v-col cols="6"></v-col>
-              </v-row>
-            </template>
-          </v-window-item>
-
           <v-window-item value="account">
             <div class="text-subtitle-2 font-weight-medium mb-1">账户信息</div>
             <v-row class="py-0">
@@ -494,6 +429,71 @@
               </v-col>
               <v-col cols="6"></v-col>
             </v-row>
+          </v-window-item>
+
+          <v-window-item value="model">
+            <div class="text-subtitle-2 font-weight-medium mb-1">基本信息</div>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">名称：</span>{{ backtestModelConfig?.name || '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">模型类型：</span>{{ backtestModelConfig?.model_type || '-' }}</v-col>
+            </v-row>
+
+            <v-divider class="my-2" />
+            <div class="text-subtitle-2 font-weight-medium mb-1">训练参数</div>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">分类周期：</span>{{ backtestModelConfig?.classification_horizons?.join(', ') || '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">标签模式：</span>{{ backtestModelConfig?.label_mode || '-' }}</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">验证集比例：</span>{{ backtestModelConfig?.val_size ?? '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">阈值 3d：</span>{{ backtestModelConfig?.classification_threshold_3d ?? '-' }}</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">阈值 5d：</span>{{ backtestModelConfig?.classification_threshold_5d ?? '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">阈值 10d：</span>{{ backtestModelConfig?.classification_threshold_10d ?? '-' }}</v-col>
+            </v-row>
+
+            <template v-if="backtestModelConfig?.model_type === 'xgboost'">
+              <v-divider class="my-2" />
+              <div class="text-subtitle-2 font-weight-medium mb-1">XGB 参数</div>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Learning Rate：</span>{{ backtestModelConfig?.xgb_learning_rate ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Max Depth：</span>{{ backtestModelConfig?.xgb_max_depth ?? '-' }}</v-col>
+              </v-row>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Subsample：</span>{{ backtestModelConfig?.xgb_subsample ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Colsample By Tree：</span>{{ backtestModelConfig?.xgb_colsample_bytree ?? '-' }}</v-col>
+              </v-row>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Min Child Weight：</span>{{ backtestModelConfig?.xgb_min_child_weight ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">N Estimators：</span>{{ backtestModelConfig?.xgb_n_estimators ?? '-' }}</v-col>
+              </v-row>
+            </template>
+
+            <template v-if="backtestModelConfig?.model_type === 'lstm'">
+              <v-divider class="my-2" />
+              <div class="text-subtitle-2 font-weight-medium mb-1">LSTM 参数</div>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Hidden Size：</span>{{ backtestModelConfig?.lstm_hidden_size ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Num Layers：</span>{{ backtestModelConfig?.lstm_num_layers ?? '-' }}</v-col>
+              </v-row>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Dropout：</span>{{ backtestModelConfig?.lstm_dropout ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Epochs：</span>{{ backtestModelConfig?.lstm_epochs ?? '-' }}</v-col>
+              </v-row>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Batch Size：</span>{{ backtestModelConfig?.lstm_batch_size ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Learning Rate：</span>{{ backtestModelConfig?.lstm_learning_rate ?? '-' }}</v-col>
+              </v-row>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Sequence Length：</span>{{ backtestModelConfig?.lstm_sequence_length ?? '-' }}</v-col>
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Norm Window：</span>{{ backtestModelConfig?.lstm_normalization_window ?? '-' }}</v-col>
+              </v-row>
+              <v-row class="py-0">
+                <v-col cols="6"><span class="text-body-2 text-medium-emphasis">Weight Decay：</span>{{ backtestModelConfig?.lstm_weight_decay ?? '-' }}</v-col>
+                <v-col cols="6"></v-col>
+              </v-row>
+            </template>
           </v-window-item>
 
           <v-window-item value="features">
@@ -656,7 +656,7 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
 
   const openBacktestConfig = (item: Backtest) => {
   backtestConfigItem.value = item
-  backtestConfigTab.value = 'model'
+  backtestConfigTab.value = 'account'
   backtestModelConfig.value = item.model_snapshot ? { ...item.model_snapshot } : null
   backtestStrategyConfig.value = item.strategy_snapshot
     ? { ...item.strategy_snapshot } as Partial<Strategy>
