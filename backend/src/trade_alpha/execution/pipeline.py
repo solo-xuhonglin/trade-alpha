@@ -3,6 +3,7 @@
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
+from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
@@ -224,14 +225,25 @@ class ExecutionPipeline:
         logger.info(f"_filter_explosions {trade_date}: enabled, threshold={threshold}, vol_ratio={volume_ratio_threshold}, window={window}")
 
         ts_codes = list(pred_results.keys())
-        history_df = await self.data_loader.load_history_data(trade_date, ts_codes, window + 1)
 
         records_by_code: Dict[str, List[Dict]] = {}
-        if not history_df.empty:
-            for ts_code in ts_codes:
-                stock_df = history_df[history_df["ts_code"] == ts_code].sort_values("trade_date", ascending=False)
-                if len(stock_df) >= window + 1:
-                    records_by_code[ts_code] = stock_df.head(window + 1).to_dict("records")
+        explosion_end_dt = datetime.strptime(trade_date, "%Y%m%d")
+        explosion_start_dt = explosion_end_dt - timedelta(days=20)
+        recent_records = await StockDaily.find(
+            StockDaily.trade_date >= explosion_start_dt.strftime("%Y%m%d"),
+            StockDaily.trade_date <= trade_date,
+            In(StockDaily.ts_code, ts_codes),
+        ).sort(StockDaily.trade_date).to_list()
+        for r in recent_records:
+            code = r.ts_code
+            if code not in records_by_code:
+                records_by_code[code] = []
+            records_by_code[code].append(r.model_dump())
+        for ts_code in ts_codes:
+            records = records_by_code.get(ts_code, [])
+            records.sort(key=lambda x: x["trade_date"], reverse=True)
+            if len(records) >= window + 1:
+                records_by_code[ts_code] = records[:window + 1]
 
         for ts_code, r in pred_results.items():
             close = r.get("close", 0)
