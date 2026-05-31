@@ -31,17 +31,6 @@ export interface Backtest {
   avg_hold_days?: number
   trade_win_rate?: number
   account_config_name?: string
-  strategy_name?: string
-  strategy_type?: string
-  min_order_value?: number
-  stop_loss_pct?: number
-  max_hold_days?: number
-  buy_threshold?: number
-  sell_threshold?: number
-  max_positions?: number
-  max_position_pct?: number
-  sell_rank_n?: number
-  hold_score_threshold?: number
   model_snapshot?: Record<string, any>
   strategy_snapshot?: Record<string, any>
   created_at?: string

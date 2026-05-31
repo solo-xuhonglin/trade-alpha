@@ -639,21 +639,7 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
   backtestModelConfig.value = item.model_snapshot ? { ...item.model_snapshot } : null
   backtestStrategyConfig.value = item.strategy_snapshot
     ? { ...item.strategy_snapshot } as Partial<Strategy>
-    : item.strategy_name
-      ? {
-          name: item.strategy_name,
-          type: item.strategy_type || '',
-          min_order_value: item.min_order_value ?? 0,
-          stop_loss_pct: item.stop_loss_pct ?? 0,
-          max_hold_days: item.max_hold_days ?? 0,
-          buy_threshold: item.buy_threshold ?? 0,
-          sell_threshold: item.sell_threshold ?? 0,
-          max_positions: item.max_positions,
-          max_position_pct: item.max_position_pct,
-          sell_rank_n: item.sell_rank_n,
-          hold_score_threshold: item.hold_score_threshold,
-        }
-      : null
+    : null
   backtestConfigDialog.value = true
 }
 
