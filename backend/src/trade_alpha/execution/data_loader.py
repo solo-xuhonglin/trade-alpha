@@ -122,3 +122,42 @@ class DataLoader:
         df = pd.DataFrame([r.model_dump() for r in all_records])
 
         return df
+
+    async def peek_history_data(self, end_date: str, ts_codes: List[str], days: int) -> pd.DataFrame:
+        """Read-only version of load_history_data.
+
+        Loads recent history data from cache (or DB if cache empty) without
+        trimming the shared _history_cache, so other callers with large
+        keep_days requirements are not affected.
+        Returns only the most recent keep_records per stock.
+        """
+        keep_records = days * 2
+
+        all_records = []
+
+        for ts_code in ts_codes:
+            cache_start = self._get_cache_start(ts_code)
+            cache_end = self._get_cache_end(ts_code)
+
+            if cache_start is None:
+                load_start = self._calc_start_date(end_date, keep_records)
+                new_records = await self._load_from_db(load_start, end_date, [ts_code])
+                records = sorted(new_records, key=lambda r: r.trade_date)
+            else:
+                if cache_end < end_date:
+                    incremental_records = await self._load_from_db(
+                        self._next_date(cache_end),
+                        end_date,
+                        [ts_code]
+                    )
+                    self._history_cache[ts_code].extend(incremental_records)
+                    self._history_cache[ts_code].sort(key=lambda r: r.trade_date)
+                records = self._history_cache[ts_code]
+
+            latest = records[-keep_records:] if len(records) > keep_records else records
+            all_records.extend(latest)
+
+        if not all_records:
+            return pd.DataFrame()
+
+        return pd.DataFrame([r.model_dump() for r in all_records])
