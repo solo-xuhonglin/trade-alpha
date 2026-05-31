@@ -408,16 +408,25 @@
                 </span>
               </v-col>
               <v-col cols="6">
-                <span class="text-body-2 text-medium-emphasis">趋势左移：</span>
-                <v-icon :color="backtestStrategyConfig?.use_trend_boost ? 'success' : 'disabled'" size="small">
-                  {{ backtestStrategyConfig?.use_trend_boost ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                <span class="text-body-2 text-medium-emphasis">趋势加分：</span>
+                <v-icon :color="backtestStrategyConfig?.use_trend_bonus ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_trend_bonus ? 'mdi-check-circle' : 'mdi-close-circle' }}
                 </v-icon>
-                <span v-if="backtestStrategyConfig?.use_trend_boost" class="text-body-2">
-                  &nbsp;窗口{{ backtestStrategyConfig?.trend_window ?? '-' }} 斜率{{ backtestStrategyConfig?.trend_scale ?? '0.5' }} 上限{{ ((backtestStrategyConfig?.max_trend_boost ?? 0) * 100).toFixed(0) }}%
+                <span v-if="backtestStrategyConfig?.use_trend_bonus" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.trend_bonus_window ?? '-' }} 斜率{{ backtestStrategyConfig?.trend_bonus_scale ?? '0.03' }} R²阈值{{ ((backtestStrategyConfig?.trend_r2_threshold ?? 0) * 100).toFixed(0) }}% 上限{{ ((backtestStrategyConfig?.trend_max_bonus ?? 0) * 100).toFixed(0) }}%
                 </span>
               </v-col>
             </v-row>
             <v-row class="py-0 mt-1">
+              <v-col cols="6">
+                <span class="text-body-2 text-medium-emphasis">波动扣分：</span>
+                <v-icon :color="backtestStrategyConfig?.use_volatility_penalty ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_volatility_penalty ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_volatility_penalty" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.vol_penalty_window ?? '-' }} 容忍{{ ((backtestStrategyConfig?.vol_range_tolerance ?? 0) * 100).toFixed(1) }}% 系数{{ backtestStrategyConfig?.vol_penalty_scale ?? '0.005' }} 上限{{ ((backtestStrategyConfig?.vol_max_penalty ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
               <v-col cols="6">
                 <span class="text-body-2 text-medium-emphasis">暴涨排除：</span>
                 <v-icon :color="backtestStrategyConfig?.use_explosion_filter ? 'success' : 'disabled'" size="small">
@@ -427,7 +436,6 @@
                   &nbsp;涨幅{{ ((backtestStrategyConfig?.explosion_price_threshold ?? 0) * 100).toFixed(0) }}% 量比{{ backtestStrategyConfig?.explosion_volume_ratio ?? '3.0' }}x 窗口{{ backtestStrategyConfig?.explosion_window ?? '5' }}
                 </span>
               </v-col>
-              <v-col cols="6"></v-col>
             </v-row>
           </v-window-item>
 

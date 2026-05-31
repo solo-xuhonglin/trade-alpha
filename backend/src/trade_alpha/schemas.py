@@ -14,7 +14,11 @@ class ScoredStock:
     up_prob_5d: float
     score: float
     is_excluded: bool = False
-    trend_boost: float = 0.0
+    trend_bonus: float = 0.0
+    vol_penalty: float = 0.0
+    price_slope: float = 0.0
+    price_r_squared: float = 0.0
+    price_avg_range: float = 0.0
 
 
 @dataclass

@@ -50,8 +50,12 @@
               暴涨排除
             </v-chip>
             <v-chip size="x-small" variant="tonal" color="info" class="mr-1 mb-1"
-              :prepend-icon="selectedStrategy.use_trend_boost ? 'mdi-check' : 'mdi-close'">
-              趋势左移
+              :prepend-icon="selectedStrategy.use_trend_bonus ? 'mdi-check' : 'mdi-close'">
+              趋势加分
+            </v-chip>
+            <v-chip size="x-small" variant="tonal" color="warning" class="mr-1 mb-1"
+              :prepend-icon="selectedStrategy.use_volatility_penalty ? 'mdi-check' : 'mdi-close'">
+              波动扣分
             </v-chip>
           </div>
         </v-col>

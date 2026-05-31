@@ -20,10 +20,16 @@ export interface Strategy {
   explosion_price_threshold?: number
   explosion_volume_ratio?: number
   explosion_window?: number
-  use_trend_boost?: boolean
-  trend_window?: number
-  trend_scale?: number
-  max_trend_boost?: number
+  use_trend_bonus?: boolean
+  trend_bonus_window?: number
+  trend_bonus_scale?: number
+  trend_r2_threshold?: number
+  trend_max_bonus?: number
+  use_volatility_penalty?: boolean
+  vol_penalty_window?: number
+  vol_range_tolerance?: number
+  vol_penalty_scale?: number
+  vol_max_penalty?: number
   created_at: string
   updated_at?: string
 }

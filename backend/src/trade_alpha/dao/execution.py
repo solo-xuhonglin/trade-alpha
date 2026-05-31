@@ -39,10 +39,16 @@ class StrategySnapshotEmbed(BaseModel):
     explosion_price_threshold: float = 0.15
     explosion_volume_ratio: float = 3.0
     explosion_window: int = 5
-    use_trend_boost: bool = False
-    trend_window: int = 5
-    trend_scale: float = 0.5
-    max_trend_boost: float = 0.05
+    use_trend_bonus: bool = False
+    trend_bonus_window: int = 10
+    trend_bonus_scale: float = 0.03
+    trend_r2_threshold: float = 0.30
+    trend_max_bonus: float = 0.05
+    use_volatility_penalty: bool = False
+    vol_penalty_window: int = 10
+    vol_range_tolerance: float = 0.035
+    vol_penalty_scale: float = 0.005
+    vol_max_penalty: float = 0.05
 
 
 class ModelSnapshotEmbed(BaseModel):

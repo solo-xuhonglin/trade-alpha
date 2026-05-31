@@ -3,11 +3,12 @@
 from fastapi import APIRouter, HTTPException, Query
 from beanie import PydanticObjectId
 from beanie.odm.operators.find.comparison import In
-from typing import Optional, List
+from typing import Dict, Optional, List
 
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution_trade import ExecutionTrade
+from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.stock_name_cache import get_stock_names
@@ -168,6 +169,8 @@ async def get_trades_by_ts_code(result_id: str, ts_code: str):
                 "filled_price": t.filled_price,
                 "order_price": t.order_price,
                 "status": t.status,
+                "pnl_amount": t.pnl_amount,
+                "pnl_pct": t.pnl_pct,
             }
             for t in trades
         ],
@@ -262,7 +265,7 @@ async def get_pnl_details(result_id: str):
 
 @router.get("/{result_id}/prediction-stocks")
 async def get_prediction_stocks(result_id: str):
-    """Get stocks traded in a backtest result (from positions with predictions)."""
+    """Get all stocks with predictions for a backtest result, sorted by avg composite_score."""
     try:
         obj_id = PydanticObjectId(result_id)
     except Exception:
@@ -274,17 +277,23 @@ async def get_prediction_stocks(result_id: str):
 
     snapshots = await ExecutionDailySnapshot.find(
         ExecutionDailySnapshot.backtest_id == obj_id,
-        ExecutionDailySnapshot.positions != [],
-    ).to_list()
+    ).sort(ExecutionDailySnapshot.date).to_list()
 
-    ts_codes: set[str] = set()
+    stock_scores: Dict[str, List[float]] = {}
+    stock_ranks: Dict[str, List[int]] = {}
+
     for snap in snapshots:
-        for pos in snap.positions:
-            if pos.ts_code in snap.predictions:
-                ts_codes.add(pos.ts_code)
+        for ts_code, pred in snap.predictions.items():
+            score = pred.get("composite_score") or pred.get("score", 0)
+            rank = pred.get("rank")
+            if ts_code not in stock_scores:
+                stock_scores[ts_code] = []
+                stock_ranks[ts_code] = []
+            stock_scores[ts_code].append(score)
+            if rank is not None:
+                stock_ranks[ts_code].append(rank)
 
-    sorted_codes = sorted(ts_codes)
-    if not sorted_codes:
+    if not stock_scores:
         codes = result.ts_codes if result.ts_codes else ([result.ts_code] if result.ts_code else [])
         if len(codes) == 1:
             name_map = await get_stock_names(codes)
@@ -293,14 +302,23 @@ async def get_prediction_stocks(result_id: str):
             ]}
         return {"items": []}
 
-    stocks = await StockList.find(In(StockList.ts_code, list(sorted_codes))).to_list()
-    stock_map = {s.ts_code: s.name for s in stocks}
+    ts_codes = list(stock_scores.keys())
+    name_map = await get_stock_names(ts_codes)
 
-    items = [
-        {"ts_code": code, "stock_name": stock_map.get(code, code)}
-        for code in sorted_codes
-    ]
+    items = []
+    for ts_code in ts_codes:
+        scores = stock_scores[ts_code]
+        ranks = stock_ranks.get(ts_code, [])
+        avg_score = sum(scores) / len(scores)
+        avg_rank = sum(ranks) / len(ranks) if ranks else None
+        items.append({
+            "ts_code": ts_code,
+            "stock_name": name_map.get(ts_code, ts_code),
+            "avg_score": round(avg_score, 4),
+            "avg_rank": round(avg_rank, 1) if avg_rank else None,
+        })
 
+    items.sort(key=lambda x: x["avg_score"], reverse=True)
     return {"items": items}
 
 

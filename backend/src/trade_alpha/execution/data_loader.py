@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 import pandas as pd
 from datetime import datetime, timedelta
 from beanie.odm.operators.find.comparison import In
+from beanie import Document
 from trade_alpha.dao import StockList, StockDaily
 from trade_alpha.logging import get_logger
 
@@ -123,17 +124,16 @@ class DataLoader:
 
         return df
 
-    async def peek_history_data(self, end_date: str, ts_codes: List[str], days: int) -> pd.DataFrame:
+    async def peek_history_data(self, end_date: str, ts_codes: List[str], days: int) -> Dict[str, List[Document]]:
         """Read-only version of load_history_data.
 
         Loads recent history data from cache (or DB if cache empty) without
         trimming the shared _history_cache, so other callers with large
         keep_days requirements are not affected.
-        Returns only the most recent keep_records per stock.
+        Returns a dict of {ts_code: [records]} with the most recent records per stock.
         """
         keep_records = days * 2
-
-        all_records = []
+        result: Dict[str, List[Document]] = {}
 
         for ts_code in ts_codes:
             cache_start = self._get_cache_start(ts_code)
@@ -155,9 +155,6 @@ class DataLoader:
                 records = self._history_cache[ts_code]
 
             latest = records[-keep_records:] if len(records) > keep_records else records
-            all_records.extend(latest)
+            result[ts_code] = latest
 
-        if not all_records:
-            return pd.DataFrame()
-
-        return pd.DataFrame([r.model_dump() for r in all_records])
+        return result

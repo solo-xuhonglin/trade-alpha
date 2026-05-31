@@ -168,7 +168,7 @@
               <div class="d-flex align-center mb-2">
                 <v-switch v-model="form.use_momentum_boost" hide-details density="compact" color="primary"
                   class="mr-2" label="动量加权"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="info">连续正向评分加成</v-chip>
+                <v-chip size="x-small" variant="outlined" color="info">连续上涨天数加成</v-chip>
               </div>
               <v-row>
                 <v-col cols="12" md="6">
@@ -211,25 +211,64 @@
               <v-divider class="my-4"></v-divider>
 
               <div class="d-flex align-center mb-2">
-                <v-switch v-model="form.use_trend_boost" hide-details density="compact" color="primary"
-                  class="mr-2" label="趋势左移"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="info">分数趋势提前反映</v-chip>
+                <v-switch v-model="form.use_trend_bonus" hide-details density="compact" color="primary"
+                  class="mr-2" label="趋势加分"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">R² 加权趋势，股价温和上涨加分</v-chip>
               </div>
               <v-row>
                 <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.trend_window" type="number"
-                    label="窗口天数" hint="斜率计算的天数" persistent-hint
-                    :disabled="!form.use_trend_boost"></v-text-field>
+                  <v-text-field v-model.number="form.trend_bonus_window" type="number"
+                    label="窗口天数" hint="收盘价回归计算的天数" persistent-hint
+                    :disabled="!form.use_trend_bonus"></v-text-field>
                 </v-col>
                 <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.trend_scale" type="number" step="0.1"
-                    label="斜率系数" hint="斜率×系数=趋势加成" persistent-hint
-                    :disabled="!form.use_trend_boost"></v-text-field>
+                  <v-text-field v-model.number="form.trend_bonus_scale" type="number" step="0.01"
+                    label="斜率系数" hint="斜率 × 系数 = 趋势加分" persistent-hint
+                    :disabled="!form.use_trend_bonus"></v-text-field>
                 </v-col>
                 <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.max_trend_boost" type="number" step="0.01"
-                    label="最大加成" hint="上下限，防止过度干预" persistent-hint
-                    :disabled="!form.use_trend_boost"></v-text-field>
+                  <v-text-field v-model.number="form.trend_r2_threshold" type="number" step="0.05"
+                    label="R² 阈值" hint="拟合优度门槛，低于此值不加分" persistent-hint
+                    :disabled="!form.use_trend_bonus"></v-text-field>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.trend_max_bonus" type="number" step="0.01"
+                    label="最大加分" hint="趋势加分上限" persistent-hint
+                    :disabled="!form.use_trend_bonus"></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_volatility_penalty" hide-details density="compact" color="primary"
+                  class="mr-2" label="波动扣分"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="warning">日内振幅过大扣分</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.vol_penalty_window" type="number"
+                    label="窗口天数" hint="日内振幅计算的天数" persistent-hint
+                    :disabled="!form.use_volatility_penalty"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.vol_range_tolerance" type="number" step="0.005"
+                    label="振幅容忍度" hint="低于此振幅不扣分" persistent-hint
+                    :disabled="!form.use_volatility_penalty"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.vol_penalty_scale" type="number" step="0.001"
+                    label="扣分系数" hint="超出容忍度 × 系数 = 扣分" persistent-hint
+                    :disabled="!form.use_volatility_penalty"></v-text-field>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.vol_max_penalty" type="number" step="0.01"
+                    label="最大扣分" hint="波动扣分上限" persistent-hint
+                    :disabled="!form.use_volatility_penalty"></v-text-field>
                 </v-col>
               </v-row>
             </div>
@@ -362,10 +401,16 @@ const form = ref({
   explosion_price_threshold: 0.15,
   explosion_volume_ratio: 3.0,
   explosion_window: 5,
-  use_trend_boost: false,
-  trend_window: 5,
-  trend_scale: 0.5,
-  max_trend_boost: 0.05,
+  use_trend_bonus: false,
+  trend_bonus_window: 10,
+  trend_bonus_scale: 0.03,
+  trend_r2_threshold: 0.30,
+  trend_max_bonus: 0.05,
+  use_volatility_penalty: false,
+  vol_penalty_window: 10,
+  vol_range_tolerance: 0.035,
+  vol_penalty_scale: 0.005,
+  vol_max_penalty: 0.05,
 })
 
 const headers = [
@@ -407,10 +452,16 @@ const openDialog = (item?: Strategy) => {
       explosion_price_threshold: item.explosion_price_threshold ?? 0.15,
       explosion_volume_ratio: item.explosion_volume_ratio ?? 3.0,
       explosion_window: item.explosion_window ?? 5,
-      use_trend_boost: item.use_trend_boost ?? false,
-      trend_window: item.trend_window ?? 5,
-      trend_scale: item.trend_scale ?? 0.5,
-      max_trend_boost: item.max_trend_boost ?? 0.05,
+      use_trend_bonus: item.use_trend_bonus ?? false,
+      trend_bonus_window: item.trend_bonus_window ?? 10,
+      trend_bonus_scale: item.trend_bonus_scale ?? 0.03,
+      trend_r2_threshold: item.trend_r2_threshold ?? 0.30,
+      trend_max_bonus: item.trend_max_bonus ?? 0.05,
+      use_volatility_penalty: item.use_volatility_penalty ?? false,
+      vol_penalty_window: item.vol_penalty_window ?? 10,
+      vol_range_tolerance: item.vol_range_tolerance ?? 0.035,
+      vol_penalty_scale: item.vol_penalty_scale ?? 0.005,
+      vol_max_penalty: item.vol_max_penalty ?? 0.05,
     }
   } else {
     editingId.value = null
@@ -451,10 +502,16 @@ const saveStrategy = async () => {
       explosion_price_threshold: form.value.type === 'multi' ? form.value.explosion_price_threshold : undefined,
       explosion_volume_ratio: form.value.type === 'multi' ? form.value.explosion_volume_ratio : undefined,
       explosion_window: form.value.type === 'multi' ? form.value.explosion_window : undefined,
-      use_trend_boost: form.value.type === 'multi' ? form.value.use_trend_boost : undefined,
-      trend_window: form.value.type === 'multi' ? form.value.trend_window : undefined,
-      trend_scale: form.value.type === 'multi' ? form.value.trend_scale : undefined,
-      max_trend_boost: form.value.type === 'multi' ? form.value.max_trend_boost : undefined,
+      use_trend_bonus: form.value.type === 'multi' ? form.value.use_trend_bonus : undefined,
+      trend_bonus_window: form.value.type === 'multi' ? form.value.trend_bonus_window : undefined,
+      trend_bonus_scale: form.value.type === 'multi' ? form.value.trend_bonus_scale : undefined,
+      trend_r2_threshold: form.value.type === 'multi' ? form.value.trend_r2_threshold : undefined,
+      trend_max_bonus: form.value.type === 'multi' ? form.value.trend_max_bonus : undefined,
+      use_volatility_penalty: form.value.type === 'multi' ? form.value.use_volatility_penalty : undefined,
+      vol_penalty_window: form.value.type === 'multi' ? form.value.vol_penalty_window : undefined,
+      vol_range_tolerance: form.value.type === 'multi' ? form.value.vol_range_tolerance : undefined,
+      vol_penalty_scale: form.value.type === 'multi' ? form.value.vol_penalty_scale : undefined,
+      vol_max_penalty: form.value.type === 'multi' ? form.value.vol_max_penalty : undefined,
     })
   } else {
     await strategyConfigApi.create({

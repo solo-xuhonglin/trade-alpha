@@ -78,6 +78,8 @@ export interface TradeListResponse {
 export interface PredictionStock {
   ts_code: string
   stock_name: string
+  avg_score?: number
+  avg_rank?: number
 }
 
 export interface PredictionItem {
@@ -162,7 +164,7 @@ export const backtestRecordApi = {
     api.get<PredictionResponse>(`/backtests/${id}/predictions/${tsCode}`),
 
   getTradesByTsCode: (id: string, tsCode: string) =>
-    api.get<{ items: { trade_date: string; action: string; filled_price: number; order_price: number; status: string }[] }>(
+    api.get<{ items: { trade_date: string; action: string; filled_price: number; order_price: number; status: string; pnl_amount?: number; pnl_pct?: number }[] }>(
       `/backtests/${id}/trades/${tsCode}`
     ),
 

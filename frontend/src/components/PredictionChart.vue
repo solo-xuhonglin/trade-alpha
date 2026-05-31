@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="1200px" persistent>
+  <v-dialog v-model="dialog" max-width="1400px" persistent>
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
         预测分析
@@ -8,61 +8,85 @@
         </v-btn>
       </v-card-title>
       <v-card-text class="overflow-y-auto" style="max-height: 80vh;">
-        <v-row>
-          <v-col cols="12" sm="3">
-            <v-select
-              :items="stockItems"
-              item-title="label"
-              item-value="ts_code"
-              label="选择股票"
-              v-model="selectedTsCode"
-              :loading="loadingStocks"
-              @update:model-value="loadChartData"
-              clearable
-              return-object
-            ></v-select>
+        <v-row style="min-height: 520px;">
+          <v-col cols="12" md="3" style="min-width: 200px; max-width: 250px;">
+            <v-card variant="tonal" class="pa-3">
+              <v-select
+                :items="stockItems"
+                item-title="label"
+                item-value="ts_code"
+                label="选择股票"
+                v-model="selectedTsCode"
+                :loading="loadingStocks"
+                @update:model-value="loadChartData"
+                clearable
+                return-object
+                density="compact"
+                hide-details
+                variant="outlined"
+              ></v-select>
+
+              <template v-if="selectedTsCode && chartData.length > 0">
+                <v-divider class="my-3"></v-divider>
+                <div class="text-subtitle-2 font-weight-medium mb-2">方向准确率</div>
+                <div class="d-flex flex-column ga-1">
+                  <div v-for="h in horizons" :key="h" class="text-caption d-flex align-center">
+                    <span class="text-medium-emphasis" style="width: 48px;">{{ h }}日:</span>
+                    <span :class="accuracyMap[h] && accuracyMap[h].pct >= 50 ? 'text-success' : 'text-error'" class="font-weight-bold">
+                      {{ accuracyMap[h] ? accuracyMap[h].pct + '%' : '--' }}
+                    </span>
+                    <span class="text-medium-emphasis ml-1" v-if="accuracyMap[h]">({{ accuracyMap[h].correct }}/{{ accuracyMap[h].total }})</span>
+                  </div>
+                </div>
+              </template>
+
+              <template v-if="selectedTsCode && chartData.length > 0">
+                <v-divider class="my-3"></v-divider>
+                <div class="text-subtitle-2 font-weight-medium mb-2">关键指标</div>
+                <div class="d-flex flex-column ga-2">
+                  <div class="text-caption d-flex justify-space-between">
+                    <span class="text-medium-emphasis">平均综合评分</span>
+                    <span class="font-weight-medium">{{ avgCompositeScore }}</span>
+                  </div>
+                  <div class="text-caption d-flex justify-space-between">
+                    <span class="text-medium-emphasis">平均排名</span>
+                    <span class="font-weight-medium">#{{ avgRank }}</span>
+                  </div>
+                  <div class="text-caption d-flex justify-space-between">
+                    <span class="text-medium-emphasis">交易状态</span>
+                    <span class="font-weight-medium">
+                      <v-icon v-if="totalBuyTrades > 0 || totalSellTrades > 0" color="success" size="small">mdi-check-circle</v-icon>
+                      <v-icon v-else color="disabled" size="small">mdi-minus-circle</v-icon>
+                      {{ tradeStatusText }}
+                    </span>
+                  </div>
+                  <div v-if="totalPnl !== null" class="text-caption d-flex justify-space-between">
+                    <span class="text-medium-emphasis">总盈亏</span>
+                    <span :class="totalPnl >= 0 ? 'text-success' : 'text-error'" class="font-weight-bold">
+                      ¥{{ totalPnl.toFixed(2) }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+
+              <template v-if="selectedTsCode && chartData.length === 0 && !loadingChart">
+                <v-divider class="my-3"></v-divider>
+                <div class="text-caption text-medium-emphasis text-center py-4">该股票无预测数据</div>
+              </template>
+            </v-card>
           </v-col>
-          <v-col cols="12" sm="6" v-if="selectedTsCode && chartData.length > 0">
-            <div class="d-flex align-center ga-4" style="height: 56px; flex-wrap: wrap;">
-              <div v-for="h in horizons" :key="h" class="text-caption">
-                {{ h }}日方向准确率:
-                <span :class="accuracyMap[h] && accuracyMap[h].pct >= 50 ? 'text-success' : 'text-error'" class="font-weight-bold">
-                  {{ accuracyMap[h] ? accuracyMap[h].pct + '%' : '--' }}
-                </span>
-                <span class="text-medium-emphasis" v-if="accuracyMap[h]"> ({{ accuracyMap[h].correct }}/{{ accuracyMap[h].total }})</span>
-              </div>
+
+          <v-col cols="12" md="9" class="d-flex flex-column">
+            <div v-if="loadingChart" class="d-flex justify-center align-center flex-grow-1">
+              <v-progress-circular indeterminate></v-progress-circular>
             </div>
-          </v-col>
-          <v-col cols="12" sm="3" class="text-right">
-            <v-btn
-              prepend-icon="mdi-magnify"
-              text="查看K线"
-              variant="outlined"
-              size="small"
-              :href="`/#/data?ts_code=${selectedTsCode?.ts_code}`"
-              target="_blank"
-              v-if="selectedTsCode"
-            ></v-btn>
-          </v-col>
-        </v-row>
-        <v-row v-if="loadingChart">
-          <v-col class="text-center py-10">
-            <v-progress-circular indeterminate></v-progress-circular>
-          </v-col>
-        </v-row>
-        <v-row v-else-if="!selectedTsCode">
-          <v-col class="text-center py-10 text-medium-emphasis">
-            请选择股票查看预测分析
-          </v-col>
-        </v-row>
-        <v-row v-else-if="chartData.length === 0">
-          <v-col class="text-center py-10 text-medium-emphasis">
-            该股票无预测数据
-          </v-col>
-        </v-row>
-        <v-row v-else>
-          <v-col>
-            <div ref="chartRef" style="width: 100%; height: 500px;"></div>
+            <div v-else-if="!selectedTsCode" class="d-flex justify-center align-center flex-grow-1 text-medium-emphasis">
+              请选择股票查看预测分析
+            </div>
+            <div v-else-if="chartData.length === 0" class="d-flex justify-center align-center flex-grow-1 text-medium-emphasis">
+              该股票无预测数据
+            </div>
+            <div v-else ref="chartRef" style="width: 100%; height: 500px;"></div>
           </v-col>
         </v-row>
       </v-card-text>
@@ -126,6 +150,7 @@ const buyTrades = ref<{ trade_date: string; price: number }[]>([])
 const sellTrades = ref<{ trade_date: string; price: number }[]>([])
 const buyCancelledTrades = ref<{ trade_date: string; price: number }[]>([])
 const sellCancelledTrades = ref<{ trade_date: string; price: number }[]>([])
+const totalPnlAmount = ref(0)
 
 const dailySnapshots = ref<DailySnapshot[]>([])
 const strategyReturns = ref<number[]>([])
@@ -150,6 +175,33 @@ const accuracyMap = computed(() => {
     }
   }
   return result
+})
+
+const avgCompositeScore = computed(() => {
+  if (predictionItems.value.length === 0) return '--'
+  const scores = predictionItems.value.map(p => p.composite_score ?? p.score).filter(s => s != null)
+  if (scores.length === 0) return '--'
+  return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(4)
+})
+
+const avgRank = computed(() => {
+  if (predictionItems.value.length === 0) return '--'
+  const ranks = predictionItems.value.map(p => p.rank).filter(r => r != null)
+  if (ranks.length === 0) return '--'
+  return Math.round(ranks.reduce((a, b) => a + b, 0) / ranks.length)
+})
+
+const totalBuyTrades = computed(() => buyTrades.value.length)
+const totalSellTrades = computed(() => sellTrades.value.length)
+
+const tradeStatusText = computed(() => {
+  if (totalBuyTrades.value === 0 && totalSellTrades.value === 0) return '未交易'
+  return `买入${totalBuyTrades.value}次 卖出${totalSellTrades.value}次`
+})
+
+const totalPnl = computed(() => {
+  if (totalPnlAmount.value === 0 && totalSellTrades.value === 0) return null
+  return totalPnlAmount.value
 })
 
 const loadStocks = async () => {
@@ -217,11 +269,15 @@ const loadChartData = async () => {
       sellTrades.value = allTrades.filter(t => t.action === 'sell' && t.status === 'filled').map(t => ({ trade_date: t.trade_date, price: t.filled_price }))
       buyCancelledTrades.value = allTrades.filter(t => t.action === 'buy' && t.status === 'cancelled').map(t => ({ trade_date: t.trade_date, price: t.order_price }))
       sellCancelledTrades.value = allTrades.filter(t => t.action === 'sell' && t.status === 'cancelled').map(t => ({ trade_date: t.trade_date, price: t.order_price }))
+      totalPnlAmount.value = allTrades
+        .filter(t => t.action === 'sell' && t.status === 'filled')
+        .reduce((sum, t) => sum + ((t as any).pnl_amount || 0), 0)
     } catch (e) {
       buyTrades.value = []
       sellTrades.value = []
       buyCancelledTrades.value = []
       sellCancelledTrades.value = []
+      totalPnlAmount.value = 0
     }
 
     // 加载每日快照用于收益率曲线（独立 try/catch）
