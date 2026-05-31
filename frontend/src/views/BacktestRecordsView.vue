@@ -339,6 +339,7 @@
       </v-toolbar>
       <v-tabs v-model="backtestConfigTab" bg-color="surface">
         <v-tab value="model">模型配置</v-tab>
+        <v-tab value="account">账户配置</v-tab>
         <v-tab value="strategy">策略配置</v-tab>
         <v-tab value="features">特征配置</v-tab>
       </v-tabs>
@@ -408,6 +409,25 @@
                 <v-col cols="6"></v-col>
               </v-row>
             </template>
+          </v-window-item>
+
+          <v-window-item value="account">
+            <div class="text-subtitle-2 font-weight-medium mb-1">账户信息</div>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">名称：</span>{{ backtestAccountConfig?.name || '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">初始资金：</span>¥{{ backtestAccountConfig?.initial_capital?.toLocaleString() || '-' }}</v-col>
+            </v-row>
+
+            <v-divider class="my-2" />
+            <div class="text-subtitle-2 font-weight-medium mb-1">费率</div>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">买入费率：</span>{{ backtestAccountConfig?.buy_fee_rate ? (backtestAccountConfig.buy_fee_rate * 100).toFixed(3) + '%' : '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">卖出费率：</span>{{ backtestAccountConfig?.sell_fee_rate ? (backtestAccountConfig.sell_fee_rate * 100).toFixed(3) + '%' : '-' }}</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">印花税率：</span>{{ backtestAccountConfig?.stamp_tax_rate ? (backtestAccountConfig.stamp_tax_rate * 100).toFixed(2) + '%' : '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最低手续费：</span>¥{{ backtestAccountConfig?.min_fee ?? '-' }}</v-col>
+            </v-row>
           </v-window-item>
 
           <v-window-item value="strategy">
@@ -546,6 +566,7 @@ const backtestConfigTab = ref('model')
 const backtestConfigItem = ref<Backtest | null>(null)
 const backtestModelConfig = ref<Record<string, any> | null>(null)
 const backtestStrategyConfig = ref<Partial<Strategy> | null>(null)
+const backtestAccountConfig = ref<Backtest['account_snapshot'] | null>(null)
 const excludedStocks = ref<any[]>([])
 const excludedLoading = ref(false)
 let amountChart: echarts.ECharts | null = null
@@ -640,6 +661,7 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
   backtestStrategyConfig.value = item.strategy_snapshot
     ? { ...item.strategy_snapshot } as Partial<Strategy>
     : null
+  backtestAccountConfig.value = item.account_snapshot ? { ...item.account_snapshot } : null
   backtestConfigDialog.value = true
 }
 

@@ -5,7 +5,6 @@ from beanie import PydanticObjectId
 from beanie.odm.operators.find.comparison import In
 from typing import Optional, List
 
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution_trade import ExecutionTrade
@@ -36,9 +35,6 @@ async def list_backtest_results(
     name_map = await get_stock_names(list(all_codes)) if all_codes else {}
 
     for result in results:
-        account_config = await AccountConfig.get(result.account_config_id) if result.account_config_id else None
-        strategy_snap = result.strategy_snapshot
-
         raw_codes = result.ts_codes if result.ts_codes else ([result.ts_code] if result.ts_code else [])
         ts_codes = [
             {"ts_code": c, "ts_name": name_map.get(c, c)}
@@ -70,18 +66,8 @@ async def list_backtest_results(
             "baseline_volatility": result.baseline_volatility,
             "baseline_sharpe_ratio": result.baseline_sharpe_ratio,
             "avg_hold_days": result.avg_hold_days,
-            "account_config_name": account_config.name if account_config else None,
-            "strategy_name": strategy_snap.name if strategy_snap else None,
-            "strategy_type": strategy_snap.type if strategy_snap else None,
-            "min_order_value": strategy_snap.min_order_value if strategy_snap else None,
-            "stop_loss_pct": strategy_snap.stop_loss_pct if strategy_snap else None,
-            "max_hold_days": strategy_snap.max_hold_days if strategy_snap else None,
-            "buy_threshold": strategy_snap.buy_threshold if strategy_snap else None,
-            "sell_threshold": strategy_snap.sell_threshold if strategy_snap else None,
-            "max_positions": strategy_snap.max_positions if strategy_snap else None,
-            "max_position_pct": strategy_snap.max_position_pct if strategy_snap else None,
-            "sell_rank_n": strategy_snap.sell_rank_n if strategy_snap else None,
-            "hold_score_threshold": strategy_snap.hold_score_threshold if strategy_snap else None,
+            "account_snapshot": result.account_snapshot.model_dump() if result.account_snapshot else None,
+            "strategy_snapshot": result.strategy_snapshot.model_dump() if result.strategy_snapshot else None,
             "model_snapshot": result.model_snapshot.model_dump() if result.model_snapshot else None,
             "created_at": result.created_at,
         })

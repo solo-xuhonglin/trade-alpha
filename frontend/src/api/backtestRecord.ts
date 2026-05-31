@@ -30,7 +30,14 @@ export interface Backtest {
   baseline_max_drawdown?: number
   avg_hold_days?: number
   trade_win_rate?: number
-  account_config_name?: string
+  account_snapshot?: {
+    name: string
+    initial_capital: number
+    buy_fee_rate: number
+    sell_fee_rate: number
+    stamp_tax_rate: number
+    min_fee: number
+  }
   model_snapshot?: Record<string, any>
   strategy_snapshot?: Record<string, any>
   created_at?: string
