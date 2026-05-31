@@ -185,6 +185,10 @@ async def get_pnl_details(result_id: str):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid result ID")
 
+    result = await ExecutionResult.get(obj_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+
     from trade_alpha.dao.mongodb import get_database
     db = await get_database()
     if db is None:
@@ -249,6 +253,9 @@ async def get_pnl_details(result_id: str):
         total_profit_amount += profit_amount
         total_loss_amount += loss_amount
 
+    total_portfolio_pnl = (result.final_value or 0) - (result.initial_capital or 0)
+    unrealized_pnl = total_portfolio_pnl - total_pnl
+
     return {
         "items": items,
         "summary": {
@@ -259,6 +266,8 @@ async def get_pnl_details(result_id: str):
             "total_profit_amount": round(total_profit_amount, 2),
             "total_loss_amount": round(total_loss_amount, 2),
             "overall_win_rate": round(total_profit_trades / total_sells, 4) if total_sells > 0 else 0.0,
+            "unrealized_pnl": round(unrealized_pnl, 2),
+            "total_portfolio_pnl": round(total_portfolio_pnl, 2),
         },
     }
 

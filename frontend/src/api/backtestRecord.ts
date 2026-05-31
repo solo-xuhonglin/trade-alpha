@@ -131,6 +131,8 @@ export interface PnlDetailSummary {
   total_profit_amount: number
   total_loss_amount: number
   overall_win_rate: number
+  unrealized_pnl?: number
+  total_portfolio_pnl?: number
 }
 
 export interface PnlDetailResponse {

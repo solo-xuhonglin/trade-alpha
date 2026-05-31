@@ -164,10 +164,26 @@
               <div v-else>
                 <v-row>
                   <v-col cols="6" sm="3">
+                    <v-card variant="tonal" :color="pnlSummary.total_portfolio_pnl >= 0 ? 'success' : 'error'">
+                      <v-card-text class="text-center pa-2">
+                        <div class="text-caption text-medium-emphasis">总收益（含浮盈）</div>
+                        <div class="text-h6">¥{{ pnlSummary.total_portfolio_pnl.toFixed(2) }}</div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="6" sm="3">
                     <v-card variant="tonal" :color="pnlSummary.total_pnl_amount >= 0 ? 'success' : 'error'">
                       <v-card-text class="text-center pa-2">
-                        <div class="text-caption text-medium-emphasis">总盈亏</div>
+                        <div class="text-caption text-medium-emphasis">已实现盈亏</div>
                         <div class="text-h6">¥{{ pnlSummary.total_pnl_amount.toFixed(2) }}</div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="6" sm="3">
+                    <v-card variant="tonal" :color="(pnlSummary.unrealized_pnl ?? 0) >= 0 ? 'success' : 'error'">
+                      <v-card-text class="text-center pa-2">
+                        <div class="text-caption text-medium-emphasis">未实现浮盈</div>
+                        <div class="text-h6">¥{{ (pnlSummary.unrealized_pnl ?? 0).toFixed(2) }}</div>
                       </v-card-text>
                     </v-card>
                   </v-col>
