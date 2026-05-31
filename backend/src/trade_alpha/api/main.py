@@ -59,7 +59,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         req_id = generate_request_id()
         start_time = time.perf_counter()
 
-        logger.info(
+        logger.debug(
             "request_start",
             f"{request.method} {request.url.path}"
         )
@@ -67,7 +67,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         duration = time.perf_counter() - start_time
-        logger.info(
+        logger.debug(
             "request_end",
             f"{request.method} {request.url.path} - {response.status_code} ({duration*1000:.1f}ms)"
         )

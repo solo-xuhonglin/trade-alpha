@@ -36,6 +36,22 @@ def _next_date(date_str: str) -> str:
     return dt.strftime("%Y%m%d")
 
 
+def _calc_linear_slope(values: List[float]) -> float:
+    """Calculate linear regression slope for a list of values."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    x = list(range(n))
+    sum_x = sum(x)
+    sum_y = sum(values)
+    sum_xy = sum(xi * yi for xi, yi in zip(x, values))
+    sum_xx = sum(xi * xi for xi in x)
+    denom = n * sum_xx - sum_x * sum_x
+    if denom == 0:
+        return 0.0
+    return (n * sum_xy - sum_x * sum_y) / denom
+
+
 class ExecutionPipeline:
     """Unified execution pipeline for backtest and live trading."""
 
@@ -88,6 +104,7 @@ class ExecutionPipeline:
         self.pending_orders: List[PendingOrder] = []
         self._score_buffer: Dict[str, List[float]] = {}  # ts_code -> EWMA history
         self._score_buffer_momentum: Dict[str, List[float]] = {}  # ts_code -> momentum window
+        self._score_buffer_trend: Dict[str, List[float]] = {}  # ts_code -> trend window
 
     def _smooth_scores(self, pred_results: Dict[str, Dict]) -> None:
         """Apply EWMA smoothing to scores in-place on pred_results.
@@ -154,6 +171,39 @@ class ExecutionPipeline:
                 r["composite_score"] = raw
                 r["momentum_bonus"] = 0.0
 
+    def _apply_trend_boost(self, pred_results: Dict[str, Dict]) -> None:
+        """Apply trend left shift based on score slope over recent window.
+
+        Uses linear regression slope of smoothed scores to detect trend.
+        Only applied when strategy config has use_trend_boost=True.
+        """
+        if not self.strategy_config or not self.strategy_config.use_trend_boost:
+            for r in pred_results.values():
+                r["trend_boost"] = 0.0
+                r["score_slope"] = 0.0
+            return
+
+        window = self.strategy_config.trend_window
+        scale = self.strategy_config.trend_scale
+        max_boost = self.strategy_config.max_trend_boost
+
+        for ts_code, r in pred_results.items():
+            raw = r["score"]
+            buf = self._score_buffer_trend.setdefault(ts_code, [])
+            buf.append(raw)
+            if len(buf) > window:
+                buf.pop(0)
+
+            if len(buf) >= 3:
+                slope = _calc_linear_slope(buf)
+            else:
+                slope = 0.0
+
+            trend_boost = max(-max_boost, min(max_boost, slope * scale))
+            r["score"] = raw + trend_boost
+            r["trend_boost"] = trend_boost
+            r["score_slope"] = slope
+
     async def _filter_explosions(self, pred_results: Dict[str, Dict],
                                   trade_date: str,
                                   current_vol_dict: Optional[Dict[str, float]] = None) -> None:
@@ -165,11 +215,13 @@ class ExecutionPipeline:
         if not self.strategy_config or not self.strategy_config.use_explosion_filter:
             for r in pred_results.values():
                 r["is_excluded"] = False
+            logger.info(f"_filter_explosions {trade_date}: explosion filter disabled")
             return
 
         threshold = self.strategy_config.explosion_price_threshold
         volume_ratio_threshold = self.strategy_config.explosion_volume_ratio
         window = self.strategy_config.explosion_window
+        logger.info(f"_filter_explosions {trade_date}: enabled, threshold={threshold}, vol_ratio={volume_ratio_threshold}, window={window}")
 
         ts_codes = list(pred_results.keys())
         history_df = await self.data_loader.load_history_data(trade_date, ts_codes, window + 1)
@@ -207,6 +259,11 @@ class ExecutionPipeline:
             r["is_excluded"] = is_excluded
             r["price_surge_pct"] = price_surge
             r["volume_ratio"] = vol_ratio
+
+        excluded_count = sum(1 for r in pred_results.values() if r.get("is_excluded"))
+        if excluded_count > 0:
+            logger.warning(f"_filter_explosions {trade_date}: {excluded_count}/{len(pred_results)} excluded, "
+                           f"threshold={threshold}, vol_ratio_threshold={volume_ratio_threshold}")
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -364,6 +421,7 @@ class ExecutionPipeline:
         if not pred_results:
             return [], {}
         self._smooth_scores(pred_results)
+        self._apply_trend_boost(pred_results)
         self._apply_momentum_boost(pred_results)
         await self._filter_explosions(pred_results, date, vol_prices)
         scored = [
@@ -372,6 +430,7 @@ class ExecutionPipeline:
                 close=r["close"], up_prob_3d=r["up_prob_3d"],
                 up_prob_5d=r["up_prob_5d"], score=r["score"],
                 is_excluded=r.get("is_excluded", False),
+                trend_boost=r.get("trend_boost", 0.0),
             ) for ts_code, r in pred_results.items()
         ]
         self._record_ranks(scored, pred_results)
@@ -573,6 +632,7 @@ class ExecutionPipeline:
 
         vol_prices = dict(zip(day_df["ts_code"], day_df["vol"])) if not day_df.empty else {}
         self._smooth_scores(pred_results)
+        self._apply_trend_boost(pred_results)
         self._apply_momentum_boost(pred_results)
         await self._filter_explosions(pred_results, date, vol_prices)
 
@@ -586,6 +646,7 @@ class ExecutionPipeline:
                 up_prob_10d=r.get("up_prob_10d", 0),
                 score=r["score"],
                 is_excluded=r.get("is_excluded", False),
+                trend_boost=r.get("trend_boost", 0.0),
             )
             for ts_code, r in pred_results.items()
         ]

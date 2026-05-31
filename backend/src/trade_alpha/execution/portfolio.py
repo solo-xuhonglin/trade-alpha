@@ -65,6 +65,7 @@ class PortfolioManager:
             (success, shares, fee) — success=True means cash is pre-deducted.
         """
         if price <= 0:
+            logger.warning("reserve_funds", f"Invalid price={price} for {ts_code}, skipping")
             return False, 0, 0
 
         total_value = self.cash

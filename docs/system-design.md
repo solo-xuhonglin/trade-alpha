@@ -133,16 +133,25 @@ trade-alpha/
 
 ### 2. 日志模块 (logging)
 
-结构化日志，支持请求链路追踪：
+结构化日志，支持请求链路追踪，按级别分离存储：
 
 **日志格式**:
 ```
-2026-05-10 14:30:15.123 [INFO] [req_a1b2c3d4] [api] [request_start] GET /api/stocks
+2026-05-10 14:30:15.123 [INFO] [req_a1b2c3d4] [filename.py:42] [method_name] message
 ```
+
+**日志文件**（`logs/` 目录）:
+
+| 文件 | 级别 | 内容 |
+|------|------|------|
+| `debug.log` | DEBUG+ | 所有日志 |
+| `info.log` | INFO+ | INFO、WARNING、ERROR |
+| `warning.log` | WARNING+ | WARNING、ERROR |
+| `error.log` | ERROR+ | ERROR |
 
 **上下文字段**:
 - `request_id`: 请求唯一 ID
-- `module`: 服务模块
+- `filename:lineno`: 源文件名和行号
 - `method`: 方法名
 
 ### 3. DAO 模块 (dao)

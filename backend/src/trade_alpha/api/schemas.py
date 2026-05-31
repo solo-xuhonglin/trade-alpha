@@ -84,6 +84,10 @@ class StrategyCreateRequest(BaseModel):
     explosion_price_threshold: Optional[float] = 0.15
     explosion_volume_ratio: Optional[float] = 3.0
     explosion_window: Optional[int] = 5
+    use_trend_boost: Optional[bool] = False
+    trend_window: Optional[int] = 5
+    trend_scale: Optional[float] = 0.5
+    max_trend_boost: Optional[float] = 0.05
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -104,6 +108,10 @@ class StrategyUpdateRequest(BaseModel):
     explosion_price_threshold: Optional[float] = None
     explosion_volume_ratio: Optional[float] = None
     explosion_window: Optional[int] = None
+    use_trend_boost: Optional[bool] = None
+    trend_window: Optional[int] = None
+    trend_scale: Optional[float] = None
+    max_trend_boost: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

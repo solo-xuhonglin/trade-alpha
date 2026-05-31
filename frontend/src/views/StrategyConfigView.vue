@@ -207,6 +207,31 @@
                     :disabled="!form.use_explosion_filter"></v-text-field>
                 </v-col>
               </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_trend_boost" hide-details density="compact" color="primary"
+                  class="mr-2" label="趋势左移"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">分数趋势提前反映</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.trend_window" type="number"
+                    label="窗口天数" hint="斜率计算的天数" persistent-hint
+                    :disabled="!form.use_trend_boost"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.trend_scale" type="number" step="0.1"
+                    label="斜率系数" hint="斜率×系数=趋势加成" persistent-hint
+                    :disabled="!form.use_trend_boost"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.max_trend_boost" type="number" step="0.01"
+                    label="最大加成" hint="上下限，防止过度干预" persistent-hint
+                    :disabled="!form.use_trend_boost"></v-text-field>
+                </v-col>
+              </v-row>
             </div>
           </v-window-item>
         </v-window>
@@ -337,6 +362,10 @@ const form = ref({
   explosion_price_threshold: 0.15,
   explosion_volume_ratio: 3.0,
   explosion_window: 5,
+  use_trend_boost: false,
+  trend_window: 5,
+  trend_scale: 0.5,
+  max_trend_boost: 0.05,
 })
 
 const headers = [
@@ -378,6 +407,10 @@ const openDialog = (item?: Strategy) => {
       explosion_price_threshold: item.explosion_price_threshold ?? 0.15,
       explosion_volume_ratio: item.explosion_volume_ratio ?? 3.0,
       explosion_window: item.explosion_window ?? 5,
+      use_trend_boost: item.use_trend_boost ?? false,
+      trend_window: item.trend_window ?? 5,
+      trend_scale: item.trend_scale ?? 0.5,
+      max_trend_boost: item.max_trend_boost ?? 0.05,
     }
   } else {
     editingId.value = null
@@ -418,6 +451,10 @@ const saveStrategy = async () => {
       explosion_price_threshold: form.value.type === 'multi' ? form.value.explosion_price_threshold : undefined,
       explosion_volume_ratio: form.value.type === 'multi' ? form.value.explosion_volume_ratio : undefined,
       explosion_window: form.value.type === 'multi' ? form.value.explosion_window : undefined,
+      use_trend_boost: form.value.type === 'multi' ? form.value.use_trend_boost : undefined,
+      trend_window: form.value.type === 'multi' ? form.value.trend_window : undefined,
+      trend_scale: form.value.type === 'multi' ? form.value.trend_scale : undefined,
+      max_trend_boost: form.value.type === 'multi' ? form.value.max_trend_boost : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -439,6 +476,10 @@ const saveStrategy = async () => {
       explosion_price_threshold: form.value.type === 'multi' ? form.value.explosion_price_threshold : undefined,
       explosion_volume_ratio: form.value.type === 'multi' ? form.value.explosion_volume_ratio : undefined,
       explosion_window: form.value.type === 'multi' ? form.value.explosion_window : undefined,
+      use_trend_boost: form.value.type === 'multi' ? form.value.use_trend_boost : undefined,
+      trend_window: form.value.type === 'multi' ? form.value.trend_window : undefined,
+      trend_scale: form.value.type === 'multi' ? form.value.trend_scale : undefined,
+      max_trend_boost: form.value.type === 'multi' ? form.value.max_trend_boost : undefined,
     })
   }
   dialog.value = false

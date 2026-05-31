@@ -36,6 +36,10 @@ def _strategy_to_dict(s) -> dict:
         "explosion_price_threshold": s.explosion_price_threshold,
         "explosion_volume_ratio": s.explosion_volume_ratio,
         "explosion_window": s.explosion_window,
+        "use_trend_boost": s.use_trend_boost,
+        "trend_window": s.trend_window,
+        "trend_scale": s.trend_scale,
+        "max_trend_boost": s.max_trend_boost,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -88,6 +92,10 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             explosion_price_threshold=request.explosion_price_threshold or 0.15,
             explosion_volume_ratio=request.explosion_volume_ratio or 3.0,
             explosion_window=request.explosion_window or 5,
+            use_trend_boost=request.use_trend_boost or False,
+            trend_window=request.trend_window or 5,
+            trend_scale=request.trend_scale or 0.5,
+            max_trend_boost=request.max_trend_boost or 0.05,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -122,6 +130,10 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             explosion_price_threshold=request.explosion_price_threshold,
             explosion_volume_ratio=request.explosion_volume_ratio,
             explosion_window=request.explosion_window,
+            use_trend_boost=request.use_trend_boost,
+            trend_window=request.trend_window,
+            trend_scale=request.trend_scale,
+            max_trend_boost=request.max_trend_boost,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

@@ -24,7 +24,7 @@ class StructuredFormatter(logging.Formatter):
 
 
 def setup_logging(log_level: Optional[str] = None, log_dir: Optional[str] = None) -> None:
-    """Setup logging with console and file handlers."""
+    """Setup logging with console and per-level file handlers."""
     level = log_level or os.getenv("LOG_LEVEL", "DEBUG")
 
     if log_dir:
@@ -32,7 +32,6 @@ def setup_logging(log_level: Optional[str] = None, log_dir: Optional[str] = None
     else:
         log_path = Path(__file__).parent.parent.parent.parent / "logs"
     log_path.mkdir(parents=True, exist_ok=True)
-    log_file = log_path / "trade_alpha.log"
 
     formatter = StructuredFormatter(
         fmt="%(asctime)s.%(msecs)03d [%(levelname)s] [%(request_id)s] [%(filename)s:%(lineno)d] [%(method)s] %(message)s",
@@ -47,9 +46,17 @@ def setup_logging(log_level: Optional[str] = None, log_dir: Optional[str] = None
         console_handler.setFormatter(formatter)
         root_logger.addHandler(console_handler)
 
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setFormatter(formatter)
-        root_logger.addHandler(file_handler)
+        level_file_configs = [
+            ("debug.log", logging.DEBUG),
+            ("info.log", logging.INFO),
+            ("warning.log", logging.WARNING),
+            ("error.log", logging.ERROR),
+        ]
+        for filename, min_level in level_file_configs:
+            fh = logging.FileHandler(log_path / filename, encoding="utf-8")
+            fh.setLevel(min_level)
+            fh.setFormatter(formatter)
+            root_logger.addHandler(fh)
 
     logging.getLogger("pymongo").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)

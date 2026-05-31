@@ -170,11 +170,8 @@ service.bat start
 # 停止服务
 service.bat stop
 
-# 重启服务（删除日志）
+# 重启服务（自动清理 debug.log、info.log、warning.log、error.log）
 service.bat restart
-
-# 重启服务（保留日志）
-service.bat restart -KeepLogs
 ```
 
 > 服务管理优先使用 `service.bat` / `service.ps1`，检查服务状态优先使用 `check_server.py`。

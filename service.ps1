@@ -7,7 +7,7 @@ param(
 $ROOT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BACKEND_DIR = Join-Path $ROOT_DIR "backend"
 $FRONTEND_DIR = Join-Path $ROOT_DIR "frontend"
-$LOG_FILE = Join-Path $ROOT_DIR "logs\trade_alpha.log"
+$LOG_DIR = Join-Path $ROOT_DIR "logs"
 $PYTHON_EXE = "python"
 
 function Stop-Services {
@@ -15,7 +15,10 @@ function Stop-Services {
     Get-Process -Name "python" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
-    Remove-Item $LOG_FILE -Force -ErrorAction SilentlyContinue
+    @("debug.log", "info.log", "warning.log", "error.log") | ForEach-Object {
+        $f = Join-Path $LOG_DIR $_
+        Remove-Item $f -Force -ErrorAction SilentlyContinue
+    }
     Write-Host "  Done"
 }
 

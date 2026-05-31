@@ -27,6 +27,10 @@ class StrategyConfig(Document):
     explosion_price_threshold: float = 0.15
     explosion_volume_ratio: float = 3.0
     explosion_window: int = 5
+    use_trend_boost: bool = False
+    trend_window: int = 5
+    trend_scale: float = 0.5
+    max_trend_boost: float = 0.05
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

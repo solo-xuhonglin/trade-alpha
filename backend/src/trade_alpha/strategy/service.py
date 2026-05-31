@@ -28,6 +28,10 @@ async def create_strategy(
     explosion_price_threshold: float = 0.15,
     explosion_volume_ratio: float = 3.0,
     explosion_window: int = 5,
+    use_trend_boost: bool = False,
+    trend_window: int = 5,
+    trend_scale: float = 0.5,
+    max_trend_boost: float = 0.05,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -55,6 +59,10 @@ async def create_strategy(
         explosion_price_threshold=explosion_price_threshold,
         explosion_volume_ratio=explosion_volume_ratio,
         explosion_window=explosion_window,
+        use_trend_boost=use_trend_boost,
+        trend_window=trend_window,
+        trend_scale=trend_scale,
+        max_trend_boost=max_trend_boost,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -97,6 +105,10 @@ async def update_strategy(
     explosion_price_threshold: Optional[float] = None,
     explosion_volume_ratio: Optional[float] = None,
     explosion_window: Optional[int] = None,
+    use_trend_boost: Optional[bool] = None,
+    trend_window: Optional[int] = None,
+    trend_scale: Optional[float] = None,
+    max_trend_boost: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -141,6 +153,14 @@ async def update_strategy(
         strategy.explosion_volume_ratio = explosion_volume_ratio
     if explosion_window is not None:
         strategy.explosion_window = explosion_window
+    if use_trend_boost is not None:
+        strategy.use_trend_boost = use_trend_boost
+    if trend_window is not None:
+        strategy.trend_window = trend_window
+    if trend_scale is not None:
+        strategy.trend_scale = trend_scale
+    if max_trend_boost is not None:
+        strategy.max_trend_boost = max_trend_boost
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
