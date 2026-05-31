@@ -439,6 +439,41 @@
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">卖出排名 N：</span>{{ backtestStrategyConfig?.sell_rank_n ?? '-' }}</v-col>
               <v-col cols="6"></v-col>
             </v-row>
+
+            <v-divider class="my-2" />
+            <div class="text-subtitle-2 font-weight-medium mb-1">排名优化</div>
+            <v-row class="py-0">
+              <v-col cols="6">
+                <span class="text-body-2 text-medium-emphasis">动量加成：</span>
+                <v-icon :color="backtestStrategyConfig?.use_momentum_boost ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_momentum_boost ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_momentum_boost" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.momentum_window ?? '-' }} 权重{{ backtestStrategyConfig?.momentum_weight ?? '0.3' }} 上限{{ ((backtestStrategyConfig?.max_momentum_bonus ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
+              <v-col cols="6">
+                <span class="text-body-2 text-medium-emphasis">趋势左移：</span>
+                <v-icon :color="backtestStrategyConfig?.use_trend_boost ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_trend_boost ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_trend_boost" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.trend_window ?? '-' }} 斜率{{ backtestStrategyConfig?.trend_scale ?? '0.5' }} 上限{{ ((backtestStrategyConfig?.max_trend_boost ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
+            </v-row>
+            <v-row class="py-0 mt-1">
+              <v-col cols="6">
+                <span class="text-body-2 text-medium-emphasis">暴涨排除：</span>
+                <v-icon :color="backtestStrategyConfig?.use_explosion_filter ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_explosion_filter ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_explosion_filter" class="text-body-2">
+                  &nbsp;涨幅{{ ((backtestStrategyConfig?.explosion_price_threshold ?? 0) * 100).toFixed(0) }}% 量比{{ backtestStrategyConfig?.explosion_volume_ratio ?? '3.0' }}x 窗口{{ backtestStrategyConfig?.explosion_window ?? '5' }}
+                </span>
+              </v-col>
+              <v-col cols="6"></v-col>
+            </v-row>
           </v-window-item>
 
           <v-window-item value="features">
@@ -602,21 +637,23 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
   backtestConfigItem.value = item
   backtestConfigTab.value = 'model'
   backtestModelConfig.value = item.model_snapshot ? { ...item.model_snapshot } : null
-  backtestStrategyConfig.value = item.strategy_name
-    ? {
-        name: item.strategy_name,
-        type: item.strategy_type || '',
-        min_order_value: item.min_order_value ?? 0,
-        stop_loss_pct: item.stop_loss_pct ?? 0,
-        max_hold_days: item.max_hold_days ?? 0,
-        buy_threshold: item.buy_threshold ?? 0,
-        sell_threshold: item.sell_threshold ?? 0,
-        max_positions: item.max_positions,
-        max_position_pct: item.max_position_pct,
-        sell_rank_n: item.sell_rank_n,
-        hold_score_threshold: item.hold_score_threshold,
-      }
-    : null
+  backtestStrategyConfig.value = item.strategy_snapshot
+    ? { ...item.strategy_snapshot } as Partial<Strategy>
+    : item.strategy_name
+      ? {
+          name: item.strategy_name,
+          type: item.strategy_type || '',
+          min_order_value: item.min_order_value ?? 0,
+          stop_loss_pct: item.stop_loss_pct ?? 0,
+          max_hold_days: item.max_hold_days ?? 0,
+          buy_threshold: item.buy_threshold ?? 0,
+          sell_threshold: item.sell_threshold ?? 0,
+          max_positions: item.max_positions,
+          max_position_pct: item.max_position_pct,
+          sell_rank_n: item.sell_rank_n,
+          hold_score_threshold: item.hold_score_threshold,
+        }
+      : null
   backtestConfigDialog.value = true
 }
 

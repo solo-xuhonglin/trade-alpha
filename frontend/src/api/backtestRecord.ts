@@ -43,6 +43,7 @@ export interface Backtest {
   sell_rank_n?: number
   hold_score_threshold?: number
   model_snapshot?: Record<string, any>
+  strategy_snapshot?: Record<string, any>
   created_at?: string
 }
 
