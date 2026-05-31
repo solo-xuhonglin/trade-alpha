@@ -366,6 +366,8 @@ async def get_stock_predictions(result_id: str, ts_code: str):
                 "composite_score": pred.get("composite_score"),
                 "rank": pred.get("rank"),
                 "momentum_bonus": pred.get("momentum_bonus"),
+                "trend_bonus": pred.get("trend_bonus"),
+                "vol_penalty": pred.get("vol_penalty"),
                 "is_excluded": pred.get("is_excluded", False),
             }
             for h in horizons:

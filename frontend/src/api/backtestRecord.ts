@@ -88,6 +88,9 @@ export interface PredictionItem {
   raw_score?: number
   composite_score?: number
   rank?: number
+  momentum_bonus?: number
+  trend_bonus?: number
+  vol_penalty?: number
   // 动态字段，根据 horizons 动态生成
   [key: string]: any
 }

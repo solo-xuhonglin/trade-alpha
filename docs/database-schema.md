@@ -176,43 +176,45 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 
 ### strategy_configs
 
-存储策略配置实例。
+存储多股票策略配置实例。
 
 **索引**: `{name: 1}` 唯一索引
 
 **字段**:
 
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `name` | string | 策略名称（唯一） |
-| `type` | string | 策略类型 ("price", "ma", "macd") |
-| `config` | object | 策略配置 |
-| `created_at` | datetime | 创建时间 |
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `name` | string | 策略名称（唯一） | - |
+| `type` | string | 策略类型 ("multi" / "single") | - |
 
-**策略配置示例**
+**策略配置项**（type="multi" 时有效）：
 
-PriceStrategy:
-```json
-{
-  "buy_threshold": 0.01,
-  "sell_threshold": 0.01
-}
-```
-
-MAStrategy:
-```json
-{
-  "ma_period": 20,
-  "threshold": 0.01
-}
-```
-
-MACDStrategy:
-```json
-{
-  "threshold": 0.5
-}
-```
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `min_order_value` | float | 最小订单金额 | 5000.0 |
+| `stop_loss_pct` | float | 止损百分比 | -0.1 |
+| `max_hold_days` | int | 最大持仓天数 | 30 |
+| `buy_threshold` | float | 买入阈值（评分 > 此值才买入） | 0.1 |
+| `sell_threshold` | float | 卖出阈值（评分 < 此值才卖出） | -0.1 |
+| `max_positions` | int | 最大持仓数量 | 10 |
+| `max_position_pct` | float | 单股最大持仓比例 | 0.3 |
+| `use_momentum_boost` | bool | 是否启用动量加成 | false |
+| `momentum_window` | int | 动量窗口天数 | 5 |
+| `max_momentum_bonus` | float | 动量加成上限 | 0.05 |
+| `use_explosion_filter` | bool | 是否启用暴涨排除 | false |
+| `explosion_price_threshold` | float | 暴涨涨幅阈值 | 0.05 |
+| `explosion_volume_ratio` | float | 暴涨量比阈值 | 3.0 |
+| `explosion_window` | int | 均量计算窗口 | 5 |
+| `use_trend_bonus` | bool | 是否启用趋势加分 | false |
+| `trend_bonus_window` | int | 趋势回归窗口天数 | 10 |
+| `trend_bonus_scale` | float | 趋势斜率系数 | 0.03 |
+| `trend_r2_threshold` | float | R² 拟合优度门槛 | 0.30 |
+| `trend_max_bonus` | float | 趋势加分上限 | 0.05 |
+| `use_volatility_penalty` | bool | 是否启用波动扣分 | false |
+| `vol_penalty_window` | int | 振幅计算窗口天数 | 10 |
+| `vol_range_tolerance` | float | 振幅容忍度 | 0.035 |
+| `vol_penalty_scale` | float | 波动扣分系数 | 0.005 |
+| `vol_max_penalty` | float | 波动扣分上限 | 0.05 |
 
 ### account_configs
 
@@ -325,10 +327,27 @@ MACDStrategy:
 | `min_order_value` | float | 最小订单金额 | 5000.0 |
 | `stop_loss_pct` | float | 止损百分比 | -0.1 |
 | `max_hold_days` | int | 最大持仓天数 | 30 |
-| `buy_threshold` | float | 买入阈值（预测分数 > 此值才买入） | 0.1 |
-| `sell_threshold` | float | 卖出阈值（预测分数 < 此值才卖出） | -0.1 |
+| `buy_threshold` | float | 买入阈值 | 0.1 |
+| `sell_threshold` | float | 卖出阈值 | -0.1 |
 | `max_positions` | int | 最大持仓数量 | 10 |
 | `max_position_pct` | float | 最大持仓比例 | 0.3 |
+| `use_momentum_boost` | bool | 动量加成 | false |
+| `momentum_window` | int | 动量窗口 | 5 |
+| `max_momentum_bonus` | float | 动量上限 | 0.05 |
+| `use_explosion_filter` | bool | 暴涨排除 | false |
+| `explosion_price_threshold` | float | 涨幅阈值 | 0.05 |
+| `explosion_volume_ratio` | float | 量比阈值 | 3.0 |
+| `explosion_window` | int | 均量窗口 | 5 |
+| `use_trend_bonus` | bool | 趋势加分 | false |
+| `trend_bonus_window` | int | 趋势窗口 | 10 |
+| `trend_bonus_scale` | float | 趋势系数 | 0.03 |
+| `trend_r2_threshold` | float | R² 门槛 | 0.30 |
+| `trend_max_bonus` | float | 趋势加分上限 | 0.05 |
+| `use_volatility_penalty` | bool | 波动扣分 | false |
+| `vol_penalty_window` | int | 波动窗口 | 10 |
+| `vol_range_tolerance` | float | 振幅容忍度 | 0.035 |
+| `vol_penalty_scale` | float | 扣分系数 | 0.005 |
+| `vol_max_penalty` | float | 扣分上限 | 0.05 |
 
 ### execution_daily_snapshots
 
@@ -368,7 +387,13 @@ MACDStrategy:
 | `hold_days` | int | 持仓天数 |
 
 **predictions 字段说明**:
-- `score`: 综合评分，范围 [-1, 1]
+- `score`: 最终综合评分（含所有调整），范围 [-1, 1]
+- `raw_score`: 原始评分（模型直接输出，不含排名调整）
+- `composite_score`: 综合评分（同 score）
+- `rank`: 当日排名（1=第一名）
+- `momentum_bonus`: 动量加成值
+- `trend_bonus`: 趋势加分值
+- `vol_penalty`: 波动扣分值
 - `up_prob_3d`: 3日上涨概率，范围 [0, 1]
 - `up_prob_5d`: 5日上涨概率，范围 [0, 1]
 

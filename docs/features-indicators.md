@@ -297,6 +297,78 @@ label = 1 if trend_up & (ret > threshold) else (-1 if trend_down & (ret < -thres
 - 服务接口：[backend/src/trade_alpha/indicators/service.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/indicators/service.py)
 - 标签计算：[backend/src/trade_alpha/models/training/helpers.py](file:///d:/projects/trade-alpha/backend/src/trade_alpha/models/training/helpers.py)
 
+## 排名优化
+
+回测时对模型原始评分做多种调整，按固定顺序执行：
+
+### 执行顺序
+
+```
+原始评分 → 趋势加分 → 波动扣分 → 动量加成 → 暴涨排除 → 排名
+```
+
+### 1. 趋势加分（Trend Bonus）
+
+基于收盘价的 R² 加权线性回归斜率，识别稳定上涨趋势。
+
+**算法**：对窗口内 N 个收盘价做线性回归，得到斜率 `slope` 和拟合优度 `R²`
+- 条件：`slope > 0` 且 `R² ≥ r2_threshold`
+- 加分：`bonus = clamp(slope × R² × scale, 0, max_bonus)`
+- R² 衡量趋势稳定性，不稳定趋势（R² 低）不加分
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `use_trend_bonus` | bool | false | 是否启用 |
+| `trend_bonus_window` | int | 10 | 收盘价回归的窗口天数 |
+| `trend_bonus_scale` | float | 0.03 | 斜率放大系数 |
+| `trend_r2_threshold` | float | 0.30 | R² 最低门槛 |
+| `trend_max_bonus` | float | 0.05 | 加分上限 |
+
+### 2. 波动扣分（Volatility Penalty）
+
+基于日内平均振幅比，大起大落的股票扣分。
+
+**算法**：对窗口内 N 天计算振幅比 `(high - low) / close`
+- 容忍度：振幅比低于 `range_tolerance` 不扣分
+- 扣分：`penalty = clamp((avg_range - tolerance) × scale, 0, max_penalty)`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `use_volatility_penalty` | bool | false | 是否启用 |
+| `vol_penalty_window` | int | 10 | 振幅计算的窗口天数 |
+| `vol_range_tolerance` | float | 0.035 | 振幅容忍度（3.5%以下不扣分） |
+| `vol_penalty_scale` | float | 0.005 | 扣分系数 |
+| `vol_max_penalty` | float | 0.05 | 扣分上限 |
+
+### 3. 动量加成（Momentum Boost）
+
+基于股价的连续上涨天数加成。
+
+**算法**：统计窗口内收盘价日涨跌，计算上涨天数占比
+- `ratio = up_days / window`
+- `bonus = ratio × max_momentum_bonus`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `use_momentum_boost` | bool | false | 是否启用 |
+| `momentum_window` | int | 5 | 动量窗口天数 |
+| `max_momentum_bonus` | float | 0.05 | 动量加成上限 |
+
+### 4. 暴涨排除（Explosion Filter）
+
+基于价格和成交量的异动排除。
+
+**算法**：当日涨幅 > `price_threshold` 且量比 > `volume_ratio` × 前N日均量时，标记为排除
+- 方向判断：`pct_chg_mean` > 0 看涨方向排除，< 0 看跌方向排除
+- 排除后的股票不参与排名
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `use_explosion_filter` | bool | false | 是否启用 |
+| `explosion_price_threshold` | float | 0.05 | 涨幅阈值（5%） |
+| `explosion_volume_ratio` | float | 3.0 | 量比阈值（3倍） |
+| `explosion_window` | int | 5 | 均量计算窗口 |
+
 ## 指标与价格绝对值关系分析
 
 本部分分析各个技术指标是否受股票价格绝对值影响。

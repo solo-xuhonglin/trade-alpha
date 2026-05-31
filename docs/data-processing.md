@@ -288,7 +288,7 @@ score = score_3d × 0.4 + score_5d × 0.6
 
 ### 7.1 完整流程
 
-`execution/pipeline.py` → `ExecutionPipeline.run_backtest()`
+`execution/pipeline.py` → `ExecutionPipeline`
 
 ```
 1. 创建 ExecutionResult(status="running")
@@ -301,9 +301,21 @@ score = score_3d × 0.4 + score_5d × 0.6
    b. DataLoader.load_day_data() → 当日 StockDaily DataFrame
    c. Predictor.predict_batch_with_history() → 预测得分
    d. 构造 ScoredStock 列表
-   e. Strategy.make_decisions() → PendingOrder
-   f. Strategy.settle_orders() → ExecutionTrade + 更新现金/持仓
-   g. Strategy.daily_snapshot() → ExecutionDailySnapshot（含 predictions）
+   e. 评分调整管线（按顺序执行）：
+      i.  评分平滑（EWMA）：_smooth_scores()
+      ii. 趋势加分：_apply_trend_bonus()
+          基于收盘价 R² 加权线性回归，稳定上涨趋势加分
+      iii.波动扣分：_apply_volatility_penalty()
+          基于日内振幅比（OHLC），大起大落扣分
+      iv. 动量加成：_apply_momentum_boost()
+          基于收盘价日涨跌比，连续上涨天数加分
+      v.  暴涨排除：_filter_explosions()
+          放量暴涨/暴跌标记排除，不参与排名
+      vi. 记录排名：_record_ranks()
+          按最终分从高到低排序
+   f. Strategy.make_decisions() → PendingOrder
+   g. Strategy.settle_orders() → ExecutionTrade + 更新现金/持仓
+   h. Strategy.daily_snapshot() → ExecutionDailySnapshot（含 predictions）
 4. 计算最终指标 → 更新 ExecutionResult(status="completed")
 ```
 
@@ -314,12 +326,18 @@ score = score_3d × 0.4 + score_5d × 0.6
 ```python
 {
     ts_code: {
-        "score": float,          # 综合得分
-        "up_prob_3d": float,     # 3日上涨概率
-        "up_prob_5d": float,     # 5日上涨概率
-        "down_prob_3d": float,   # 3日下跌概率
-        "down_prob_5d": float,   # 5日下跌概率
-        "close": float,          # 当日收盘价
+        "score": float,              # 最终综合评分（含所有调整）
+        "raw_score": float,          # 原始评分（模型直接输出）
+        "composite_score": float,    # 综合评分（同 score）
+        "rank": int,                 # 当日排名
+        "momentum_bonus": float,     # 动量加成值
+        "trend_bonus": float,        # 趋势加分值
+        "vol_penalty": float,        # 波动扣分值
+        "up_prob_3d": float,         # 3日上涨概率
+        "up_prob_5d": float,         # 5日上涨概率
+        "down_prob_3d": float,       # 3日下跌概率
+        "down_prob_5d": float,       # 5日下跌概率
+        "close": float,              # 当日收盘价
     }
 }
 ```

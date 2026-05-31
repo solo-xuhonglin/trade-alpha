@@ -553,25 +553,52 @@ const renderChart = () => {
         }
         const fmtPct = (v: any) => v != null ? (v * 100).toFixed(1) + '%' : '--'
         const fmtRet = (v: any) => v != null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '--'
-        
+        const fmtScore = (v: any) => v != null ? v.toFixed(4) : '--'
+        const fmtBonus = (v: any) => {
+          if (v == null) return '--'
+          return (v >= 0 ? '+' : '') + v.toFixed(4)
+        }
+
         const lines = [
           `<strong>${d.trade_date}</strong>`,
           `开:${d.open}  收:${d.close}`,
           `高:${d.high}  低:${d.low}`,
           `─────────────────`,
-          `预测分: ${d.score != null ? d.score.toFixed(2) : '--'}`,
         ]
-        
+
+        const bonusParts: string[] = []
+        if (d.trend_bonus != null && d.trend_bonus !== 0) {
+          bonusParts.push(`趋势加分: ${fmtBonus(d.trend_bonus)}`)
+        }
+        if (d.vol_penalty != null && d.vol_penalty !== 0) {
+          bonusParts.push(`波动扣分: ${fmtBonus(d.vol_penalty)}`)
+        }
+        if (d.momentum_bonus != null && d.momentum_bonus !== 0) {
+          bonusParts.push(`动量加成: ${fmtBonus(d.momentum_bonus)}`)
+        }
+
+        if (bonusParts.length > 0) {
+          bonusParts.forEach(p => lines.push(p))
+          lines.push(`─────────────────`)
+        }
+
+        lines.push(`综合分: ${fmtScore(d.composite_score ?? d.score)}`)
+        if (d.rank != null) {
+          lines.push(`排名: #${d.rank}`)
+        }
+
+        lines.push(`─────────────────`)
+
         horizons.value.forEach(h => {
           lines.push(`涨(${h}d):${fmtPct(d[`up_prob_${h}d`])}  跌(${h}d):${fmtPct(d[`down_prob_${h}d`])}`)
         })
-        
+
         lines.push(`─────────────────`)
-        
+
         horizons.value.forEach(h => {
           lines.push(`实际${h}日: ${fmtRet(d[`actual_return_${h}d`])} ${labelText(d[`actual_label_${h}d`])}`)
         })
-        
+
         return lines.join('<br/>')
       },
     },
