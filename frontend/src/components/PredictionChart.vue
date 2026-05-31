@@ -260,6 +260,8 @@ const renderChart = () => {
   const klineData = chartData.value.map(d => [d.open, d.close, d.low, d.high])
   const scores = chartData.value.map(d => d.score)
   const rawScores = chartData.value.map(d => d.raw_score)
+  const ranks = chartData.value.map(d => d.rank)
+  const maxRank = Math.max(...ranks.filter(r => r != null), 0)
 
   const series: any[] = [
     {
@@ -336,6 +338,21 @@ const renderChart = () => {
     legendSelected[`涨(${h}d)`] = false
     legendSelected[`跌(${h}d)`] = false
   })
+
+  // 排名曲线
+  if (maxRank > 0) {
+    series.push({
+      name: '排名',
+      type: 'line',
+      data: ranks,
+      yAxisIndex: 3,
+      smooth: true,
+      lineStyle: { width: 1.5, color: '#7c4dff' },
+      symbol: 'none',
+    })
+    legendData.push('排名')
+    legendSelected['排名'] = true
+  }
 
   // 买入标记
   if (buyTrades.value.length > 0) {
@@ -519,6 +536,7 @@ const renderChart = () => {
       { type: 'value', scale: true, name: '价格', position: 'left', offset: 0 },
       { type: 'value', scale: true, name: '概率/分', min: -1, max: 1, position: 'left', offset: 50 },
       { type: 'value', scale: true, name: '收益率(%)', position: 'right', axisLabel: { formatter: '{value}%' }, offset: 0 },
+      ...(maxRank > 0 ? [{ type: 'value', scale: true, name: '排名', min: 1, max: maxRank, inverse: true, position: 'right', offset: 65, axisLabel: { formatter: '#{value}' } }] : []),
     ],
     series,
   })
