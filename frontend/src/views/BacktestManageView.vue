@@ -40,6 +40,20 @@
             label="策略配置"
             clearable
           />
+          <div v-if="selectedStrategy" class="mt-2 ml-1">
+            <v-chip size="x-small" variant="tonal" color="primary" class="mr-1 mb-1"
+              :prepend-icon="selectedStrategy.use_momentum_boost ? 'mdi-check' : 'mdi-close'">
+              动量
+            </v-chip>
+            <v-chip size="x-small" variant="tonal" color="warning" class="mr-1 mb-1"
+              :prepend-icon="selectedStrategy.use_explosion_filter ? 'mdi-check' : 'mdi-close'">
+              暴涨排除
+            </v-chip>
+            <v-chip size="x-small" variant="tonal" color="info" class="mr-1 mb-1"
+              :prepend-icon="selectedStrategy.use_trend_boost ? 'mdi-check' : 'mdi-close'">
+              趋势左移
+            </v-chip>
+          </div>
         </v-col>
         <v-col cols="12" sm="3" md="3">
           <v-select
@@ -197,6 +211,7 @@ const trainingModelTypeMap = ref<Record<string, string>>({})
 const accountOptions = ref<{ label: string; value: string }[]>([])
 const strategyOptions = ref<{ label: string; value: string }[]>([])
 const strategyTypeMap = ref<Record<string, string>>({})
+const selectedStrategy = ref<Strategy | null>(null)
 const stockOptions = ref<{ label: string; value: string }[]>([
   { label: '农业银行 (601288.SH)', value: '601288.SH' },
   { label: '比亚迪 (002594.SZ)', value: '002594.SZ' },
@@ -216,6 +231,15 @@ watch(() => form.value.training_id, (newId) => {
     const pad = (n: number) => String(n).padStart(2, '0')
     const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`
     form.value.name = `backtest_${trainingModelTypeMap.value[newId]}_${ts}`
+  }
+})
+
+watch(() => form.value.strategy_config_id, async (newId) => {
+  if (newId) {
+    const res = await strategyConfigApi.get(newId)
+    selectedStrategy.value = res.data
+  } else {
+    selectedStrategy.value = null
   }
 })
 
