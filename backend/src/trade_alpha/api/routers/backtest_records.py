@@ -213,61 +213,102 @@ async def get_pnl_details(result_id: str):
 
     raw_items = await db["execution_trades"].aggregate(pipeline).to_list()
 
-    ts_codes = [item["_id"] for item in raw_items]
-    name_map = await get_stock_names(ts_codes) if ts_codes else {}
+    realized_map: Dict[str, dict] = {}
+    for item in raw_items:
+        realized_map[item["_id"]] = item
+
+    ts_codes_realized = list(realized_map.keys())
+    name_map = await get_stock_names(ts_codes_realized) if ts_codes_realized else {}
+
+    last_snapshot = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(-ExecutionDailySnapshot.date).limit(1).to_list()
+
+    unrealized_map: Dict[str, dict] = {}
+    if last_snapshot:
+        snap = last_snapshot[0]
+        last_date = snap.date
+        for pos in snap.positions:
+            ts_code = pos.ts_code
+            if ts_code not in unrealized_map:
+                unrealized_map[ts_code] = {
+                    "total_cost": 0.0,
+                    "total_qty": 0,
+                }
+            unrealized_map[ts_code]["total_cost"] += pos.buy_price * pos.shares
+            unrealized_map[ts_code]["total_qty"] += pos.shares
+
+        if unrealized_map:
+            held_codes = list(unrealized_map.keys())
+            last_day_stocks = await StockDaily.find(
+                StockDaily.ts_code.is_in(held_codes),
+                StockDaily.trade_date == last_date,
+            ).to_list()
+            close_prices: Dict[str, float] = {s.ts_code: s.close for s in last_day_stocks}
+
+            for ts_code, info in unrealized_map.items():
+                current_price = close_prices.get(ts_code)
+                if current_price and current_price > 0 and info["total_qty"] > 0:
+                    avg_cost = info["total_cost"] / info["total_qty"]
+                    unrealized_pnl = round((current_price - avg_cost) * info["total_qty"], 2)
+                else:
+                    unrealized_pnl = 0.0
+                info["unrealized_pnl"] = unrealized_pnl
+
+    all_ts_codes = set(realized_map.keys()) | set(unrealized_map.keys())
+    all_name_map = await get_stock_names(list(all_ts_codes)) if all_ts_codes else {}
 
     items = []
-    total_sells = 0
-    total_pnl = 0.0
+    total_realized_pnl = 0.0
+    total_unrealized_pnl = 0.0
     total_profit_trades = 0
     total_loss_trades = 0
-    total_profit_amount = 0.0
-    total_loss_amount = 0.0
 
-    for item in raw_items:
-        ts_code = item["_id"]
-        total_pnl_amount = round(item.get("total_pnl_amount") or 0, 2)
-        profit_count = item.get("profit_trades", 0)
-        loss_count = item.get("loss_trades", 0)
-        sell_count = item.get("total_sells", 0)
-        profit_amount = round(item.get("total_profit_amount") or 0, 2)
-        loss_amount = round(item.get("total_loss_amount") or 0, 2)
-        win_rate = round(profit_count / sell_count, 4) if sell_count > 0 else 0.0
+    for ts_code in sorted(all_ts_codes):
+        r = realized_map.get(ts_code, {})
+        u = unrealized_map.get(ts_code, {})
+
+        realized_pnl = round(r.get("total_pnl_amount") or 0, 2)
+        unrealized_pnl = round(u.get("unrealized_pnl") or 0, 2)
+        total_pnl = round(realized_pnl + unrealized_pnl, 2)
+
+        profit_count = r.get("profit_trades", 0)
+        loss_count = r.get("loss_trades", 0)
+
+        if unrealized_pnl > 0:
+            profit_count += 1
+        elif unrealized_pnl < 0:
+            loss_count += 1
+
+        win_rate = round(profit_count / (profit_count + loss_count), 4) if (profit_count + loss_count) > 0 else 0.0
 
         items.append({
             "ts_code": ts_code,
-            "stock_name": name_map.get(ts_code, ts_code),
-            "total_pnl_amount": total_pnl_amount,
+            "stock_name": all_name_map.get(ts_code, ts_code),
+            "realized_pnl": realized_pnl,
+            "unrealized_pnl": unrealized_pnl,
+            "total_pnl": total_pnl,
             "profit_count": profit_count,
             "loss_count": loss_count,
-            "total_sells": sell_count,
             "trade_win_rate": win_rate,
-            "total_profit_amount": profit_amount,
-            "total_loss_amount": loss_amount,
         })
 
-        total_sells += sell_count
-        total_pnl += total_pnl_amount
+        total_realized_pnl += realized_pnl
+        total_unrealized_pnl += unrealized_pnl
         total_profit_trades += profit_count
         total_loss_trades += loss_count
-        total_profit_amount += profit_amount
-        total_loss_amount += loss_amount
 
-    total_portfolio_pnl = (result.final_value or 0) - (result.initial_capital or 0)
-    unrealized_pnl = total_portfolio_pnl - total_pnl
+    total_portfolio_pnl = round((result.final_value or 0) - (result.initial_capital or 0), 2)
+    total_win_rate = round(total_profit_trades / (total_profit_trades + total_loss_trades), 4) if (total_profit_trades + total_loss_trades) > 0 else 0.0
 
     return {
         "items": items,
         "summary": {
-            "total_sell_trades": total_sells,
-            "total_pnl_amount": round(total_pnl, 2),
+            "total_portfolio_pnl": total_portfolio_pnl,
+            "total_realized_pnl": round(total_realized_pnl, 2),
             "total_profit_trades": total_profit_trades,
             "total_loss_trades": total_loss_trades,
-            "total_profit_amount": round(total_profit_amount, 2),
-            "total_loss_amount": round(total_loss_amount, 2),
-            "overall_win_rate": round(total_profit_trades / total_sells, 4) if total_sells > 0 else 0.0,
-            "unrealized_pnl": round(unrealized_pnl, 2),
-            "total_portfolio_pnl": round(total_portfolio_pnl, 2),
+            "overall_win_rate": total_win_rate,
         },
     }
 

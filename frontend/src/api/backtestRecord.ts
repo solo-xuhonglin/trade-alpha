@@ -114,25 +114,20 @@ export interface DailySnapshot {
 export interface PnlDetailItem {
   ts_code: string
   stock_name: string
-  total_pnl_amount: number
+  realized_pnl: number
+  unrealized_pnl: number
+  total_pnl: number
   profit_count: number
   loss_count: number
-  total_sells: number
   trade_win_rate: number
-  total_profit_amount: number
-  total_loss_amount: number
 }
 
 export interface PnlDetailSummary {
-  total_sell_trades: number
-  total_pnl_amount: number
+  total_portfolio_pnl: number
+  total_realized_pnl: number
   total_profit_trades: number
   total_loss_trades: number
-  total_profit_amount: number
-  total_loss_amount: number
   overall_win_rate: number
-  unrealized_pnl?: number
-  total_portfolio_pnl?: number
 }
 
 export interface PnlDetailResponse {

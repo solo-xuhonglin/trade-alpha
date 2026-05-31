@@ -166,40 +166,24 @@
                   <v-col cols="6" sm="3">
                     <v-card variant="tonal" :color="pnlSummary.total_portfolio_pnl >= 0 ? 'success' : 'error'">
                       <v-card-text class="text-center pa-2">
-                        <div class="text-caption text-medium-emphasis">总收益（含浮盈）</div>
+                        <div class="text-caption text-medium-emphasis">总盈亏（含浮盈）</div>
                         <div class="text-h6">¥{{ pnlSummary.total_portfolio_pnl.toFixed(2) }}</div>
                       </v-card-text>
                     </v-card>
                   </v-col>
                   <v-col cols="6" sm="3">
-                    <v-card variant="tonal" :color="pnlSummary.total_pnl_amount >= 0 ? 'success' : 'error'">
+                    <v-card variant="tonal" :color="pnlSummary.total_realized_pnl >= 0 ? 'success' : 'error'">
                       <v-card-text class="text-center pa-2">
                         <div class="text-caption text-medium-emphasis">已实现盈亏</div>
-                        <div class="text-h6">¥{{ pnlSummary.total_pnl_amount.toFixed(2) }}</div>
+                        <div class="text-h6">¥{{ pnlSummary.total_realized_pnl.toFixed(2) }}</div>
                       </v-card-text>
                     </v-card>
                   </v-col>
                   <v-col cols="6" sm="3">
-                    <v-card variant="tonal" :color="(pnlSummary.unrealized_pnl ?? 0) >= 0 ? 'success' : 'error'">
+                    <v-card variant="tonal" color="default">
                       <v-card-text class="text-center pa-2">
-                        <div class="text-caption text-medium-emphasis">未实现浮盈</div>
-                        <div class="text-h6">¥{{ (pnlSummary.unrealized_pnl ?? 0).toFixed(2) }}</div>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-                  <v-col cols="6" sm="3">
-                    <v-card variant="tonal" color="success">
-                      <v-card-text class="text-center pa-2">
-                        <div class="text-caption text-medium-emphasis">盈利次数</div>
-                        <div class="text-h6">{{ pnlSummary.total_profit_trades }}</div>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-                  <v-col cols="6" sm="3">
-                    <v-card variant="tonal" color="error">
-                      <v-card-text class="text-center pa-2">
-                        <div class="text-caption text-medium-emphasis">亏损次数</div>
-                        <div class="text-h6">{{ pnlSummary.total_loss_trades }}</div>
+                        <div class="text-caption text-medium-emphasis">盈亏次数</div>
+                        <div class="text-h6">{{ pnlSummary.total_profit_trades }}:{{ pnlSummary.total_loss_trades }}</div>
                       </v-card-text>
                     </v-card>
                   </v-col>
@@ -232,9 +216,19 @@
                   items-per-page="-1"
                   class="mt-2"
                 >
-                  <template v-slot:item.total_pnl_amount="{ item }">
-                    <span :class="item.total_pnl_amount >= 0 ? 'text-success' : 'text-error'">
-                      ¥{{ item.total_pnl_amount.toFixed(2) }}
+                  <template v-slot:item.realized_pnl="{ item }">
+                    <span :class="item.realized_pnl >= 0 ? 'text-success' : 'text-error'">
+                      ¥{{ item.realized_pnl.toFixed(2) }}
+                    </span>
+                  </template>
+                  <template v-slot:item.unrealized_pnl="{ item }">
+                    <span :class="item.unrealized_pnl >= 0 ? 'text-success' : 'text-error'">
+                      ¥{{ item.unrealized_pnl.toFixed(2) }}
+                    </span>
+                  </template>
+                  <template v-slot:item.total_pnl="{ item }">
+                    <span :class="item.total_pnl >= 0 ? 'text-success' : 'text-error'">
+                      ¥{{ item.total_pnl.toFixed(2) }}
                     </span>
                   </template>
                   <template v-slot:item.trade_win_rate="{ item }">
@@ -768,12 +762,12 @@ const renderCharts = () => {
   const sortMultiplier = sortOrder === 'desc' ? 1 : -1
 
   const amountData = pnlDetails.value
-    .filter(item => item.total_pnl_amount !== 0)
+    .filter(item => item.total_pnl !== 0)
     .map(item => ({
       name: item.stock_name || item.ts_code,
-      value: Math.abs(item.total_pnl_amount),
-      sortValue: item[sortKey as keyof PnlDetailItem] as number || 0,
-      itemStyle: { color: item.total_pnl_amount >= 0 ? '#4caf50' : '#f44336' },
+      value: Math.abs(item.total_pnl),
+      sortValue: item.total_pnl || 0,
+      itemStyle: { color: item.total_pnl >= 0 ? '#4caf50' : '#f44336' },
     }))
     .sort((a, b) => (b.sortValue - a.sortValue) * sortMultiplier)
 
@@ -790,12 +784,12 @@ const renderCharts = () => {
   })
 
   const countData = pnlDetails.value
-    .filter(item => item.total_sells > 0)
+    .filter(item => (item.profit_count + item.loss_count) > 0)
     .map(item => ({
       name: item.stock_name || item.ts_code,
-      value: item.total_sells,
-      sortValue: item[sortKey as keyof PnlDetailItem] as number || 0,
-      itemStyle: { color: item.total_pnl_amount >= 0 ? '#4caf50' : '#f44336' },
+      value: item.profit_count + item.loss_count,
+      sortValue: item.total_pnl || 0,
+      itemStyle: { color: item.total_pnl >= 0 ? '#4caf50' : '#f44336' },
     }))
     .sort((a, b) => (b.sortValue - a.sortValue) * sortMultiplier)
 
@@ -814,10 +808,11 @@ const renderCharts = () => {
 
 const pnlHeaders = [
   { title: '股票', key: 'stock_name' },
-  { title: '总盈亏', key: 'total_pnl_amount' },
-  { title: '盈利次数', key: 'profit_count' },
-  { title: '亏损次数', key: 'loss_count' },
-  { title: '卖出次数', key: 'total_sells' },
+  { title: '已实现盈亏', key: 'realized_pnl' },
+  { title: '浮盈亏', key: 'unrealized_pnl' },
+  { title: '总盈亏', key: 'total_pnl' },
+  { title: '盈利', key: 'profit_count' },
+  { title: '亏损', key: 'loss_count' },
   { title: '胜率', key: 'trade_win_rate' },
 ]
 
