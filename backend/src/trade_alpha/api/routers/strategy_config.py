@@ -48,6 +48,15 @@ def _strategy_to_dict(s) -> dict:
         "vol_max_penalty": s.vol_max_penalty,
         "ranking_smooth_window": s.ranking_smooth_window,
         "ranking_smooth_alpha": s.ranking_smooth_alpha,
+        "use_full_position_sell": s.use_full_position_sell,
+        "full_position_threshold": s.full_position_threshold,
+        "full_position_days": s.full_position_days,
+        "full_position_score_window": s.full_position_score_window,
+        "full_position_sell_count": s.full_position_sell_count,
+        "use_acceleration_filter": s.use_acceleration_filter,
+        "acceleration_window": s.acceleration_window,
+        "acceleration_cum_return": s.acceleration_cum_return,
+        "acceleration_up_ratio": s.acceleration_up_ratio,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -112,6 +121,15 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             vol_max_penalty=request.vol_max_penalty or 0.05,
             ranking_smooth_window=request.ranking_smooth_window or 3,
             ranking_smooth_alpha=request.ranking_smooth_alpha or 0.5,
+            use_full_position_sell=request.use_full_position_sell or False,
+            full_position_threshold=request.full_position_threshold or 0.90,
+            full_position_days=request.full_position_days or 3,
+            full_position_score_window=request.full_position_score_window or 5,
+            full_position_sell_count=request.full_position_sell_count or 1,
+            use_acceleration_filter=request.use_acceleration_filter or False,
+            acceleration_window=request.acceleration_window or 5,
+            acceleration_cum_return=request.acceleration_cum_return or 0.15,
+            acceleration_up_ratio=request.acceleration_up_ratio or 0.80,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -158,6 +176,15 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             vol_max_penalty=request.vol_max_penalty,
             ranking_smooth_window=request.ranking_smooth_window,
             ranking_smooth_alpha=request.ranking_smooth_alpha,
+            use_full_position_sell=request.use_full_position_sell,
+            full_position_threshold=request.full_position_threshold,
+            full_position_days=request.full_position_days,
+            full_position_score_window=request.full_position_score_window,
+            full_position_sell_count=request.full_position_sell_count,
+            use_acceleration_filter=request.use_acceleration_filter,
+            acceleration_window=request.acceleration_window,
+            acceleration_cum_return=request.acceleration_cum_return,
+            acceleration_up_ratio=request.acceleration_up_ratio,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

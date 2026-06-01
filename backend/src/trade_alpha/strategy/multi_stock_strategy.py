@@ -64,7 +64,7 @@ class MultiStockStrategy(PositionManager):
 
         scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
-        sorted_stocks = sorted(scored_stocks, key=lambda s: s.score, reverse=True)
+        sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         top_stocks = sorted_stocks[:self.max_positions]
         top_ts_codes = {s.ts_code for s in top_stocks}

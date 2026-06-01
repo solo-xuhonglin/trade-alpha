@@ -40,6 +40,15 @@ async def create_strategy(
     vol_max_penalty: float = 0.05,
     ranking_smooth_window: int = 3,
     ranking_smooth_alpha: float = 0.5,
+    use_full_position_sell: bool = False,
+    full_position_threshold: float = 0.90,
+    full_position_days: int = 3,
+    full_position_score_window: int = 5,
+    full_position_sell_count: int = 1,
+    use_acceleration_filter: bool = False,
+    acceleration_window: int = 5,
+    acceleration_cum_return: float = 0.15,
+    acceleration_up_ratio: float = 0.80,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -79,6 +88,15 @@ async def create_strategy(
         vol_max_penalty=vol_max_penalty,
         ranking_smooth_window=ranking_smooth_window,
         ranking_smooth_alpha=ranking_smooth_alpha,
+        use_full_position_sell=use_full_position_sell,
+        full_position_threshold=full_position_threshold,
+        full_position_days=full_position_days,
+        full_position_score_window=full_position_score_window,
+        full_position_sell_count=full_position_sell_count,
+        use_acceleration_filter=use_acceleration_filter,
+        acceleration_window=acceleration_window,
+        acceleration_cum_return=acceleration_cum_return,
+        acceleration_up_ratio=acceleration_up_ratio,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -133,6 +151,15 @@ async def update_strategy(
     vol_max_penalty: Optional[float] = None,
     ranking_smooth_window: Optional[int] = None,
     ranking_smooth_alpha: Optional[float] = None,
+    use_full_position_sell: Optional[bool] = None,
+    full_position_threshold: Optional[float] = None,
+    full_position_days: Optional[int] = None,
+    full_position_score_window: Optional[int] = None,
+    full_position_sell_count: Optional[int] = None,
+    use_acceleration_filter: Optional[bool] = None,
+    acceleration_window: Optional[int] = None,
+    acceleration_cum_return: Optional[float] = None,
+    acceleration_up_ratio: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -201,6 +228,24 @@ async def update_strategy(
         strategy.ranking_smooth_window = ranking_smooth_window
     if ranking_smooth_alpha is not None:
         strategy.ranking_smooth_alpha = ranking_smooth_alpha
+    if use_full_position_sell is not None:
+        strategy.use_full_position_sell = use_full_position_sell
+    if full_position_threshold is not None:
+        strategy.full_position_threshold = full_position_threshold
+    if full_position_days is not None:
+        strategy.full_position_days = full_position_days
+    if full_position_score_window is not None:
+        strategy.full_position_score_window = full_position_score_window
+    if full_position_sell_count is not None:
+        strategy.full_position_sell_count = full_position_sell_count
+    if use_acceleration_filter is not None:
+        strategy.use_acceleration_filter = use_acceleration_filter
+    if acceleration_window is not None:
+        strategy.acceleration_window = acceleration_window
+    if acceleration_cum_return is not None:
+        strategy.acceleration_cum_return = acceleration_cum_return
+    if acceleration_up_ratio is not None:
+        strategy.acceleration_up_ratio = acceleration_up_ratio
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

@@ -96,6 +96,15 @@ class StrategyCreateRequest(BaseModel):
     vol_max_penalty: Optional[float] = 0.05
     ranking_smooth_window: Optional[int] = 3
     ranking_smooth_alpha: Optional[float] = 0.5
+    use_full_position_sell: Optional[bool] = False
+    full_position_threshold: Optional[float] = 0.90
+    full_position_days: Optional[int] = 3
+    full_position_score_window: Optional[int] = 5
+    full_position_sell_count: Optional[int] = 1
+    use_acceleration_filter: Optional[bool] = False
+    acceleration_window: Optional[int] = 5
+    acceleration_cum_return: Optional[float] = 0.15
+    acceleration_up_ratio: Optional[float] = 0.80
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -128,6 +137,15 @@ class StrategyUpdateRequest(BaseModel):
     vol_max_penalty: Optional[float] = None
     ranking_smooth_window: Optional[int] = None
     ranking_smooth_alpha: Optional[float] = None
+    use_full_position_sell: Optional[bool] = None
+    full_position_threshold: Optional[float] = None
+    full_position_days: Optional[int] = None
+    full_position_score_window: Optional[int] = None
+    full_position_sell_count: Optional[int] = None
+    use_acceleration_filter: Optional[bool] = None
+    acceleration_window: Optional[int] = None
+    acceleration_cum_return: Optional[float] = None
+    acceleration_up_ratio: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):
