@@ -394,6 +394,7 @@ class ExecutionPipeline:
 
             is_excluded = price_surge > threshold and vol_ratio > volume_ratio_threshold
             r["is_excluded"] = is_excluded
+            r["is_explosion_excluded"] = is_excluded
             r["price_surge_pct"] = price_surge
             r["volume_ratio"] = vol_ratio
 

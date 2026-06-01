@@ -488,7 +488,7 @@ async def get_excluded_stocks(result_id: str):
     excluded_map: Dict[str, list] = {}
     for snap in snapshots:
         for ts_code, pred in snap.predictions.items():
-            if pred.get("is_excluded"):
+            if pred.get("is_explosion_excluded"):
                 if ts_code not in excluded_map:
                     excluded_map[ts_code] = []
                 excluded_map[ts_code].append({
