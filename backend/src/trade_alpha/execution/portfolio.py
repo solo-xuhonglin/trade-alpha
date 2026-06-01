@@ -135,9 +135,12 @@ class PortfolioManager:
     def settle_sell(self, ts_code: str, shares: int, price: float) -> None:
         """Finalise a filled sell order.
 
-        cash += shares * price - sell_fee - stamp_tax
-        Removes the position from portfolio.
+        Only processes if the position still exists in the portfolio.
+        Skips silently if already removed (e.g. duplicate sell orders).
         """
+        if ts_code not in self.positions:
+            logger.warning(f"settle_sell: {ts_code} not in portfolio, skipping")
+            return
         proceeds = shares * price
         fee = self.calc_sell_fee(proceeds)
         tax = self.calc_stamp_tax(proceeds)
