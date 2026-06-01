@@ -445,7 +445,7 @@
             <v-divider class="my-2" />
             <div class="text-subtitle-2 font-weight-medium mb-1">排名优化</div>
             <v-row class="py-0">
-              <v-col cols="6">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">动量加成：</span>
                 <v-icon :color="backtestStrategyConfig?.use_momentum_boost ? 'success' : 'disabled'" size="small">
                   {{ backtestStrategyConfig?.use_momentum_boost ? 'mdi-check-circle' : 'mdi-close-circle' }}
@@ -454,7 +454,9 @@
                   &nbsp;窗口{{ backtestStrategyConfig?.momentum_window ?? '-' }} 权重{{ backtestStrategyConfig?.momentum_weight ?? '0.3' }} 上限{{ ((backtestStrategyConfig?.max_momentum_bonus ?? 0) * 100).toFixed(0) }}%
                 </span>
               </v-col>
-              <v-col cols="6">
+            </v-row>
+            <v-row class="py-0 mt-1">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">趋势加分：</span>
                 <v-icon :color="backtestStrategyConfig?.use_trend_bonus ? 'success' : 'disabled'" size="small">
                   {{ backtestStrategyConfig?.use_trend_bonus ? 'mdi-check-circle' : 'mdi-close-circle' }}
@@ -465,7 +467,7 @@
               </v-col>
             </v-row>
             <v-row class="py-0 mt-1">
-              <v-col cols="6">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">波动扣分：</span>
                 <v-icon :color="backtestStrategyConfig?.use_volatility_penalty ? 'success' : 'disabled'" size="small">
                   {{ backtestStrategyConfig?.use_volatility_penalty ? 'mdi-check-circle' : 'mdi-close-circle' }}
@@ -474,7 +476,9 @@
                   &nbsp;窗口{{ backtestStrategyConfig?.vol_penalty_window ?? '-' }} 容忍{{ ((backtestStrategyConfig?.vol_range_tolerance ?? 0) * 100).toFixed(1) }}% 系数{{ backtestStrategyConfig?.vol_penalty_scale ?? '0.005' }} 上限{{ ((backtestStrategyConfig?.vol_max_penalty ?? 0) * 100).toFixed(0) }}%
                 </span>
               </v-col>
-              <v-col cols="6">
+            </v-row>
+            <v-row class="py-0 mt-1">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">暴涨排除：</span>
                 <v-icon :color="backtestStrategyConfig?.use_explosion_filter ? 'success' : 'disabled'" size="small">
                   {{ backtestStrategyConfig?.use_explosion_filter ? 'mdi-check-circle' : 'mdi-close-circle' }}
@@ -485,14 +489,38 @@
               </v-col>
             </v-row>
             <v-row class="py-0 mt-1">
-              <v-col cols="6">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">排名平滑：</span>
                 <span class="text-body-2">
                   窗口{{ backtestStrategyConfig?.ranking_smooth_window ?? '3' }}
                   α{{ backtestStrategyConfig?.ranking_smooth_alpha ?? '0.5' }}
                 </span>
               </v-col>
-              <v-col cols="6"></v-col>
+            </v-row>
+
+            <v-divider class="my-2" />
+            <div class="text-subtitle-2 font-weight-medium mb-1">交易优化</div>
+            <v-row class="py-0">
+              <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">满仓容忍卖出：</span>
+                <v-icon :color="backtestStrategyConfig?.use_full_position_sell ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_full_position_sell ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_full_position_sell" class="text-body-2">
+                  &nbsp;阈值{{ ((backtestStrategyConfig?.full_position_threshold ?? 0) * 100).toFixed(0) }}% 连续{{ backtestStrategyConfig?.full_position_days ?? '-' }}天 每次卖出{{ backtestStrategyConfig?.full_position_sell_count ?? '1' }}只
+                </span>
+              </v-col>
+            </v-row>
+            <v-row class="py-0 mt-1">
+              <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">加速过滤：</span>
+                <v-icon :color="backtestStrategyConfig?.use_acceleration_filter ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_acceleration_filter ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_acceleration_filter" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.acceleration_window ?? '-' }} 累计涨幅{{ ((backtestStrategyConfig?.acceleration_cum_return ?? 0) * 100).toFixed(0) }}% 上涨占比{{ ((backtestStrategyConfig?.acceleration_up_ratio ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
             </v-row>
           </v-window-item>
 
