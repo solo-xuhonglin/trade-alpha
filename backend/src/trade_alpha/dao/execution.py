@@ -58,6 +58,8 @@ class StrategySnapshotEmbed(BaseModel):
     acceleration_window: int = 5
     acceleration_cum_return: float = 0.15
     acceleration_up_ratio: float = 0.80
+    ranking_smooth_window: int = 3
+    ranking_smooth_alpha: float = 0.5
 
 
 class ModelSnapshotEmbed(BaseModel):

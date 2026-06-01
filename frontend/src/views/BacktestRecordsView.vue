@@ -484,6 +484,16 @@
                 </span>
               </v-col>
             </v-row>
+            <v-row class="py-0 mt-1">
+              <v-col cols="6">
+                <span class="text-body-2 text-medium-emphasis">排名平滑：</span>
+                <span class="text-body-2">
+                  窗口{{ backtestStrategyConfig?.ranking_smooth_window ?? '3' }}
+                  α{{ backtestStrategyConfig?.ranking_smooth_alpha ?? '0.5' }}
+                </span>
+              </v-col>
+              <v-col cols="6"></v-col>
+            </v-row>
           </v-window-item>
 
           <v-window-item value="model">

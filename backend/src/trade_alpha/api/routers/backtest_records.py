@@ -414,6 +414,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
                 "score": pred.get("score"),
                 "raw_score": pred.get("raw_score"),
                 "composite_score": pred.get("composite_score"),
+                "ranking_score": pred.get("ranking_score"),
                 "rank": pred.get("rank"),
                 "momentum_bonus": pred.get("momentum_bonus"),
                 "trend_bonus": pred.get("trend_bonus"),

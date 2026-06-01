@@ -13,6 +13,7 @@ class ScoredStock:
     up_prob_3d: float
     up_prob_5d: float
     score: float
+    ranking_score: float = 0.0
     is_excluded: bool = False
     trend_bonus: float = 0.0
     vol_penalty: float = 0.0

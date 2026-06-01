@@ -39,6 +39,8 @@ export interface Strategy {
   vol_range_tolerance?: number
   vol_penalty_scale?: number
   vol_max_penalty?: number
+  ranking_smooth_window?: number
+  ranking_smooth_alpha?: number
   created_at: string
   updated_at?: string
 }

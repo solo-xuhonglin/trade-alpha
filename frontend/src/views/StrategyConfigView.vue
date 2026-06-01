@@ -190,24 +190,24 @@
                 <v-chip size="x-small" variant="outlined" color="info">R² 加权趋势，股价温和上涨加分</v-chip>
               </div>
               <v-row>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_bonus_window" type="number"
                     label="窗口天数" hint="收盘价回归计算的天数" persistent-hint
                     :disabled="!form.use_trend_bonus"></v-text-field>
                 </v-col>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_bonus_scale" type="number" step="0.01"
                     label="斜率系数" hint="斜率 × 系数 = 趋势加分" persistent-hint
                     :disabled="!form.use_trend_bonus"></v-text-field>
                 </v-col>
-                <v-col cols="12" md="4">
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_r2_threshold" type="number" step="0.05"
                     label="R² 阈值" hint="拟合优度门槛，低于此值不加分" persistent-hint
                     :disabled="!form.use_trend_bonus"></v-text-field>
                 </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_max_bonus" type="number" step="0.01"
                     label="最大加分" hint="趋势加分上限" persistent-hint
                     :disabled="!form.use_trend_bonus"></v-text-field>
@@ -222,27 +222,44 @@
                 <v-chip size="x-small" variant="outlined" color="warning">日内振幅过大扣分</v-chip>
               </div>
               <v-row>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.vol_penalty_window" type="number"
                     label="窗口天数" hint="日内振幅计算的天数" persistent-hint
                     :disabled="!form.use_volatility_penalty"></v-text-field>
                 </v-col>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.vol_range_tolerance" type="number" step="0.005"
                     label="振幅容忍度" hint="低于此振幅不扣分" persistent-hint
                     :disabled="!form.use_volatility_penalty"></v-text-field>
                 </v-col>
-                <v-col cols="12" md="4">
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.vol_penalty_scale" type="number" step="0.001"
                     label="扣分系数" hint="超出容忍度 × 系数 = 扣分" persistent-hint
                     :disabled="!form.use_volatility_penalty"></v-text-field>
                 </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.vol_max_penalty" type="number" step="0.01"
                     label="最大扣分" hint="波动扣分上限" persistent-hint
                     :disabled="!form.use_volatility_penalty"></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <span class="text-body-2 font-weight-medium">排名平滑</span>
+                <v-chip size="x-small" variant="outlined" color="info" class="ml-2">综合分EWMA平滑后用于排名</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.ranking_smooth_window" type="number"
+                    label="平滑窗口" hint="EWMA 窗口天数，越大越平滑" persistent-hint></v-text-field>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.ranking_smooth_alpha" type="number" step="0.01"
+                    label="平滑系数" hint="手动指定 α（0~1），为空则用 2/(window+1)" persistent-hint></v-text-field>
                 </v-col>
               </v-row>
             </div>
@@ -281,24 +298,24 @@
                 <v-chip size="x-small" variant="outlined" color="warning">仓位超阈值持续N日时卖出最差评分股</v-chip>
               </div>
               <v-row>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.full_position_threshold" type="number" step="0.05"
                     label="仓位阈值" hint="总资产比例，如0.90=90%" persistent-hint
                     :disabled="!form.use_full_position_sell"></v-text-field>
                 </v-col>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.full_position_days" type="number"
                     label="持续天数" hint="连续超过阈值N天触发" persistent-hint
                     :disabled="!form.use_full_position_sell"></v-text-field>
                 </v-col>
-                <v-col cols="12" md="4">
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.full_position_score_window" type="number"
                     label="评分窗口" hint="计算平均评分的天数" persistent-hint
                     :disabled="!form.use_full_position_sell"></v-text-field>
                 </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12" md="4">
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.full_position_sell_count" type="number"
                     label="每次卖出数量" hint="每次触发卖几只" persistent-hint
                     :disabled="!form.use_full_position_sell"></v-text-field>

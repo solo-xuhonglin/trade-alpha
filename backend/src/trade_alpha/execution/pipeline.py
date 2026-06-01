@@ -127,23 +127,27 @@ class ExecutionPipeline:
         self._daily_forced_sells: List[Dict] = []
 
     def _smooth_scores(self, pred_results: Dict[str, Dict]) -> None:
-        """Apply EWMA smoothing to scores in-place on pred_results.
+        """Apply EWMA smoothing to composite_score, write to ranking_score.
 
-        Maintains a cross-day buffer per stock. When buffer has < 3 values,
-        uses raw score (no smoothing yet).
+        Maintains a cross-day buffer per stock. When buffer has < window values,
+        uses composite_score directly (no smoothing yet).
         """
-        alpha = 0.5  # = 2 / (span=3 + 1)
+        window = getattr(self.strategy_config, 'ranking_smooth_window', 3)
+        raw_alpha = getattr(self.strategy_config, 'ranking_smooth_alpha', 0.0)
+        alpha = raw_alpha if raw_alpha > 0 else (2.0 / (window + 1) if window > 1 else 0.5)
         for ts_code, r in pred_results.items():
-            raw = r["score"]
+            composite = r.get("composite_score", r["score"])
             buf = self._score_buffer.setdefault(ts_code, [])
-            buf.append(raw)
-            if len(buf) > 3:
+            buf.append(composite)
+            if len(buf) > window:
                 buf.pop(0)
-            if len(buf) >= 3:
+            if len(buf) >= window:
                 smoothed = buf[0]
                 for v in buf[1:]:
                     smoothed = alpha * v + (1 - alpha) * smoothed
-                r["score"] = smoothed
+                r["ranking_score"] = smoothed
+            else:
+                r["ranking_score"] = composite
 
     def _apply_full_position_sell(
         self,
@@ -204,7 +208,7 @@ class ExecutionPipeline:
 
         Rank is persisted via daily_snapshot for later analysis.
         """
-        scored_sorted = sorted(scored, key=lambda s: s.score, reverse=True)
+        scored_sorted = sorted(scored, key=lambda s: s.ranking_score, reverse=True)
         for rank, stock in enumerate(scored_sorted, start=1):
             pred_results[stock.ts_code]["rank"] = rank
 
@@ -581,7 +585,6 @@ class ExecutionPipeline:
             pred_results[ts_code] = compute_scores(probs, close_price, self._config.classification_horizons)
         if not pred_results:
             return [], {}
-        self._smooth_scores(pred_results)
 
         lookback = max(
             getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
@@ -614,11 +617,19 @@ class ExecutionPipeline:
         self._apply_momentum_boost(pred_results, close_prices_hist if lookback > 0 else None)
         await self._filter_explosions(pred_results, date, vol_prices)
         self._apply_acceleration_filter(pred_results, close_prices_hist if lookback > 0 else None)
+
+        for r in pred_results.values():
+            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) + r.get("vol_penalty", 0) + r.get("momentum_bonus", 0)
+
+        self._smooth_scores(pred_results)
+
         scored = [
             ScoredStock(
                 ts_code=ts_code, stock_name=name_map.get(ts_code, ts_code),
                 close=r["close"], up_prob_3d=r["up_prob_3d"],
-                up_prob_5d=r["up_prob_5d"], score=r["score"],
+                up_prob_5d=r["up_prob_5d"],
+                score=r.get("composite_score", r["score"]),
+                ranking_score=r.get("ranking_score", r["score"]),
                 is_excluded=r.get("is_excluded", False),
                 trend_bonus=r.get("trend_bonus", 0.0),
                 vol_penalty=r.get("vol_penalty", 0.0),

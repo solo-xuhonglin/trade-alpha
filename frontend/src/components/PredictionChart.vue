@@ -319,6 +319,7 @@ const renderChart = () => {
   const rawScores = chartData.value.map(d => d.raw_score)
   const ranks = chartData.value.map(d => d.rank)
   const maxRank = Math.max(...ranks.filter(r => r != null), 0)
+  const rankingScores = chartData.value.map(d => d.ranking_score)
 
   const series: any[] = [
     {
@@ -359,6 +360,20 @@ const renderChart = () => {
     })
     legendData.push('原始评分')
     legendSelected['原始评分'] = true
+  }
+
+  if (rankingScores.some(v => v != null)) {
+    series.push({
+      name: '排名分',
+      type: 'line',
+      data: rankingScores,
+      yAxisIndex: 1,
+      smooth: true,
+      lineStyle: { width: 1.5, color: '#2196F3' },
+      symbol: 'none',
+    })
+    legendData.push('排名分')
+    legendSelected['排名分'] = true
   }
 
   const lineStyles = [
@@ -564,7 +579,7 @@ const renderChart = () => {
         }
 
         const showOHLC = isVisible('K线')
-        const showScoreLines = isVisible('复合评分') || isVisible('原始评分')
+        const showScoreLines = isVisible('复合评分') || isVisible('原始评分') || isVisible('排名分')
         const showProbs = horizons.value.some(h => isVisible(`涨(${h}d)`) || isVisible(`跌(${h}d)`))
         const showRank = isVisible('排名')
         const showReturns = isVisible('策略收益率') || isVisible('基准收益率')
@@ -579,6 +594,9 @@ const renderChart = () => {
           }
           if (isVisible('原始评分') && d.raw_score != null) {
             leftCol += `<br>原始分: ${fmtScore(d.raw_score)}`
+          }
+          if (isVisible('排名分') && d.ranking_score != null) {
+            leftCol += `<br>排名分: ${fmtScore(d.ranking_score)}`
           }
           const bonusParts: string[] = []
           if (d.trend_bonus != null && d.trend_bonus !== 0) {
