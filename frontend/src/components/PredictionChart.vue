@@ -136,6 +136,7 @@ watch(dialog, async (v) => {
 
 const chartRef = ref<HTMLDivElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
+const legendState = ref<Record<string, boolean>>({})
 
 const loadingStocks = ref(false)
 const loadingChart = ref(false)
@@ -545,6 +546,9 @@ const renderChart = () => {
         if (!params || params.length === 0) return ''
         const d = chartData.value[params[0].dataIndex]
         if (!d) return ''
+        const visible = legendState.value
+        const isVisible = (name: string) => visible[name] !== false
+
         const labelText = (label: any) => {
           if (label == null) return '--'
           if (label === 1) return '↑ 涨'
@@ -559,47 +563,56 @@ const renderChart = () => {
           return (v >= 0 ? '+' : '') + v.toFixed(4)
         }
 
-        const lines = [
-          `<strong>${d.trade_date}</strong>`,
-          `开:${d.open}  收:${d.close}`,
-          `高:${d.high}  低:${d.low}`,
-          `─────────────────`,
-        ]
+        const showOHLC = isVisible('K线')
+        const showScoreLines = isVisible('复合评分') || isVisible('原始评分')
+        const showProbs = horizons.value.some(h => isVisible(`涨(${h}d)`) || isVisible(`跌(${h}d)`))
+        const showRank = isVisible('排名')
+        const showReturns = isVisible('策略收益率') || isVisible('基准收益率')
 
-        const bonusParts: string[] = []
-        if (d.trend_bonus != null && d.trend_bonus !== 0) {
-          bonusParts.push(`趋势加分: ${fmtBonus(d.trend_bonus)}`)
+        let leftCol = `<div style="white-space:nowrap"><b>${d.trade_date}</b>`
+        if (showOHLC) {
+          leftCol += `<br>开:${d.open} 收:${d.close}<br>高:${d.high} 低:${d.low}`
         }
-        if (d.vol_penalty != null && d.vol_penalty !== 0) {
-          bonusParts.push(`波动扣分: ${fmtBonus(d.vol_penalty)}`)
+        if (showScoreLines) {
+          if (isVisible('复合评分') && (d.composite_score != null || d.score != null)) {
+            leftCol += `<br>综合分: ${fmtScore(d.composite_score ?? d.score)}`
+          }
+          if (isVisible('原始评分') && d.raw_score != null) {
+            leftCol += `<br>原始分: ${fmtScore(d.raw_score)}`
+          }
+          const bonusParts: string[] = []
+          if (d.trend_bonus != null && d.trend_bonus !== 0) {
+            bonusParts.push(`趋势加分: ${fmtBonus(d.trend_bonus)}`)
+          }
+          if (d.vol_penalty != null && d.vol_penalty !== 0) {
+            bonusParts.push(`波动扣分: -${Math.abs(d.vol_penalty).toFixed(4)}`)
+          }
+          if (d.momentum_bonus != null && d.momentum_bonus !== 0) {
+            bonusParts.push(`动量加成: ${fmtBonus(d.momentum_bonus)}`)
+          }
+          if (bonusParts.length > 0) {
+            leftCol += `<br>${bonusParts.join('<br>')}`
+          }
         }
-        if (d.momentum_bonus != null && d.momentum_bonus !== 0) {
-          bonusParts.push(`动量加成: ${fmtBonus(d.momentum_bonus)}`)
+        if (showRank && d.rank != null) {
+          leftCol += `<br>排名: #${d.rank}`
         }
+        leftCol += '</div>'
 
-        if (bonusParts.length > 0) {
-          bonusParts.forEach(p => lines.push(p))
-          lines.push(`─────────────────`)
+        let rightCol = '<div style="white-space:nowrap">'
+        if (showProbs) {
+          horizons.value.forEach(h => {
+            rightCol += `涨(${h}d): ${fmtPct(d[`up_prob_${h}d`])} 跌(${h}d): ${fmtPct(d[`down_prob_${h}d`])}<br>`
+          })
         }
-
-        lines.push(`综合分: ${fmtScore(d.composite_score ?? d.score)}`)
-        if (d.rank != null) {
-          lines.push(`排名: #${d.rank}`)
+        if (showReturns) {
+          horizons.value.forEach(h => {
+            rightCol += `实际${h}d: ${fmtRet(d[`actual_return_${h}d`])} ${labelText(d[`actual_label_${h}d`])}<br>`
+          })
         }
+        rightCol += '</div>'
 
-        lines.push(`─────────────────`)
-
-        horizons.value.forEach(h => {
-          lines.push(`涨(${h}d):${fmtPct(d[`up_prob_${h}d`])}  跌(${h}d):${fmtPct(d[`down_prob_${h}d`])}`)
-        })
-
-        lines.push(`─────────────────`)
-
-        horizons.value.forEach(h => {
-          lines.push(`实际${h}日: ${fmtRet(d[`actual_return_${h}d`])} ${labelText(d[`actual_label_${h}d`])}`)
-        })
-
-        return lines.join('<br/>')
+        return `<div style="display:flex;gap:16px">${leftCol}${rightCol}</div>`
       },
     },
     legend: {
@@ -622,6 +635,11 @@ const renderChart = () => {
       ...(maxRank > 0 ? [{ type: 'value', scale: true, name: '排名', min: 1, max: maxRank, inverse: true, position: 'right', offset: 65, axisLabel: { formatter: '#{value}' } }] : []),
     ],
     series,
+  })
+
+  legendState.value = { ...legendSelected }
+  chartInstance.on('legendselectchanged', (params: any) => {
+    legendState.value[params.name] = !legendState.value[params.name]
   })
 }
 
