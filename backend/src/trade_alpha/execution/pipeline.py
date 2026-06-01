@@ -669,6 +669,7 @@ class ExecutionPipeline:
         task_id: Optional[PydanticObjectId] = None,
     ) -> ExecutionResult:
         result = await self._create_result(start_date, end_date, name)
+        self.result = result
         await self._ensure_predictor(task_id)
         name_map = await get_stock_names(self.ts_codes)
 
