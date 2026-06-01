@@ -299,12 +299,29 @@ label = 1 if trend_up & (ret > threshold) else (-1 if trend_down & (ret < -thres
 
 ## 排名优化
 
-回测时对模型原始评分做多种调整，按固定顺序执行：
+回测时对模型原始评分做多种调整，按固定顺序执行。
+
+### 分数体系
+
+```
+原始评分 → 原始分 (raw_score)
+    ↓
+趋势加分 (trend_bonus)  波动扣分 (vol_penalty)  动量加成 (momentum_bonus)
+    ↓
+综合分 (composite_score = raw_score + trend_bonus - vol_penalty + momentum_bonus)
+    ↓
+EWMA 平滑 → 排名分 (ranking_score)  仅用于排名，不参与买卖判断
+```
+
+- **原始分 (raw_score)**：模型输出的原始概率分数 `score`
+- **加减分 (bonuses)**：趋势加分、波动扣分、动量加成各自独立存储，不修改原始分
+- **综合分 (composite_score)**：原始分 + 所有加减分，用于买卖阈值判断
+- **排名分 (ranking_score)**：综合分的 EWMA 平滑结果，仅用于股票排名（排序）
 
 ### 执行顺序
 
 ```
-原始评分 → 趋势加分 → 波动扣分 → 动量加成 → 暴涨排除 → 排名
+原始分 → 趋势加分 → 波动扣分 → 动量加成 → 综合分 → 排名平滑 → 排名分
 ```
 
 ### 1. 趋势加分（Trend Bonus）
@@ -342,7 +359,7 @@ label = 1 if trend_up & (ret > threshold) else (-1 if trend_down & (ret < -thres
 
 ### 3. 动量加成（Momentum Boost）
 
-基于股价的连续上涨天数加成。
+基于股价的上涨天数占比加成。
 
 **算法**：统计窗口内收盘价日涨跌，计算上涨天数占比
 - `ratio = up_days / window`
@@ -354,13 +371,27 @@ label = 1 if trend_up & (ret > threshold) else (-1 if trend_down & (ret < -thres
 | `momentum_window` | int | 5 | 动量窗口天数 |
 | `max_momentum_bonus` | float | 0.05 | 动量加成上限 |
 
-### 4. 暴涨排除（Explosion Filter）
+### 4. 排名平滑（Ranking Smoothing）
+
+对综合分做 EWMA 平滑，得到排名分。
+
+**算法**：
+- `ranking_score[t] = α × composite_score[t] + (1-α) × ranking_score[t-1]`
+- α 由用户指定，为空则自动计算：`α = 2 / (window + 1)`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `ranking_smooth_window` | int | 3 | EWMA 窗口天数 |
+| `ranking_smooth_alpha` | float | 0.5 | 手动指定 α（0~1），为空则用 `2/(window+1)` |
+
+### 5. 暴涨排除（Explosion Filter）
 
 基于价格和成交量的异动排除。
 
 **算法**：当日涨幅 > `price_threshold` 且量比 > `volume_ratio` × 前N日均量时，标记为排除
 - 方向判断：`pct_chg_mean` > 0 看涨方向排除，< 0 看跌方向排除
 - 排除后的股票不参与排名
+- 使用专用字段 `is_explosion_excluded` 标记，与 `is_acceleration_excluded` 互不干扰
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -368,6 +399,41 @@ label = 1 if trend_up & (ret > threshold) else (-1 if trend_down & (ret < -thres
 | `explosion_price_threshold` | float | 0.05 | 涨幅阈值（5%） |
 | `explosion_volume_ratio` | float | 3.0 | 量比阈值（3倍） |
 | `explosion_window` | int | 5 | 均量计算窗口 |
+
+## 交易优化
+
+回测时对交易执行过程做额外控制。
+
+### 1. 满仓容忍卖出（Full Position Sell）
+
+当持仓市值占比连续 N 日超过阈值时，强制卖出评分最低的持仓。
+
+**算法**：
+- 每日检查 `(total_value - cash) / total_value ≥ threshold`
+- 连续满足 N 日后触发，每次卖出 `sell_count` 只评分最低的持仓
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `use_full_position_sell` | bool | false | 是否启用 |
+| `full_position_threshold` | float | 0.90 | 持仓占比阈值 |
+| `full_position_days` | int | 3 | 连续触发天数 |
+| `full_position_sell_count` | int | 1 | 每次卖出数量 |
+
+### 2. 加速过滤（Acceleration Filter）
+
+当股票在窗口内累计涨幅和上涨天数占比均超过阈值时，标记为加速股并排除。
+
+**算法**：
+- 计算窗口内累计涨幅 `cum_return`
+- 计算窗口内上涨天数占比 `up_ratio`
+- 两者均超过阈值时标记为排除，使用 `is_acceleration_excluded` 字段
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `use_acceleration_filter` | bool | false | 是否启用 |
+| `acceleration_window` | int | 10 | 检测窗口天数 |
+| `acceleration_cum_return` | float | 0.30 | 累计涨幅阈值（30%） |
+| `acceleration_up_ratio` | float | 0.70 | 上涨天数占比阈值（70%） |
 
 ## 指标与价格绝对值关系分析
 

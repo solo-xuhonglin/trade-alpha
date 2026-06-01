@@ -169,17 +169,17 @@
               <div class="d-flex align-center mb-2">
                 <v-switch v-model="form.use_momentum_boost" hide-details density="compact" color="primary"
                   class="mr-2" label="动量加权"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="info">连续上涨天数加成</v-chip>
+                <v-chip size="x-small" variant="outlined" color="info">上涨天数占比加成</v-chip>
               </div>
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.momentum_window" type="number" label="窗口天数"
-                    hint="统计过去 N 天评分 > 0 的比例" persistent-hint
+                    hint="统计过去 N 天收盘价上涨天数占比" persistent-hint
                     :disabled="!form.use_momentum_boost"></v-text-field>
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.max_momentum_bonus" type="number" step="0.01"
-                    label="最大动量加成" hint="排名分 = 评分 + 比例 × 最大加成" persistent-hint
+                    label="最大动量加成" hint="比例 × 最大加成 = 动量加成，加入综合分" persistent-hint
                     :disabled="!form.use_momentum_boost"></v-text-field>
                 </v-col>
               </v-row>

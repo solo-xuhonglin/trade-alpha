@@ -931,6 +931,82 @@ GET /api/backtest/results/{result_id}
 
 **响应**: 同回测任务状态中的 result 字段
 
+### 获取暴涨排除记录
+
+```
+GET /api/backtest/results/{result_id}/excluded-stocks
+```
+
+**说明**: 获取回测过程中被暴涨排除标记的股票及统计信息。使用 `is_explosion_excluded` 字段统计，与 `is_acceleration_excluded` 互不干扰。
+
+**响应**: `List[Dict]`
+- 每项包含: `ts_code`, `stock_name`, `excluded_date`, `price_surge_pct`, `volume_ratio`
+
+### 获取加速排除记录
+
+```
+GET /api/backtest/results/{result_id}/acceleration-excluded
+```
+
+**说明**: 获取回测中被加速过滤标记的股票记录。使用 `is_acceleration_excluded` 字段统计。
+
+**响应**: `List[Dict]`
+- 每项包含: `ts_code`, `stock_name`, `excluded_date`, `accel_cum_return`, `accel_up_ratio`, `excluded_reason`
+
+### 获取满仓强制卖出记录
+
+```
+GET /api/backtest/results/{result_id}/forced-sell-stocks
+```
+
+**说明**: 获取回测中因满仓容忍卖出而被强制卖出的股票记录。
+
+**响应**: `List[Dict]`
+- 每项包含: `ts_code`, `stock_name`, `trade_date`, `reason`, `score`
+
+### 获取回测结果交易明细
+
+```
+GET /api/backtest/results/{result_id}/trades
+```
+
+**响应**: `List[Dict]`
+- 每项包含: `ts_code`, `stock_name`, `action` (buy/sell), `trade_date`, `shares`, `price`, `fee`, `reason`
+
+### 获取日快照
+
+```
+GET /api/backtest/results/{result_id}/daily-snapshots?page=1&page_size=30
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页条数，默认 30
+
+**响应**:
+```json
+{
+  "snapshots": [...],
+  "total": 245,
+  "page": 1,
+  "page_size": 30
+}
+```
+
+### 获取交易记录筛选选项
+
+```
+GET /api/backtest/results/{result_id}/trades/options
+```
+
+**响应**:
+```json
+{
+  "ts_codes": ["000001.SZ", "000002.SZ", ...],
+  "stock_names": ["平安银行", "万科A", ...]
+}
+```
+
 ## 训练管理
 
 ### 触发训练任务（subprocess 异步执行）
