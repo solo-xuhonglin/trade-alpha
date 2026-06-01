@@ -55,18 +55,6 @@
             </v-tooltip>
             <v-tooltip location="top" max-width="300">
               <template v-slot:activator="{ props }">
-                <v-chip size="x-small" variant="tonal" color="warning" class="mr-1 mb-1" v-bind="props"
-                  :prepend-icon="selectedStrategy.use_explosion_filter ? 'mdi-check' : 'mdi-close'">
-                  暴涨排除
-                </v-chip>
-              </template>
-              <span v-if="selectedStrategy.use_explosion_filter">
-                涨幅{{ ((selectedStrategy.explosion_price_threshold ?? 0) * 100).toFixed(0) }}% 量比{{ selectedStrategy.explosion_volume_ratio ?? '3.0' }}x
-              </span>
-              <span v-else>未启用</span>
-            </v-tooltip>
-            <v-tooltip location="top" max-width="300">
-              <template v-slot:activator="{ props }">
                 <v-chip size="x-small" variant="tonal" color="info" class="mr-1 mb-1" v-bind="props"
                   :prepend-icon="selectedStrategy.use_trend_bonus ? 'mdi-check' : 'mdi-close'">
                   趋势加分
@@ -96,6 +84,18 @@
                 </v-chip>
               </template>
               <span>窗口{{ selectedStrategy.ranking_smooth_window ?? '3' }} α{{ selectedStrategy.ranking_smooth_alpha ?? '0.5' }}</span>
+            </v-tooltip>
+            <v-tooltip location="top" max-width="300">
+              <template v-slot:activator="{ props }">
+                <v-chip size="x-small" variant="tonal" color="warning" class="mr-1 mb-1" v-bind="props"
+                  :prepend-icon="selectedStrategy.use_explosion_filter ? 'mdi-check' : 'mdi-close'">
+                  暴涨排除
+                </v-chip>
+              </template>
+              <span v-if="selectedStrategy.use_explosion_filter">
+                涨幅{{ ((selectedStrategy.explosion_price_threshold ?? 0) * 100).toFixed(0) }}% 量比{{ selectedStrategy.explosion_volume_ratio ?? '3.0' }}x
+              </span>
+              <span v-else>未启用</span>
             </v-tooltip>
             <v-tooltip location="top" max-width="300">
               <template v-slot:activator="{ props }">
