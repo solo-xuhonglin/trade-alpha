@@ -165,8 +165,12 @@ class ExecutionPipeline:
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
 
         total_value = self.portfolio.get_total_value(close_prices)
-        limit = self.result.initial_capital * threshold
-        if total_value < limit:
+        if total_value <= 0:
+            return
+        cash = self.portfolio.cash
+        market_value = total_value - cash
+        invested_pct = market_value / total_value
+        if invested_pct < threshold:
             self._full_position_consecutive_days = 0
             return
         self._full_position_consecutive_days = getattr(self, "_full_position_consecutive_days", 0) + 1
