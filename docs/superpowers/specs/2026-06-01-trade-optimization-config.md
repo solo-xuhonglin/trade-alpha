@@ -81,12 +81,12 @@ for each candidate buy stock:
 
 Current: `概览 | 盈亏分析 | 暴涨排除`
 
-Proposed: The 暴涨排除 tab becomes a more comprehensive "交易优化" tab with 3 sub-sections:
-- 暴涨排除记录
-- 加速排除记录
-- 满仓强制卖出
+Changed to: `概览 | 盈亏分析 | 交易优化`
 
-Or the user may choose to keep 3 separate tabs. This will be determined during implementation.
+The "交易优化" tab contains 3 sub-sections stacked vertically:
+- **暴涨排除记录** (existing, moved from its own tab)
+- **加速排除记录** (new)
+- **满仓强制卖出** (new)
 
 ### Affected Files
 

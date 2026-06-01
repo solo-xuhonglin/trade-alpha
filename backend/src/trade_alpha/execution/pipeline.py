@@ -223,8 +223,6 @@ class ExecutionPipeline:
         """
         if not self.strategy_config or not self.strategy_config.use_momentum_boost:
             for r in pred_results.values():
-                r["raw_score"] = r["score"]
-                r["composite_score"] = r["score"]
                 r["momentum_bonus"] = 0.0
             return
 
@@ -232,20 +230,14 @@ class ExecutionPipeline:
         max_bonus = self.strategy_config.max_momentum_bonus
 
         for ts_code, r in pred_results.items():
-            raw = r["score"]
-            r["raw_score"] = raw
-
             prices = close_prices_hist.get(ts_code, []) if close_prices_hist else []
             if len(prices) >= window + 1:
                 recent = prices[-(window + 1):]
                 up_count = sum(1 for i in range(1, len(recent)) if recent[i] > recent[i - 1])
                 ratio = up_count / window
                 bonus = ratio * max_bonus
-                r["score"] = raw + bonus
-                r["composite_score"] = raw + bonus
                 r["momentum_bonus"] = bonus
             else:
-                r["composite_score"] = raw
                 r["momentum_bonus"] = 0.0
 
     def _apply_trend_bonus(self, pred_results: Dict[str, Dict],
@@ -284,7 +276,6 @@ class ExecutionPipeline:
             else:
                 trend_bonus = 0.0
 
-            r["score"] = r["score"] + trend_bonus
             r["trend_bonus"] = trend_bonus
             r["price_slope"] = slope
             r["price_r_squared"] = r_squared
@@ -330,7 +321,6 @@ class ExecutionPipeline:
             else:
                 vol_penalty = 0.0
 
-            r["score"] = r["score"] - vol_penalty
             r["vol_penalty"] = vol_penalty
             r["price_avg_range"] = avg_range
 
@@ -619,6 +609,7 @@ class ExecutionPipeline:
         self._apply_acceleration_filter(pred_results, close_prices_hist if lookback > 0 else None)
 
         for r in pred_results.values():
+            r["raw_score"] = r["score"]
             r["composite_score"] = r["score"] + r.get("trend_bonus", 0) + r.get("vol_penalty", 0) + r.get("momentum_bonus", 0)
 
         self._smooth_scores(pred_results)
@@ -848,7 +839,6 @@ class ExecutionPipeline:
             return []
 
         vol_prices = dict(zip(day_df["ts_code"], day_df["vol"])) if not day_df.empty else {}
-        self._smooth_scores(pred_results)
 
         lookback = max(
             self.strategy_config.trend_bonus_window if self.strategy_config.use_trend_bonus else 0,
@@ -880,6 +870,12 @@ class ExecutionPipeline:
         self._apply_momentum_boost(pred_results, close_prices_hist if lookback > 0 else None)
         await self._filter_explosions(pred_results, date, vol_prices)
 
+        for r in pred_results.values():
+            r["raw_score"] = r["score"]
+            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) + r.get("vol_penalty", 0) + r.get("momentum_bonus", 0)
+
+        self._smooth_scores(pred_results)
+
         scored = [
             ScoredStock(
                 ts_code=ts_code,
@@ -888,7 +884,8 @@ class ExecutionPipeline:
                 up_prob_3d=r.get("up_prob_3d", 0),
                 up_prob_5d=r.get("up_prob_5d", 0),
                 up_prob_10d=r.get("up_prob_10d", 0),
-                score=r["score"],
+                score=r.get("composite_score", r["score"]),
+                ranking_score=r.get("ranking_score", r["score"]),
                 is_excluded=r.get("is_excluded", False),
             )
             for ts_code, r in pred_results.items()
