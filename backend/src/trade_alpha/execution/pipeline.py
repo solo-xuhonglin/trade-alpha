@@ -137,17 +137,27 @@ class ExecutionPipeline:
         alpha = raw_alpha if raw_alpha > 0 else (2.0 / (window + 1) if window > 1 else 0.5)
         for ts_code, r in pred_results.items():
             composite = r.get("composite_score", r["score"])
-            buf = self._score_buffer.setdefault(ts_code, [])
-            buf.append(composite)
-            if len(buf) > window:
-                buf.pop(0)
-            if len(buf) >= window:
-                smoothed = buf[0]
-                for v in buf[1:]:
+            buffer = self._score_buffer.setdefault(ts_code, [])
+            buffer.append(composite)
+            if len(buffer) < window:
+                r["ranking_score"] = composite
+            else:
+                smoothed = buffer[0]
+                for v in buffer[1:]:
                     smoothed = alpha * v + (1 - alpha) * smoothed
                 r["ranking_score"] = smoothed
-            else:
-                r["ranking_score"] = composite
+
+    def _append_pending_order(self, order: PendingOrder) -> None:
+        """Append a pending order, skipping if a sell order for the same stock already exists.
+
+        Buy orders are always appended.  Sell orders that duplicate an existing
+        sell for the same ts_code are silently dropped.
+        """
+        if order.order_shares < 0:
+            for o in self.pending_orders:
+                if o.ts_code == order.ts_code and o.order_shares < 0:
+                    return
+        self.pending_orders.append(order)
 
     def _apply_full_position_sell(
         self,
@@ -739,14 +749,8 @@ class ExecutionPipeline:
                 daily_returns.append(day_ret)
 
             await self._make_orders(scored, close_prices, date)
-
-            sell_ts_codes_from_strategy = {
-                o.ts_code for o in self.pending_orders
-                if o.order_shares < 0 and getattr(o, "reason", None) != "full_position_forced_sell"
-            }
             for o in forced_sell_orders:
-                if o.ts_code not in sell_ts_codes_from_strategy:
-                    self.pending_orders.append(o)
+                self._append_pending_order(o)
 
             date = _next_date(date)
 
