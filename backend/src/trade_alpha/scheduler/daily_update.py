@@ -29,7 +29,7 @@ async def _get_latest_trade_date() -> Optional[str]:
     calendar = await TradeCalendar.find(
         TradeCalendar.cal_date <= today,
         TradeCalendar.is_open == 1,
-    ).sort(-TradeCalendar.cal_date).first()
+    ).sort(-TradeCalendar.cal_date).first_or_none()
     if not calendar:
         logger.error("No trading day found in calendar")
         return None
