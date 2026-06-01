@@ -739,7 +739,14 @@ class ExecutionPipeline:
                 daily_returns.append(day_ret)
 
             await self._make_orders(scored, close_prices, date)
-            self.pending_orders.extend(forced_sell_orders)
+
+            sell_ts_codes_from_strategy = {
+                o.ts_code for o in self.pending_orders
+                if o.order_shares < 0 and getattr(o, "reason", None) != "full_position_forced_sell"
+            }
+            for o in forced_sell_orders:
+                if o.ts_code not in sell_ts_codes_from_strategy:
+                    self.pending_orders.append(o)
 
             date = _next_date(date)
 
