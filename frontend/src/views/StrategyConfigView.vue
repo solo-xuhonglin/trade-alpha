@@ -495,6 +495,8 @@ const form = ref({
   acceleration_window: 5,
   acceleration_cum_return: 0.15,
   acceleration_up_ratio: 0.80,
+  ranking_smooth_window: 3,
+  ranking_smooth_alpha: 0.5,
 })
 
 const headers = [
@@ -555,6 +557,8 @@ const openDialog = (item?: Strategy) => {
       acceleration_window: item.acceleration_window ?? 5,
       acceleration_cum_return: item.acceleration_cum_return ?? 0.15,
       acceleration_up_ratio: item.acceleration_up_ratio ?? 0.80,
+      ranking_smooth_window: item.ranking_smooth_window ?? 3,
+      ranking_smooth_alpha: item.ranking_smooth_alpha ?? 0.5,
     }
   } else {
     editingId.value = null
@@ -614,6 +618,8 @@ const saveStrategy = async () => {
       acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
       acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
       acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
+      ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
+      ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -648,6 +654,8 @@ const saveStrategy = async () => {
       acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
       acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
       acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
+      ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
+      ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
     })
   }
   dialog.value = false
