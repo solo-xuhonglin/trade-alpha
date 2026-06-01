@@ -46,6 +46,8 @@ def _strategy_to_dict(s) -> dict:
         "vol_range_tolerance": s.vol_range_tolerance,
         "vol_penalty_scale": s.vol_penalty_scale,
         "vol_max_penalty": s.vol_max_penalty,
+        "ranking_smooth_window": s.ranking_smooth_window,
+        "ranking_smooth_alpha": s.ranking_smooth_alpha,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -108,6 +110,8 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             vol_range_tolerance=request.vol_range_tolerance or 0.035,
             vol_penalty_scale=request.vol_penalty_scale or 0.005,
             vol_max_penalty=request.vol_max_penalty or 0.05,
+            ranking_smooth_window=request.ranking_smooth_window or 3,
+            ranking_smooth_alpha=request.ranking_smooth_alpha or 0.5,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -152,6 +156,8 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             vol_range_tolerance=request.vol_range_tolerance,
             vol_penalty_scale=request.vol_penalty_scale,
             vol_max_penalty=request.vol_max_penalty,
+            ranking_smooth_window=request.ranking_smooth_window,
+            ranking_smooth_alpha=request.ranking_smooth_alpha,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

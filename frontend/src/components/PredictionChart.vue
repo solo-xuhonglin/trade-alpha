@@ -315,7 +315,7 @@ const renderChart = () => {
 
   const dates = chartData.value.map(d => d.trade_date)
   const klineData = chartData.value.map(d => [d.open, d.close, d.low, d.high])
-  const scores = chartData.value.map(d => d.score)
+  const scores = chartData.value.map(d => d.composite_score ?? d.score)
   const rawScores = chartData.value.map(d => d.raw_score)
   const ranks = chartData.value.map(d => d.rank)
   const maxRank = Math.max(...ranks.filter(r => r != null), 0)
@@ -348,7 +348,7 @@ const renderChart = () => {
   const legendData = ['K线', '复合评分']
   const legendSelected: Record<string, boolean> = { 'K线': true, '复合评分': true }
 
-  if (rawScores.some(v => v != null)) {
+  if (rawScores.length > 0 && rawScores.some((v, i) => v != null && v !== scores[i])) {
     series.push({
       name: '原始评分',
       type: 'line',

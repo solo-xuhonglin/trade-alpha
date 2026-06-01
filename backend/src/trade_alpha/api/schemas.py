@@ -94,6 +94,8 @@ class StrategyCreateRequest(BaseModel):
     vol_range_tolerance: Optional[float] = 0.035
     vol_penalty_scale: Optional[float] = 0.005
     vol_max_penalty: Optional[float] = 0.05
+    ranking_smooth_window: Optional[int] = 3
+    ranking_smooth_alpha: Optional[float] = 0.5
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -124,6 +126,8 @@ class StrategyUpdateRequest(BaseModel):
     vol_range_tolerance: Optional[float] = None
     vol_penalty_scale: Optional[float] = None
     vol_max_penalty: Optional[float] = None
+    ranking_smooth_window: Optional[int] = None
+    ranking_smooth_alpha: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

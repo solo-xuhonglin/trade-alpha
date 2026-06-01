@@ -38,6 +38,8 @@ async def create_strategy(
     vol_range_tolerance: float = 0.035,
     vol_penalty_scale: float = 0.005,
     vol_max_penalty: float = 0.05,
+    ranking_smooth_window: int = 3,
+    ranking_smooth_alpha: float = 0.5,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -75,6 +77,8 @@ async def create_strategy(
         vol_range_tolerance=vol_range_tolerance,
         vol_penalty_scale=vol_penalty_scale,
         vol_max_penalty=vol_max_penalty,
+        ranking_smooth_window=ranking_smooth_window,
+        ranking_smooth_alpha=ranking_smooth_alpha,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -127,6 +131,8 @@ async def update_strategy(
     vol_range_tolerance: Optional[float] = None,
     vol_penalty_scale: Optional[float] = None,
     vol_max_penalty: Optional[float] = None,
+    ranking_smooth_window: Optional[int] = None,
+    ranking_smooth_alpha: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -191,6 +197,10 @@ async def update_strategy(
         strategy.vol_penalty_scale = vol_penalty_scale
     if vol_max_penalty is not None:
         strategy.vol_max_penalty = vol_max_penalty
+    if ranking_smooth_window is not None:
+        strategy.ranking_smooth_window = ranking_smooth_window
+    if ranking_smooth_alpha is not None:
+        strategy.ranking_smooth_alpha = ranking_smooth_alpha
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
