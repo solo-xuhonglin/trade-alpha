@@ -455,7 +455,7 @@
                 </span>
               </v-col>
             </v-row>
-            <v-row class="py-0 mt-1">
+            <v-row class="py-0">
               <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">趋势加分：</span>
                 <v-icon :color="backtestStrategyConfig?.use_trend_bonus ? 'success' : 'disabled'" size="small">
@@ -466,7 +466,7 @@
                 </span>
               </v-col>
             </v-row>
-            <v-row class="py-0 mt-1">
+            <v-row class="py-0">
               <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">波动扣分：</span>
                 <v-icon :color="backtestStrategyConfig?.use_volatility_penalty ? 'success' : 'disabled'" size="small">
@@ -477,18 +477,7 @@
                 </span>
               </v-col>
             </v-row>
-            <v-row class="py-0 mt-1">
-              <v-col cols="12">
-                <span class="text-body-2 text-medium-emphasis">暴涨排除：</span>
-                <v-icon :color="backtestStrategyConfig?.use_explosion_filter ? 'success' : 'disabled'" size="small">
-                  {{ backtestStrategyConfig?.use_explosion_filter ? 'mdi-check-circle' : 'mdi-close-circle' }}
-                </v-icon>
-                <span v-if="backtestStrategyConfig?.use_explosion_filter" class="text-body-2">
-                  &nbsp;涨幅{{ ((backtestStrategyConfig?.explosion_price_threshold ?? 0) * 100).toFixed(0) }}% 量比{{ backtestStrategyConfig?.explosion_volume_ratio ?? '3.0' }}x 窗口{{ backtestStrategyConfig?.explosion_window ?? '5' }}
-                </span>
-              </v-col>
-            </v-row>
-            <v-row class="py-0 mt-1">
+            <v-row class="py-0">
               <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">排名平滑：</span>
                 <span class="text-body-2">
@@ -502,6 +491,17 @@
             <div class="text-subtitle-2 font-weight-medium mb-1">交易优化</div>
             <v-row class="py-0">
               <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">暴涨排除：</span>
+                <v-icon :color="backtestStrategyConfig?.use_explosion_filter ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_explosion_filter ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_explosion_filter" class="text-body-2">
+                  &nbsp;涨幅{{ ((backtestStrategyConfig?.explosion_price_threshold ?? 0) * 100).toFixed(0) }}% 量比{{ backtestStrategyConfig?.explosion_volume_ratio ?? '3.0' }}x 窗口{{ backtestStrategyConfig?.explosion_window ?? '5' }}
+                </span>
+              </v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">满仓容忍卖出：</span>
                 <v-icon :color="backtestStrategyConfig?.use_full_position_sell ? 'success' : 'disabled'" size="small">
                   {{ backtestStrategyConfig?.use_full_position_sell ? 'mdi-check-circle' : 'mdi-close-circle' }}
@@ -511,7 +511,7 @@
                 </span>
               </v-col>
             </v-row>
-            <v-row class="py-0 mt-1">
+            <v-row class="py-0">
               <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">加速过滤：</span>
                 <v-icon :color="backtestStrategyConfig?.use_acceleration_filter ? 'success' : 'disabled'" size="small">
