@@ -589,14 +589,8 @@ const renderChart = () => {
           leftCol += `<br>开:${d.open} 收:${d.close}<br>高:${d.high} 低:${d.low}`
         }
         if (showScoreLines) {
-          if (isVisible('复合评分') && (d.composite_score != null || d.score != null)) {
-            leftCol += `<br>综合分: ${fmtScore(d.composite_score ?? d.score)}`
-          }
           if (isVisible('原始评分') && d.raw_score != null) {
             leftCol += `<br>原始分: ${fmtScore(d.raw_score)}`
-          }
-          if (isVisible('排名分') && d.ranking_score != null) {
-            leftCol += `<br>排名分: ${fmtScore(d.ranking_score)}`
           }
           const bonusParts: string[] = []
           if (d.trend_bonus != null && d.trend_bonus !== 0) {
@@ -610,6 +604,12 @@ const renderChart = () => {
           }
           if (bonusParts.length > 0) {
             leftCol += `<br>${bonusParts.join('<br>')}`
+          }
+          if (isVisible('复合评分') && (d.composite_score != null || d.score != null)) {
+            leftCol += `<br>综合分: ${fmtScore(d.composite_score ?? d.score)}`
+          }
+          if (isVisible('排名分') && d.ranking_score != null) {
+            leftCol += `<br>排名分: ${fmtScore(d.ranking_score)}`
           }
         }
         if (showRank && d.rank != null) {
