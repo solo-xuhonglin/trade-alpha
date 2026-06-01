@@ -20,6 +20,15 @@ export interface Strategy {
   explosion_price_threshold?: number
   explosion_volume_ratio?: number
   explosion_window?: number
+  use_full_position_sell?: boolean
+  full_position_threshold?: number
+  full_position_days?: number
+  full_position_score_window?: number
+  full_position_sell_count?: number
+  use_acceleration_filter?: boolean
+  acceleration_window?: number
+  acceleration_cum_return?: number
+  acceleration_up_ratio?: number
   use_trend_bonus?: boolean
   trend_bonus_window?: number
   trend_bonus_scale?: number

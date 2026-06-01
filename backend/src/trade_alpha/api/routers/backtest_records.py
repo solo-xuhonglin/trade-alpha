@@ -241,7 +241,7 @@ async def get_pnl_details(result_id: str):
         if unrealized_map:
             held_codes = list(unrealized_map.keys())
             last_day_stocks = await StockDaily.find(
-                StockDaily.ts_code.is_in(held_codes),
+                In(StockDaily.ts_code, held_codes),
                 StockDaily.trade_date == last_date,
             ).to_list()
             close_prices: Dict[str, float] = {s.ts_code: s.close for s in last_day_stocks}
@@ -512,6 +512,101 @@ async def get_excluded_stocks(result_id: str):
         })
 
     items.sort(key=lambda x: x["excluded_count"], reverse=True)
+    return {"items": items}
+
+
+@router.get("/{result_id}/acceleration-excluded")
+async def get_acceleration_excluded(result_id: str):
+    """Get acceleration filter statistics for a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    from trade_alpha.dao.mongodb import get_database
+    db = await get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    snapshots = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(ExecutionDailySnapshot.date).to_list()
+
+    excluded_map: Dict[str, list] = {}
+    for snap in snapshots:
+        for ts_code, pred in snap.predictions.items():
+            if pred.get("is_acceleration_excluded"):
+                if ts_code not in excluded_map:
+                    excluded_map[ts_code] = []
+                excluded_map[ts_code].append({
+                    "date": snap.date,
+                    "accel_cum_return": round(pred.get("accel_cum_return", 0), 4),
+                    "accel_up_ratio": round(pred.get("accel_up_ratio", 0), 2),
+                })
+
+    if not excluded_map:
+        return {"items": []}
+
+    ts_codes = list(excluded_map.keys())
+    name_map = await get_stock_names(ts_codes)
+
+    items = []
+    for ts_code, dates in excluded_map.items():
+        items.append({
+            "ts_code": ts_code,
+            "stock_name": name_map.get(ts_code, ts_code),
+            "excluded_count": len(dates),
+            "excluded_dates": dates,
+        })
+
+    items.sort(key=lambda x: x["excluded_count"], reverse=True)
+    return {"items": items}
+
+
+@router.get("/{result_id}/forced-sell-stocks")
+async def get_forced_sell_stocks(result_id: str):
+    """Get forced sell records for a backtest result."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    from trade_alpha.dao.mongodb import get_database
+    db = await get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    snapshots = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(ExecutionDailySnapshot.date).to_list()
+
+    forced_map: Dict[str, list] = {}
+    for snap in snapshots:
+        for ts_code, pred in snap.predictions.items():
+            if pred.get("is_forced_sell"):
+                if ts_code not in forced_map:
+                    forced_map[ts_code] = []
+                forced_map[ts_code].append({
+                    "date": snap.date,
+                    "reason": pred.get("forced_sell_reason", "unknown"),
+                })
+
+    if not forced_map:
+        return {"items": []}
+
+    ts_codes = list(forced_map.keys())
+    name_map = await get_stock_names(ts_codes)
+
+    items = []
+    for ts_code, dates in forced_map.items():
+        items.append({
+            "ts_code": ts_code,
+            "stock_name": name_map.get(ts_code, ts_code),
+            "forced_count": len(dates),
+            "forced_dates": dates,
+        })
+
+    items.sort(key=lambda x: x["forced_count"], reverse=True)
     return {"items": items}
 
 

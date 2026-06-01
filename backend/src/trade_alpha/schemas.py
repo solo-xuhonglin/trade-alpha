@@ -33,3 +33,4 @@ class PendingOrder:
     up_prob_5d: float
     trade_date: str
     settle_date: str
+    reason: str = ""

@@ -123,7 +123,8 @@ class ExecutionPipeline:
         )
         self.prev_total_value: Optional[float] = None
         self.pending_orders: List[PendingOrder] = []
-        self._score_buffer: Dict[str, List[float]] = {}  # ts_code -> EWMA history
+        self._score_buffer: Dict[str, List[float]] = {}
+        self._daily_forced_sells: List[Dict] = []
 
     def _smooth_scores(self, pred_results: Dict[str, Dict]) -> None:
         """Apply EWMA smoothing to scores in-place on pred_results.
@@ -144,7 +145,61 @@ class ExecutionPipeline:
                     smoothed = alpha * v + (1 - alpha) * smoothed
                 r["score"] = smoothed
 
-    def _record_ranks(self, scored: List, pred_results: Dict[str, Dict]) -> None:
+    def _apply_full_position_sell(
+        self,
+        pred_results: Dict[str, Dict],
+        close_prices: Dict[str, float],
+        date: str,
+        name_map: Dict[str, str],
+    ) -> None:
+        """Sell worst-scored stocks when portfolio is over-positioned for N days."""
+        if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
+            return
+        threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
+        days_required = getattr(self.strategy_config, "full_position_days", 3)
+        score_window = getattr(self.strategy_config, "full_position_score_window", 5)
+        sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
+
+        total_value = self.portfolio.get_total_value(close_prices)
+        limit = self.result.initial_capital * threshold
+        if total_value < limit:
+            self._full_position_consecutive_days = 0
+            return
+        self._full_position_consecutive_days = getattr(self, "_full_position_consecutive_days", 0) + 1
+        if self._full_position_consecutive_days < days_required:
+            return
+
+        if not self.portfolio.positions:
+            return
+
+        scored_holds: List[tuple] = []
+        for ts_code in self.portfolio.positions:
+            pred = pred_results.get(ts_code, {})
+            score = pred.get("composite_score") or pred.get("score", 0)
+            scored_holds.append((score, ts_code))
+
+        scored_holds.sort(key=lambda x: x[0])
+        for i in range(min(sell_count, len(scored_holds))):
+            _, ts_code = scored_holds[i]
+            pos = self.portfolio.positions.get(ts_code)
+            if not pos:
+                continue
+            order = PendingOrder(
+                ts_code=ts_code,
+                stock_name=name_map.get(ts_code, ts_code),
+                order_price=close_prices.get(ts_code, 0),
+                order_shares=-pos.shares,
+                score=0.0,
+                up_prob_3d=0.0,
+                up_prob_5d=0.0,
+                trade_date=date,
+                settle_date=_next_date(date),
+                reason="full_position_forced_sell",
+            )
+            self.pending_orders.append(order)
+            self._daily_forced_sells.append({"ts_code": ts_code, "reason": "full_position"})
+
+    def _record_ranks(self, scored: List[ScoredStock], pred_results: Dict[str, Dict]) -> None:
         """Sort scored stocks by score and write rank back into pred_results.
 
         Rank is persisted via daily_snapshot for later analysis.
@@ -339,6 +394,33 @@ class ExecutionPipeline:
             logger.warning(f"_filter_explosions {trade_date}: {excluded_count}/{len(pred_results)} excluded, "
                            f"threshold={threshold}, vol_ratio_threshold={volume_ratio_threshold}")
 
+    def _apply_acceleration_filter(
+        self,
+        pred_results: Dict[str, Dict],
+        close_prices_hist: Optional[Dict[str, List[float]]] = None,
+    ) -> None:
+        """Exclude stocks whose price is accelerating (cum return + up-day ratio)."""
+        if not self.strategy_config or not getattr(self.strategy_config, "use_acceleration_filter", False):
+            return
+        window = getattr(self.strategy_config, "acceleration_window", 5)
+        cum_return_threshold = getattr(self.strategy_config, "acceleration_cum_return", 0.15)
+        up_ratio_threshold = getattr(self.strategy_config, "acceleration_up_ratio", 0.80)
+
+        for ts_code, r in pred_results.items():
+            prices = close_prices_hist.get(ts_code, []) if close_prices_hist else []
+            if len(prices) < window + 1:
+                continue
+            recent = prices[-(window + 1):]
+            cum_return = (recent[-1] - recent[0]) / recent[0] if recent[0] > 0 else 0
+            up_days = sum(1 for i in range(1, len(recent)) if recent[i] > recent[i - 1])
+            up_ratio = up_days / (len(recent) - 1)
+            if cum_return > cum_return_threshold and up_ratio > up_ratio_threshold:
+                r["is_acceleration_excluded"] = True
+                r["is_excluded"] = True
+                r["excluded_reason"] = "acceleration"
+                r["accel_cum_return"] = round(cum_return, 4)
+                r["accel_up_ratio"] = round(up_ratio, 4)
+
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
         result = ExecutionResult(
@@ -464,6 +546,11 @@ class ExecutionPipeline:
                     sell_revenue = t.filled_price * abs(t.shares) - t.fee - stamp_tax
                     t.pnl_amount = round(sell_revenue - cost_basis, 2)
                     t.pnl_pct = round(t.pnl_amount / cost_basis, 4) if cost_basis > 0 else None
+            # propagate reason from PendingOrder to filled trade
+            order = next((o for o in self.pending_orders if o.ts_code == t.ts_code and
+                          abs(o.order_shares) == abs(t.shares)), None)
+            if order and order.reason and not t.reason:
+                t.reason = order.reason
 
         await ExecutionTrade.insert_many(all_trades)
 
@@ -497,9 +584,10 @@ class ExecutionPipeline:
         self._smooth_scores(pred_results)
 
         lookback = max(
-            self.strategy_config.trend_bonus_window if self.strategy_config.use_trend_bonus else 0,
-            self.strategy_config.vol_penalty_window if self.strategy_config.use_volatility_penalty else 0,
-            self.strategy_config.momentum_window if self.strategy_config.use_momentum_boost else 0,
+            getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
+            getattr(self.strategy_config, 'vol_penalty_window', 0) if self.strategy_config and self.strategy_config.use_volatility_penalty else 0,
+            getattr(self.strategy_config, 'momentum_window', 0) if self.strategy_config and self.strategy_config.use_momentum_boost else 0,
+            getattr(self.strategy_config, 'acceleration_window', 0) if self.strategy_config and self.strategy_config.use_acceleration_filter else 0,
         )
         if lookback > 0:
             history_data = await self.data_loader.peek_history_data(
@@ -525,6 +613,7 @@ class ExecutionPipeline:
 
         self._apply_momentum_boost(pred_results, close_prices_hist if lookback > 0 else None)
         await self._filter_explosions(pred_results, date, vol_prices)
+        self._apply_acceleration_filter(pred_results, close_prices_hist if lookback > 0 else None)
         scored = [
             ScoredStock(
                 ts_code=ts_code, stock_name=name_map.get(ts_code, ts_code),
@@ -626,12 +715,24 @@ class ExecutionPipeline:
                 date = _next_date(date)
                 continue
 
+            self._daily_forced_sells = []
+            self._apply_full_position_sell(pred_results, close_prices, date, name_map)
+            for fs in self._daily_forced_sells:
+                ts_code = fs["ts_code"]
+                if ts_code in pred_results:
+                    pred_results[ts_code]["is_forced_sell"] = True
+                    pred_results[ts_code]["forced_sell_reason"] = fs["reason"]
+
+            forced_sell_orders = list(self.pending_orders)
+            self.pending_orders.clear()
+
             day_val, day_ret = await self._save_snapshot(date, backtest_id, close_prices, pred_results)
             daily_values.append(day_val)
             if day_ret is not None:
                 daily_returns.append(day_ret)
 
             await self._make_orders(scored, close_prices, date)
+            self.pending_orders.extend(forced_sell_orders)
 
             date = _next_date(date)
 

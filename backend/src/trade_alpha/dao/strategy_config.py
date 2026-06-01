@@ -37,6 +37,15 @@ class StrategyConfig(Document):
     vol_range_tolerance: float = 0.035
     vol_penalty_scale: float = 0.005
     vol_max_penalty: float = 0.05
+    use_full_position_sell: bool = False
+    full_position_threshold: float = 0.90
+    full_position_days: int = 3
+    full_position_score_window: int = 5
+    full_position_sell_count: int = 1
+    use_acceleration_filter: bool = False
+    acceleration_window: int = 5
+    acceleration_cum_return: float = 0.15
+    acceleration_up_ratio: float = 0.80
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

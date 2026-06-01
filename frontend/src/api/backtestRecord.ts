@@ -177,5 +177,11 @@ export const backtestRecordApi = {
   getExcludedStocks: (id: string) =>
     api.get<{ items: ExcludedStock[] }>(`/backtests/${id}/excluded-stocks`),
 
+  getAccelerationExcluded: (id: string) =>
+    api.get<{ items: any[] }>(`/backtests/${id}/acceleration-excluded`),
+
+  getForcedSellStocks: (id: string) =>
+    api.get<{ items: any[] }>(`/backtests/${id}/forced-sell-stocks`),
+
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }

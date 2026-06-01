@@ -43,6 +43,7 @@
           <v-tab value="basic">基本配置</v-tab>
           <v-tab value="multi">多股票配置</v-tab>
           <v-tab value="ranking">排名优化</v-tab>
+          <v-tab value="trading">交易优化</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab" v-if="form.type === 'multi'" class="mt-4">
@@ -183,33 +184,6 @@
                 </v-col>
               </v-row>
 
-              <v-divider class="my-4"></v-divider>
-
-              <div class="d-flex align-center mb-2">
-                <v-switch v-model="form.use_explosion_filter" hide-details density="compact" color="primary"
-                  class="mr-2" label="暴涨排除"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="warning">放量暴涨不买入</v-chip>
-              </div>
-              <v-row>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.explosion_price_threshold" type="number" step="0.01"
-                    label="涨幅阈值" hint="高于参考均价此比例" persistent-hint
-                    :disabled="!form.use_explosion_filter"></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.explosion_volume_ratio" type="number" step="0.5"
-                    label="量比阈值" hint="当前量/均量超过此倍数" persistent-hint
-                    :disabled="!form.use_explosion_filter"></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.explosion_window" type="number"
-                    label="参考窗口" hint="均价和均量的计算天数" persistent-hint
-                    :disabled="!form.use_explosion_filter"></v-text-field>
-                </v-col>
-              </v-row>
-
-              <v-divider class="my-4"></v-divider>
-
               <div class="d-flex align-center mb-2">
                 <v-switch v-model="form.use_trend_bonus" hide-details density="compact" color="primary"
                   class="mr-2" label="趋势加分"></v-switch>
@@ -269,6 +243,90 @@
                   <v-text-field v-model.number="form.vol_max_penalty" type="number" step="0.01"
                     label="最大扣分" hint="波动扣分上限" persistent-hint
                     :disabled="!form.use_volatility_penalty"></v-text-field>
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
+
+          <v-window-item value="trading">
+            <div>
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_explosion_filter" hide-details density="compact" color="primary"
+                  class="mr-2" label="暴涨排除"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="warning">放量暴涨不买入</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.explosion_price_threshold" type="number" step="0.01"
+                    label="涨幅阈值" hint="高于参考均价此比例" persistent-hint
+                    :disabled="!form.use_explosion_filter"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.explosion_volume_ratio" type="number" step="0.5"
+                    label="量比阈值" hint="当前量/均量超过此倍数" persistent-hint
+                    :disabled="!form.use_explosion_filter"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.explosion_window" type="number"
+                    label="参考窗口" hint="均价和均量的计算天数" persistent-hint
+                    :disabled="!form.use_explosion_filter"></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_full_position_sell" hide-details density="compact" color="primary"
+                  class="mr-2" label="满仓容忍度"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="warning">仓位超阈值持续N日时卖出最差评分股</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.full_position_threshold" type="number" step="0.05"
+                    label="仓位阈值" hint="总资产比例，如0.90=90%" persistent-hint
+                    :disabled="!form.use_full_position_sell"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.full_position_days" type="number"
+                    label="持续天数" hint="连续超过阈值N天触发" persistent-hint
+                    :disabled="!form.use_full_position_sell"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.full_position_score_window" type="number"
+                    label="评分窗口" hint="计算平均评分的天数" persistent-hint
+                    :disabled="!form.use_full_position_sell"></v-text-field>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.full_position_sell_count" type="number"
+                    label="每次卖出数量" hint="每次触发卖几只" persistent-hint
+                    :disabled="!form.use_full_position_sell"></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_acceleration_filter" hide-details density="compact" color="primary"
+                  class="mr-2" label="加速排除"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="warning">历史N天越涨越快时不买入</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.acceleration_window" type="number"
+                    label="检测窗口" hint="计算的天数" persistent-hint
+                    :disabled="!form.use_acceleration_filter"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.acceleration_cum_return" type="number" step="0.05"
+                    label="累计涨幅阈值" hint="窗口总涨幅超此值" persistent-hint
+                    :disabled="!form.use_acceleration_filter"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model.number="form.acceleration_up_ratio" type="number" step="0.05"
+                    label="上涨天数占比" hint="上涨天数/总天数超过此值" persistent-hint
+                    :disabled="!form.use_acceleration_filter"></v-text-field>
                 </v-col>
               </v-row>
             </div>
@@ -411,6 +469,15 @@ const form = ref({
   vol_range_tolerance: 0.035,
   vol_penalty_scale: 0.005,
   vol_max_penalty: 0.05,
+  use_full_position_sell: false,
+  full_position_threshold: 0.90,
+  full_position_days: 3,
+  full_position_score_window: 5,
+  full_position_sell_count: 1,
+  use_acceleration_filter: false,
+  acceleration_window: 5,
+  acceleration_cum_return: 0.15,
+  acceleration_up_ratio: 0.80,
 })
 
 const headers = [
@@ -462,6 +529,15 @@ const openDialog = (item?: Strategy) => {
       vol_range_tolerance: item.vol_range_tolerance ?? 0.035,
       vol_penalty_scale: item.vol_penalty_scale ?? 0.005,
       vol_max_penalty: item.vol_max_penalty ?? 0.05,
+      use_full_position_sell: item.use_full_position_sell ?? false,
+      full_position_threshold: item.full_position_threshold ?? 0.90,
+      full_position_days: item.full_position_days ?? 3,
+      full_position_score_window: item.full_position_score_window ?? 5,
+      full_position_sell_count: item.full_position_sell_count ?? 1,
+      use_acceleration_filter: item.use_acceleration_filter ?? false,
+      acceleration_window: item.acceleration_window ?? 5,
+      acceleration_cum_return: item.acceleration_cum_return ?? 0.15,
+      acceleration_up_ratio: item.acceleration_up_ratio ?? 0.80,
     }
   } else {
     editingId.value = null
@@ -512,6 +588,15 @@ const saveStrategy = async () => {
       vol_range_tolerance: form.value.type === 'multi' ? form.value.vol_range_tolerance : undefined,
       vol_penalty_scale: form.value.type === 'multi' ? form.value.vol_penalty_scale : undefined,
       vol_max_penalty: form.value.type === 'multi' ? form.value.vol_max_penalty : undefined,
+      use_full_position_sell: form.value.type === 'multi' ? form.value.use_full_position_sell : undefined,
+      full_position_threshold: form.value.type === 'multi' ? form.value.full_position_threshold : undefined,
+      full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,
+      full_position_score_window: form.value.type === 'multi' ? form.value.full_position_score_window : undefined,
+      full_position_sell_count: form.value.type === 'multi' ? form.value.full_position_sell_count : undefined,
+      use_acceleration_filter: form.value.type === 'multi' ? form.value.use_acceleration_filter : undefined,
+      acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
+      acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
+      acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -537,6 +622,15 @@ const saveStrategy = async () => {
       trend_window: form.value.type === 'multi' ? form.value.trend_window : undefined,
       trend_scale: form.value.type === 'multi' ? form.value.trend_scale : undefined,
       max_trend_boost: form.value.type === 'multi' ? form.value.max_trend_boost : undefined,
+      use_full_position_sell: form.value.type === 'multi' ? form.value.use_full_position_sell : undefined,
+      full_position_threshold: form.value.type === 'multi' ? form.value.full_position_threshold : undefined,
+      full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,
+      full_position_score_window: form.value.type === 'multi' ? form.value.full_position_score_window : undefined,
+      full_position_sell_count: form.value.type === 'multi' ? form.value.full_position_sell_count : undefined,
+      use_acceleration_filter: form.value.type === 'multi' ? form.value.use_acceleration_filter : undefined,
+      acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
+      acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
+      acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
     })
   }
   dialog.value = false
