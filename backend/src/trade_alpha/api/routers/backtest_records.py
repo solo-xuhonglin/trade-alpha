@@ -466,6 +466,58 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     }
 
 
+async def _enrich_future_returns(items, date_key="excluded_dates", horizons=None):
+    """Compute future returns for excluded/forced-sell stock events.
+
+    Args:
+        items: List of stock-grouped items, each with ts_code and date_key list
+        date_key: Field name for the dates list ("excluded_dates" or "forced_dates")
+        horizons: List of trading day horizons (default [5, 10, 20])
+    """
+    if horizons is None:
+        horizons = [5, 10, 20]
+
+    ts_codes = list({item["ts_code"] for item in items})
+    all_entries = []
+    for item in items:
+        for entry in item.get(date_key, []):
+            all_entries.append((item["ts_code"], entry))
+    if not all_entries:
+        return
+
+    min_date = min(entry["date"] for _, entry in all_entries)
+
+    klines = await StockDaily.find(
+        In(StockDaily.ts_code, ts_codes),
+        StockDaily.trade_date >= min_date,
+    ).sort(StockDaily.trade_date).to_list()
+
+    kline_map: Dict[str, List] = {}
+    for k in klines:
+        kline_map.setdefault(k.ts_code, []).append(k)
+
+    for ts_code, entry in all_entries:
+        stock_klines = kline_map.get(ts_code, [])
+        close_map = {k.trade_date: k.close for k in stock_klines}
+        trade_dates = [k.trade_date for k in stock_klines]
+
+        trade_date = entry["date"]
+        try:
+            idx = trade_dates.index(trade_date)
+        except ValueError:
+            continue
+        close_t = close_map.get(trade_date)
+        if not close_t or close_t <= 0:
+            continue
+        for h in horizons:
+            future_idx = idx + h
+            if future_idx < len(trade_dates):
+                future_close = close_map.get(trade_dates[future_idx])
+                if future_close is not None:
+                    ret = (future_close - close_t) / close_t
+                    entry[f"actual_return_{h}d"] = round(ret, 6)
+
+
 @router.get("/{result_id}/excluded-stocks")
 async def get_excluded_stocks(result_id: str):
     """Get explosion filter statistics for a backtest result."""
@@ -512,6 +564,7 @@ async def get_excluded_stocks(result_id: str):
             "excluded_dates": dates,
         })
 
+    await _enrich_future_returns(items, "excluded_dates")
     items.sort(key=lambda x: x["excluded_count"], reverse=True)
     return {"items": items}
 
@@ -560,6 +613,7 @@ async def get_acceleration_excluded(result_id: str):
             "excluded_dates": dates,
         })
 
+    await _enrich_future_returns(items, "excluded_dates")
     items.sort(key=lambda x: x["excluded_count"], reverse=True)
     return {"items": items}
 
@@ -607,6 +661,7 @@ async def get_forced_sell_stocks(result_id: str):
             "forced_dates": dates,
         })
 
+    await _enrich_future_returns(items, "forced_dates")
     items.sort(key=lambda x: x["forced_count"], reverse=True)
     return {"items": items}
 

@@ -27,6 +27,7 @@ class MultiStockStrategy(PositionManager):
         sell_threshold = strategy_config.sell_threshold if strategy_config else -0.1
         min_order_value = strategy_config.min_order_value if strategy_config else 5000.0
         stop_loss_pct = strategy_config.stop_loss_pct if strategy_config else -0.1
+        min_hold_days = strategy_config.min_hold_days if strategy_config and strategy_config.min_hold_days is not None else 3
         max_hold_days = strategy_config.max_hold_days if strategy_config else 30
         cfg_max_positions = strategy_config.max_positions if strategy_config else 10
         max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
@@ -40,6 +41,7 @@ class MultiStockStrategy(PositionManager):
             min_order_value=min_order_value,
             stop_loss_pct=stop_loss_pct,
             max_hold_days=max_hold_days,
+            min_hold_days=min_hold_days,
             buy_threshold=buy_threshold,
             sell_threshold=sell_threshold,
         )
@@ -66,6 +68,11 @@ class MultiStockStrategy(PositionManager):
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
+        if len(sorted_stocks) <= 5:
+            logger.info("make_decisions", f"trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
+        elif len(sorted_stocks) % 10 == 0:
+            logger.info("make_decisions", f"trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
+
         top_stocks = sorted_stocks[:self.max_positions]
         top_ts_codes = {s.ts_code for s in top_stocks}
 
@@ -77,8 +84,17 @@ class MultiStockStrategy(PositionManager):
         orders: List[PendingOrder] = []
 
         close_prices = close_prices or {}
+        for pos in portfolio.positions.values():
+            pos.hold_days += 1
+
+        logger.info("make_decisions", f"trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)}")
         for ts_code, pos in portfolio.positions.items():
-            if self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices):
+            should_sell = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices)
+            if should_sell:
+                in_score = ts_code in score_map
+                in_sell_rank = ts_code in sell_rank_ts_codes
+                cur_score = score_map.get(ts_code, 0.0)
+                logger.info("make_decisions", f"SELL ts_code={ts_code} hold_days={pos.hold_days} in_score_map={in_score} current_score={cur_score:.3f} in_sell_rank={in_sell_rank}")
                 sell_price = close_prices.get(ts_code, pos.buy_price)
                 orders.append(PendingOrder(
                     ts_code=pos.ts_code,
@@ -101,7 +117,10 @@ class MultiStockStrategy(PositionManager):
                 stock.ts_code, stock.close, close_prices,
             )
             if not success:
+                logger.debug("make_decisions", f"BUY_FAIL reserve_funds ts_code={stock.ts_code} score={stock.score:.3f} rank_score={stock.ranking_score:.3f}")
                 continue
+
+            logger.info("make_decisions", f"BUY ts_code={stock.ts_code} score={stock.score:.3f} rank_score={stock.ranking_score:.3f} shares={shares}")
 
             orders.append(PendingOrder(
                 ts_code=stock.ts_code,
@@ -127,6 +146,18 @@ class MultiStockStrategy(PositionManager):
     ) -> bool:
         """Check whether a position should be sold."""
         current_score = score_map.get(position.ts_code, 0.0)
+
+        logger.debug("_check_sell", f"ts_code={position.ts_code} hold_days={position.hold_days} min_hold_days={self.min_hold_days} current_score={current_score:.3f} sell_threshold={self.sell_threshold:.3f}")
+
+        if position.hold_days < self.min_hold_days:
+            if close_prices and position.ts_code in close_prices:
+                current_price = close_prices[position.ts_code]
+                cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
+                if current_price < cost_basis * (1 + self.stop_loss_pct):
+                    logger.debug("_check_sell", f"ts_code={position.ts_code} stop_loss triggered, sell")
+                    return True
+            logger.debug("_check_sell", f"ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
+            return False
 
         if current_score < self.sell_threshold:
             return True

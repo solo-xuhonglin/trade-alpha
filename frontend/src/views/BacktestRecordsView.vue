@@ -251,6 +251,9 @@
                   <div v-if="item._detail">
                     <div v-for="d in item.excluded_dates" :key="d.date" class="text-caption">
                       {{ d.date }} 涨 {{ (d.price_surge_pct * 100).toFixed(1) }}% 量比 {{ d.volume_ratio.toFixed(1) }}x
+                      → 5d <span :style="{color: retColor(d.actual_return_5d)}">{{ d.actual_return_5d != null ? (d.actual_return_5d * 100).toFixed(1) + '%' : '-' }}</span>
+                      10d <span :style="{color: retColor(d.actual_return_10d)}">{{ d.actual_return_10d != null ? (d.actual_return_10d * 100).toFixed(1) + '%' : '-' }}</span>
+                      20d <span :style="{color: retColor(d.actual_return_20d)}">{{ d.actual_return_20d != null ? (d.actual_return_20d * 100).toFixed(1) + '%' : '-' }}</span>
                     </div>
                   </div>
                   <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.excluded_count }} 次)</span>
@@ -268,6 +271,9 @@
                   <div v-if="item._detail">
                     <div v-for="d in item.excluded_dates" :key="d.date" class="text-caption">
                       {{ d.date }} 累计涨 {{ (d.accel_cum_return * 100).toFixed(1) }}% 上涨占比 {{ (d.accel_up_ratio * 100).toFixed(0) }}%
+                      → 5d <span :style="{color: retColor(d.actual_return_5d)}">{{ d.actual_return_5d != null ? (d.actual_return_5d * 100).toFixed(1) + '%' : '-' }}</span>
+                      10d <span :style="{color: retColor(d.actual_return_10d)}">{{ d.actual_return_10d != null ? (d.actual_return_10d * 100).toFixed(1) + '%' : '-' }}</span>
+                      20d <span :style="{color: retColor(d.actual_return_20d)}">{{ d.actual_return_20d != null ? (d.actual_return_20d * 100).toFixed(1) + '%' : '-' }}</span>
                     </div>
                   </div>
                   <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.excluded_count }} 次)</span>
@@ -285,6 +291,9 @@
                   <div v-if="item._detail">
                     <div v-for="d in item.forced_dates" :key="d.date" class="text-caption">
                       {{ d.date }} - {{ d.reason }}
+                      → 5d <span :style="{color: retColor(d.actual_return_5d)}">{{ d.actual_return_5d != null ? (d.actual_return_5d * 100).toFixed(1) + '%' : '-' }}</span>
+                      10d <span :style="{color: retColor(d.actual_return_10d)}">{{ d.actual_return_10d != null ? (d.actual_return_10d * 100).toFixed(1) + '%' : '-' }}</span>
+                      20d <span :style="{color: retColor(d.actual_return_20d)}">{{ d.actual_return_20d != null ? (d.actual_return_20d * 100).toFixed(1) + '%' : '-' }}</span>
                     </div>
                   </div>
                   <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.forced_count }} 次)</span>
@@ -430,6 +439,7 @@
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最大持仓天数：</span>{{ backtestStrategyConfig?.max_hold_days ?? '-' }}</v-col>
             </v-row>
             <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最低持有天数：</span>{{ backtestStrategyConfig?.min_hold_days ?? '-' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最小交易金额：</span>{{ backtestStrategyConfig?.min_order_value ?? '-' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">持仓评分阈值：</span>{{ backtestStrategyConfig?.hold_score_threshold ?? '-' }}</v-col>
             </v-row>
@@ -655,6 +665,11 @@ const amountChartRef = ref<HTMLDivElement>()
 const countChartRef = ref<HTMLDivElement>()
 const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_pnl_amount', order: 'desc' }])
 const backtestConfigDialog = ref(false)
+
+function retColor(val: number | null | undefined): string {
+  if (val == null) return '#9e9e9e'
+  return val > 0 ? '#4caf50' : '#f44336'
+}
 const backtestConfigTab = ref('model')
 const backtestConfigItem = ref<Backtest | null>(null)
 const backtestModelConfig = ref<Record<string, any> | null>(null)

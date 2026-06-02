@@ -86,6 +86,15 @@
                     label="最大持仓天数"
                   ></v-text-field>
                 </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="form.min_hold_days"
+                    type="number"
+                    label="最低持有天数"
+                    hint="买入后至少持有N天才能卖出（止损除外）"
+                    persistent-hint
+                  ></v-text-field>
+                </v-col>
               </v-row>
 
               <v-divider class="my-4"></v-divider>
@@ -463,6 +472,7 @@ const form = ref({
   min_order_value: 5000,
   stop_loss_pct: -0.1,
   max_hold_days: 30,
+  min_hold_days: 3,
   buy_threshold: 0.1,
   sell_threshold: -0.1,
   max_positions: 10,
@@ -525,6 +535,7 @@ const openDialog = (item?: Strategy) => {
       min_order_value: item.min_order_value,
       stop_loss_pct: item.stop_loss_pct,
       max_hold_days: item.max_hold_days,
+      min_hold_days: item.min_hold_days ?? 3,
       buy_threshold: item.buy_threshold ?? 0.1,
       sell_threshold: item.sell_threshold ?? -0.1,
       max_positions: item.max_positions ?? 10,
@@ -568,6 +579,7 @@ const openDialog = (item?: Strategy) => {
       min_order_value: 5000,
       stop_loss_pct: -0.1,
       max_hold_days: 30,
+      min_hold_days: 3,
       buy_threshold: 0.1,
       sell_threshold: -0.1,
       max_positions: 10,
@@ -586,6 +598,7 @@ const saveStrategy = async () => {
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
       max_hold_days: form.value.max_hold_days,
+      min_hold_days: form.value.min_hold_days,
       buy_threshold: form.value.buy_threshold,
       sell_threshold: form.value.sell_threshold,
       max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
@@ -628,6 +641,7 @@ const saveStrategy = async () => {
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
       max_hold_days: form.value.max_hold_days,
+      min_hold_days: form.value.min_hold_days,
       buy_threshold: form.value.buy_threshold,
       sell_threshold: form.value.sell_threshold,
       max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,

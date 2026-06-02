@@ -26,6 +26,7 @@ class StrategySnapshotEmbed(BaseModel):
     min_order_value: float = 5000.0
     stop_loss_pct: float = -0.1
     max_hold_days: int = 30
+    min_hold_days: int = 3
     buy_threshold: float = 0.1
     sell_threshold: float = -0.1
     max_positions: Optional[int] = 10

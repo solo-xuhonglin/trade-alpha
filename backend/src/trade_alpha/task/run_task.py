@@ -14,9 +14,10 @@ from trade_alpha.task.dao import TaskStatus
 from trade_alpha.task.service import TaskService
 from trade_alpha.task.training_runner import TrainingRunner
 from trade_alpha.task.backtest_runner import BacktestRunner
-from trade_alpha.logging import get_logger
+from trade_alpha.logging import get_logger, setup_logging
 
 logger = get_logger("task.run_task")
+setup_logging()
 
 
 async def main():
