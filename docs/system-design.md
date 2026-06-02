@@ -274,6 +274,7 @@ trade-alpha/
 - **验证集划分**：80% 训练，20% 验证
 - **早停机制**：监控验证 AUC，`early_stopping_patience`（默认 5）个 epoch 不提升则停止
 - **最佳模型保存**：保存验证 AUC 最高的模型状态
+- **磁盘映射分批加载**（`use_memmap`，默认关闭）：启用后将序列数据通过 `np.memmap` 写入磁盘临时文件，训练时按 batch 从磁盘读取，大幅降低内存占用（适合大范围多股票训练）。`create_sequences_memmap()` 采用双遍扫描（第一遍计数、第二遍写入），训练结束后自动清理临时文件
 
 #### 训练评估指标
 
@@ -317,7 +318,7 @@ trade-alpha/
 
 - 多股票组合策略，基于评分排名选股
 - `make_decisions()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds` 获取可买股数
-- 支持最大持仓数限制、单只股票最大仓位限制、止损和最大持仓天数
+- 支持最大持仓数限制、单只股票最大仓位限制、止损、最大持仓天数和最低持有天数（最低持有期内仅止损可触发卖出）
 
 #### single_stock.py - 单股票策略 (SingleStockStrategy)
 

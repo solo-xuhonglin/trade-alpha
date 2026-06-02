@@ -1,6 +1,9 @@
 """LSTM classifier - fully self-contained."""
 
+import json
 import os
+import shutil
+
 import pandas as pd
 import numpy as np
 import torch
@@ -8,7 +11,7 @@ import torch.nn as nn
 from typing import Dict, List
 from sklearn.metrics import roc_auc_score
 from trade_alpha.models.base import BaseClassifier
-from trade_alpha.models.lstm.normalizer import create_sequences
+from trade_alpha.models.lstm.normalizer import create_sequences, create_sequences_memmap
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.helpers import create_labels, _load_year_data
 from trade_alpha.data.analysis_service import compute_field_analysis
@@ -24,8 +27,32 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         out, _ = self.lstm(x)
-        # 输出 logits，不做 softmax，因为 CrossEntropyLoss 内部会处理
         return self.fc(out[:, -1, :])
+
+
+class MemmapSequenceDataset(torch.utils.data.Dataset):
+    """PyTorch Dataset that reads sequences from memmap on demand."""
+
+    def __init__(self, memmap_dir: str, y_array: np.ndarray, sorted_idx: np.ndarray, mask: np.ndarray):
+        with open(os.path.join(memmap_dir, "info.json")) as f:
+            info = json.load(f)
+        self.X = np.memmap(
+            os.path.join(memmap_dir, "X_3d.dat"),
+            dtype="float64", mode="r",
+            shape=(info["total_seqs"], info["seq_len"], info["n_features"]),
+        )
+        self.sorted_idx = sorted_idx
+        self.y = y_array
+        self.indices = np.where(mask)[0]
+
+    def __len__(self) -> int:
+        return len(self.indices)
+
+    def __getitem__(self, idx: int):
+        real_idx = self.sorted_idx[self.indices[idx]]
+        X_seq = torch.FloatTensor(self.X[real_idx].copy())
+        y_val = int(self.y[real_idx])
+        return X_seq, torch.LongTensor([y_val])[0]
 
 
 TEMPERATURE = 2.0
@@ -82,28 +109,48 @@ class LSTMClassifier(BaseClassifier):
         combined_df = pd.concat(all_dfs, ignore_index=True)
         combined_df = combined_df.sort_values('trade_date')
 
-        X_3d, y_2d, dates = create_sequences(
-            combined_df, config.feature_fields, target_names,
-            sequence_length=seq_len,
-            normalization_window=normalization_window,
-        )
-
-        if len(X_3d) == 0:
-            raise ValueError("No sequences created from available data")
+        if config.use_memmap:
+            os.makedirs("models/temp", exist_ok=True)
+            memmap_dir = f"models/temp/{task_id}/"
+            total_seqs, n_features = create_sequences_memmap(
+                combined_df, config.feature_fields, target_names,
+                seq_len, normalization_window, memmap_dir,
+            )
+            y_2d = np.load(os.path.join(memmap_dir, "y_2d.npy"))
+            dates = np.load(os.path.join(memmap_dir, "dates.npy"))
+            sorted_idx = np.load(os.path.join(memmap_dir, "sorted_idx.npy"))
+            self.input_size = n_features
+            valid_mask = ~np.isnan(y_2d).any(axis=1)
+            if valid_mask.sum() == 0:
+                raise ValueError("No valid samples after NaN filtering")
+        else:
+            X_3d, y_2d, dates = create_sequences(
+                combined_df, config.feature_fields, target_names,
+                sequence_length=seq_len,
+                normalization_window=normalization_window,
+            )
+            if len(X_3d) == 0:
+                raise ValueError("No sequences created from available data")
+            self.input_size = X_3d.shape[2]
+            X_3d = np.nan_to_num(np.array(X_3d, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+            y_2d = np.array(y_2d, dtype=np.float64)
+            valid_mask = ~np.isnan(y_2d).any(axis=1)
+            X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
 
         await TaskService.update_progress(task_id, 55, "正在创建模型...")
 
-        self.input_size = X_3d.shape[2]
         self.models = {}
         self._label_mapping = {}
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        X_3d = np.nan_to_num(np.array(X_3d, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
-        y_2d = np.array(y_2d, dtype=np.float64)
-        valid_mask = ~np.isnan(y_2d).any(axis=1)
-        X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
-
-        normalized_2d = X_3d[:, -1, :]
+        if config.use_memmap:
+            normalized_2d = np.memmap(
+                os.path.join(memmap_dir, "X_3d.dat"),
+                dtype="float64", mode="r",
+                shape=(total_seqs, seq_len, self.input_size),
+            )[sorted_idx][valid_mask][:, -1, :]
+        else:
+            normalized_2d = X_3d[:, -1, :]
         normalized_df = pd.DataFrame(normalized_2d, columns=config.feature_fields)
         normalized_data_analysis = compute_field_analysis(normalized_df, config.feature_fields)
 
@@ -141,10 +188,17 @@ class LSTMClassifier(BaseClassifier):
             reverse_map = {label: j for j, label in label_map.items()}
             y_mapped = np.array([reverse_map[v] for v in y_i])
 
-            # 划分数据
-            X_train, X_val = X_3d[train_mask], X_3d[val_mask]
-            y_train, y_val = y_mapped[train_mask], y_mapped[val_mask]
-            y_val_original = y_2d[val_mask, target_idx].astype(int)
+            if config.use_memmap:
+                y_train, y_val = y_mapped[train_mask], y_mapped[val_mask]
+                y_val_original = y_2d[val_mask, target_idx].astype(int)
+                train_dataset = MemmapSequenceDataset(memmap_dir, y_mapped, sorted_idx, train_mask)
+            else:
+                X_train, X_val = X_3d[train_mask], X_3d[val_mask]
+                y_train, y_val = y_mapped[train_mask], y_mapped[val_mask]
+                y_val_original = y_2d[val_mask, target_idx].astype(int)
+                train_dataset = torch.utils.data.TensorDataset(
+                    torch.FloatTensor(X_train), torch.LongTensor(y_train)
+                )
 
             model = LSTMModel(self.input_size, config.lstm_hidden_size, config.lstm_num_layers,
                               len(label_map), config.lstm_dropout).to(device)
@@ -165,13 +219,26 @@ class LSTMClassifier(BaseClassifier):
                 threshold=1e-4
             )
 
-            X_train_tensor = torch.FloatTensor(X_train).to(device)
-            y_train_tensor = torch.LongTensor(y_train).to(device)
-            X_val_tensor = torch.FloatTensor(X_val).to(device)
+            if config.use_memmap:
+                val_indices = np.where(val_mask)[0]
+                val_real_idx = sorted_idx[val_indices]
+                X_val_np = np.memmap(
+                    os.path.join(memmap_dir, "X_3d.dat"),
+                    dtype="float64", mode="r",
+                    shape=(total_seqs, seq_len, self.input_size),
+                )[val_real_idx]
+                y_val = y_mapped[val_mask]
+            else:
+                X_val = X_3d[val_mask]
+                y_val = y_mapped[val_mask]
+                y_val_original = y_2d[val_mask, target_idx].astype(int)
+                X_val_np = X_val
+
+            X_val_tensor = torch.FloatTensor(X_val_np).to(device)
             y_val_tensor = torch.LongTensor(y_val).to(device)
-            
+
             train_loader = torch.utils.data.DataLoader(
-                torch.utils.data.TensorDataset(X_train_tensor, y_train_tensor),
+                train_dataset,
                 batch_size=config.lstm_batch_size, shuffle=True,
             )
             
@@ -271,7 +338,7 @@ class LSTMClassifier(BaseClassifier):
             "loss_per_epoch": per_target_epoch_losses,
             "val_loss_per_epoch": per_target_val_losses,
             "val_auc_per_epoch": per_target_val_aucs,
-            "sample_count": len(X_3d),
+            "sample_count": len(y_2d),
             "actual_epochs": actual_epochs,
             "early_stopped": early_stopped,
             "best_epoch": per_target_best_epoch,
@@ -282,7 +349,15 @@ class LSTMClassifier(BaseClassifier):
             y_true = y_2d[:, target_idx].astype(int)
             model = self.models[target].eval()
             with torch.no_grad():
-                X_eval = torch.FloatTensor(X_3d).cpu()
+                if config.use_memmap:
+                    X_eval_full = np.memmap(
+                        os.path.join(memmap_dir, "X_3d.dat"),
+                        dtype="float64", mode="r",
+                        shape=(total_seqs, seq_len, self.input_size),
+                    )[sorted_idx][valid_mask]
+                else:
+                    X_eval_full = X_3d
+                X_eval = torch.FloatTensor(X_eval_full).cpu()
                 logits = model(X_eval)
                 y_pred_idx = logits.argmax(dim=1).numpy()
                 y_proba = torch.softmax(logits, dim=1).numpy()
@@ -304,6 +379,8 @@ class LSTMClassifier(BaseClassifier):
             metrics.setdefault("class_distribution", {})[target] = class_dist
 
         metrics["normalized_data_analysis"] = normalized_data_analysis
+        if config.use_memmap and os.path.exists(memmap_dir):
+            shutil.rmtree(memmap_dir, ignore_errors=True)
         return metrics
 
     def predict_proba(self, features, target_names):

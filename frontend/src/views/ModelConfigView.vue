@@ -140,7 +140,16 @@
                   </v-col>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.early_stopping_patience" label="early_stopping_patience" type="number" hint="验证 AUC 不提升时提前停止的轮数" persistent-hint></v-text-field>
+              </v-col>
+            </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-switch v-model="form.use_memmap" label="启用磁盘映射（use_memmap）"
+                      hint="将序列数据映射到磁盘，大幅降低内存占用（适合大范围训练）"
+                      persistent-hint color="primary"></v-switch>
                   </v-col>
+                </v-row>
+                <v-row>
                   <v-col cols="12" sm="6">
                     <v-text-field v-model.number="form.lstm_batch_size" label="batch_size" type="number" hint="每批训练样本数" persistent-hint></v-text-field>
                   </v-col>
@@ -286,6 +295,7 @@ const defaultForm = {
   val_size: 0.2,
   label_smoothing: 0.1,
   early_stopping_patience: 10,
+  use_memmap: false,
 }
 
 const form = ref({ ...defaultForm })
@@ -343,6 +353,7 @@ const lstmRecommendedParams = {
   val_size: 0.2,
   label_smoothing: 0.1,
   early_stopping_patience: 10,
+  use_memmap: false,
 }
 
 watch(() => form.value.model_type, (newType) => {
@@ -405,6 +416,7 @@ const openDialog = (item?: ModelConfig) => {
       val_size: (item as any).val_size ?? 0.2,
       label_smoothing: (item as any).label_smoothing ?? 0.1,
       early_stopping_patience: (item as any).early_stopping_patience || 10,
+      use_memmap: (item as any).use_memmap ?? false,
     }
   } else {
     editingId.value = null

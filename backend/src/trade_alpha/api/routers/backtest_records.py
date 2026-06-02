@@ -466,7 +466,7 @@ async def get_stock_predictions(result_id: str, ts_code: str):
     }
 
 
-async def _enrich_future_returns(items, date_key="excluded_dates", horizons=None):
+async def _enrich_future_returns(items: List[Dict], date_key: str = "excluded_dates", horizons: Optional[List[int]] = None) -> None:
     """Compute future returns for excluded/forced-sell stock events.
 
     Args:

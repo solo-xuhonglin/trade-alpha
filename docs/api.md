@@ -404,6 +404,10 @@ POST /api/model-configs
 GET /api/model-configs/{id}
 ```
 
+> LSTM 类型额外支持 `lstm_hidden_size`, `lstm_num_layers`, `lstm_dropout`, `lstm_epochs`, `lstm_batch_size`, `lstm_learning_rate`, `lstm_sequence_length`, `lstm_normalization_window`, `use_memmap`, `lstm_weight_decay`, `lr_scheduler_factor`, `lr_scheduler_patience`, `val_size`, `label_smoothing`, `early_stopping_patience` 等参数
+>
+> 所有 LSTM 参数均有默认值，可通过 `PUT /api/model-configs/{id}` 按需修改
+
 ### 更新配置
 
 ```
@@ -941,6 +945,7 @@ GET /api/backtest/results/{result_id}/excluded-stocks
 
 **响应**: `List[Dict]`
 - 每项包含: `ts_code`, `stock_name`, `excluded_date`, `price_surge_pct`, `volume_ratio`
+- 额外字段（有数据时）: `return_5d`, `return_10d`, `return_20d` 分别表示排除后 5/10/20 个交易日的实际涨跌幅
 
 ### 获取加速排除记录
 
@@ -952,6 +957,7 @@ GET /api/backtest/results/{result_id}/acceleration-excluded
 
 **响应**: `List[Dict]`
 - 每项包含: `ts_code`, `stock_name`, `excluded_date`, `accel_cum_return`, `accel_up_ratio`, `excluded_reason`
+- 额外字段（有数据时）: `return_5d`, `return_10d`, `return_20d` 分别表示排除后 5/10/20 个交易日的实际涨跌幅
 
 ### 获取满仓强制卖出记录
 
@@ -963,6 +969,7 @@ GET /api/backtest/results/{result_id}/forced-sell-stocks
 
 **响应**: `List[Dict]`
 - 每项包含: `ts_code`, `stock_name`, `trade_date`, `reason`, `score`
+- 额外字段（有数据时）: `return_5d`, `return_10d`, `return_20d` 分别表示卖出后 5/10/20 个交易日的实际涨跌幅
 
 ### 获取回测结果交易明细
 

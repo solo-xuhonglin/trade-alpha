@@ -90,6 +90,7 @@ class ModelSnapshotEmbed(BaseModel):
     lstm_learning_rate: float = 0.0001
     lstm_sequence_length: int = 20
     lstm_normalization_window: int = 300
+    use_memmap: bool = False
     lstm_weight_decay: float = 0.001
     lr_scheduler_factor: float = 0.5
     lr_scheduler_patience: int = 5

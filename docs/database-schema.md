@@ -311,12 +311,13 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `lstm_learning_rate` | float | LSTM 学习率 | 0.0001 |
 | `lstm_sequence_length` | int | LSTM 序列长度 | 20 |
 | `lstm_normalization_window` | int | LSTM 归一化窗口 | 300 |
-| `lstm_weight_decay` | float | LSTM 权重衰减 | 0.0 |
+| `use_memmap` | bool | 启用磁盘映射 | false |
+| `lstm_weight_decay` | float | LSTM 权重衰减 | 0.001 |
 | `lr_scheduler_factor` | float | 学习率调度因子 | 0.5 |
 | `lr_scheduler_patience` | int | 学习率调度耐心值 | 5 |
 | `val_size` | float | 验证集比例 | 0.2 |
 | `label_smoothing` | float | 标签平滑值 | 0.1 |
-| `early_stopping_patience` | int | 早停耐心值 | 5 |
+| `early_stopping_patience` | int | 早停耐心值 | 10 |
 
 **strategy_snapshot（嵌入字段）**:
 
@@ -327,6 +328,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `min_order_value` | float | 最小订单金额 | 5000.0 |
 | `stop_loss_pct` | float | 止损百分比 | -0.1 |
 | `max_hold_days` | int | 最大持仓天数 | 30 |
+| `min_hold_days` | int | 最低持有天数 | 3 |
 | `buy_threshold` | float | 买入阈值 | 0.1 |
 | `sell_threshold` | float | 卖出阈值 | -0.1 |
 | `max_positions` | int | 最大持仓数量 | 10 |
@@ -510,6 +512,7 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
   "lstm_learning_rate": 0.0001,
   "lstm_sequence_length": 60,
   "lstm_normalization_window": 300,
+  "use_memmap": false,
   "lstm_weight_decay": 0.001,
   "lr_scheduler_factor": 0.5,
   "lr_scheduler_patience": 3,

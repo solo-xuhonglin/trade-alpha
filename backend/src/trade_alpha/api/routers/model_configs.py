@@ -40,6 +40,7 @@ class ConfigCreate(BaseModel):
     lstm_learning_rate: Optional[float] = None
     lstm_sequence_length: Optional[int] = None
     lstm_normalization_window: Optional[int] = None
+    use_memmap: Optional[bool] = None
     lstm_weight_decay: Optional[float] = None
     lr_scheduler_factor: Optional[float] = None
     lr_scheduler_patience: Optional[int] = None
@@ -72,6 +73,7 @@ class ConfigUpdate(BaseModel):
     lstm_learning_rate: Optional[float] = None
     lstm_sequence_length: Optional[int] = None
     lstm_normalization_window: Optional[int] = None
+    use_memmap: Optional[bool] = None
     lstm_weight_decay: Optional[float] = None
     lr_scheduler_factor: Optional[float] = None
     lr_scheduler_patience: Optional[int] = None
@@ -108,6 +110,7 @@ def config_to_dict(c):
         "lstm_learning_rate": c.lstm_learning_rate,
         "lstm_sequence_length": c.lstm_sequence_length,
         "lstm_normalization_window": c.lstm_normalization_window,
+        "use_memmap": c.use_memmap,
         "lstm_weight_decay": c.lstm_weight_decay,
         "lr_scheduler_factor": c.lr_scheduler_factor,
         "lr_scheduler_patience": c.lr_scheduler_patience,
@@ -148,6 +151,7 @@ async def create_config(body: ConfigCreate):
             lstm_learning_rate=body.lstm_learning_rate or 0.0001,
             lstm_sequence_length=body.lstm_sequence_length or 60,
             lstm_normalization_window=body.lstm_normalization_window or 300,
+            use_memmap=body.use_memmap or False,
             lstm_weight_decay=body.lstm_weight_decay or 0.001,
             lr_scheduler_factor=body.lr_scheduler_factor or 0.5,
             lr_scheduler_patience=body.lr_scheduler_patience or 3,

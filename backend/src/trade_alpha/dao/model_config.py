@@ -104,6 +104,7 @@ class ModelConfig(Document):
     lstm_learning_rate: float = DEFAULT_LSTM_LEARNING_RATE
     lstm_sequence_length: int = DEFAULT_LSTM_SEQUENCE_LENGTH
     lstm_normalization_window: int = DEFAULT_LSTM_NORMALIZATION_WINDOW
+    use_memmap: bool = False
     lstm_weight_decay: float = DEFAULT_LSTM_WEIGHT_DECAY
     lr_scheduler_factor: float = DEFAULT_LR_SCHEDULER_FACTOR
     lr_scheduler_patience: int = DEFAULT_LR_SCHEDULER_PATIENCE
