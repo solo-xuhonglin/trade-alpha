@@ -152,3 +152,117 @@ async def get_live_suggestion_run(run_id: str):
         "run": _run_to_dict(run_record),
         "orders": [_order_to_dict(o) for o in orders],
     }
+
+
+@router.delete("/runs/{run_id}")
+async def delete_live_suggestion_run(run_id: str):
+    """Delete a live suggestion run and its orders."""
+    try:
+        obj_id = PydanticObjectId(run_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    run_record = await LiveSuggestionRun.get(obj_id)
+    if not run_record:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    await OrderSuggestion.find(OrderSuggestion.run_id == obj_id).delete()
+    await run_record.delete()
+
+    return {"message": "Run deleted"}
+
+
+@router.get("/tasks")
+async def list_live_suggestion_tasks(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[str] = None,
+):
+    """List live suggestion tasks."""
+    task_status = None
+    if status:
+        try:
+            task_status = TaskStatus(status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid status")
+
+    result = await TaskService.list_tasks(
+        task_type=TaskType.LIVE_SUGGESTION,
+        status=task_status,
+        page=page,
+        page_size=page_size,
+    )
+
+    return {
+        "items": [
+            {
+                "task_id": str(t.id),
+                "task_type": t.type.value,
+                "status": t.status.value,
+                "progress": t.progress,
+                "progress_message": t.progress_message,
+                "error_message": t.error_message,
+                "created_at": t.created_at,
+                "completed_at": t.completed_at,
+            }
+            for t in result["items"]
+        ],
+        "total": result["total"],
+        "page": result["page"],
+        "page_size": result["page_size"],
+        "total_pages": result["total_pages"],
+    }
+
+
+@router.get("/task/{task_id}")
+async def get_live_suggestion_task(task_id: str):
+    """Get a live suggestion task status."""
+    try:
+        obj_id = PydanticObjectId(task_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+
+    task = await TaskService.get_task(obj_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return {
+        "task_id": str(task.id),
+        "task_type": task.type.value,
+        "status": task.status.value,
+        "progress": task.progress,
+        "progress_message": task.progress_message,
+        "error_message": task.error_message,
+        "created_at": task.created_at,
+        "started_at": task.started_at,
+        "completed_at": task.completed_at,
+    }
+
+
+@router.post("/task/{task_id}/stop")
+async def stop_live_suggestion_task(task_id: str, force: bool = False):
+    """Stop a running live suggestion task."""
+    try:
+        obj_id = PydanticObjectId(task_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+
+    try:
+        task = await TaskService.stop_task(obj_id, force)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"message": "Task stopped", "status": task.status.value}
+
+
+@router.delete("/task/{task_id}")
+async def delete_live_suggestion_task(task_id: str):
+    """Delete a live suggestion task."""
+    try:
+        obj_id = PydanticObjectId(task_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+
+    await TaskService.delete_task(obj_id)
+
+    return {"message": "Task deleted"}

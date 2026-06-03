@@ -54,6 +54,25 @@ export interface LiveSuggestionRunDetailResponse {
   orders: OrderSuggestion[]
 }
 
+export interface LiveSuggestionTaskItem {
+  task_id: string
+  task_type: string
+  status: string
+  progress: number
+  progress_message?: string
+  error_message?: string
+  created_at: string
+  completed_at?: string
+}
+
+export interface LiveSuggestionTaskListResponse {
+  items: LiveSuggestionTaskItem[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const liveSuggestionApi = {
   trigger: (body: { account_config_id: string; training_id: string; strategy_config_id: string }) =>
     api.post<{ task_id: string; status: string; message: string }>('/live-suggestion/run', body),
@@ -63,4 +82,24 @@ export const liveSuggestionApi = {
 
   getRun: (runId: string) =>
     api.get<LiveSuggestionRunDetailResponse>(`/live-suggestion/runs/${runId}`),
+
+  deleteRun: (runId: string) =>
+    api.delete(`/live-suggestion/runs/${runId}`),
+
+  listTasks: (page?: number, pageSize?: number, status?: string) => {
+    const params: Record<string, any> = {}
+    if (page) params.page = page
+    if (pageSize) params.page_size = pageSize
+    if (status) params.status = status
+    return api.get<LiveSuggestionTaskListResponse>('/live-suggestion/tasks', { params })
+  },
+
+  getTask: (taskId: string) =>
+    api.get<LiveSuggestionTaskItem>(`/live-suggestion/task/${taskId}`),
+
+  stopTask: (taskId: string, force = false) =>
+    api.post(`/live-suggestion/task/${taskId}/stop?force=${force}`),
+
+  deleteTask: (taskId: string) =>
+    api.delete(`/live-suggestion/task/${taskId}`),
 }

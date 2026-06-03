@@ -84,6 +84,45 @@
     <v-card-text class="text-white">{{ error }}</v-card-text>
   </v-card>
 
+  <v-dialog v-model="stopDialog.show" max-width="400">
+    <v-card>
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        确认停止任务
+        <v-btn icon variant="text" size="small" @click="stopDialog.show = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <div class="mb-3">确定要停止该实盘建议任务吗？</div>
+        <v-checkbox v-model="stopDialog.force" label="强制停止（终止进程）" color="error" hide-details />
+      </v-card-text>
+      <v-divider />
+      <v-card-actions class="bg-surface-light">
+        <v-btn variant="text" @click="stopDialog.show = false">取消</v-btn>
+        <v-spacer />
+        <v-btn color="warning" variant="text" @click="confirmStop" :loading="stopDialog.loading">确定停止</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="deleteDialog.show" max-width="400">
+    <v-card>
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        确认删除
+        <v-btn icon variant="text" size="small" @click="deleteDialog.show = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>此操作不可撤销，确定要删除该实盘建议任务吗？</v-card-text>
+      <v-divider />
+      <v-card-actions class="bg-surface-light">
+        <v-btn variant="text" @click="deleteDialog.show = false">取消</v-btn>
+        <v-spacer />
+        <v-btn color="error" variant="text" @click="confirmDelete" :loading="deleteDialog.loading">删除</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-card border rounded>
     <v-card-title>运行中的任务</v-card-title>
     <v-card-text>
@@ -97,19 +136,32 @@
           <v-chip :color="getStatusColor(item.status)" size="small">{{ getStatusText(item.status) }}</v-chip>
         </template>
         <template v-slot:item.progress="{ item }">
-          <v-progress-linear v-if="item.status === 'running'" indeterminate color="primary" />
-          <span v-else>{{ item.progress }}</span>
+          <div class="d-flex flex-column">
+            <div class="text-caption text-medium-emphasis" style="white-space: pre-line;">
+              {{ item.progress_message || `${item.progress.toFixed(1)}%` }}
+            </div>
+            <v-progress-linear :value="item.progress" height="4" class="mt-1" />
+          </div>
         </template>
         <template v-slot:item.created_at="{ item }">
           {{ formatDate(item.created_at) }}
         </template>
         <template v-slot:item.actions="{ item }">
           <v-btn
-            v-if="item.status === 'running'"
-            size="x-small"
+            v-if="item.status === 'failed' || item.status === 'cancelled' || item.status === 'completed'"
+            color="error"
+            variant="text"
+            size="small"
+            @click="deleteDialog.task_id = item.task_id; deleteDialog.show = true"
+          >
+            删除
+          </v-btn>
+          <v-btn
+            v-else-if="item.status === 'running'"
             color="warning"
             variant="text"
-            @click="stopSuggestion(item)"
+            size="small"
+            @click="stopDialog.task_id = item.task_id; stopDialog.force = false; stopDialog.show = true"
           >
             停止
           </v-btn>
@@ -121,18 +173,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { liveSuggestionApi } from '@/api/liveSuggestion'
 import { accountConfigApi } from '@/api/accountConfig'
 import { trainingRecordApi } from '@/api/trainingRecord'
 import { strategyConfigApi } from '@/api/strategyConfig'
-import { backtestApi } from '@/api/backtest'
 import { getStatusColor, getStatusText } from '@/utils/taskStatus'
 import { formatDate } from '@/utils/date'
 import { useTaskPolling } from '@/composables/useTaskPolling'
 
 const running = ref(false)
 const error = ref('')
+const stopDialog = ref({ show: false, loading: false, task_id: '', force: false })
+const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 
 const form = ref({
   account_config_id: '',
@@ -147,9 +200,8 @@ const selectedStrategy = ref<any>(null)
 
 const { activeTasks, startPolling } = useTaskPolling({
   pollFn: async () => {
-    const res = await backtestApi.listTasks(1, 20)
-    const items = (res.data?.items ?? []).filter((t: any) => t.task_type === 'live_suggestion')
-    return { data: { items } }
+    const res = await liveSuggestionApi.listTasks(1, 20)
+    return { data: { items: res.data.items } }
   },
   filterFn: (t) => t.status !== 'completed',
   autoStart: true,
@@ -163,6 +215,15 @@ const activeTaskHeaders = [
   { title: '创建时间', key: 'created_at' },
   { title: '操作', key: 'actions', sortable: false },
 ]
+
+watch(() => form.value.strategy_config_id, async (newId) => {
+  if (newId) {
+    const res = await strategyConfigApi.get(newId)
+    selectedStrategy.value = res.data
+  } else {
+    selectedStrategy.value = null
+  }
+})
 
 const runSuggestion = async () => {
   if (!form.value.account_config_id || !form.value.training_id || !form.value.strategy_config_id) {
@@ -185,13 +246,29 @@ const runSuggestion = async () => {
   }
 }
 
-const stopSuggestion = async (task: any) => {
-  error.value = ''
+const confirmStop = async () => {
+  stopDialog.value.loading = true
   try {
-    await backtestApi.stopTask(task.task_id)
-    startPolling()
+    await liveSuggestionApi.stopTask(stopDialog.value.task_id, stopDialog.value.force)
+    activeTasks.value = activeTasks.value.filter((t: any) => t.task_id !== stopDialog.value.task_id)
+    stopDialog.value.show = false
   } catch (e: any) {
     error.value = e.response?.data?.detail || '停止失败'
+  } finally {
+    stopDialog.value.loading = false
+  }
+}
+
+const confirmDelete = async () => {
+  deleteDialog.value.loading = true
+  try {
+    await liveSuggestionApi.deleteTask(deleteDialog.value.task_id)
+    activeTasks.value = activeTasks.value.filter((t: any) => t.task_id !== deleteDialog.value.task_id)
+    deleteDialog.value.show = false
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || '删除失败'
+  } finally {
+    deleteDialog.value.loading = false
   }
 }
 
