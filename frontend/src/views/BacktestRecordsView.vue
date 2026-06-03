@@ -356,20 +356,20 @@
       <v-card-text v-else-if="dailyDetails.length === 0" class="text-center text-medium-emphasis py-8">
         暂无每日数据
       </v-card-text>
-      <v-card-text v-else class="pa-2">
-        <v-row v-for="d in paginatedItems" :key="d.date" class="mb-2">
+      <v-card-text v-else class="pa-2 py-0">
+        <v-row v-for="d in paginatedItems" :key="d.date" no-gutters>
           <v-col cols="12">
             <v-card variant="outlined" class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
               <v-card-text class="pa-3">
                 <v-row align="center" no-gutters style="white-space: nowrap;">
                   <v-col cols="2" class="text-body-2 font-weight-medium">{{ d.date }}</v-col>
-                  <v-col cols="2" class="text-caption">现金 ¥{{ d.cash.toFixed(0) }}</v-col>
-                  <v-col cols="2" class="text-caption">市值 ¥{{ d.total_market_value.toFixed(0) }}</v-col>
+                  <v-col cols="1" class="text-caption">现金 ¥{{ d.cash.toFixed(0) }}</v-col>
+                  <v-col cols="1" class="text-caption">市值 ¥{{ d.total_market_value.toFixed(0) }}</v-col>
                   <v-col cols="2" class="text-caption">总资产 ¥{{ d.total_value.toFixed(0) }}</v-col>
-                  <v-col cols="1" :class="d.cml_return >= 0 ? 'text-success' : 'text-error'" class="text-caption font-weight-medium">
+                  <v-col cols="2" :class="d.cml_return >= 0 ? 'text-success' : 'text-error'" class="text-caption font-weight-medium">
                     策略 {{ (d.cml_return * 100).toFixed(2) }}%
                   </v-col>
-                  <v-col cols="1" class="text-caption text-medium-emphasis">
+                  <v-col cols="2" class="text-caption text-medium-emphasis">
                     基准 {{ (d.baseline_cml_return * 100).toFixed(2) }}%
                   </v-col>
                   <v-col cols="1" class="text-caption">持仓 {{ d.positions.length }} 只</v-col>
