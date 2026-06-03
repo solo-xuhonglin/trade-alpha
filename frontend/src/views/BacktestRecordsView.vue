@@ -333,6 +333,17 @@
           <v-icon color="teal">mdi-calendar-text</v-icon>
           每日详情
           <v-chip v-if="selectedResult" size="small" variant="outlined" class="ml-2">{{ selectedResult.name }}</v-chip>
+          <v-select
+            v-if="monthOptions.length > 0"
+            v-model="selectedMonth"
+            :items="monthOptions"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="ml-4"
+            style="width: 140px;"
+            @update:model-value="onMonthChange"
+          />
         </div>
         <v-btn icon variant="text" size="small" @click="dailyDetailDialog = false">
           <v-icon>mdi-close</v-icon>
@@ -346,15 +357,15 @@
         暂无每日数据
       </v-card-text>
       <v-card-text v-else class="pa-2">
-        <v-row v-for="d in dailyDetails" :key="d.date" class="mb-2">
+        <v-row v-for="d in paginatedItems" :key="d.date" class="mb-2">
           <v-col cols="12">
             <v-card variant="outlined" class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
               <v-card-text class="pa-3">
-                <v-row align="center" no-gutters>
+                <v-row align="center" no-gutters style="white-space: nowrap;">
                   <v-col cols="2" class="text-body-2 font-weight-medium">{{ d.date }}</v-col>
-                  <v-col cols="1" class="text-caption">现金 ¥{{ d.cash.toFixed(0) }}</v-col>
-                  <v-col cols="1" class="text-caption">市值 ¥{{ d.total_market_value.toFixed(0) }}</v-col>
-                  <v-col cols="1" class="text-caption">总资产 ¥{{ d.total_value.toFixed(0) }}</v-col>
+                  <v-col cols="2" class="text-caption">现金 ¥{{ d.cash.toFixed(0) }}</v-col>
+                  <v-col cols="2" class="text-caption">市值 ¥{{ d.total_market_value.toFixed(0) }}</v-col>
+                  <v-col cols="2" class="text-caption">总资产 ¥{{ d.total_value.toFixed(0) }}</v-col>
                   <v-col cols="1" :class="d.cml_return >= 0 ? 'text-success' : 'text-error'" class="text-caption font-weight-medium">
                     策略 {{ (d.cml_return * 100).toFixed(2) }}%
                   </v-col>
@@ -362,11 +373,9 @@
                     基准 {{ (d.baseline_cml_return * 100).toFixed(2) }}%
                   </v-col>
                   <v-col cols="1" class="text-caption">持仓 {{ d.positions.length }} 只</v-col>
-                  <v-col cols="1" :class="d.day_return >= 0 ? 'text-success' : 'text-error'" class="text-caption">
+                  <v-col cols="1" :class="d.day_return >= 0 ? 'text-success' : 'text-error'" class="text-caption d-flex align-center">
                     日收益 {{ (d.day_return * 100).toFixed(2) }}%
-                  </v-col>
-                  <v-col cols="1" class="text-right">
-                    <v-icon>{{ expandedDates.has(d.date) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                    <v-icon class="ml-auto">{{ expandedDates.has(d.date) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
                   </v-col>
                 </v-row>
               </v-card-text>
@@ -443,7 +452,15 @@
         </v-row>
       </v-card-text>
       <v-divider />
-      <v-card-actions class="bg-surface-light">
+      <v-card-actions class="bg-surface-light d-flex align-center pa-2">
+        <v-pagination
+          v-if="totalPages > 1"
+          v-model="dailyPage"
+          :length="totalPages"
+          :total-visible="7"
+          size="small"
+          class="mx-auto"
+        />
         <v-spacer />
         <v-btn text="关闭" variant="plain" @click="dailyDetailDialog = false" />
       </v-card-actions>
@@ -712,7 +729,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { backtestRecordApi, type Backtest, type DailyDetail, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
 import { type Strategy } from '@/api/strategyConfig'
 import * as echarts from 'echarts'
@@ -739,6 +756,36 @@ const dailyDetailDialog = ref(false)
 const dailyDetails = ref<DailyDetail[]>([])
 const loadingDaily = ref(false)
 const expandedDates = ref<Set<string>>(new Set())
+const dailyPage = ref(1)
+const dailyPageSize = ref(15)
+const selectedMonth = ref('全部')
+
+const monthOptions = computed(() => {
+  if (!dailyDetails.value.length) return []
+  const months = new Set(dailyDetails.value.map(d => d.date.substring(0, 6)))
+  return ['全部', ...Array.from(months).sort()]
+})
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(dailyDetails.value.length / dailyPageSize.value))
+})
+
+const paginatedItems = computed(() => {
+  const items = dailyDetails.value
+  const start = (dailyPage.value - 1) * dailyPageSize.value
+  return items.slice(start, start + dailyPageSize.value)
+})
+
+function onMonthChange(month: string) {
+  if (month === '全部') {
+    dailyPage.value = 1
+    return
+  }
+  const idx = dailyDetails.value.findIndex(d => d.date.startsWith(month))
+  if (idx >= 0) {
+    dailyPage.value = Math.floor(idx / dailyPageSize.value) + 1
+  }
+}
 
 function retColor(val: number | null | undefined): string {
   if (val == null) return '#9e9e9e'
@@ -1027,6 +1074,8 @@ const viewDailyDetail = async (item: Backtest) => {
   loadingDaily.value = true
   dailyDetails.value = []
   expandedDates.value = new Set()
+  dailyPage.value = 1
+  selectedMonth.value = '全部'
   try {
     const res = await backtestRecordApi.getDailyDetails(item.id)
     dailyDetails.value = res.data.items
