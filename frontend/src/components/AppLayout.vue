@@ -80,6 +80,22 @@
             :title="item.title"
           />
         </v-list-group>
+
+        <v-list-group value="livesuggestion">
+          <template v-slot:activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              prepend-icon="mdi-finance"
+              title="实盘"
+            />
+          </template>
+          <v-list-item
+            v-for="item in liveSuggestionItems"
+            :key="item.path"
+            :to="item.path"
+            :title="item.title"
+          />
+        </v-list-group>
       </v-list>
     </v-navigation-drawer>
 
@@ -114,5 +130,10 @@ const backtestItems = [
   { path: '/backtest/manage', title: '回测管理' },
   { path: '/backtest/records', title: '回测记录' },
   { path: '/backtest/trades', title: '交易记录' },
+]
+
+const liveSuggestionItems = [
+  { path: '/live-suggestion/manage', title: '实盘管理' },
+  { path: '/live-suggestion/records', title: '实盘记录' },
 ]
 </script>
