@@ -64,6 +64,8 @@ class MultiStockStrategy(PositionManager):
         if self.ts_codes:
             scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
 
+        score_map = {s.ts_code: s.score for s in scored_stocks}
+
         scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
@@ -79,8 +81,6 @@ class MultiStockStrategy(PositionManager):
         sell_rank_stocks = sorted_stocks[:self.sell_rank_n]
         sell_rank_ts_codes = {s.ts_code for s in sell_rank_stocks}
 
-        score_map = {s.ts_code: s.score for s in scored_stocks}
-
         orders: List[PendingOrder] = []
 
         close_prices = close_prices or {}
@@ -89,12 +89,12 @@ class MultiStockStrategy(PositionManager):
 
         logger.info(f"make_decisions trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)}")
         for ts_code, pos in portfolio.positions.items():
-            should_sell = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices)
+            should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices)
             if should_sell:
                 in_score = ts_code in score_map
                 in_sell_rank = ts_code in sell_rank_ts_codes
                 cur_score = score_map.get(ts_code, 0.0)
-                logger.info(f"make_decisions SELL ts_code={ts_code} hold_days={pos.hold_days} in_score_map={in_score} current_score={cur_score:.3f} in_sell_rank={in_sell_rank}")
+                logger.info(f"make_decisions SELL ts_code={ts_code} hold_days={pos.hold_days} in_score_map={in_score} current_score={cur_score:.3f} in_sell_rank={in_sell_rank} reason={sell_reason}")
                 sell_price = close_prices.get(ts_code, pos.buy_price)
                 orders.append(PendingOrder(
                     ts_code=pos.ts_code,
@@ -106,6 +106,7 @@ class MultiStockStrategy(PositionManager):
                     up_prob_5d=pos.entry_5d_prob,
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
+                    reason=sell_reason,
                 ))
 
         sell_ts_codes = {order.ts_code for order in orders}

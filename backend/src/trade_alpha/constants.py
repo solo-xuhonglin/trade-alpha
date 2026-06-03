@@ -40,3 +40,10 @@ DEFAULT_VAL_SIZE: float = 0.2
 # Training defaults
 DEFAULT_LABEL_SMOOTHING: float = 0.1
 DEFAULT_EARLY_STOPPING_PATIENCE: int = 10
+
+# Sell reason constants
+SELL_REASON_STOP_LOSS: str = "stop_loss"
+SELL_REASON_SCORE_BELOW: str = "score_below_sell"
+SELL_REASON_MAX_HOLD_DAYS: str = "max_hold_days"
+SELL_REASON_HOLD_SCORE_LOW: str = "hold_score_low"
+SELL_REASON_FULL_POSITION: str = "full_position_forced_sell"
