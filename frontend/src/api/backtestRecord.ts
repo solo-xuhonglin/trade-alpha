@@ -149,6 +149,51 @@ export interface ExcludedStock {
   excluded_dates: ExcludedStockDate[]
 }
 
+export interface DailyPosition {
+  ts_code: string
+  stock_name: string
+  buy_date: string
+  buy_price: number
+  current_price: number
+  shares: number
+  fee: number
+  cost_basis: number
+  market_value: number
+  unrealized_pnl: number
+  unrealized_pnl_pct: number
+  hold_days: number
+  entry_score: number
+}
+
+export interface DailyTrade {
+  ts_code: string
+  stock_name: string
+  action: string
+  filled_price: number
+  shares: number
+  fee: number
+  reason?: string
+  pnl_amount?: number
+  pnl_pct?: number
+}
+
+export interface DailyDetail {
+  date: string
+  cash: number
+  total_market_value: number
+  total_value: number
+  baseline_value: number
+  day_return: number
+  cml_return: number
+  baseline_cml_return: number
+  positions: DailyPosition[]
+  trades: DailyTrade[]
+}
+
+export interface DailyDetailResponse {
+  items: DailyDetail[]
+}
+
 export const backtestRecordApi = {
   get: (id: string) => api.get<Backtest>(`/backtest/results/${id}`),
 
@@ -183,6 +228,9 @@ export const backtestRecordApi = {
 
   getForcedSellStocks: (id: string) =>
     api.get<{ items: any[] }>(`/backtests/${id}/forced-sell-stocks`),
+
+  getDailyDetails: (id: string) =>
+    api.get<DailyDetailResponse>(`/backtests/${id}/daily-details`),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }

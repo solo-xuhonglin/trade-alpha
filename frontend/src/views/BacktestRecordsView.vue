@@ -55,7 +55,7 @@
         <div class="d-flex ga-1">
           <v-btn size="small" variant="text" prepend-icon="mdi-chart-bar" @click="viewResult(item)">统计</v-btn>
           <v-btn size="small" variant="text" color="info" prepend-icon="mdi-chart-timeline-variant" @click="viewPredictions(item)">K线</v-btn>
-          <v-btn size="small" variant="text" color="primary" prepend-icon="mdi-format-list-bulleted" @click="viewTrades(item)">交易</v-btn>
+          <v-btn size="small" variant="text" color="teal" prepend-icon="mdi-calendar-text" @click="viewDailyDetail(item)">每日</v-btn>
         </div>
       </template>
       <template v-slot:item.actions="{ item }">
@@ -326,54 +326,126 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="tradesDialog" max-width="1100px">
+  <v-dialog v-model="dailyDetailDialog" max-width="1200px" scrollable>
     <v-card>
-      <v-card-title class="d-flex justify-space-between align-center">
-        交易记录
-        <v-btn icon variant="text" size="small" @click="tradesDialog = false">
+      <v-card-title class="d-flex justify-space-between align-center pa-4">
+        <div class="d-flex align-center ga-2">
+          <v-icon color="teal">mdi-calendar-text</v-icon>
+          每日详情
+          <v-chip v-if="selectedResult" size="small" variant="outlined" class="ml-2">{{ selectedResult.name }}</v-chip>
+        </div>
+        <v-btn icon variant="text" size="small" @click="dailyDetailDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text>
-        <v-data-table-server
-          :headers="tradesHeaders"
-          :items="trades"
-          :loading="loadingTrades"
-          :items-length="totalTrades"
-          :items-per-page="tradesPageSize"
-          :page="tradesPage"
-          @update:options="handleTradesOptionsChange"
-        >
-          <template v-slot:item.action="{ item }">
-            <v-chip :color="item.action === 'buy' ? 'success' : 'error'" size="small">
-              {{ item.action === 'buy' ? '买入' : '卖出' }}
-            </v-chip>
-          </template>
-          <template v-slot:item.ts_code="{ item }">
-            {{ item.ts_name || item.stock_name || item.ts_code }}
-          </template>
-          <template v-slot:item.status="{ item }">
-            <v-chip v-if="item.status === 'filled'" color="success" size="small">成交</v-chip>
-            <v-chip v-else color="grey" size="small">未成交</v-chip>
-          </template>
-          <template v-slot:item.price="{ item }">
-            {{ item.status === 'cancelled' ? '-' : item.filled_price.toFixed(2) }}
-          </template>
-          <template v-slot:item.shares="{ item }">
-            {{ item.status === 'cancelled' ? '-' : item.shares }}
-          </template>
-          <template v-slot:item.fee="{ item }">
-            {{ item.status === 'cancelled' ? '-' : item.fee.toFixed(2) }}
-          </template>
-          <template v-slot:item.cash_after="{ item }">
-            {{ item.status === 'cancelled' ? '-' : item.cash_after.toFixed(2) }}
-          </template>
-        </v-data-table-server>
+      <v-divider />
+      <v-card-text v-if="loadingDaily" class="text-center text-medium-emphasis py-8">
+        <v-progress-circular indeterminate size="24" class="mr-2" />加载中...
       </v-card-text>
-      <v-divider></v-divider>
+      <v-card-text v-else-if="dailyDetails.length === 0" class="text-center text-medium-emphasis py-8">
+        暂无每日数据
+      </v-card-text>
+      <v-card-text v-else class="pa-2">
+        <v-row v-for="d in dailyDetails" :key="d.date" class="mb-2">
+          <v-col cols="12">
+            <v-card variant="outlined" class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
+              <v-card-text class="pa-3">
+                <v-row align="center" no-gutters>
+                  <v-col cols="2" class="text-body-2 font-weight-medium">{{ d.date }}</v-col>
+                  <v-col cols="1" class="text-caption">现金 ¥{{ d.cash.toFixed(0) }}</v-col>
+                  <v-col cols="1" class="text-caption">市值 ¥{{ d.total_market_value.toFixed(0) }}</v-col>
+                  <v-col cols="1" class="text-caption">总资产 ¥{{ d.total_value.toFixed(0) }}</v-col>
+                  <v-col cols="1" :class="d.cml_return >= 0 ? 'text-success' : 'text-error'" class="text-caption font-weight-medium">
+                    策略 {{ (d.cml_return * 100).toFixed(2) }}%
+                  </v-col>
+                  <v-col cols="1" class="text-caption text-medium-emphasis">
+                    基准 {{ (d.baseline_cml_return * 100).toFixed(2) }}%
+                  </v-col>
+                  <v-col cols="1" class="text-caption">持仓 {{ d.positions.length }} 只</v-col>
+                  <v-col cols="1" :class="d.day_return >= 0 ? 'text-success' : 'text-error'" class="text-caption">
+                    日收益 {{ (d.day_return * 100).toFixed(2) }}%
+                  </v-col>
+                  <v-col cols="1" class="text-right">
+                    <v-icon>{{ expandedDates.has(d.date) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+
+              <v-expand-transition>
+                <div v-if="expandedDates.has(d.date)">
+                  <v-divider />
+                  <v-card-text class="pa-3">
+                    <!-- 成交记录区域 -->
+                    <div class="text-subtitle-2 text-medium-emphasis mb-2">
+                      <v-icon size="small" class="mr-1">mdi-swap-horizontal-bold</v-icon>当日成交
+                    </div>
+                    <v-data-table
+                      v-if="d.trades.length > 0"
+                      :headers="dailyTradeHeaders"
+                      :items="d.trades"
+                      density="compact"
+                      hide-default-footer
+                      items-per-page="-1"
+                      class="mb-4"
+                    >
+                      <template v-slot:item.action="{ item }">
+                        <v-chip :color="item.action === 'buy' ? 'success' : 'error'" size="x-small">
+                          {{ item.action === 'buy' ? '买入' : '卖出' }}
+                        </v-chip>
+                      </template>
+                      <template v-slot:item.reason="{ item }">
+                        <v-chip v-if="item.reason" :color="reasonColor(item.reason)" size="x-small" variant="flat">
+                          {{ reasonLabel(item.reason) }}
+                        </v-chip>
+                        <span v-else class="text-caption text-disabled">-</span>
+                      </template>
+                      <template v-slot:item.pnl_amount="{ item }">
+                        <span v-if="item.pnl_amount != null" :class="item.pnl_amount >= 0 ? 'text-success' : 'text-error'">
+                          ¥{{ item.pnl_amount.toFixed(2) }}
+                        </span>
+                        <span v-else class="text-disabled">-</span>
+                      </template>
+                    </v-data-table>
+                    <div v-else class="text-caption text-medium-emphasis mb-4">无成交记录</div>
+
+                    <!-- 持仓明细区域 -->
+                    <div class="text-subtitle-2 text-medium-emphasis mb-2">
+                      <v-icon size="small" class="mr-1">mdi-briefcase</v-icon>持仓明细
+                    </div>
+                    <v-data-table
+                      v-if="d.positions.length > 0"
+                      :headers="dailyPositionHeaders"
+                      :items="d.positions"
+                      density="compact"
+                      hide-default-footer
+                      items-per-page="-1"
+                    >
+                      <template v-slot:item.unrealized_pnl="{ item }">
+                        <span :class="item.unrealized_pnl >= 0 ? 'text-success' : 'text-error'">
+                          ¥{{ item.unrealized_pnl.toFixed(2) }}
+                        </span>
+                      </template>
+                      <template v-slot:item.unrealized_pnl_pct="{ item }">
+                        <span :class="item.unrealized_pnl_pct >= 0 ? 'text-success' : 'text-error'">
+                          {{ (item.unrealized_pnl_pct * 100).toFixed(2) }}%
+                        </span>
+                      </template>
+                      <template v-slot:item.entry_score="{ item }">
+                        {{ item.entry_score.toFixed(3) }}
+                      </template>
+                    </v-data-table>
+                    <div v-else class="text-caption text-medium-emphasis">空仓</div>
+                  </v-card-text>
+                </div>
+              </v-expand-transition>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-card-text>
+      <v-divider />
       <v-card-actions class="bg-surface-light">
-        <v-spacer></v-spacer>
-        <v-btn text="关闭" variant="plain" @click="tradesDialog = false"></v-btn>
+        <v-spacer />
+        <v-btn text="关闭" variant="plain" @click="dailyDetailDialog = false" />
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -641,21 +713,18 @@
 
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue'
-import { backtestRecordApi, type Backtest, type Trade, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
+import { backtestRecordApi, type Backtest, type DailyDetail, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
 import { type Strategy } from '@/api/strategyConfig'
 import * as echarts from 'echarts'
 import PredictionChart from '@/components/PredictionChart.vue'
 
 const loading = ref(false)
 const loadingDelete = ref(false)
-const loadingTrades = ref(false)
 const deleteDialog = ref(false)
-const tradesDialog = ref(false)
 const resultDialog = ref(false)
 const predictionDialog = ref(false)
 const predictionBacktestId = ref('')
 const deletingItem = ref<Backtest | null>(null)
-const viewingBacktest = ref<Backtest | null>(null)
 const selectedResult = ref<Backtest | null>(null)
 const resultTab = ref('overview')
 const pnlDetails = ref<PnlDetailItem[]>([])
@@ -665,6 +734,11 @@ const amountChartRef = ref<HTMLDivElement>()
 const countChartRef = ref<HTMLDivElement>()
 const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_pnl_amount', order: 'desc' }])
 const backtestConfigDialog = ref(false)
+
+const dailyDetailDialog = ref(false)
+const dailyDetails = ref<DailyDetail[]>([])
+const loadingDaily = ref(false)
+const expandedDates = ref<Set<string>>(new Set())
 
 function retColor(val: number | null | undefined): string {
   if (val == null) return '#9e9e9e'
@@ -710,13 +784,9 @@ const viewPredictions = (item: Backtest) => {
   predictionDialog.value = true
 }
 const backtests = ref<Backtest[]>([])
-const trades = ref<Trade[]>([])
 const totalItems = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const totalTrades = ref(0)
-const tradesPage = ref(1)
-const tradesPageSize = ref(20)
 
 const historyHeaders = [
   { title: '名称', key: 'name', width: 100, nowrap: true },
@@ -730,21 +800,34 @@ const historyHeaders = [
   { title: '操作', key: 'actions', sortable: false, align: 'center' as const, width: 80, nowrap: true },
 ]
 
-const tradesHeaders = [
-  { title: '股票', key: 'ts_code' },
-  { title: '日期', key: 'trade_date' },
-  { title: '操作', key: 'action' },
-  { title: '状态', key: 'status' },
-  { title: '价格', key: 'price' },
-  { title: '数量', key: 'shares' },
-  { title: '手续费', key: 'fee' },
-  { title: '现金', key: 'cash_after' },
-]
-
 const excludedHeaders = [
   { title: '股票', key: 'stock_name' },
   { title: '排除次数', key: 'excluded_count', align: 'center' as const },
   { title: '排除明细（点击展开）', key: 'excluded_dates' },
+]
+
+const dailyTradeHeaders = [
+  { title: '股票', key: 'stock_name' },
+  { title: '操作', key: 'action', align: 'center' as const },
+  { title: '成交价', key: 'filled_price' },
+  { title: '数量', key: 'shares' },
+  { title: '手续费', key: 'fee' },
+  { title: '理由', key: 'reason' },
+  { title: '盈亏', key: 'pnl_amount' },
+  { title: '收益率', key: 'pnl_pct' },
+]
+
+const dailyPositionHeaders = [
+  { title: '股票', key: 'stock_name' },
+  { title: '买入日期', key: 'buy_date' },
+  { title: '成本价', key: 'buy_price' },
+  { title: '现价', key: 'current_price' },
+  { title: '持股', key: 'shares' },
+  { title: '市值', key: 'market_value' },
+  { title: '浮盈亏', key: 'unrealized_pnl' },
+  { title: '收益率', key: 'unrealized_pnl_pct' },
+  { title: '持有天数', key: 'hold_days' },
+  { title: '入场评分', key: 'entry_score' },
 ]
 
 const loadBacktests = async () => {
@@ -761,13 +844,7 @@ const handleOptionsChange = (options: { page: number; itemsPerPage: number }) =>
   loadBacktests()
 }
 
-const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number }) => {
-  tradesPage.value = options.page
-  tradesPageSize.value = options.itemsPerPage
-  loadTrades()
-  }
-
-  const viewResult = (item: Backtest) => {
+const viewResult = (item: Backtest) => {
     selectedResult.value = item
     resultDialog.value = true
     resultTab.value = 'overview'
@@ -786,22 +863,6 @@ const handleTradesOptionsChange = (options: { page: number; itemsPerPage: number
     : null
   backtestAccountConfig.value = item.account_snapshot ? { ...item.account_snapshot } : null
   backtestConfigDialog.value = true
-}
-
-const viewTrades = async (item: Backtest) => {
-  viewingBacktest.value = item
-  tradesPage.value = 1
-  tradesDialog.value = true
-  await loadTrades()
-}
-
-const loadTrades = async () => {
-  if (!viewingBacktest.value) return
-  loadingTrades.value = true
-  const res = await backtestRecordApi.getTrades(viewingBacktest.value.id, tradesPage.value, tradesPageSize.value)
-  trades.value = res.data.items
-  totalTrades.value = res.data.total
-  loadingTrades.value = false
 }
 
 const confirmDelete = (item: Backtest) => {
@@ -928,6 +989,53 @@ const pnlHeaders = [
   { title: '亏损', key: 'loss_count' },
   { title: '胜率', key: 'trade_win_rate' },
 ]
+
+const toggleExpand = (date: string) => {
+  const s = new Set(expandedDates.value)
+  if (s.has(date)) s.delete(date)
+  else s.add(date)
+  expandedDates.value = s
+}
+
+const reasonColor = (reason: string | undefined | null): string => {
+  const map: Record<string, string> = {
+    'stop_loss': 'error',
+    'score_below_sell': 'warning',
+    'max_hold_days': 'info',
+    'hold_score_low': 'orange',
+    'full_position_forced_sell': 'deep-purple',
+    '': 'grey',
+  }
+  return map[reason || ''] || 'grey'
+}
+
+const reasonLabel = (reason: string | undefined | null): string => {
+  const map: Record<string, string> = {
+    'stop_loss': '止损卖出',
+    'score_below_sell': '评分低于阈值',
+    'max_hold_days': '达最大持仓天数',
+    'hold_score_low': '排名靠后评分低',
+    'full_position_forced_sell': '满仓强制卖出',
+    '': '-',
+  }
+  return map[reason || ''] || reason || '-'
+}
+
+const viewDailyDetail = async (item: Backtest) => {
+  selectedResult.value = item
+  dailyDetailDialog.value = true
+  loadingDaily.value = true
+  dailyDetails.value = []
+  expandedDates.value = new Set()
+  try {
+    const res = await backtestRecordApi.getDailyDetails(item.id)
+    dailyDetails.value = res.data.items
+  } catch (e) {
+    dailyDetails.value = []
+  } finally {
+    loadingDaily.value = false
+  }
+}
 
 watch(resultTab, () => {
   if (resultTab.value === 'pnl') {
