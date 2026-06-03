@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from beanie import PydanticObjectId
 from beanie.odm.operators.find.comparison import In
 from typing import Dict, Optional, List
+from pydantic import BaseModel
 
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
@@ -16,6 +17,55 @@ from trade_alpha.dao.training import TrainingResult
 from trade_alpha.utils.date_utils import to_api_format, to_db_format
 
 router = APIRouter(prefix="/backtests", tags=["backtest-records"])
+
+
+class DailyPositionOut(BaseModel):
+    """Position detail for a single trading day."""
+    ts_code: str
+    stock_name: str
+    buy_date: str
+    buy_price: float
+    current_price: float
+    shares: int
+    fee: float
+    cost_basis: float
+    market_value: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float
+    hold_days: int
+    entry_score: float
+
+
+class DailyTradeOut(BaseModel):
+    """Trade detail for a single trading day."""
+    ts_code: str
+    stock_name: str
+    action: str
+    filled_price: float
+    shares: int
+    fee: float
+    reason: Optional[str] = None
+    pnl_amount: Optional[float] = None
+    pnl_pct: Optional[float] = None
+
+
+class DailyDetailOut(BaseModel):
+    """Daily snapshot with positions and trades."""
+    date: str
+    cash: float
+    total_market_value: float
+    total_value: float
+    baseline_value: float
+    day_return: float
+    cml_return: float
+    baseline_cml_return: float
+    positions: List[DailyPositionOut]
+    trades: List[DailyTradeOut]
+
+
+class DailyDetailResponse(BaseModel):
+    """Daily detail list response."""
+    items: List[DailyDetailOut]
 
 
 @router.get("")
@@ -782,6 +832,102 @@ async def get_daily_snapshots(result_id: str):
     ]
 
     return {"items": items}
+
+
+@router.get("/{result_id}/daily-details")
+async def get_daily_details(result_id: str):
+    """Get daily detailed snapshots with positions and trades."""
+    try:
+        obj_id = PydanticObjectId(result_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid result ID")
+
+    snapshots = await ExecutionDailySnapshot.find(
+        ExecutionDailySnapshot.backtest_id == obj_id,
+    ).sort(ExecutionDailySnapshot.date).to_list()
+
+    if not snapshots:
+        return DailyDetailResponse(items=[])
+
+    first_total = snapshots[0].total_value
+    first_baseline = snapshots[0].baseline_value
+
+    all_trades = await ExecutionTrade.find(
+        ExecutionTrade.backtest_id == obj_id,
+    ).sort(ExecutionTrade.trade_date).to_list()
+
+    trades_by_date: Dict[str, List[ExecutionTrade]] = {}
+    for t in all_trades:
+        trades_by_date.setdefault(t.trade_date, []).append(t)
+
+    all_ts_codes = set()
+    for snap in snapshots:
+        for pos in snap.positions:
+            all_ts_codes.add(pos.ts_code)
+    name_map = await get_stock_names(list(all_ts_codes))
+
+    items: List[DailyDetailOut] = []
+    for snap in snapshots:
+        cml_return = (snap.total_value / first_total - 1) if first_total > 0 else 0.0
+        baseline_cml_return = (snap.baseline_value / first_baseline - 1) if first_baseline > 0 else 0.0
+
+        close_prices: Dict[str, float] = {}
+        for ts_code, pred in snap.predictions.items():
+            cp = pred.get("close") or 0
+            if cp:
+                close_prices[ts_code] = cp
+
+        positions = []
+        for pos in snap.positions:
+            cp = close_prices.get(pos.ts_code, pos.buy_price)
+            cost_basis = round(pos.buy_price * pos.shares + pos.fee, 2)
+            market_value = round(cp * pos.shares, 2)
+            positions.append(DailyPositionOut(
+                ts_code=pos.ts_code,
+                stock_name=name_map.get(pos.ts_code, pos.stock_name or pos.ts_code),
+                buy_date=pos.buy_date,
+                buy_price=pos.buy_price,
+                current_price=cp,
+                shares=pos.shares,
+                fee=pos.fee,
+                cost_basis=cost_basis,
+                market_value=market_value,
+                unrealized_pnl=round(market_value - cost_basis, 2),
+                unrealized_pnl_pct=round(cp / pos.buy_price - 1, 4) if pos.buy_price > 0 else 0.0,
+                hold_days=pos.hold_days,
+                entry_score=pos.entry_score,
+            ))
+
+        day_trades = trades_by_date.get(snap.date, [])
+        trades = [
+            DailyTradeOut(
+                ts_code=t.ts_code,
+                stock_name=name_map.get(t.ts_code, ""),
+                action=t.action,
+                filled_price=t.filled_price,
+                shares=t.shares,
+                fee=t.fee,
+                reason=t.reason,
+                pnl_amount=t.pnl_amount,
+                pnl_pct=t.pnl_pct,
+            )
+            for t in day_trades
+        ]
+
+        items.append(DailyDetailOut(
+            date=snap.date,
+            cash=snap.cash,
+            total_market_value=snap.total_market_value,
+            total_value=snap.total_value,
+            baseline_value=snap.baseline_value,
+            day_return=snap.day_return,
+            cml_return=round(cml_return, 4),
+            baseline_cml_return=round(baseline_cml_return, 4),
+            positions=positions,
+            trades=trades,
+        ))
+
+    return DailyDetailResponse(items=items)
 
 
 @router.get("/trades/options")
