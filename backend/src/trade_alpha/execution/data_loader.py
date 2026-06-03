@@ -67,6 +67,14 @@ class DataLoader:
                 })
         return result
 
+    async def get_latest_trading_day(self) -> Optional[str]:
+        """Get the most recent trading date available in StockDaily."""
+        from trade_alpha.dao import StockDaily
+        latest = await StockDaily.find().sort(-StockDaily.trade_date).limit(1).first_or_none()
+        if latest:
+            return latest.trade_date
+        return None
+
     async def load_day_data(self, date: str, ts_codes: List[str]) -> pd.DataFrame:
         records = await StockDaily.find(
             StockDaily.trade_date == date,
