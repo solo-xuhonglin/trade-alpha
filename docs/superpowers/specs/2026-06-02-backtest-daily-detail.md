@@ -1,8 +1,8 @@
-# 回测每日详情页面
+# 回测每日详情弹窗
 
 ## 概述
 
-在现有回测模块中新增一个独立页面，按天展示回测过程的详细数据，包括每日成交记录（含卖出理由）和每日持仓明细（含收益及基线对比），帮助用户深入分析策略的日常表现。
+在现有回测记录弹窗中替换掉「交易」按钮，改为每日详情弹窗，按天展示回测过程的详细数据，包括每日成交记录（含卖出理由）和每日持仓明细（含收益及基线对比），帮助用户深入分析策略的日常表现。原有「交易」功能与独立交易记录页面功能重复，故替换。
 
 ## 功能需求
 
@@ -89,27 +89,19 @@
 - 累计收益率：从第一个 snapshot 的 `total_value` 开始逐日计算 `(当前 total_value / 首个 total_value) - 1`
 - 基线累计收益率：同样方式基于 `baseline_value`
 
-### 3. 前端页面：每日详情
-
-#### 路由
-
-```
-/backtest/daily-detail/:id
-```
-
-添加到 `/backtest` 的子路由下。
+### 3. 前端弹窗：每日详情
 
 #### 入口
 
-在回测记录列表 `BacktestRecordsView.vue` 的「分析」操作按钮组中增加一个按钮：
+替换回测记录列表 `BacktestRecordsView.vue` 中现有的「交易」按钮：
 
-```
-<v-btn size="small" variant="text" color="teal" prepend-icon="mdi-calendar-text" @click="viewDailyDetail(item)">
-  每日
-</v-btn>
-```
+- 移除 `tradesDialog` 及其关联的 `viewTrades`/`loadTrades` 方法
+- 将「交易」按钮改为「每日」按钮，打开新的 `dailyDetailDialog`
+- 「每日」按钮颜色使用 `teal`，图标 `mdi-calendar-text`
 
-#### 页面布局：折叠卡片式
+#### 弹窗布局：折叠卡片式
+
+**弹窗标题**：回测名称 + "每日详情"
 
 **卡片标题行**（始终可见，一行展示关键摘要）：
 
@@ -140,7 +132,7 @@
 
 - `loading: boolean` — 加载中
 - `dailyDetails: DailyDetail[]` — 每日详情列表
-- `backtestInfo: Backtest | null` — 当前回测的基本信息（名称等）
+- `dailyDetailDialog: boolean` — 弹窗显示状态
 - `expandedDates: Set<string>` — 当前展开的日期集合
 
 ## 数据结构
@@ -254,9 +246,7 @@ class DailyDetailResponse(BaseModel):
 
 | 文件 | 改动 |
 |------|------|
-| `router/index.ts` | 新增 `/backtest/daily-detail/:id` 路由 |
-| `views/BacktestRecordsView.vue` | 在分析按钮组增加「每日」按钮 |
-| `views/BacktestDailyDetailView.vue` | 新建页面，折叠卡片式每日详情 |
+| `views/BacktestRecordsView.vue` | 移除 `tradesDialog` 及相关逻辑；新增 `dailyDetailDialog` 弹窗和展开卡片布局；「交易」按钮改为「每日」 |
 | `api/backtestRecord.ts` | 新增 `getDailyDetails` API 调用 |
 
 ## 未涉及范围
