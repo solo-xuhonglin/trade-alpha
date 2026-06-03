@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.logging import get_logger
+from trade_alpha.schemas import PendingBuy
 
 logger = get_logger("execution.portfolio")
 
@@ -32,15 +33,40 @@ class PortfolioManager:
         account_config: AccountConfig,
         initial_capital: float = 100000.0,
         max_positions: int = 10,
-        max_position_pct: float = 0.3,
+        max_position_pct: float = 0.1,
         min_order_value: float = 5000.0,
     ):
-        self.cash = initial_capital
+        self._cash_available: float = initial_capital
+        self._cash_reserved: float = 0.0
         self.positions: Dict[str, PositionEmbed] = {}
+        self._pending_buys: Dict[str, "PendingBuy"] = {}
         self._account_config = account_config
         self._max_positions = max_positions
         self._max_position_pct = max_position_pct
         self._min_order_value = min_order_value
+
+    # ------------------------------------------------------------------
+    # Properties (backward compatible)
+    # ------------------------------------------------------------------
+
+    @property
+    def cash(self) -> float:
+        """Total cash = available + reserved for pending buys."""
+        return self._cash_available + self._cash_reserved
+
+    @property
+    def cash_available(self) -> float:
+        """Free cash not locked by pending buy orders."""
+        return self._cash_available
+
+    @property
+    def pending_buys(self) -> Dict[str, "PendingBuy"]:
+        """Buy reservations awaiting T+1 settlement."""
+        return self._pending_buys
+
+    @property
+    def total_position_count(self) -> int:
+        return len(self.positions)
 
     # ------------------------------------------------------------------
     # Core public API
@@ -56,10 +82,10 @@ class PortfolioManager:
 
         Internal logic:
           1. Already held -> compute remaining capacity under max_position_pct
-          2. New buy -> reject if max_positions reached
+          2. New buy -> reject if max_positions + pending_buys reached
           3. Calculate affordable shares (100-lot, including buy fee)
-          4. Check sufficient cash
-          5. Pre-deduct: cash -= shares * price + buy_fee
+          4. Check sufficient available cash
+          5. Pre-deduct: _cash_available -= cost, _cash_reserved += cost
 
         Returns:
             (success, shares, fee) — success=True means cash is pre-deducted.
@@ -68,7 +94,7 @@ class PortfolioManager:
             logger.warning("reserve_funds", f"Invalid price={price} for {ts_code}, skipping")
             return False, 0, 0
 
-        total_value = self.cash
+        total_value = self._cash_available + self._cash_reserved
         for tsc, pos in self.positions.items():
             px = close_prices.get(tsc, 0)
             if px > 0:
@@ -82,17 +108,23 @@ class PortfolioManager:
                 return False, 0, 0
             max_cost = remaining
         else:
-            if len(self.positions) >= self._max_positions:
+            if len(self.positions) + len(self._pending_buys) >= self._max_positions:
                 return False, 0, 0
-            max_cost = self.cash * self._max_position_pct
+            max_cost = self._cash_available * self._max_position_pct
 
         shares, fee = self._calc_shares(max_cost, price)
         if shares < 100:
             return False, 0, 0
-        if shares * price + fee > self.cash:
+        if shares * price + fee > self._cash_available:
             return False, 0, 0
 
-        self.cash -= shares * price + fee
+        self._cash_available -= shares * price + fee
+        self._cash_reserved += shares * price + fee
+        self._pending_buys[ts_code] = PendingBuy(
+            ts_code=ts_code, stock_name="",
+            order_shares=shares, order_price=price,
+            estimated_fee=fee,
+        )
         return True, shares, fee
 
     def settle_buy(self, ts_code: str, stock_name: str,
@@ -100,18 +132,33 @@ class PortfolioManager:
                    matched_price: float) -> None:
         """Finalise a filled buy order.
 
-        1. Reverse pre-deduction: cash += order_shares * order_price + buy_fee(order_cost)
-        2. Re-apply at matched price: cash -= matched_cost + buy_fee(matched_cost)
-        3. Merge into or create position record (weighted avg price, accumulated shares/fees).
+        1. Reverse pre-deduction: reserved cash back to available
+        2. Apply actual cost at matched price
+        3. Remove pending buy record
+        4. Merge into or create position record.
         """
-        order_cost = order_shares * order_price
-        order_fee = self.calc_buy_fee(order_cost)
-        self.cash += order_cost + order_fee
+        pending = self._pending_buys.pop(ts_code, None)
+        if pending is None:
+            logger.warning(f"settle_buy: no pending buy for {ts_code}, "
+                           f"falling back to direct deduction")
+            matched_cost = order_shares * matched_price
+            matched_fee = self.calc_buy_fee(matched_cost)
+            self._cash_available -= matched_cost + matched_fee
+            return self._upsert_position(ts_code, stock_name, order_shares, matched_price, matched_fee)
+
+        self._cash_reserved -= pending.reserved_cash
+        self._cash_available += pending.reserved_cash
 
         matched_cost = order_shares * matched_price
         matched_fee = self.calc_buy_fee(matched_cost)
-        self.cash -= matched_cost + matched_fee
+        self._cash_available -= matched_cost + matched_fee
 
+        self._upsert_position(ts_code, stock_name, order_shares, matched_price, matched_fee)
+
+    def _upsert_position(self, ts_code: str, stock_name: str,
+                         order_shares: int, matched_price: float,
+                         matched_fee: float) -> None:
+        """Create or merge a position record."""
         existing = self.positions.get(ts_code)
         if existing:
             total_shares = existing.shares + order_shares
@@ -144,25 +191,25 @@ class PortfolioManager:
         proceeds = shares * price
         fee = self.calc_sell_fee(proceeds)
         tax = self.calc_stamp_tax(proceeds)
-        self.cash += proceeds - fee - tax
+        self._cash_available += proceeds - fee - tax
         self.positions.pop(ts_code, None)
 
     def cancel_reservation(self, ts_code: str, shares: int, price: float) -> None:
         """Cancel an unfilled buy order, refunding pre-deducted cash."""
-        cost = shares * price
-        self.cash += cost + self.calc_buy_fee(cost)
+        pending = self._pending_buys.pop(ts_code, None)
+        if pending is None:
+            logger.warning(f"cancel_reservation: no pending buy for {ts_code}, skipping")
+            return
+        self._cash_reserved -= pending.reserved_cash
+        self._cash_available += pending.reserved_cash
 
     # ------------------------------------------------------------------
     # Read-only helpers
     # ------------------------------------------------------------------
 
-    @property
-    def total_position_count(self) -> int:
-        return len(self.positions)
-
     def get_total_value(self, close_prices: Dict[str, float]) -> float:
-        """Total portfolio value = cash + positions market value."""
-        return self.cash + self.get_market_value(close_prices)
+        """Total portfolio value = available cash + reserved + positions market value."""
+        return (self._cash_available + self._cash_reserved) + self.get_market_value(close_prices)
 
     def get_market_value(self, close_prices: Dict[str, float]) -> float:
         """Market value of all positions = sum(shares * close_price)."""

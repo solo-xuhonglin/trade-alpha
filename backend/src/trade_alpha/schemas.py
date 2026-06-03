@@ -35,3 +35,17 @@ class PendingOrder:
     trade_date: str
     settle_date: str
     reason: str = ""
+
+
+@dataclass
+class PendingBuy:
+    """Reserved buy order awaiting T+1 settlement."""
+    ts_code: str
+    stock_name: str
+    order_shares: int
+    order_price: float
+    estimated_fee: float
+
+    @property
+    def reserved_cash(self) -> float:
+        return self.order_shares * self.order_price + self.estimated_fee

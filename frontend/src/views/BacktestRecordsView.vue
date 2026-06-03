@@ -359,7 +359,7 @@
       <v-card-text v-else class="pa-2 py-0">
         <v-row v-for="d in paginatedItems" :key="d.date" no-gutters>
           <v-col cols="12">
-            <v-card class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
+            <v-card elevation="0" class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
               <v-card-text class="pa-3">
                 <v-row align="center" no-gutters style="white-space: nowrap;">
                   <v-col cols="2" class="text-body-2 font-weight-medium d-flex align-center">
@@ -382,8 +382,7 @@
                 </v-row>
               </v-card-text>
 
-              <v-expand-transition>
-                <div v-if="expandedDates.has(d.date)">
+              <div v-show="expandedDates.has(d.date)">
                   <v-divider />
                   <v-card-text class="pa-3">
                     <!-- 成交记录区域 -->
@@ -448,7 +447,6 @@
                     <div v-else class="text-caption text-medium-emphasis">空仓</div>
                   </v-card-text>
                 </div>
-              </v-expand-transition>
             </v-card>
           </v-col>
         </v-row>

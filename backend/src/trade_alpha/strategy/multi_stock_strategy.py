@@ -1,7 +1,13 @@
 """Multi-stock strategy - ranking-based multi-stock trading."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
+from trade_alpha.constants import (
+    SELL_REASON_HOLD_SCORE_LOW,
+    SELL_REASON_MAX_HOLD_DAYS,
+    SELL_REASON_SCORE_BELOW,
+    SELL_REASON_STOP_LOSS,
+)
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
@@ -144,8 +150,12 @@ class MultiStockStrategy(PositionManager):
         sell_rank_ts_codes: set,
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
-    ) -> bool:
-        """Check whether a position should be sold."""
+    ) -> Tuple[bool, str]:
+        """Check whether a position should be sold.
+
+        Returns:
+            Tuple of (should_sell: bool, reason: str).
+        """
         current_score = score_map.get(position.ts_code, 0.0)
 
         logger.debug(f"_check_sell ts_code={position.ts_code} hold_days={position.hold_days} min_hold_days={self.min_hold_days} current_score={current_score:.3f} sell_threshold={self.sell_threshold:.3f}")
@@ -156,24 +166,24 @@ class MultiStockStrategy(PositionManager):
                 cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
                 if current_price < cost_basis * (1 + self.stop_loss_pct):
                     logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
-                    return True
+                    return True, SELL_REASON_STOP_LOSS
             logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
-            return False
+            return False, ""
 
         if current_score < self.sell_threshold:
-            return True
+            return True, SELL_REASON_SCORE_BELOW
 
         if position.hold_days >= self.max_hold_days:
-            return True
+            return True, SELL_REASON_MAX_HOLD_DAYS
 
         if close_prices and position.ts_code in close_prices:
             current_price = close_prices[position.ts_code]
             cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
             if current_price < cost_basis * (1 + self.stop_loss_pct):
-                return True
+                return True, SELL_REASON_STOP_LOSS
 
         if position.ts_code not in sell_rank_ts_codes:
             if current_score < self.hold_score_threshold:
-                return True
+                return True, SELL_REASON_HOLD_SCORE_LOW
 
-        return False
+        return False, ""

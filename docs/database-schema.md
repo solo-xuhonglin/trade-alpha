@@ -193,28 +193,40 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 |------|------|------|-------|
 | `min_order_value` | float | 最小订单金额 | 5000.0 |
 | `stop_loss_pct` | float | 止损百分比 | -0.1 |
-| `max_hold_days` | int | 最大持仓天数 | 30 |
-| `buy_threshold` | float | 买入阈值（评分 > 此值才买入） | 0.1 |
-| `sell_threshold` | float | 卖出阈值（评分 < 此值才卖出） | -0.1 |
+| `max_hold_days` | int | 最大持仓天数 | 120 |
+| `min_hold_days` | int | 最低持有天数 | 5 |
+| `buy_threshold` | float | 买入阈值（评分 > 此值才买入） | 0.2 |
+| `sell_threshold` | float | 卖出阈值（评分 < 此值才卖出） | -0.01 |
 | `max_positions` | int | 最大持仓数量 | 10 |
-| `max_position_pct` | float | 单股最大持仓比例 | 0.3 |
+| `max_position_pct` | float | 单股最大持仓比例 | 0.1 |
 | `use_momentum_boost` | bool | 是否启用动量加成 | false |
-| `momentum_window` | int | 动量窗口天数 | 5 |
-| `max_momentum_bonus` | float | 动量加成上限 | 0.05 |
+| `momentum_window` | int | 动量窗口天数 | 12 |
+| `max_momentum_bonus` | float | 动量加成上限 | 0.15 |
 | `use_explosion_filter` | bool | 是否启用暴涨排除 | false |
-| `explosion_price_threshold` | float | 暴涨涨幅阈值 | 0.05 |
+| `explosion_price_threshold` | float | 暴涨涨幅阈值 | 0.08 |
 | `explosion_volume_ratio` | float | 暴涨量比阈值 | 3.0 |
 | `explosion_window` | int | 均量计算窗口 | 5 |
 | `use_trend_bonus` | bool | 是否启用趋势加分 | false |
-| `trend_bonus_window` | int | 趋势回归窗口天数 | 10 |
+| `trend_bonus_window` | int | 趋势回归窗口天数 | 15 |
 | `trend_bonus_scale` | float | 趋势斜率系数 | 0.03 |
 | `trend_r2_threshold` | float | R² 拟合优度门槛 | 0.30 |
-| `trend_max_bonus` | float | 趋势加分上限 | 0.05 |
+| `trend_max_bonus` | float | 趋势加分上限 | 0.1 |
 | `use_volatility_penalty` | bool | 是否启用波动扣分 | false |
 | `vol_penalty_window` | int | 振幅计算窗口天数 | 10 |
 | `vol_range_tolerance` | float | 振幅容忍度 | 0.035 |
 | `vol_penalty_scale` | float | 波动扣分系数 | 0.005 |
-| `vol_max_penalty` | float | 波动扣分上限 | 0.05 |
+| `vol_max_penalty` | float | 波动扣分上限 | 0.1 |
+| `use_full_position_sell` | bool | 是否启用满仓容忍卖出 | false |
+| `full_position_threshold` | float | 持仓占比阈值 | 0.90 |
+| `full_position_days` | int | 连续触发天数 | 5 |
+| `full_position_score_window` | int | 评分平均窗口 | 8 |
+| `full_position_sell_count` | int | 每次卖出数量 | 1 |
+| `use_acceleration_filter` | bool | 是否启用加速过滤 | false |
+| `acceleration_window` | int | 加速检测窗口 | 5 |
+| `acceleration_cum_return` | float | 累计涨幅阈值 | 0.25 |
+| `acceleration_up_ratio` | float | 上涨天数占比阈值 | 0.80 |
+| `ranking_smooth_window` | int | 排名平滑窗口 | 8 |
+| `ranking_smooth_alpha` | float | 平滑系数（0~1） | 0.3 |
 
 ### account_configs
 
@@ -327,29 +339,29 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `type` | string | 策略类型 | - |
 | `min_order_value` | float | 最小订单金额 | 5000.0 |
 | `stop_loss_pct` | float | 止损百分比 | -0.1 |
-| `max_hold_days` | int | 最大持仓天数 | 30 |
-| `min_hold_days` | int | 最低持有天数 | 3 |
-| `buy_threshold` | float | 买入阈值 | 0.1 |
-| `sell_threshold` | float | 卖出阈值 | -0.1 |
+| `max_hold_days` | int | 最大持仓天数 | 120 |
+| `min_hold_days` | int | 最低持有天数 | 5 |
+| `buy_threshold` | float | 买入阈值 | 0.2 |
+| `sell_threshold` | float | 卖出阈值 | -0.01 |
 | `max_positions` | int | 最大持仓数量 | 10 |
-| `max_position_pct` | float | 最大持仓比例 | 0.3 |
+| `max_position_pct` | float | 最大持仓比例 | 0.1 |
 | `use_momentum_boost` | bool | 动量加成 | false |
-| `momentum_window` | int | 动量窗口 | 5 |
-| `max_momentum_bonus` | float | 动量上限 | 0.05 |
+| `momentum_window` | int | 动量窗口 | 12 |
+| `max_momentum_bonus` | float | 动量上限 | 0.15 |
 | `use_explosion_filter` | bool | 暴涨排除 | false |
-| `explosion_price_threshold` | float | 涨幅阈值 | 0.05 |
+| `explosion_price_threshold` | float | 涨幅阈值 | 0.08 |
 | `explosion_volume_ratio` | float | 量比阈值 | 3.0 |
 | `explosion_window` | int | 均量窗口 | 5 |
 | `use_trend_bonus` | bool | 趋势加分 | false |
-| `trend_bonus_window` | int | 趋势窗口 | 10 |
+| `trend_bonus_window` | int | 趋势窗口 | 15 |
 | `trend_bonus_scale` | float | 趋势系数 | 0.03 |
 | `trend_r2_threshold` | float | R² 门槛 | 0.30 |
-| `trend_max_bonus` | float | 趋势加分上限 | 0.05 |
+| `trend_max_bonus` | float | 趋势加分上限 | 0.1 |
 | `use_volatility_penalty` | bool | 波动扣分 | false |
 | `vol_penalty_window` | int | 波动窗口 | 10 |
 | `vol_range_tolerance` | float | 振幅容忍度 | 0.035 |
 | `vol_penalty_scale` | float | 扣分系数 | 0.005 |
-| `vol_max_penalty` | float | 扣分上限 | 0.05 |
+| `vol_max_penalty` | float | 扣分上限 | 0.1 |
 
 ### execution_daily_snapshots
 

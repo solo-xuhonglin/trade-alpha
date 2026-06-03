@@ -20,6 +20,7 @@ from trade_alpha.models.base import compute_scores
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
+from trade_alpha.constants import SELL_REASON_FULL_POSITION
 from trade_alpha.logging import get_logger
 from trade_alpha.utils.date_utils import get_year_months
 
@@ -194,7 +195,15 @@ class ExecutionPipeline:
         for ts_code in self.portfolio.positions:
             pred = pred_results.get(ts_code, {})
             score = pred.get("composite_score") or pred.get("score", 0)
-            scored_holds.append((score, ts_code))
+            # Use average score over score_window to avoid single-day outliers
+            buffer = self._score_buffer.get(ts_code, [])
+            if len(buffer) >= score_window:
+                avg_score = sum(buffer[-score_window:]) / score_window
+            elif buffer:
+                avg_score = sum(buffer) / len(buffer)
+            else:
+                avg_score = score
+            scored_holds.append((avg_score, ts_code))
 
         scored_holds.sort(key=lambda x: x[0])
         for i in range(min(sell_count, len(scored_holds))):

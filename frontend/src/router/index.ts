@@ -82,6 +82,22 @@ const routes = [
         component: () => import('@/views/TradesView.vue')
       }
     ]
+  },
+  {
+    path: '/live-suggestion',
+    redirect: '/live-suggestion/manage',
+    children: [
+      {
+        path: 'manage',
+        name: 'LiveSuggestionManage',
+        component: () => import('@/views/LiveSuggestionManageView.vue')
+      },
+      {
+        path: 'records',
+        name: 'LiveSuggestionRecords',
+        component: () => import('@/views/LiveSuggestionRecordsView.vue')
+      }
+    ]
   }
 ]
 
