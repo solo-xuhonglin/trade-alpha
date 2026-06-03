@@ -359,10 +359,13 @@
       <v-card-text v-else class="pa-2 py-0">
         <v-row v-for="d in paginatedItems" :key="d.date" no-gutters>
           <v-col cols="12">
-            <v-card variant="outlined" class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
+            <v-card class="daily-card" @click="toggleExpand(d.date)" style="cursor: pointer;">
               <v-card-text class="pa-3">
                 <v-row align="center" no-gutters style="white-space: nowrap;">
-                  <v-col cols="2" class="text-body-2 font-weight-medium">{{ d.date }}</v-col>
+                  <v-col cols="2" class="text-body-2 font-weight-medium d-flex align-center">
+                    {{ d.date }}
+                    <v-icon class="ml-auto" size="small">{{ expandedDates.has(d.date) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  </v-col>
                   <v-col cols="1" class="text-caption">现金 ¥{{ d.cash.toFixed(0) }}</v-col>
                   <v-col cols="1" class="text-caption">市值 ¥{{ d.total_market_value.toFixed(0) }}</v-col>
                   <v-col cols="2" class="text-caption">总资产 ¥{{ d.total_value.toFixed(0) }}</v-col>
@@ -373,9 +376,8 @@
                     基准 {{ (d.baseline_cml_return * 100).toFixed(2) }}%
                   </v-col>
                   <v-col cols="1" class="text-caption">持仓 {{ d.positions.length }} 只</v-col>
-                  <v-col cols="1" :class="d.day_return >= 0 ? 'text-success' : 'text-error'" class="text-caption d-flex align-center">
+                  <v-col cols="1" :class="d.day_return >= 0 ? 'text-success' : 'text-error'" class="text-caption">
                     日收益 {{ (d.day_return * 100).toFixed(2) }}%
-                    <v-icon class="ml-auto">{{ expandedDates.has(d.date) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
                   </v-col>
                 </v-row>
               </v-card-text>
