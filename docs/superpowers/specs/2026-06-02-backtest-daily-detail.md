@@ -20,9 +20,22 @@
 | `hold_score_low` | 排名靠后评分低 | 不在 `sell_rank_n` 内且 `score < hold_score_threshold` |
 | `full_position_forced_sell` | 满仓强制卖出 | 满仓容忍卖出逻辑触发（已有） |
 
+#### 卖出理由常量
+
+定义在 `backend/src/trade_alpha/constants.py`：
+
+```python
+# Sell reason constants
+SELL_REASON_STOP_LOSS: str = "stop_loss"
+SELL_REASON_SCORE_BELOW: str = "score_below_sell"
+SELL_REASON_MAX_HOLD_DAYS: str = "max_hold_days"
+SELL_REASON_HOLD_SCORE_LOW: str = "hold_score_low"
+SELL_REASON_FULL_POSITION: str = "full_position_forced_sell"
+```
+
 #### 实现方式
 
-修改 `_check_sell` 方法签名从 `-> bool` 改为 `-> Tuple[bool, str]`，返回 `(是否卖出, 理由)`。卖出逻辑的顺序即为理由判定顺序——第一个匹配的条件即为理由。
+修改 `_check_sell` 方法签名从 `-> bool` 改为 `-> Tuple[bool, str]`，返回 `(是否卖出, 理由常量)`。卖出逻辑的顺序即为理由判定顺序——第一个匹配的条件即为理由。`pipeline.py` 中满仓强制卖出也用常量替代硬编码字符串。
 
 ### 2. 后端 API：每日详情
 
@@ -239,7 +252,9 @@ class DailyDetailResponse(BaseModel):
 
 | 文件 | 改动 |
 |------|------|
-| `strategy/multi_stock_strategy.py` | `_check_sell` 返回值改为 `Tuple[bool, str]`；`make_decisions` 中为卖出 `PendingOrder` 设置 `reason` |
+| `constants.py` | 新增 `SELL_REASON_*` 常量 |
+| `strategy/multi_stock_strategy.py` | `_check_sell` 返回值改为 `Tuple[bool, str]`；`make_decisions` 中为卖出 `PendingOrder` 设置 `reason`（引用常量） |
+| `execution/pipeline.py` | 满仓强制卖出的 `reason` 字段改用常量 |
 | `api/routers/backtest_records.py` | 新增 `GET /{result_id}/daily-details` 端点 |
 
 ### 前端文件
