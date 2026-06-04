@@ -23,6 +23,7 @@ from trade_alpha.constants import (
     DEFAULT_CLASSIFICATION_THRESHOLD_3D,
     DEFAULT_CLASSIFICATION_THRESHOLD_5D,
     DEFAULT_CLASSIFICATION_THRESHOLD_10D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_20D,
     DEFAULT_XGB_N_ESTIMATORS,
     DEFAULT_XGB_MAX_DEPTH,
     DEFAULT_XGB_LEARNING_RATE,
@@ -88,6 +89,7 @@ class ModelConfig(Document):
     classification_threshold_3d: float = DEFAULT_CLASSIFICATION_THRESHOLD_3D
     classification_threshold_5d: float = DEFAULT_CLASSIFICATION_THRESHOLD_5D
     classification_threshold_10d: float = DEFAULT_CLASSIFICATION_THRESHOLD_10D
+    classification_threshold_20d: float = DEFAULT_CLASSIFICATION_THRESHOLD_20D
     # xgboost 超参数（仅 model_type="xgboost" 时使用）
     xgb_n_estimators: int = DEFAULT_XGB_N_ESTIMATORS
     xgb_max_depth: int = DEFAULT_XGB_MAX_DEPTH

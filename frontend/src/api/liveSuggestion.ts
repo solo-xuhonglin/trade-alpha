@@ -31,6 +31,7 @@ export interface OrderSuggestion {
   up_prob_3d: number
   up_prob_5d: number
   up_prob_10d: number
+  up_prob_20d: number
   trend_bonus: number
   vol_penalty: number
   momentum_bonus: number

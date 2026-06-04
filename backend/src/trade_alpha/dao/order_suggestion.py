@@ -32,6 +32,7 @@ class OrderSuggestion(Document):
     up_prob_3d: float
     up_prob_5d: float
     up_prob_10d: float = 0.0
+    up_prob_20d: float = 0.0
 
     # 加减分明细
     trend_bonus: float = 0.0

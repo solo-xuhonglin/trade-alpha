@@ -20,6 +20,7 @@ from trade_alpha.constants import (
     DEFAULT_CLASSIFICATION_THRESHOLD_3D,
     DEFAULT_CLASSIFICATION_THRESHOLD_5D,
     DEFAULT_CLASSIFICATION_THRESHOLD_10D,
+    DEFAULT_CLASSIFICATION_THRESHOLD_20D,
     DEFAULT_XGB_N_ESTIMATORS,
     DEFAULT_XGB_MAX_DEPTH,
     DEFAULT_XGB_LEARNING_RATE,
@@ -76,6 +77,7 @@ async def create_config(
     classification_threshold_3d: float = DEFAULT_CLASSIFICATION_THRESHOLD_3D,
     classification_threshold_5d: float = DEFAULT_CLASSIFICATION_THRESHOLD_5D,
     classification_threshold_10d: float = DEFAULT_CLASSIFICATION_THRESHOLD_10D,
+    classification_threshold_20d: float = DEFAULT_CLASSIFICATION_THRESHOLD_20D,
     xgb_n_estimators: int = 100,
     xgb_max_depth: int = 6,
     xgb_learning_rate: float = 0.1,
@@ -111,6 +113,7 @@ async def create_config(
         classification_threshold_3d: 3-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_3D
         classification_threshold_5d: 5-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_5D
         classification_threshold_10d: 10-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_10D
+        classification_threshold_20d: 20-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_20D
         xgb_n_estimators: XGBoost number of trees, defaults to 100
         xgb_max_depth: XGBoost max tree depth, defaults to 6
         xgb_learning_rate: XGBoost learning rate, defaults to 0.1
@@ -157,6 +160,7 @@ async def create_config(
         classification_threshold_3d=classification_threshold_3d,
         classification_threshold_5d=classification_threshold_5d,
         classification_threshold_10d=classification_threshold_10d,
+        classification_threshold_20d=classification_threshold_20d,
         xgb_n_estimators=xgb_n_estimators,
         xgb_max_depth=xgb_max_depth,
         xgb_learning_rate=xgb_learning_rate,

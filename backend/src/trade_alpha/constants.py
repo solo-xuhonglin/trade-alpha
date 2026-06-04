@@ -3,7 +3,7 @@
 from typing import List
 
 # Classification horizons default values
-DEFAULT_CLASSIFICATION_HORIZONS: List[int] = [3, 5, 10]
+DEFAULT_CLASSIFICATION_HORIZONS: List[int] = [3, 5, 10, 20]
 
 # Label mode
 DEFAULT_LABEL_MODE: str = "threshold"
@@ -12,6 +12,7 @@ DEFAULT_LABEL_MODE: str = "threshold"
 DEFAULT_CLASSIFICATION_THRESHOLD_3D: float = 0.01
 DEFAULT_CLASSIFICATION_THRESHOLD_5D: float = 0.015
 DEFAULT_CLASSIFICATION_THRESHOLD_10D: float = 0.02
+DEFAULT_CLASSIFICATION_THRESHOLD_20D: float = 0.05
 
 # LSTM default hyperparameters
 DEFAULT_LSTM_HIDDEN_SIZE: int = 64

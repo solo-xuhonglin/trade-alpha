@@ -8,8 +8,8 @@ from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockDaily, StockList
 
 
-def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02) -> pd.DataFrame:
-    threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d}
+def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
+    threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d, 20: threshold_20d}
     label_cols = [f"label_{h}d" for h in horizons]
     result_parts = []
     for ts_code, group in df.groupby("ts_code"):
@@ -25,13 +25,14 @@ def _create_classification_labels(df: pd.DataFrame, horizons: List[int], thresho
     return pd.concat(result_parts, ignore_index=True)
 
 
-def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02) -> pd.DataFrame:
+def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
     label_configs = {
         3: {"ma_base": "ma_20", "ma_slope": "ma_5", "shift": 2},
         5: {"ma_base": "ma_40", "ma_slope": "ma_10", "shift": 3},
         10: {"ma_base": "ma_60", "ma_slope": "ma_20", "shift": 5},
+        20: {"ma_base": "ma_60", "ma_slope": "ma_20", "shift": 10},
     }
-    threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d}
+    threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d, 20: threshold_20d}
     required_ma = set()
     for h in horizons:
         if h in label_configs:
@@ -68,10 +69,10 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
     return pd.concat(result_parts, ignore_index=True)
 
 
-def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02) -> pd.DataFrame:
+def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
     if label_mode == "trend":
-        return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d)
-    return _create_classification_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d)
+        return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
+    return _create_classification_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
 
 
 async def _load_year_data(year: int, ts_codes: List[str], horizon: int, extra_days: int = 0) -> Optional[pd.DataFrame]:

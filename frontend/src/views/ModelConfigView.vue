@@ -95,14 +95,17 @@
                   ]" label="标签计算模式"
                     hint="threshold: 基于未来涨跌幅阈值分类; trend: 基于均线位置斜率 + 涨跌幅阈值分类" persistent-hint></v-select>
                 </v-col>
-                  <v-col cols="12" sm="4">
+                  <v-col cols="12" sm="3">
                     <v-text-field v-model.number="form.classification_threshold_3d" label="3日涨跌阈值" type="number" step="0.005" hint="短周期，小阈值" persistent-hint></v-text-field>
                   </v-col>
-                  <v-col cols="12" sm="4">
+                  <v-col cols="12" sm="3">
                     <v-text-field v-model.number="form.classification_threshold_5d" label="5日涨跌阈值" type="number" step="0.005" hint="中周期" persistent-hint></v-text-field>
                   </v-col>
-                  <v-col cols="12" sm="4">
+                  <v-col cols="12" sm="3">
                     <v-text-field v-model.number="form.classification_threshold_10d" label="10日涨跌阈值" type="number" step="0.005" hint="长周期，大阈值" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="3">
+                    <v-text-field v-model.number="form.classification_threshold_20d" label="20日涨跌阈值" type="number" step="0.005" hint="更长周期，更大阈值" persistent-hint></v-text-field>
                   </v-col>
               </v-row>
 
@@ -270,11 +273,12 @@ const defaultForm = {
   feature_fields: [...priceIndependentFields],
   standardize_fields: [...INDICATOR_FIELDS],
   winsorize_fields: [...INDICATOR_FIELDS],
-  classification_horizons: [3, 5, 10],
+  classification_horizons: [3, 5, 10, 20],
   label_mode: 'threshold',
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,
   classification_threshold_10d: 0.02,
+  classification_threshold_20d: 0.05,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
@@ -323,6 +327,7 @@ const xgbRecommendedParams = {
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,
   classification_threshold_10d: 0.02,
+  classification_threshold_20d: 0.05,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
@@ -339,6 +344,7 @@ const lstmRecommendedParams = {
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,
   classification_threshold_10d: 0.02,
+  classification_threshold_20d: 0.05,
   lstm_hidden_size: 64,
   lstm_num_layers: 2,
   lstm_dropout: 0.2,
@@ -396,6 +402,7 @@ const openDialog = (item?: ModelConfig) => {
       classification_threshold_3d: (item as any).classification_threshold_3d ?? 0.01,
       classification_threshold_5d: (item as any).classification_threshold_5d ?? 0.015,
       classification_threshold_10d: (item as any).classification_threshold_10d ?? 0.02,
+      classification_threshold_20d: (item as any).classification_threshold_20d ?? 0.05,
       xgb_n_estimators: item.xgb_n_estimators,
       xgb_max_depth: item.xgb_max_depth,
       xgb_learning_rate: item.xgb_learning_rate,

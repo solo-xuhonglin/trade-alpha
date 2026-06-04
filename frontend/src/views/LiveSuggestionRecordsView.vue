@@ -115,6 +115,9 @@
           <template v-slot:item.up_prob_10d="{ item }">
             {{ (item.up_prob_10d * 100).toFixed(1) }}%
           </template>
+          <template v-slot:item.up_prob_20d="{ item }">
+            {{ (item.up_prob_20d * 100).toFixed(1) }}%
+          </template>
           <template v-slot:item.trend_bonus="{ item }">
             <span :class="bonusClass(item.trend_bonus)">{{ item.trend_bonus.toFixed(3) }}</span>
           </template>
@@ -191,6 +194,7 @@ const orderHeaders = [
   { title: '涨概率(3日)', key: 'up_prob_3d' },
   { title: '涨概率(5日)', key: 'up_prob_5d' },
   { title: '涨概率(10日)', key: 'up_prob_10d' },
+  { title: '涨概率(20日)', key: 'up_prob_20d' },
   { title: '趋势加分', key: 'trend_bonus' },
   { title: '波动扣分', key: 'vol_penalty' },
   { title: '动量加成', key: 'momentum_bonus' },

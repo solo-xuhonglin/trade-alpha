@@ -14,6 +14,7 @@ class ScoredStock:
     up_prob_5d: float
     up_prob_10d: float
     score: float
+    up_prob_20d: float = 0.0
 
 
 @dataclass
@@ -29,3 +30,4 @@ class PendingOrder:
     up_prob_10d: float
     trade_date: str
     settle_date: str
+    up_prob_20d: float = 0.0

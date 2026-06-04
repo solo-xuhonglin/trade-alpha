@@ -23,6 +23,7 @@ class ExecutionTrade(Document):
     up_prob_3d: Optional[float] = None
     up_prob_5d: Optional[float] = None
     up_prob_10d: Optional[float] = None
+    up_prob_20d: Optional[float] = None
     pnl_amount: Optional[float] = None
     pnl_pct: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.now)

@@ -549,6 +549,8 @@ class ExecutionPipeline:
                 filled_price=0.0, order_price=order.order_price, shares=0, fee=0.0, cash_after=0.0,
                 status="cancelled", reason="cancelled",
                 entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
+                up_prob_10d=order.up_prob_10d,
+                up_prob_20d=getattr(order, 'up_prob_20d', 0.0),
             ) for order in unfilled_orders
         ]
 
@@ -645,6 +647,8 @@ class ExecutionPipeline:
                 up_prob_5d=r["up_prob_5d"],
                 score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
+                up_prob_10d=r.get("up_prob_10d", 0.0),
+                up_prob_20d=r.get("up_prob_20d", 0.0),
                 is_excluded=r.get("is_excluded", False),
                 trend_bonus=r.get("trend_bonus", 0.0),
                 vol_penalty=r.get("vol_penalty", 0.0),
@@ -970,6 +974,7 @@ class ExecutionPipeline:
                     up_prob_3d=order.up_prob_3d,
                     up_prob_5d=order.up_prob_5d,
                     up_prob_10d=pred.get("up_prob_10d", 0.0),
+                    up_prob_20d=pred.get("up_prob_20d", 0.0),
                     trend_bonus=pred.get("trend_bonus", 0.0),
                     vol_penalty=pred.get("vol_penalty", 0.0),
                     momentum_bonus=pred.get("momentum_bonus", 0.0),
@@ -1077,6 +1082,7 @@ class ExecutionPipeline:
                 up_prob_3d=r.get("up_prob_3d", 0),
                 up_prob_5d=r.get("up_prob_5d", 0),
                 up_prob_10d=r.get("up_prob_10d", 0),
+                up_prob_20d=r.get("up_prob_20d", 0),
                 score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
                 is_excluded=r.get("is_excluded", False),

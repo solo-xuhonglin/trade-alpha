@@ -50,6 +50,7 @@ def _order_to_dict(o) -> dict:
         "up_prob_3d": o.up_prob_3d,
         "up_prob_5d": o.up_prob_5d,
         "up_prob_10d": o.up_prob_10d,
+        "up_prob_20d": o.up_prob_20d,
         "trend_bonus": o.trend_bonus,
         "vol_penalty": o.vol_penalty,
         "momentum_bonus": o.momentum_bonus,
