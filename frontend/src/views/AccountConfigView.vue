@@ -4,6 +4,8 @@
       :headers="headers"
       :items="accountConfigs"
       :loading="loading"
+      show-select
+      v-model="selected"
     >
       <template v-slot:top>
         <v-toolbar flat>
@@ -17,6 +19,14 @@
             text="新建账户"
             border
             @click="openDialog()"
+          ></v-btn>
+          <v-btn
+            prepend-icon="mdi-compare"
+            rounded="lg"
+            text="对比"
+            border
+            :disabled="selected.length !== 2"
+            @click="compareDialog = true"
           ></v-btn>
         </v-toolbar>
       </template>
@@ -41,6 +51,7 @@
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
+          <v-btn size="small" variant="text" prepend-icon="mdi-content-copy" @click="openDialog(item, true)">复制</v-btn>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
@@ -103,17 +114,30 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <ConfigCompareDialog
+    v-model="compareDialog"
+    :configA="selected[0]"
+    :configB="selected[1]"
+    :fields="compareFields"
+    :titleA="selected[0]?.name"
+    :titleB="selected[1]?.name"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { accountConfigApi, type AccountConfig } from '@/api/accountConfig'
+import ConfigCompareDialog from '@/components/ConfigCompareDialog.vue'
+import type { CompareField } from '@/components/ConfigCompareDialog.vue'
 
 const loading = ref(false)
 const dialog = ref(false)
 const deleteDialog = ref(false)
 const accountConfigs = ref<AccountConfig[]>([])
 const editingId = ref<string | null>(null)
+const selected = ref<AccountConfig[]>([])
+const compareDialog = ref(false)
 const deletingItem = ref<AccountConfig | null>(null)
 const form = ref({
   name: '',
@@ -123,6 +147,15 @@ const form = ref({
   stamp_tax_rate: 0.001,
   min_fee: 5,
 })
+
+const compareFields: CompareField[] = [
+  { key: 'name', label: '名称' },
+  { key: 'initial_capital', label: '初始资金', type: 'number' },
+  { key: 'buy_fee_rate', label: '买入费率', type: 'number' },
+  { key: 'sell_fee_rate', label: '卖出费率', type: 'number' },
+  { key: 'stamp_tax_rate', label: '印花税', type: 'number' },
+  { key: 'min_fee', label: '最低手续费', type: 'number' },
+]
 
 const headers = [
   { title: '名称', key: 'name' },
@@ -157,10 +190,17 @@ const loadAccountConfigs = async () => {
   loading.value = false
 }
 
-const openDialog = (item?: AccountConfig) => {
+const openDialog = (item?: AccountConfig, isCopy = false) => {
   if (item) {
-    editingId.value = item.id
-    form.value = { ...item }
+    editingId.value = isCopy ? null : item.id
+    form.value = {
+      name: item.name + '_copy',
+      initial_capital: item.initial_capital,
+      buy_fee_rate: item.buy_fee_rate,
+      sell_fee_rate: item.sell_fee_rate,
+      stamp_tax_rate: item.stamp_tax_rate,
+      min_fee: item.min_fee,
+    }
   } else {
     editingId.value = null
     form.value = { name: 'default_account_config', initial_capital: 100000, buy_fee_rate: 0.0003, sell_fee_rate: 0.0003, stamp_tax_rate: 0.001, min_fee: 5 }
