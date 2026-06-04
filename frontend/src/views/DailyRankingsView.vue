@@ -56,13 +56,26 @@
       <template v-slot:item.order_price="{ item }">
         {{ item.order_price.toFixed(2) }}
       </template>
+      <template v-slot:item.actions="{ item }">
+        <v-btn size="x-small" variant="text" color="primary" @click="openKline(item)">
+          K线
+        </v-btn>
+      </template>
     </v-data-table-server>
   </v-card>
+
+  <LivePredictionChart
+    v-model="klineDialog"
+    :ts-code="klineTsCode"
+    :stock-name="klineStockName"
+    :daily-score="klineDailyScore!"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { liveSuggestionApi, type LiveDailyStockScore } from '@/api/liveSuggestion'
+import LivePredictionChart from '@/components/LivePredictionChart.vue'
 
 const items = ref<LiveDailyStockScore[]>([])
 const total = ref(0)
@@ -71,6 +84,18 @@ const page = ref(1)
 const pageSize = 100
 const loading = ref(false)
 const selectedDate = ref('')
+
+const klineDialog = ref(false)
+const klineTsCode = ref('')
+const klineStockName = ref<string | null>(null)
+const klineDailyScore = ref<LiveDailyStockScore | null>(null)
+
+function openKline(item: LiveDailyStockScore) {
+  klineTsCode.value = item.ts_code
+  klineStockName.value = item.stock_name
+  klineDailyScore.value = item
+  klineDialog.value = true
+}
 
 const headers = [
   { title: '排名', key: 'rank', width: 80 },
@@ -81,6 +106,7 @@ const headers = [
   { title: '波动扣分', key: 'vol_penalty', width: 100 },
   { title: '动量加成', key: 'momentum_bonus', width: 100 },
   { title: '参考价格', key: 'order_price', width: 100 },
+  { title: '操作', key: 'actions', sortable: false, width: 80 },
 ]
 
 function getRankColor(rank: number): string {

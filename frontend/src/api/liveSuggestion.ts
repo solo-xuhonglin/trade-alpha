@@ -112,6 +112,11 @@ export const liveSuggestionApi = {
       params: { trade_date: tradeDate, page, page_size: pageSize },
     }),
 
+  listStockDailyScores: (tsCode: string) =>
+    api.get<{ items: LiveDailyStockScore[]; start_date: string | null; end_date: string | null }>(
+      `/live-suggestion/daily-scores/stock/${encodeURIComponent(tsCode)}`
+    ),
+
   listRuns: (page: number = 1, page_size: number = 20) =>
     api.get<LiveSuggestionRunListResponse>('/live-suggestion/runs', { params: { page, page_size } }),
 

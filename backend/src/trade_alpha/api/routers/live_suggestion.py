@@ -180,6 +180,43 @@ async def list_daily_scores(
     }
 
 
+@router.get("/daily-scores/stock/{ts_code}")
+async def list_stock_daily_scores(ts_code: str):
+    """Return all daily scores for a stock, sorted by trade_date ascending."""
+    items = await LiveDailyStockScore.find(
+        LiveDailyStockScore.ts_code == ts_code
+    ).sort(LiveDailyStockScore.trade_date).to_list()
+
+    if not items:
+        return {"items": [], "start_date": None, "end_date": None}
+
+    def _to_dict(s) -> dict:
+        return {
+            "ts_code": s.ts_code,
+            "stock_name": s.stock_name,
+            "trade_date": s.trade_date,
+            "rank": s.rank,
+            "composite_score": s.composite_score,
+            "ranking_score": s.ranking_score,
+            "up_prob_3d": s.up_prob_3d,
+            "up_prob_5d": s.up_prob_5d,
+            "up_prob_10d": s.up_prob_10d,
+            "trend_bonus": s.trend_bonus,
+            "vol_penalty": s.vol_penalty,
+            "momentum_bonus": s.momentum_bonus,
+            "order_price": s.order_price,
+            "order_shares": s.order_shares,
+            "is_excluded": s.is_excluded,
+            "updated_at": s.updated_at,
+        }
+
+    return {
+        "items": [_to_dict(s) for s in items],
+        "start_date": items[0].trade_date,
+        "end_date": items[-1].trade_date,
+    }
+
+
 @router.get("/runs")
 async def list_live_suggestion_runs(page: int = 1, page_size: int = 20):
     """List all live suggestion runs."""
