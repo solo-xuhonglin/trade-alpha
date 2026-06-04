@@ -1,5 +1,7 @@
 """Live suggestion runner for subprocess execution."""
 
+from typing import Optional
+
 from beanie import PydanticObjectId
 
 from trade_alpha.task.runner import BaseRunner
@@ -58,9 +60,20 @@ class LiveSuggestionRunner(BaseRunner):
                 ts_codes=None,
             )
 
+            target_dates: Optional[list[str]] = None
+            if params.get("start_date") and params.get("end_date"):
+                from trade_alpha.dao.trade_calendar import TradeCalendar
+                calendar_days = await TradeCalendar.find(
+                    TradeCalendar.cal_date >= params["start_date"],
+                    TradeCalendar.cal_date <= params["end_date"],
+                    TradeCalendar.is_open == 1,
+                ).sort(TradeCalendar.cal_date).to_list()
+                target_dates = [c.cal_date for c in calendar_days]
+
             result_id = await pipeline.run_live_suggestion(
                 task_id=self.task_id,
                 universe_limit=300,
+                target_dates=target_dates,
             )
 
             await TaskService.complete_task(self.task_id, str(result_id))

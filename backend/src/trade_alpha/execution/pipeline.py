@@ -9,6 +9,8 @@ from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
+from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
+from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
@@ -217,8 +219,6 @@ class ExecutionPipeline:
                 order_price=close_prices.get(ts_code, 0),
                 order_shares=-pos.shares,
                 score=0.0,
-                up_prob_3d=0.0,
-                up_prob_5d=0.0,
                 trade_date=date,
                 settle_date=_next_date(date),
                 reason=SELL_REASON_FULL_POSITION,
@@ -550,7 +550,7 @@ class ExecutionPipeline:
                 status="cancelled", reason="cancelled",
                 entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
                 up_prob_10d=order.up_prob_10d,
-                up_prob_20d=getattr(order, 'up_prob_20d', 0.0),
+                up_prob_20d=order.up_prob_20d,
             ) for order in unfilled_orders
         ]
 
@@ -640,23 +640,27 @@ class ExecutionPipeline:
 
         self._smooth_scores(pred_results)
 
-        scored = [
-            ScoredStock(
-                ts_code=ts_code, stock_name=name_map.get(ts_code, ts_code),
-                close=r["close"], up_prob_3d=r["up_prob_3d"],
-                up_prob_5d=r["up_prob_5d"],
+        horizons = self._config.classification_horizons
+        scored = []
+        for ts_code, r in pred_results.items():
+            kwargs = dict(
+                ts_code=ts_code,
+                stock_name=name_map.get(ts_code, ts_code),
+                close=r["close"],
                 score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
-                up_prob_10d=r.get("up_prob_10d", 0.0),
-                up_prob_20d=r.get("up_prob_20d", 0.0),
                 is_excluded=r.get("is_excluded", False),
                 trend_bonus=r.get("trend_bonus", 0.0),
                 vol_penalty=r.get("vol_penalty", 0.0),
                 price_slope=r.get("price_slope", 0.0),
                 price_r_squared=r.get("price_r_squared", 0.0),
                 price_avg_range=r.get("price_avg_range", 0.0),
-            ) for ts_code, r in pred_results.items()
-        ]
+            )
+            # Dynamically populate up_prob fields for all configured horizons
+            for h in horizons:
+                key = f"up_prob_{h}d"
+                kwargs[key] = r[key]
+            scored.append(ScoredStock(**kwargs))
         self._record_ranks(scored, pred_results)
         if date == start_date:
             logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
@@ -838,6 +842,7 @@ class ExecutionPipeline:
         self,
         task_id: Optional[PydanticObjectId] = None,
         universe_limit: int = 300,
+        target_dates: Optional[list[str]] = None,
     ) -> PydanticObjectId:
         """Generate next-day buy suggestions using latest market data.
 
@@ -845,20 +850,24 @@ class ExecutionPipeline:
         to build score buffers for EWMA smoothing. No orders, no snapshots.
 
         Phase 2 (target day): Runs full prediction + make_decisions on target_date,
-        saves buy suggestions to OrderSuggestion collection.
+        saves buy suggestions to LiveOrderSuggestion collection.
 
         Returns the LiveSuggestionRun id.
         """
         from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
-        from trade_alpha.dao.order_suggestion import OrderSuggestion
+        from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 
-        # 1. Determine target_date (latest trading day)
-        target_date = await self.data_loader.get_latest_trading_day()
-        if not target_date:
-            raise ValueError("No trading data available in database")
-        logger.info(f"run_live_suggestion: target_date={target_date}")
+        # 1. Determine target dates
+        if target_dates is None:
+            target_date = await self.data_loader.get_latest_trading_day()
+            if not target_date:
+                raise ValueError("No trading data available in database")
+            target_dates = [target_date]
 
-        # 2. Calculate warmup parameters
+        target_dates = sorted(target_dates)
+        logger.info(f"run_live_suggestion: target_dates={target_dates}")
+
+        # 2. Calculate warmup parameters (based on first target date)
         lookback = max(
             getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
             getattr(self.strategy_config, 'vol_penalty_window', 0) if self.strategy_config and self.strategy_config.use_volatility_penalty else 0,
@@ -866,17 +875,18 @@ class ExecutionPipeline:
             getattr(self.strategy_config, 'acceleration_window', 0) if self.strategy_config and self.strategy_config.use_acceleration_filter else 0,
             getattr(self.strategy_config, 'ranking_smooth_window', 0) if self.strategy_config else 0,
         )
-        warmup_days = max(int(lookback * 1.5), 10)  # at least 10 days
-        warmup_dt = datetime.strptime(target_date, "%Y%m%d") - timedelta(days=warmup_days)
+        warmup_days = max(int(lookback * 1.5), 10)
+        warmup_dt = datetime.strptime(target_dates[0], "%Y%m%d") - timedelta(days=warmup_days)
         warmup_start = warmup_dt.strftime("%Y%m%d")
-        logger.info(f"run_live_suggestion: warmup={warmup_start} -> {target_date} ({warmup_days}d)")
+        logger.info(f"run_live_suggestion: warmup={warmup_start} -> first_target={target_dates[0]} ({warmup_days}d)")
 
-        # 3. Create LiveSuggestionRun record
+        # 3. Create LiveSuggestionRun record (use first target_date for metadata)
+        first_target = target_dates[0]
         run_record = LiveSuggestionRun(
             account_config_id=self.account_config.id,
             training_id=self.training_id,
             strategy_config_id=self.strategy_config.id if self.strategy_config else None,
-            target_date=target_date,
+            target_date=first_target,
             warmup_start=warmup_start,
             warmup_days=warmup_days,
             status="running",
@@ -887,8 +897,8 @@ class ExecutionPipeline:
             # 4. Ensure predictor
             await self._ensure_predictor(task_id)
 
-            # 5. Get stock universe (top 300 by market cap)
-            top_stocks = await self.data_loader.get_top_stocks(date=target_date, limit=universe_limit)
+            # 5. Get stock universe (same universe for all target dates)
+            top_stocks = await self.data_loader.get_top_stocks(date=first_target, limit=universe_limit)
             ts_codes = [s["ts_code"] for s in top_stocks]
             name_map = {s["ts_code"]: s.get("name", "") for s in top_stocks}
             self.ts_codes = ts_codes
@@ -896,103 +906,136 @@ class ExecutionPipeline:
 
             # Initialize pipeline state
             self._score_buffer: Dict[str, List[float]] = {}
+            total_orders = 0
 
-            # 6. Phase 1: Warmup loop (no orders, no snapshots)
-            date = warmup_start
-            while date < target_date:
-                if self._skip_non_trading_day(date):
+            # 6. Iterate through all target dates
+            current_warmup_date = warmup_start
+            for idx, target_date in enumerate(target_dates):
+                if task_id:
+                    await TaskService.update_progress(
+                        task_id,
+                        (idx / len(target_dates)) * 100,
+                        f"正在处理 {target_date} ({idx + 1}/{len(target_dates)})",
+                    )
+
+                # 6a. Warmup from current_warmup_date to (target_date - 1)
+                date = current_warmup_date
+                while date < target_date:
+                    if ExecutionPipeline._skip_non_trading_day(date):
+                        date = _next_date(date)
+                        continue
+
+                    day_data = await ExecutionPipeline._load_day_data(date, ts_codes, self.data_loader)
+                    if not day_data:
+                        date = _next_date(date)
+                        continue
+
+                    close_prices = day_data["close"]
+                    vol_prices = day_data.get("vol", {})
+
+                    scored, _ = await self._predict(date, close_prices, name_map, target_date, vol_prices)
+                    if not scored:
+                        logger.debug(f"warmup {date}: no predictions")
+
                     date = _next_date(date)
-                    continue
 
-                day_data = await self._load_day_data(date, ts_codes, self.data_loader)
+                # 6b. Target day - full prediction + scoring
+                day_data = await ExecutionPipeline._load_day_data(target_date, ts_codes, self.data_loader)
                 if not day_data:
-                    date = _next_date(date)
+                    logger.warning(f"run_live_suggestion: no data for {target_date}, skipping")
+                    current_warmup_date = target_date
                     continue
 
                 close_prices = day_data["close"]
                 vol_prices = day_data.get("vol", {})
 
-                scored, pred_results = await self._predict(date, close_prices, name_map, target_date, vol_prices)
+                scored, pred_results = await self._predict(target_date, close_prices, name_map, target_date, vol_prices)
                 if not scored:
-                    logger.debug(f"warmup {date}: no predictions")
+                    logger.warning(f"run_live_suggestion: no predictions for {target_date}, skipping")
+                    current_warmup_date = target_date
+                    continue
 
-                date = _next_date(date)
+                # 6c. Apply full_position_sell
+                self._daily_forced_sells = []
+                self._apply_full_position_sell(pred_results, close_prices, target_date, name_map)
 
-            logger.info(f"run_live_suggestion: warmup done, score_buffer has "
-                         f"{len(self._score_buffer)} stocks")
-
-            # 7. Phase 2: Target day - full prediction + scoring
-            day_data = await self._load_day_data(target_date, ts_codes, self.data_loader)
-            if not day_data:
-                run_record.status = "no_data"
-                run_record.error_message = f"No data for target_date={target_date}"
-                await run_record.save()
-                return run_record.id
-
-            close_prices = day_data["close"]
-            vol_prices = day_data.get("vol", {})
-
-            scored, pred_results = await self._predict(target_date, close_prices, name_map, target_date, vol_prices)
-            if not scored:
-                run_record.status = "no_data"
-                run_record.error_message = f"No predictions for target_date={target_date}"
-                await run_record.save()
-                return run_record.id
-
-            # 8. Apply full_position_sell (won't trigger with empty portfolio, but maintains consistency)
-            self._daily_forced_sells = []
-            self._apply_full_position_sell(pred_results, close_prices, target_date, name_map)
-
-            # 9. Generate buy suggestions (empty portfolio - only buys)
-            pending_orders = await self.strategy.make_decisions(
-                scored_stocks=scored,
-                portfolio=self.portfolio,
-                trade_date=target_date,
-                close_prices=close_prices,
-            )
-
-            logger.info(f"run_live_suggestion: {len(pending_orders)} orders generated")
-
-            # 10. Save to OrderSuggestion
-            settle_date = _next_date(target_date)
-            suggestions = []
-            for order in pending_orders:
-                pred = pred_results.get(order.ts_code, {})
-                suggestions.append(OrderSuggestion(
-                    run_id=run_record.id,
-                    ts_code=order.ts_code,
-                    stock_name=name_map.get(order.ts_code, order.ts_code),
+                # 6d. Generate buy suggestions
+                pending_orders = await self.strategy.make_decisions(
+                    scored_stocks=scored,
+                    portfolio=self.portfolio,
                     trade_date=target_date,
-                    settle_date=settle_date,
-                    action="buy",
-                    order_price=order.order_price,
-                    order_shares=order.order_shares,
-                    raw_score=pred.get("raw_score", order.score),
-                    composite_score=pred.get("composite_score", order.score),
-                    ranking_score=order.ranking_score,
-                    rank=pred.get("rank", 0),
-                    up_prob_3d=order.up_prob_3d,
-                    up_prob_5d=order.up_prob_5d,
-                    up_prob_10d=pred.get("up_prob_10d", 0.0),
-                    up_prob_20d=pred.get("up_prob_20d", 0.0),
-                    trend_bonus=pred.get("trend_bonus", 0.0),
-                    vol_penalty=pred.get("vol_penalty", 0.0),
-                    momentum_bonus=pred.get("momentum_bonus", 0.0),
-                    is_excluded=pred.get("is_excluded", False),
-                    excluded_reason=pred.get("excluded_reason", None),
-                    reason=order.reason or "live_suggestion",
-                ))
+                    close_prices=close_prices,
+                )
 
-            if suggestions:
-                await OrderSuggestion.insert_many(suggestions)
+                logger.info(f"run_live_suggestion: {target_date} -> {len(pending_orders)} orders")
 
-            # 11. Update run record
-            run_record.order_count = len(suggestions)
+                # 6e. Upsert all scored stocks to LiveDailyStockScore
+                for s in scored:
+                    pred = pred_results.get(s.ts_code, {})
+                    await LiveDailyStockScore.find_one_and_update(
+                        {"ts_code": s.ts_code, "trade_date": target_date},
+                        {"$set": {
+                            "stock_name": s.stock_name,
+                            "rank": pred.get("rank", 0),
+                            "composite_score": s.score,
+                            "ranking_score": s.ranking_score,
+                            "up_prob_3d": getattr(s, "up_prob_3d", 0.0),
+                            "up_prob_5d": getattr(s, "up_prob_5d", 0.0),
+                            "up_prob_10d": getattr(s, "up_prob_10d", 0.0),
+                            "trend_bonus": getattr(s, "trend_bonus", 0.0),
+                            "vol_penalty": getattr(s, "vol_penalty", 0.0),
+                            "momentum_bonus": pred.get("momentum_bonus", 0.0),
+                            "order_price": close_prices.get(s.ts_code, 0.0),
+                            "order_shares": next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0),
+                            "is_excluded": s.is_excluded,
+                            "updated_at": datetime.utcnow(),
+                        }},
+                        upsert=True,
+                    )
+
+                # 6f. Save to LiveOrderSuggestion
+                settle_date = _next_date(target_date)
+                suggestions = []
+                for order in pending_orders:
+                    pred = pred_results.get(order.ts_code, {})
+                    kwargs = dict(
+                        run_id=run_record.id,
+                        ts_code=order.ts_code,
+                        stock_name=name_map.get(order.ts_code, order.ts_code),
+                        trade_date=target_date,
+                        settle_date=settle_date,
+                        action="buy",
+                        order_price=order.order_price,
+                        order_shares=order.order_shares,
+                        raw_score=pred.get("raw_score", order.score),
+                        composite_score=pred.get("composite_score", order.score),
+                        ranking_score=order.ranking_score,
+                        rank=pred.get("rank", 0),
+                        trend_bonus=pred.get("trend_bonus", 0.0),
+                        vol_penalty=pred.get("vol_penalty", 0.0),
+                        momentum_bonus=pred.get("momentum_bonus", 0.0),
+                        is_excluded=pred.get("is_excluded", False),
+                        excluded_reason=pred.get("excluded_reason", None),
+                        reason=order.reason or "live_suggestion",
+                    )
+                    for h in self._config.classification_horizons:
+                        key = f"up_prob_{h}d"
+                        kwargs[key] = pred.get(key, getattr(order, key, 0.0))
+                    suggestions.append(LiveOrderSuggestion(**kwargs))
+
+                if suggestions:
+                    await LiveOrderSuggestion.insert_many(suggestions)
+
+                total_orders += len(suggestions)
+                current_warmup_date = target_date
+
+            # 7. Update run record
+            run_record.order_count = total_orders
             run_record.status = "completed"
             await run_record.save()
 
             logger.info(f"run_live_suggestion: completed, run_id={run_record.id}, "
-                         f"orders={len(suggestions)}")
+                         f"total_orders={total_orders}, dates_processed={len(target_dates)}")
             return run_record.id
 
         except Exception as e:
@@ -1074,21 +1117,20 @@ class ExecutionPipeline:
 
         self._smooth_scores(pred_results)
 
-        scored = [
-            ScoredStock(
+        horizons = self._config.classification_horizons
+        scored = []
+        for ts_code, r in pred_results.items():
+            kwargs = dict(
                 ts_code=ts_code,
                 stock_name=universe.get(ts_code, ""),
                 close=r["close"],
-                up_prob_3d=r.get("up_prob_3d", 0),
-                up_prob_5d=r.get("up_prob_5d", 0),
-                up_prob_10d=r.get("up_prob_10d", 0),
-                up_prob_20d=r.get("up_prob_20d", 0),
                 score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
                 is_excluded=r.get("is_excluded", False),
             )
-            for ts_code, r in pred_results.items()
-        ]
+            for h in horizons:
+                kwargs[f"up_prob_{h}d"] = r[f"up_prob_{h}d"]
+            scored.append(ScoredStock(**kwargs))
 
         pending_orders = await self.strategy.make_decisions(
             scored_stocks=scored,

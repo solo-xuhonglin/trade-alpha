@@ -1307,3 +1307,253 @@ DELETE /api/data-analysis/results/{id}
   "status": "ok"
 }
 ```
+
+## 实盘建议管理
+
+### 触发实盘建议任务（subprocess 异步执行）
+
+通过 `subprocess.Popen` 启动独立子进程执行实盘建议，不阻塞 API 进程。
+
+```
+POST /api/live-suggestion/run
+```
+
+**请求体 (JSON)**:
+```json
+{
+  "account_config_id": "507f1f77bcf86cd799439013",
+  "training_id": "507f1f77bcf86cd799439014",
+  "strategy_config_id": "507f1f77bcf86cd799439015",
+  "start_date": "2026-06-01",
+  "end_date": "2026-06-03"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `account_config_id` | string | 是 | 账户配置 ID |
+| `training_id` | string | 是 | 训练结果 ID |
+| `strategy_config_id` | string | 是 | 策略配置 ID |
+| `start_date` | string | 否 | 回填开始日期 (YYYY-MM-DD)，不传则使用最新交易日 |
+| `end_date` | string | 否 | 回填结束日期 (YYYY-MM-DD)，不传则使用最新交易日 |
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "status": "pending",
+  "message": "Live suggestion task triggered"
+}
+```
+
+### 获取每日全市场评分排名
+
+```
+GET /api/live-suggestion/daily-scores
+```
+
+**参数**:
+- `trade_date` (query, optional): 交易日期 (YYYY-MM-DD)，不传则返回最新日期
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 100
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "ts_code": "002594.SZ",
+      "stock_name": "比亚迪",
+      "trade_date": "2026-06-03",
+      "rank": 1,
+      "composite_score": 0.85,
+      "ranking_score": 0.82,
+      "up_prob_3d": 0.72,
+      "up_prob_5d": 0.68,
+      "up_prob_10d": 0.65,
+      "trend_bonus": 0.03,
+      "vol_penalty": 0.0,
+      "momentum_bonus": 0.02,
+      "order_price": 280.50,
+      "order_shares": 300,
+      "is_excluded": false,
+      "updated_at": "2026-06-03T18:00:00Z"
+    }
+  ],
+  "total": 3000,
+  "page": 1,
+  "page_size": 100,
+  "total_pages": 30,
+  "trade_date": "2026-06-03"
+}
+```
+
+### 获取实盘建议运行记录列表
+
+```
+GET /api/live-suggestion/runs
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "account_config_id": "507f1f77bcf86cd799439013",
+      "training_id": "507f1f77bcf86cd799439014",
+      "strategy_config_id": "507f1f77bcf86cd799439015",
+      "target_date": "20260603",
+      "warmup_start": "20260415",
+      "warmup_days": 30,
+      "status": "completed",
+      "order_count": 10,
+      "error_message": null,
+      "created_at": "2026-06-03T18:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
+### 获取运行记录详情
+
+```
+GET /api/live-suggestion/runs/{run_id}
+```
+
+**响应**:
+```json
+{
+  "run": {
+    "id": "507f1f77bcf86cd799439011",
+    "status": "completed",
+    "order_count": 10,
+    ...
+  },
+  "orders": [
+    {
+      "id": "507f1f77bcf86cd799439012",
+      "ts_code": "002594.SZ",
+      "stock_name": "比亚迪",
+      "trade_date": "20260603",
+      "settle_date": "20260604",
+      "action": "buy",
+      "order_price": 280.50,
+      "order_shares": 300,
+      "composite_score": 0.85,
+      "rank": 1,
+      "up_prob_3d": 0.72,
+      "up_prob_5d": 0.68,
+      "up_prob_10d": 0.65,
+      "is_excluded": false,
+      "reason": "live_suggestion"
+    }
+  ]
+}
+```
+
+### 删除运行记录
+
+```
+DELETE /api/live-suggestion/runs/{run_id}
+```
+
+**响应**:
+```json
+{
+  "message": "Run deleted"
+}
+```
+
+### 获取实盘建议任务列表
+
+```
+GET /api/live-suggestion/tasks
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+- `status` (query, optional): 按状态筛选 "pending"/"running"/"completed"/"failed"/"cancelled"
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "task_id": "507f1f77bcf86cd799439011",
+      "task_type": "live_suggestion",
+      "status": "completed",
+      "progress": 100.0,
+      "progress_message": null,
+      "error_message": null,
+      "created_at": "2026-06-03T18:00:00Z",
+      "completed_at": "2026-06-03T18:05:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
+### 查询实盘建议任务状态
+
+```
+GET /api/live-suggestion/task/{task_id}
+```
+
+**响应**:
+```json
+{
+  "task_id": "507f1f77bcf86cd799439011",
+  "task_type": "live_suggestion",
+  "status": "completed",
+  "progress": 100.0,
+  "progress_message": null,
+  "error_message": null,
+  "created_at": "2026-06-03T18:00:00Z",
+  "started_at": "2026-06-03T18:00:05Z",
+  "completed_at": "2026-06-03T18:05:00Z"
+}
+```
+
+### 停止实盘建议任务
+
+```
+POST /api/live-suggestion/task/{task_id}/stop
+```
+
+**参数**:
+- `force` (query, optional, default `false`): 是否强制终止子进程
+
+**响应**:
+```json
+{
+  "message": "Task stopped",
+  "status": "cancelled"
+}
+```
+
+### 删除实盘建议任务
+
+```
+DELETE /api/live-suggestion/task/{task_id}
+```
+
+**响应**:
+```json
+{
+  "message": "Task deleted"
+}
+```

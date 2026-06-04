@@ -11,7 +11,8 @@ from trade_alpha.models import training as training_module
 from trade_alpha.task.dao import TaskStatus, TaskType
 from trade_alpha.task.service import TaskService
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
-from trade_alpha.dao.order_suggestion import OrderSuggestion
+from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
+from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 
 router = APIRouter(prefix="/live-suggestion", tags=["live-suggestion"])
 
@@ -66,6 +67,8 @@ class LiveSuggestionRunRequest(BaseModel):
     account_config_id: str
     training_id: str
     strategy_config_id: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 
 @router.post("/run")
@@ -87,11 +90,17 @@ async def trigger_live_suggestion(body: LiveSuggestionRunRequest):
         if not strategy:
             raise HTTPException(status_code=404, detail="Strategy config not found")
 
-        task = await TaskService.create_task(TaskType.LIVE_SUGGESTION, {
+        task_params = {
             "account_config_id": body.account_config_id,
             "training_id": body.training_id,
             "strategy_config_id": body.strategy_config_id,
-        })
+        }
+        if body.start_date:
+            task_params["start_date"] = body.start_date
+        if body.end_date:
+            task_params["end_date"] = body.end_date
+
+        task = await TaskService.create_task(TaskType.LIVE_SUGGESTION, task_params)
 
         proc = subprocess.Popen(
             [
@@ -115,6 +124,60 @@ async def trigger_live_suggestion(body: LiveSuggestionRunRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/daily-scores")
+async def list_daily_scores(
+    trade_date: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 100,
+):
+    """List daily stock scores, optionally filtered by trade_date. Defaults to latest date."""
+    if trade_date:
+        query_date = trade_date
+    else:
+        latest = await LiveDailyStockScore.find_all().sort(-LiveDailyStockScore.trade_date).limit(1).first_or_none()
+        if not latest:
+            raise HTTPException(status_code=404, detail="No daily scores found")
+        query_date = latest.trade_date
+
+    skip = (page - 1) * page_size
+    total = await LiveDailyStockScore.find(
+        LiveDailyStockScore.trade_date == query_date
+    ).count()
+    items = await LiveDailyStockScore.find(
+        LiveDailyStockScore.trade_date == query_date
+    ).sort(LiveDailyStockScore.rank).skip(skip).limit(page_size).to_list()
+
+    def _score_to_dict(s) -> dict:
+        return {
+            "id": str(s.id),
+            "ts_code": s.ts_code,
+            "stock_name": s.stock_name,
+            "trade_date": s.trade_date,
+            "rank": s.rank,
+            "composite_score": s.composite_score,
+            "ranking_score": s.ranking_score,
+            "up_prob_3d": s.up_prob_3d,
+            "up_prob_5d": s.up_prob_5d,
+            "up_prob_10d": s.up_prob_10d,
+            "trend_bonus": s.trend_bonus,
+            "vol_penalty": s.vol_penalty,
+            "momentum_bonus": s.momentum_bonus,
+            "order_price": s.order_price,
+            "order_shares": s.order_shares,
+            "is_excluded": s.is_excluded,
+            "updated_at": s.updated_at,
+        }
+
+    return {
+        "items": [_score_to_dict(s) for s in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, (total + page_size - 1) // page_size),
+        "trade_date": query_date,
+    }
 
 
 @router.get("/runs")
@@ -144,10 +207,10 @@ async def get_live_suggestion_run(run_id: str):
     if not run_record:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    orders = await OrderSuggestion.find(
-        OrderSuggestion.run_id == obj_id,
-        OrderSuggestion.is_excluded == False,
-    ).sort(OrderSuggestion.rank).to_list()
+    orders = await LiveOrderSuggestion.find(
+        LiveOrderSuggestion.run_id == obj_id,
+        LiveOrderSuggestion.is_excluded == False,
+    ).sort(LiveOrderSuggestion.rank).to_list()
 
     return {
         "run": _run_to_dict(run_record),
@@ -167,7 +230,7 @@ async def delete_live_suggestion_run(run_id: str):
     if not run_record:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    await OrderSuggestion.find(OrderSuggestion.run_id == obj_id).delete()
+    await LiveOrderSuggestion.find(LiveOrderSuggestion.run_id == obj_id).delete()
     await run_record.delete()
 
     return {"message": "Run deleted"}

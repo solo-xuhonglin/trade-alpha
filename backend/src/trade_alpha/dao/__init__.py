@@ -16,10 +16,14 @@ from trade_alpha.dao.stock_list import StockList
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.order_suggestion import OrderSuggestion
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
+from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
+from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 from trade_alpha.dao.data_analysis_result import DataAnalysisResult
 from trade_alpha.dao.trade_calendar import TradeCalendar
 
 __all__ = [
+    "LiveDailyStockScore",
+    "LiveOrderSuggestion",
     "OrderSuggestion",
     "LiveSuggestionRun",
     "DataAnalysisResult",

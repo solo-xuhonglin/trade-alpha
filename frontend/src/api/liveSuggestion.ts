@@ -74,9 +74,43 @@ export interface LiveSuggestionTaskListResponse {
   total_pages: number
 }
 
+export interface LiveDailyStockScore {
+  id: string
+  ts_code: string
+  stock_name: string | null
+  trade_date: string
+  rank: number
+  composite_score: number
+  ranking_score: number
+  up_prob_3d: number
+  up_prob_5d: number
+  up_prob_10d: number
+  trend_bonus: number
+  vol_penalty: number
+  momentum_bonus: number
+  order_price: number
+  order_shares: number
+  is_excluded: boolean
+  updated_at: string
+}
+
+export interface DailyScoresResponse {
+  items: LiveDailyStockScore[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+  trade_date: string
+}
+
 export const liveSuggestionApi = {
-  trigger: (body: { account_config_id: string; training_id: string; strategy_config_id: string }) =>
+  trigger: (body: { account_config_id: string; training_id: string; strategy_config_id: string; start_date?: string; end_date?: string }) =>
     api.post<{ task_id: string; status: string; message: string }>('/live-suggestion/run', body),
+
+  listDailyScores: (tradeDate?: string, page: number = 1, pageSize: number = 100) =>
+    api.get<DailyScoresResponse>('/live-suggestion/daily-scores', {
+      params: { trade_date: tradeDate, page, page_size: pageSize },
+    }),
 
   listRuns: (page: number = 1, page_size: number = 20) =>
     api.get<LiveSuggestionRunListResponse>('/live-suggestion/runs', { params: { page, page_size } }),

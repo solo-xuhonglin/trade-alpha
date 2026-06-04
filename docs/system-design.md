@@ -172,7 +172,9 @@ trade-alpha/
 - `position.py`: 持仓嵌入模型
 - `prediction.py`: 预测结果 Document（包含 probabilities 字段）
 - `signal.py`: 交易信号 Document
-- `order_suggestion.py`: 订单建议 Document
+- `live_daily_stock_score.py`: 每日逐股评分/排名 Document（按 ts_code+trade_date upsert）
+- `live_order_suggestion.py`: 实盘订单建议 Document（原 OrderSuggestion，已重命名，同一 collection）
+- `order_suggestion.py`: 旧版订单建议 Document（保留向后兼容）
 - `data_analysis_result.py`: 数据分析结果 Document
 
 *注：`Task` Document 已移至独立 `task/dao.py` 模块（见第10节任务模块）*
@@ -340,6 +342,7 @@ trade-alpha/
 **核心方法**:
 - `run_backtest()`: 回测模式执行
 - `run_live()`: 实盘模式执行
+- `run_live_suggestion(target_dates=None)`: 实盘建议模式，支持指定 `target_dates` 列表进行多日回填；每次运行先预热 EWMA 缓冲区，再逐日预测评分，将全量评分 upsert 到 `LiveDailyStockScore`，Top-K 买入建议保存到 `LiveOrderSuggestion`
 
 **策略模式**:
 - `multi`: 多股票组合策略，基于评分排名
@@ -452,6 +455,7 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `data_analysis.py` | 数据分析（异步任务模式） |
 | `model_configs.py` | 模型配置 CRUD |
 | `trainings.py` | 训练管理（异步任务模式） |
+| `live_suggestion.py` | 实盘建议管理 |
 
 **异步任务 API**（基于 subprocess 执行）:
 
@@ -472,6 +476,15 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `GET` | `/data-analysis/task/{task_id}` | 查询分析任务状态 |
 | `GET` | `/data-analysis/results` | 列出分析结果 |
 | `DELETE` | `/data-analysis/results/{id}` | 删除分析结果 |
+| `POST` | `/live-suggestion/run` | 触发实盘建议任务（subprocess Popen 启动，支持可选 start_date/end_date 范围回填） |
+| `GET` | `/live-suggestion/daily-scores` | 获取每日全市场评分排名 |
+| `GET` | `/live-suggestion/runs` | 获取实盘建议运行记录列表 |
+| `GET` | `/live-suggestion/runs/{run_id}` | 获取运行记录详情及订单 |
+| `DELETE` | `/live-suggestion/runs/{run_id}` | 删除运行记录及订单 |
+| `GET` | `/live-suggestion/tasks` | 获取实盘建议任务列表 |
+| `GET` | `/live-suggestion/task/{task_id}` | 查询实盘建议任务状态 |
+| `POST` | `/live-suggestion/task/{task_id}/stop` | 停止实盘建议任务 |
+| `DELETE` | `/live-suggestion/task/{task_id}` | 删除实盘建议任务 |
 
 **执行方式对比**：
 

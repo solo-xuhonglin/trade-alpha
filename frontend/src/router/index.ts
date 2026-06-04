@@ -96,7 +96,12 @@ const routes = [
         path: 'records',
         name: 'LiveSuggestionRecords',
         component: () => import('@/views/LiveSuggestionRecordsView.vue')
-      }
+      },
+      {
+        path: 'daily-rankings',
+        name: 'LiveSuggestionDailyRankings',
+        component: () => import('@/views/DailyRankingsView.vue')
+      },
     ]
   }
 ]

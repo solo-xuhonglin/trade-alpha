@@ -71,6 +71,26 @@
             </v-tooltip>
           </div>
         </v-col>
+        <v-col cols="12" sm="6" md="2">
+          <v-text-field
+            v-model="form.start_date"
+            type="date"
+            label="开始日期"
+            density="compact"
+            hide-details
+            :disabled="!!form.end_date"
+          />
+        </v-col>
+        <v-col cols="12" sm="6" md="2">
+          <v-text-field
+            v-model="form.end_date"
+            type="date"
+            label="结束日期"
+            density="compact"
+            hide-details
+            :disabled="!!form.start_date"
+          />
+        </v-col>
         <v-col cols="12" sm="6" md="4" class="d-flex align-center">
           <v-btn color="primary" block @click="runSuggestion" :loading="running" height="40">
             发起建议
@@ -191,6 +211,8 @@ const form = ref({
   account_config_id: '',
   training_id: '',
   strategy_config_id: '',
+  start_date: '',
+  end_date: '',
 })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
@@ -233,11 +255,14 @@ const runSuggestion = async () => {
   running.value = true
   error.value = ''
   try {
-    await liveSuggestionApi.trigger({
+    const body: any = {
       account_config_id: form.value.account_config_id,
       training_id: form.value.training_id,
       strategy_config_id: form.value.strategy_config_id,
-    })
+    }
+    if (form.value.start_date) body.start_date = form.value.start_date.replace(/-/g, '')
+    if (form.value.end_date) body.end_date = form.value.end_date.replace(/-/g, '')
+    await liveSuggestionApi.trigger(body)
     startPolling()
   } catch (e: any) {
     error.value = e.response?.data?.detail || '发起失败，请重试'
