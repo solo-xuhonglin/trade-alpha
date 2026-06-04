@@ -5,9 +5,9 @@
     </v-chip>
   </template>
   <template v-else-if="type === 'array' && Array.isArray(value)">
-    <v-chip-group>
+    <div class="d-flex flex-wrap ga-1">
       <v-chip v-for="v in value" :key="v" size="x-small" variant="outlined">{{ v }}</v-chip>
-    </v-chip-group>
+    </div>
   </template>
   <template v-else-if="value !== undefined && value !== null">
     {{ String(value) }}

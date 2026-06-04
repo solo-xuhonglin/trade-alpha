@@ -15,9 +15,9 @@
         <v-table density="compact">
           <thead>
             <tr>
-              <th class="text-left" style="width: 220px; min-width: 220px;">参数名</th>
-              <th class="text-left" :class="isAllSame ? '' : 'bg-red-lighten-5'">{{ titleA || '配置A' }}</th>
-              <th class="text-left" :class="isAllSame ? '' : 'bg-red-lighten-5'">{{ titleB || '配置B' }}</th>
+              <th class="text-left" style="width: 180px; min-width: 180px;">参数名</th>
+              <th class="text-left" style="white-space: normal;" :class="isAllSame ? '' : 'bg-red-lighten-5'">{{ titleA || '配置A' }}</th>
+              <th class="text-left" style="white-space: normal;" :class="isAllSame ? '' : 'bg-red-lighten-5'">{{ titleB || '配置B' }}</th>
             </tr>
           </thead>
           <tbody>
