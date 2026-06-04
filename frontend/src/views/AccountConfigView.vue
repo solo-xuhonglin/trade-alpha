@@ -5,6 +5,7 @@
       :items="accountConfigs"
       :loading="loading"
       show-select
+      return-object
       v-model="selected"
     >
       <template v-slot:top>

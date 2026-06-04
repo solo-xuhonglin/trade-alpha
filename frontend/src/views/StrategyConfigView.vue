@@ -4,6 +4,9 @@
       :headers="headers"
       :items="strategies"
       :loading="loading"
+      show-select
+      return-object
+      v-model="selected"
     >
       <template v-slot:top>
         <v-toolbar flat>
@@ -18,12 +21,29 @@
             border
             @click="openDialog()"
           ></v-btn>
+          <v-btn
+            prepend-icon="mdi-compare"
+            rounded="lg"
+            text="对比"
+            border
+            :disabled="selected.length !== 2"
+            @click="compareDialog = true"
+          ></v-btn>
         </v-toolbar>
-      </template>
+      <ConfigCompareDialog
+    v-model="compareDialog"
+    :configA="selected[0]"
+    :configB="selected[1]"
+    :fields="compareFields"
+    :titleA="selected[0]?.name"
+    :titleB="selected[1]?.name"
+  />
+</template>
 
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
+          <v-btn size="small" variant="text" prepend-icon="mdi-content-copy" @click="openDialog(item, true)">复制</v-btn>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
@@ -456,6 +476,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { strategyConfigApi, type Strategy } from '@/api/strategyConfig'
+import ConfigCompareDialog from '@/components/ConfigCompareDialog.vue'
+import type { CompareField } from '@/components/ConfigCompareDialog.vue'
 
 const loading = ref(false)
 const dialog = ref(false)
@@ -465,6 +487,8 @@ const editingId = ref<string | null>(null)
 const deletingItem = ref<Strategy | null>(null)
 const strategyTypes = ['single', 'multi']
 const activeTab = ref('basic')
+const selected = ref<Strategy[]>([])
+const compareDialog = ref(false)
 
 const form = ref({
   name: '',
@@ -518,6 +542,49 @@ const headers = [
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
 ]
 
+const compareFields: CompareField[] = [
+  { key: 'name', label: '策略名称' },
+  { key: 'type', label: '策略类型' },
+  { key: 'min_order_value', label: '最小订单金额', group: '基本配置', type: 'number' },
+  { key: 'stop_loss_pct', label: '止损比例', group: '基本配置', type: 'number' },
+  { key: 'max_hold_days', label: '最大持仓天数', group: '基本配置', type: 'number' },
+  { key: 'min_hold_days', label: '最低持有天数', group: '基本配置', type: 'number' },
+  { key: 'buy_threshold', label: '买入阈值', group: '基本配置', type: 'number' },
+  { key: 'sell_threshold', label: '卖出阈值', group: '基本配置', type: 'number' },
+  { key: 'max_positions', label: '最大持仓数', group: '多股票配置', type: 'number' },
+  { key: 'max_position_pct', label: '单票最大仓位', group: '多股票配置', type: 'number' },
+  { key: 'sell_rank_n', label: '卖出排名阈值', group: '多股票配置', type: 'number' },
+  { key: 'hold_score_threshold', label: '持仓评分保护阈值', group: '多股票配置', type: 'number' },
+  { key: 'use_momentum_boost', label: '动量加权', group: '排名优化', type: 'boolean' },
+  { key: 'momentum_window', label: '动量窗口', group: '排名优化', type: 'number' },
+  { key: 'max_momentum_bonus', label: '最大动量加成', group: '排名优化', type: 'number' },
+  { key: 'ranking_smooth_window', label: '平滑窗口', group: '排名优化', type: 'number' },
+  { key: 'ranking_smooth_alpha', label: '平滑系数', group: '排名优化', type: 'number' },
+  { key: 'use_trend_bonus', label: '趋势加分', group: '排名优化', type: 'boolean' },
+  { key: 'trend_bonus_window', label: '趋势窗口', group: '排名优化', type: 'number' },
+  { key: 'trend_bonus_scale', label: '趋势斜率系数', group: '排名优化', type: 'number' },
+  { key: 'trend_r2_threshold', label: 'R²阈值', group: '排名优化', type: 'number' },
+  { key: 'trend_max_bonus', label: '最大趋势加分', group: '排名优化', type: 'number' },
+  { key: 'use_volatility_penalty', label: '波动扣分', group: '排名优化', type: 'boolean' },
+  { key: 'vol_penalty_window', label: '波动窗口', group: '排名优化', type: 'number' },
+  { key: 'vol_range_tolerance', label: '振幅容忍度', group: '排名优化', type: 'number' },
+  { key: 'vol_penalty_scale', label: '扣分系数', group: '排名优化', type: 'number' },
+  { key: 'vol_max_penalty', label: '最大扣分', group: '排名优化', type: 'number' },
+  { key: 'use_explosion_filter', label: '暴涨排除', group: '交易优化', type: 'boolean' },
+  { key: 'explosion_price_threshold', label: '涨幅阈值', group: '交易优化', type: 'number' },
+  { key: 'explosion_volume_ratio', label: '量比阈值', group: '交易优化', type: 'number' },
+  { key: 'explosion_window', label: '参考窗口', group: '交易优化', type: 'number' },
+  { key: 'use_full_position_sell', label: '满仓容忍度', group: '交易优化', type: 'boolean' },
+  { key: 'full_position_threshold', label: '仓位阈值', group: '交易优化', type: 'number' },
+  { key: 'full_position_days', label: '持续天数', group: '交易优化', type: 'number' },
+  { key: 'full_position_score_window', label: '评分窗口', group: '交易优化', type: 'number' },
+  { key: 'full_position_sell_count', label: '每次卖出数量', group: '交易优化', type: 'number' },
+  { key: 'use_acceleration_filter', label: '加速排除', group: '交易优化', type: 'boolean' },
+  { key: 'acceleration_window', label: '检测窗口', group: '交易优化', type: 'number' },
+  { key: 'acceleration_cum_return', label: '累计涨幅阈值', group: '交易优化', type: 'number' },
+  { key: 'acceleration_up_ratio', label: '上涨天数占比', group: '交易优化', type: 'number' },
+]
+
 const loadStrategies = async () => {
   loading.value = true
   const res = await strategyConfigApi.list()
@@ -525,12 +592,12 @@ const loadStrategies = async () => {
   loading.value = false
 }
 
-const openDialog = (item?: Strategy) => {
+const openDialog = (item?: Strategy, isCopy = false) => {
   activeTab.value = 'basic'
   if (item) {
-    editingId.value = item.id
+    editingId.value = isCopy ? null : item.id
     form.value = {
-      name: item.name,
+      name: item.name + '_copy',
       type: item.type,
       min_order_value: item.min_order_value,
       stop_loss_pct: item.stop_loss_pct,

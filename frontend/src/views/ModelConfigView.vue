@@ -1,6 +1,6 @@
 <template>
   <v-card border rounded>
-    <v-data-table :headers="headers" :items="models" :loading="loading">
+    <v-data-table :headers="headers" :items="models" :loading="loading" show-select return-object v-model="selected">
       <template v-slot:top>
         <v-toolbar flat>
           <v-toolbar-title>
@@ -8,6 +8,14 @@
             模型配置
           </v-toolbar-title>
           <v-btn prepend-icon="mdi-plus" rounded="lg" text="新建配置" border @click="openDialog()"></v-btn>
+          <v-btn
+            prepend-icon="mdi-compare"
+            rounded="lg"
+            text="对比"
+            border
+            :disabled="selected.length !== 2"
+            @click="compareDialog = true"
+          ></v-btn>
         </v-toolbar>
       </template>
       <template v-slot:item.feature_fields="{ item }">
@@ -33,6 +41,7 @@
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
           <v-btn size="small" variant="text" prepend-icon="mdi-pencil" @click="openDialog(item)">编辑</v-btn>
+          <v-btn size="small" variant="text" prepend-icon="mdi-content-copy" @click="openDialog(item, true)">复制</v-btn>
           <v-btn size="small" variant="text" color="error" prepend-icon="mdi-delete" @click="confirmDelete(item)">删除</v-btn>
         </div>
       </template>
@@ -236,12 +245,22 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+  <ConfigCompareDialog
+    v-model="compareDialog"
+    :configA="selected[0]"
+    :configB="selected[1]"
+    :fields="compareFields"
+    :titleA="selected[0]?.name"
+    :titleB="selected[1]?.name"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 import { formatDate } from '@/utils/date'
+import ConfigCompareDialog from '@/components/ConfigCompareDialog.vue'
+import type { CompareField } from '@/components/ConfigCompareDialog.vue'
 import {
   INDICATOR_FIELDS,
   ALL_FEATURE_FIELDS,
@@ -258,6 +277,9 @@ const models = ref<ModelConfig[]>([])
 const editingId = ref<string | null>(null)
 const deletingItem = ref<ModelConfig | null>(null)
 const error = ref('')
+
+const selected = ref<ModelConfig[]>([])
+const compareDialog = ref(false)
 
 const allFeatureFields = ALL_FEATURE_FIELDS
 
@@ -312,6 +334,37 @@ const headers = [
   { title: '涨跌阈值', key: 'classification_threshold' },
   { title: '创建时间', key: 'created_at' },
   { title: '操作', key: 'actions', sortable: false, align: 'end' as const },
+]
+
+const compareFields: CompareField[] = [
+  { key: 'name', label: '配置名称' },
+  { key: 'model_type', label: '模型类型' },
+  { key: 'feature_fields', label: '特征字段', group: '字段配置', type: 'array' },
+  { key: 'standardize_fields', label: '标准化字段', group: '字段配置', type: 'array' },
+  { key: 'winsorize_fields', label: '缩尾字段', group: '字段配置', type: 'array' },
+  { key: 'label_mode', label: '标签计算模式', group: '标签参数' },
+  { key: 'classification_horizons', label: '预测周期', group: '标签参数', type: 'array' },
+  { key: 'classification_threshold_3d', label: '3日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_threshold_5d', label: '5日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_threshold_10d', label: '10日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'xgb_n_estimators', label: 'n_estimators', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_max_depth', label: 'max_depth', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_learning_rate', label: 'learning_rate', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_min_child_weight', label: 'min_child_weight', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_subsample', label: 'subsample', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_colsample_bytree', label: 'colsample_bytree', group: 'XGBoost', type: 'number' },
+  { key: 'lstm_hidden_size', label: 'hidden_size', group: 'LSTM', type: 'number' },
+  { key: 'lstm_num_layers', label: 'num_layers', group: 'LSTM', type: 'number' },
+  { key: 'lstm_dropout', label: 'dropout', group: 'LSTM', type: 'number' },
+  { key: 'lstm_epochs', label: 'epochs', group: 'LSTM', type: 'number' },
+  { key: 'lstm_batch_size', label: 'batch_size', group: 'LSTM', type: 'number' },
+  { key: 'lstm_learning_rate', label: 'learning_rate', group: 'LSTM', type: 'number' },
+  { key: 'lstm_sequence_length', label: 'sequence_length', group: 'LSTM', type: 'number' },
+  { key: 'lstm_normalization_window', label: 'normalization_window', group: 'LSTM', type: 'number' },
+  { key: 'lstm_weight_decay', label: 'weight_decay', group: 'LSTM', type: 'number' },
+  { key: 'lr_scheduler_factor', label: 'lr_scheduler_factor', group: 'LSTM', type: 'number' },
+  { key: 'lr_scheduler_patience', label: 'lr_scheduler_patience', group: 'LSTM', type: 'number' },
+  { key: 'val_size', label: 'val_size', group: 'LSTM', type: 'number' },
 ]
 
 const generateDefaultName = (modelType: string) => {
@@ -387,12 +440,12 @@ const loadModels = async () => {
   }
 }
 
-const openDialog = (item?: ModelConfig) => {
+const openDialog = (item?: ModelConfig, isCopy = false) => {
   activeTab.value = 'fields'
   if (item) {
-    editingId.value = item.id
+    editingId.value = isCopy ? null : item.id
     form.value = {
-      name: item.name,
+      name: item.name + '_copy',
       model_type: item.model_type,
       feature_fields: [...item.feature_fields],
       standardize_fields: [...item.standardize_fields],
