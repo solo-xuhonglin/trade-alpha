@@ -11,3 +11,6 @@ Thumbs.db
 .env.local
 
 logs/
+
+# Model temp files (training data snapshots)
+backend/models/temp/
