@@ -44,15 +44,6 @@
       <template v-slot:item.ranking_score="{ item }">
         {{ item.ranking_score.toFixed(4) }}
       </template>
-      <template v-slot:item.up_prob_3d="{ item }">
-        {{ (item.up_prob_3d * 100).toFixed(1) }}%
-      </template>
-      <template v-slot:item.up_prob_5d="{ item }">
-        {{ (item.up_prob_5d * 100).toFixed(1) }}%
-      </template>
-      <template v-slot:item.up_prob_10d="{ item }">
-        {{ (item.up_prob_10d * 100).toFixed(1) }}%
-      </template>
       <template v-slot:item.trend_bonus="{ item }">
         {{ (item.trend_bonus * 100).toFixed(2) }}%
       </template>
@@ -86,9 +77,6 @@ const headers = [
   { title: '股票', key: 'stock_name', sortable: false },
   { title: '综合评分', key: 'composite_score', width: 110 },
   { title: '排序评分', key: 'ranking_score', width: 110 },
-  { title: '涨概率3日', key: 'up_prob_3d', width: 110 },
-  { title: '涨概率5日', key: 'up_prob_5d', width: 110 },
-  { title: '涨概率10日', key: 'up_prob_10d', width: 110 },
   { title: '趋势加分', key: 'trend_bonus', width: 100 },
   { title: '波动扣分', key: 'vol_penalty', width: 100 },
   { title: '动量加成', key: 'momentum_bonus', width: 100 },
