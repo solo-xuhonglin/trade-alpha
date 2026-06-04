@@ -46,6 +46,8 @@ async def main():
             await TrainingRunner.run(task_id)
         elif args.task_type == "backtest":
             await BacktestRunner.run(task_id)
+        elif args.task_type == "live_suggestion":
+            await LiveSuggestionRunner.run(task_id)
         else:
             logger.error(f"Unknown task type: {args.task_type}")
             await TaskService.fail_task(task_id, f"Unknown task type: {args.task_type}")
