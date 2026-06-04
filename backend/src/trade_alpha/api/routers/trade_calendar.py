@@ -3,6 +3,7 @@
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 from trade_alpha.data.service import fetch_and_store_trade_calendar, get_trade_calendar_records
+from trade_alpha.scheduler.daily_update import run_daily_update
 
 router = APIRouter(prefix="/trade-calendar", tags=["trade-calendar"])
 
@@ -14,6 +15,16 @@ async def sync_trade_calendar_endpoint():
         result = await fetch_and_store_trade_calendar()
         return result
     except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/daily-update")
+async def trigger_daily_update():
+    """Manually trigger the daily stock data update."""
+    try:
+        await run_daily_update()
+        return {"message": "Daily update completed"}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -195,7 +195,7 @@ def create_scheduler() -> AsyncIOScheduler:
 
     scheduler.add_job(
         run_daily_update,
-        trigger=CronTrigger(hour=18, minute=0),
+        trigger=CronTrigger(hour=18, minute=0, timezone="Asia/Shanghai"),
         id="daily_update_job",
         name="Daily Stock Data Update",
         replace_existing=True,

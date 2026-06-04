@@ -13,6 +13,14 @@
         :loading="syncing"
         @click="syncCalendar"
       ></v-btn>
+      <v-btn
+        prepend-icon="mdi-database-refresh"
+        rounded="lg"
+        text="数据更新"
+        border
+        :loading="updating"
+        @click="triggerDailyUpdate"
+      ></v-btn>
     </v-toolbar>
 
     <v-divider></v-divider>
@@ -138,6 +146,7 @@ import { tradeCalendarApi, type TradeCalendarRecord } from '@/api/tradeCalendar'
 
 const loading = ref(false)
 const syncing = ref(false)
+const updating = ref(false)
 const calendarRecords = ref<TradeCalendarRecord[]>([])
 const currentDate = ref(new Date())
 const detailDialog = ref(false)
@@ -316,6 +325,15 @@ const syncCalendar = async () => {
     await loadCalendarData()
   } finally {
     syncing.value = false
+  }
+}
+
+const triggerDailyUpdate = async () => {
+  updating.value = true
+  try {
+    await tradeCalendarApi.triggerDailyUpdate()
+  } finally {
+    updating.value = false
   }
 }
 
