@@ -350,15 +350,25 @@ class LSTMClassifier(BaseClassifier):
             model = self.models[target].eval()
             with torch.no_grad():
                 if config.use_memmap:
-                    X_eval_full = np.memmap(
-                        os.path.join(memmap_dir, "X_3d.dat"),
-                        dtype="float64", mode="r",
-                        shape=(total_seqs, seq_len, self.input_size),
-                    )[sorted_idx][valid_mask]
+                    total_valid = int(valid_mask.sum())
+                    valid_indices = np.where(valid_mask)[0]
+                    batch_size = config.lstm_batch_size
+                    all_logits = []
+                    for start in range(0, total_valid, batch_size):
+                        end = min(start + batch_size, total_valid)
+                        batch_real_idx = sorted_idx[valid_indices[start:end]]
+                        X_batch = np.memmap(
+                            os.path.join(memmap_dir, "X_3d.dat"),
+                            dtype="float64", mode="r",
+                            shape=(total_seqs, seq_len, self.input_size),
+                        )[batch_real_idx]
+                        X_tensor = torch.FloatTensor(X_batch).cpu()
+                        all_logits.append(model(X_tensor))
+                    logits = torch.cat(all_logits, dim=0)
                 else:
                     X_eval_full = X_3d
-                X_eval = torch.FloatTensor(X_eval_full).cpu()
-                logits = model(X_eval)
+                    X_eval = torch.FloatTensor(X_eval_full).cpu()
+                    logits = model(X_eval)
                 y_pred_idx = logits.argmax(dim=1).numpy()
                 y_proba = torch.softmax(logits, dim=1).numpy()
             label_map = self._label_mapping[target]
