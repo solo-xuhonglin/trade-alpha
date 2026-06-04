@@ -1,6 +1,8 @@
 """Data sync scheduler module."""
 
 import asyncio
+import sys
+import subprocess
 from datetime import datetime, timedelta
 from typing import List
 
@@ -9,6 +11,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
 from beanie.odm.operators.find.comparison import NotIn, In
+from beanie import PydanticObjectId
 
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
@@ -18,6 +21,8 @@ from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.scheduler.daily_update import run_daily_update
+from trade_alpha.task.models import TaskType
+from trade_alpha.task.service import TaskService
 
 logger = get_logger("data_sync")
 
@@ -194,14 +199,69 @@ def create_scheduler() -> AsyncIOScheduler:
     )
 
     scheduler.add_job(
-        run_daily_update,
+        _run_daily_update_and_auto_suggest,
         trigger=CronTrigger(hour=18, minute=0, timezone="Asia/Shanghai"),
         id="daily_update_job",
-        name="Daily Stock Data Update",
+        name="Daily Stock Data Update + Auto Suggest",
         replace_existing=True,
     )
 
     return scheduler
+
+
+async def _trigger_auto_suggestion():
+    """Trigger a live suggestion using the latest training and default configs."""
+    from trade_alpha.dao.account_config import AccountConfig
+    from trade_alpha.dao.strategy_config import StrategyConfig
+    from trade_alpha.models.training import TrainingRecord
+
+    account = await AccountConfig.find_one()
+    if not account:
+        logger.warning("Auto suggest: no account config found")
+        return
+
+    training = await TrainingRecord.find().sort(-TrainingRecord.created_at).first_or_none()
+    if not training:
+        logger.warning("Auto suggest: no training record found")
+        return
+
+    strategy = await StrategyConfig.find_one()
+    if not strategy:
+        logger.warning("Auto suggest: no strategy config found")
+        return
+
+    task = await TaskService.create_task(
+        TaskType.LIVE_SUGGESTION,
+        {
+            "account_config_id": str(account.id),
+            "training_id": str(training.id),
+            "strategy_config_id": str(strategy.id),
+        },
+    )
+
+    proc = subprocess.Popen(
+        [
+            sys.executable, "-m", "trade_alpha.task.run_task",
+            "--task-id", str(task.id),
+            "--task-type", "live_suggestion",
+        ],
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+    )
+    await TaskService.start_task(task.id, proc.pid)
+    logger.info(f"Auto suggest triggered: task_id={task.id}")
+
+
+async def _run_daily_update_and_auto_suggest():
+    """Wrapper for 18:00 cron: run daily update, then auto-trigger live suggestion if data was updated."""
+    has_new_data = await run_daily_update()
+    if has_new_data:
+        logger.info("Daily update processed new data, triggering auto suggest")
+        try:
+            await _trigger_auto_suggestion()
+        except Exception as e:
+            logger.error(f"Auto suggest failed: {e}")
+    else:
+        logger.info("No new data from daily update, skipping auto suggest")
 
 
 class DataSyncScheduler:

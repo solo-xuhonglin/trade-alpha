@@ -152,23 +152,26 @@ async def _check_and_update_single_stock(
     return True, n
 
 
-async def run_daily_update():
+async def run_daily_update() -> bool:
     """Run daily update for all active stocks.
 
     Called by scheduler at 18:00.
     Sequential processing with 0.3s delay per stock (200 calls/min limit).
+
+    Returns:
+        True if any new data was processed, False otherwise.
     """
     logger.info("Daily update job started")
 
     latest_trade_date = await _get_latest_trade_date()
     if not latest_trade_date:
         logger.error("Daily update aborted: no trading day found")
-        return
+        return False
 
     stocks = await _get_active_stocks()
     if not stocks:
         logger.info("Daily update: no active stocks to process")
-        return
+        return False
 
     logger.info(f"Daily update: {len(stocks)} active stocks, latest trade date: {latest_trade_date}")
 
@@ -215,3 +218,5 @@ async def run_daily_update():
         f"{ex_rights} ex-rights, {failed} failed, "
         f"{total_new_records} new records"
     )
+
+    return processed > 0
