@@ -3,7 +3,7 @@
     <v-card-title class="text-subtitle-1">发起实盘建议</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.account_config_id"
             :items="accountOptions"
@@ -13,7 +13,7 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.training_id"
             :items="trainingOptions"
@@ -23,7 +23,15 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="form.start_date" label="开始日期" type="date" />
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="form.end_date" label="结束日期" type="date" />
+        </v-col>
+      </v-row>
+      <v-row>
+        <v-col cols="12" sm="6" md="9">
           <v-select
             v-model="form.strategy_config_id"
             :items="strategyOptions"
@@ -71,27 +79,7 @@
             </v-tooltip>
           </div>
         </v-col>
-        <v-col cols="12" sm="6" md="2">
-          <v-text-field
-            v-model="form.start_date"
-            type="date"
-            label="开始日期"
-            density="compact"
-            hide-details
-            :disabled="!!form.end_date"
-          />
-        </v-col>
-        <v-col cols="12" sm="6" md="2">
-          <v-text-field
-            v-model="form.end_date"
-            type="date"
-            label="结束日期"
-            density="compact"
-            hide-details
-            :disabled="!!form.start_date"
-          />
-        </v-col>
-        <v-col cols="12" sm="6" md="4" class="d-flex align-center">
+        <v-col cols="12" sm="6" md="3" class="d-flex align-center">
           <v-btn color="primary" block @click="runSuggestion" :loading="running" height="40">
             发起建议
           </v-btn>

@@ -29,8 +29,8 @@ class OrderSuggestion(Document):
     rank: int = 0                             # 当日排名
 
     # 概率
-    up_prob_3d: float
-    up_prob_5d: float
+    up_prob_3d: float = 0.0
+    up_prob_5d: float = 0.0
     up_prob_10d: float = 0.0
     up_prob_20d: float = 0.0
 

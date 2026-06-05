@@ -138,6 +138,8 @@ class PositionManager:
                 entry_score=order.score,
                 up_prob_3d=order.up_prob_3d,
                 up_prob_5d=order.up_prob_5d,
+                up_prob_10d=order.up_prob_10d,
+                up_prob_20d=order.up_prob_20d,
             ))
 
         return filled_trades, unfilled_orders, net_cash_change
@@ -172,6 +174,8 @@ class PositionManager:
                 entry_score=pos.entry_score,
                 entry_3d_prob=pos.entry_3d_prob,
                 entry_5d_prob=pos.entry_5d_prob,
+                entry_10d_prob=pos.entry_10d_prob,
+                entry_20d_prob=pos.entry_20d_prob,
                 hold_days=pos.hold_days + 1,
             )
             pos_list.append(updated_pos)

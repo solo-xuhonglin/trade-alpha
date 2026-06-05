@@ -29,6 +29,7 @@ export interface Training {
   accuracy_3d?: number
   accuracy_5d?: number
   accuracy_10d?: number
+  accuracy_20d?: number
   model_snapshot?: Record<string, any> | null
   created_at: string
 }

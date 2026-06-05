@@ -1,7 +1,7 @@
 <template>
   <v-card border rounded>
     <v-toolbar flat color="transparent">
-      <v-toolbar-title style="white-space: nowrap; flex-shrink: 0;">每日排名</v-toolbar-title>
+      <v-toolbar-title class="flex-grow-0 flex-shrink-0">每日排名</v-toolbar-title>
       <v-spacer />
       <v-text-field
         v-model="selectedDate"
@@ -45,13 +45,13 @@
         {{ item.ranking_score.toFixed(4) }}
       </template>
       <template v-slot:item.trend_bonus="{ item }">
-        {{ (item.trend_bonus * 100).toFixed(2) }}%
+        {{ item.trend_bonus.toFixed(4) }}
       </template>
       <template v-slot:item.vol_penalty="{ item }">
-        {{ (item.vol_penalty * 100).toFixed(2) }}%
+        {{ item.vol_penalty.toFixed(4) }}
       </template>
       <template v-slot:item.momentum_bonus="{ item }">
-        {{ (item.momentum_bonus * 100).toFixed(2) }}%
+        {{ item.momentum_bonus.toFixed(4) }}
       </template>
       <template v-slot:item.order_price="{ item }">
         {{ item.order_price.toFixed(2) }}
@@ -65,6 +65,7 @@
   </v-card>
 
   <LivePredictionChart
+    v-if="klineDailyScore"
     v-model="klineDialog"
     :ts-code="klineTsCode"
     :stock-name="klineStockName"
@@ -98,15 +99,15 @@ function openKline(item: LiveDailyStockScore) {
 }
 
 const headers = [
-  { title: '排名', key: 'rank', width: 80 },
-  { title: '股票', key: 'stock_name', sortable: false },
-  { title: '综合评分', key: 'composite_score', width: 110 },
-  { title: '排序评分', key: 'ranking_score', width: 110 },
-  { title: '趋势加分', key: 'trend_bonus', width: 100 },
-  { title: '波动扣分', key: 'vol_penalty', width: 100 },
-  { title: '动量加成', key: 'momentum_bonus', width: 100 },
-  { title: '参考价格', key: 'order_price', width: 100 },
-  { title: '操作', key: 'actions', sortable: false, width: 80 },
+  { title: '排名', key: 'rank', width: 80, nowrap: true },
+  { title: '股票', key: 'stock_name', width: 140, sortable: false, nowrap: true },
+  { title: '综合评分', key: 'composite_score', width: 110, nowrap: true },
+  { title: '排序评分', key: 'ranking_score', width: 110, nowrap: true },
+  { title: '趋势加分', key: 'trend_bonus', width: 100, nowrap: true },
+  { title: '波动扣分', key: 'vol_penalty', width: 100, nowrap: true },
+  { title: '动量加成', key: 'momentum_bonus', width: 100, nowrap: true },
+  { title: '参考价格', key: 'order_price', width: 100, nowrap: true },
+  { title: '操作', key: 'actions', sortable: false, width: 100, nowrap: true },
 ]
 
 function getRankColor(rank: number): string {
@@ -122,9 +123,9 @@ const loadScores = async (newPage?: number) => {
     const p = newPage ?? page.value
     const tradeDate = selectedDate.value ? selectedDate.value.replace(/-/g, '') : undefined
     const res = await liveSuggestionApi.listDailyScores(tradeDate, p, pageSize)
-    items.value = res.data.items
-    total.value = res.data.total
-    itemsLength.value = res.data.total
+    items.value = res.data.items || []
+    total.value = res.data.total || 0
+    itemsLength.value = res.data.total || 0
 
     if (!selectedDate.value && res.data.trade_date) {
       const y = res.data.trade_date.slice(0, 4)
@@ -132,6 +133,10 @@ const loadScores = async (newPage?: number) => {
       const d = res.data.trade_date.slice(6, 8)
       selectedDate.value = `${y}-${m}-${d}`
     }
+  } catch {
+    items.value = []
+    total.value = 0
+    itemsLength.value = 0
   } finally {
     loading.value = false
   }

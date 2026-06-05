@@ -138,7 +138,14 @@ async def list_daily_scores(
     else:
         latest = await LiveDailyStockScore.find_all().sort(-LiveDailyStockScore.trade_date).limit(1).first_or_none()
         if not latest:
-            raise HTTPException(status_code=404, detail="No daily scores found")
+            return {
+                "items": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+                "trade_date": None,
+            }
         query_date = latest.trade_date
 
     skip = (page - 1) * page_size

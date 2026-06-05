@@ -14,6 +14,7 @@ from trade_alpha.task.dao import TaskStatus
 from trade_alpha.task.service import TaskService
 from trade_alpha.task.training_runner import TrainingRunner
 from trade_alpha.task.backtest_runner import BacktestRunner
+from trade_alpha.task.live_suggestion_runner import LiveSuggestionRunner
 from trade_alpha.logging import get_logger, setup_logging
 
 logger = get_logger("task.run_task")
@@ -23,7 +24,7 @@ setup_logging()
 async def main():
     parser = argparse.ArgumentParser(description="Run task in subprocess")
     parser.add_argument("--task-id", required=True, help="Task ID")
-    parser.add_argument("--task-type", required=True, choices=["training", "backtest"], help="Task type")
+    parser.add_argument("--task-type", required=True, choices=["training", "backtest", "live_suggestion"], help="Task type")
     args = parser.parse_args()
 
     await init_db()

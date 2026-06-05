@@ -110,6 +110,8 @@ class MultiStockStrategy(PositionManager):
                     score=pos.entry_score,
                     up_prob_3d=pos.entry_3d_prob,
                     up_prob_5d=pos.entry_5d_prob,
+                    up_prob_10d=pos.entry_10d_prob,
+                    up_prob_20d=pos.entry_20d_prob,
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
                     reason=sell_reason,
@@ -137,6 +139,8 @@ class MultiStockStrategy(PositionManager):
                 score=stock.score,
                 up_prob_3d=stock.up_prob_3d,
                 up_prob_5d=stock.up_prob_5d,
+                up_prob_10d=stock.up_prob_10d,
+                up_prob_20d=stock.up_prob_20d,
                 trade_date=trade_date,
                 settle_date=self._next_trade_date(trade_date),
             ))

@@ -21,7 +21,7 @@ from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.scheduler.daily_update import run_daily_update
-from trade_alpha.task.models import TaskType
+from trade_alpha.task.dao import TaskType
 from trade_alpha.task.service import TaskService
 
 logger = get_logger("data_sync")
@@ -213,14 +213,14 @@ async def _trigger_auto_suggestion():
     """Trigger a live suggestion using the latest training and default configs."""
     from trade_alpha.dao.account_config import AccountConfig
     from trade_alpha.dao.strategy_config import StrategyConfig
-    from trade_alpha.models.training import TrainingRecord
+    from trade_alpha.dao.training import TrainingResult
 
     account = await AccountConfig.find_one()
     if not account:
         logger.warning("Auto suggest: no account config found")
         return
 
-    training = await TrainingRecord.find().sort(-TrainingRecord.created_at).first_or_none()
+    training = await TrainingResult.find().sort(-TrainingResult.created_at).first_or_none()
     if not training:
         logger.warning("Auto suggest: no training record found")
         return

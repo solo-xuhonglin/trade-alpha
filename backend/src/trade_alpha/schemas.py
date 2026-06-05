@@ -10,10 +10,10 @@ class ScoredStock:
     ts_code: str
     stock_name: str
     close: float
-    up_prob_3d: float
-    up_prob_5d: float
     score: float
     ranking_score: float = 0.0
+    up_prob_3d: float = 0.0
+    up_prob_5d: float = 0.0
     up_prob_10d: float = 0.0
     up_prob_20d: float = 0.0
     is_excluded: bool = False
@@ -32,11 +32,11 @@ class PendingOrder:
     order_price: float
     order_shares: int
     score: float
-    up_prob_3d: float
-    up_prob_5d: float
     trade_date: str
     settle_date: str
     reason: str = ""
+    up_prob_3d: float = 0.0
+    up_prob_5d: float = 0.0
     up_prob_10d: float = 0.0
     up_prob_20d: float = 0.0
 

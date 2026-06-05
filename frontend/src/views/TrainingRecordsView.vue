@@ -497,7 +497,8 @@ const loadTrainings = async () => {
   const res = await trainingRecordApi.list(filterConfig.value || undefined)
   trainings.value = res.data.map(t => {
     const config = configs.value.find(c => c.id === t.config_id)
-    const acc = t.accuracy_3d ? t.accuracy_3d.toFixed(4) : '-'
+    const firstAcc = t.accuracy_20d ?? t.accuracy_10d ?? t.accuracy_5d ?? t.accuracy_3d
+    const acc = firstAcc ? firstAcc.toFixed(4) : '-'
     return {
       ...t,
       configName: config?.name || t.config_id,

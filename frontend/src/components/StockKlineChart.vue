@@ -76,7 +76,7 @@ const renderChart = () => {
       name: 'K线',
       type: 'candlestick',
       data: klineData,
-      yAxisIndex: 0,
+      yAxisId: 'price',
       itemStyle: {
         color: '#ef5350',
         color0: '#26a69a',
@@ -88,7 +88,7 @@ const renderChart = () => {
       name: '复合评分',
       type: 'line',
       data: scores,
-      yAxisIndex: 1,
+      yAxisId: 'score',
       smooth: true,
       lineStyle: { width: 2 },
       symbol: 'none',
@@ -103,7 +103,7 @@ const renderChart = () => {
       name: '原始评分',
       type: 'line',
       data: rawScores,
-      yAxisIndex: 1,
+      yAxisId: 'score',
       smooth: true,
       lineStyle: { width: 1.5, type: 'dashed', color: '#9e9e9e' },
       symbol: 'none',
@@ -117,7 +117,7 @@ const renderChart = () => {
       name: '排名分',
       type: 'line',
       data: rankingScores,
-      yAxisIndex: 1,
+      yAxisId: 'score',
       smooth: true,
       lineStyle: { width: 1.5, color: '#2196F3' },
       symbol: 'none',
@@ -142,7 +142,7 @@ const renderChart = () => {
       name: `涨(${h}d)`,
       type: 'line',
       data: upData,
-      yAxisIndex: 1,
+      yAxisId: 'score',
       smooth: true,
       lineStyle: { width: 1.5, type: style.type, color: style.color },
       symbol: 'none',
@@ -151,7 +151,7 @@ const renderChart = () => {
       name: `跌(${h}d)`,
       type: 'line',
       data: downData,
-      yAxisIndex: 1,
+      yAxisId: 'score',
       smooth: true,
       lineStyle: { width: 1.5, type: style.type, color: style.color },
       symbol: 'none',
@@ -166,7 +166,7 @@ const renderChart = () => {
       name: '排名',
       type: 'line',
       data: ranks,
-      yAxisIndex: 3,
+      yAxisId: 'rank',
       smooth: true,
       lineStyle: { width: 1.5, color: '#7c4dff' },
       symbol: 'none',
@@ -179,6 +179,7 @@ const renderChart = () => {
     series.push({
       name: '买入',
       type: 'scatter',
+      yAxisId: 'price',
       data: props.buyPoints
         .map(t => {
           const idx = dates.indexOf(t.trade_date)
@@ -199,6 +200,7 @@ const renderChart = () => {
     series.push({
       name: '卖出',
       type: 'scatter',
+      yAxisId: 'price',
       data: props.sellPoints
         .map(t => {
           const idx = dates.indexOf(t.trade_date)
@@ -219,6 +221,7 @@ const renderChart = () => {
     series.push({
       name: '买入（未成交）',
       type: 'scatter',
+      yAxisId: 'price',
       data: props.buyCancelledPoints
         .map(t => {
           const idx = dates.indexOf(t.trade_date)
@@ -239,6 +242,7 @@ const renderChart = () => {
     series.push({
       name: '卖出（未成交）',
       type: 'scatter',
+      yAxisId: 'price',
       data: props.sellCancelledPoints
         .map(t => {
           const idx = dates.indexOf(t.trade_date)
@@ -267,7 +271,7 @@ const renderChart = () => {
       name: '策略收益率',
       type: 'line',
       data: validReturnData,
-      yAxisIndex: 2,
+      yAxisId: 'returns',
       smooth: true,
       lineStyle: { width: 2, color: '#ff9800' },
       symbol: 'none',
@@ -287,7 +291,7 @@ const renderChart = () => {
       name: '基准收益率',
       type: 'line',
       data: validBaselineData,
-      yAxisIndex: 2,
+      yAxisId: 'returns',
       smooth: true,
       lineStyle: { width: 2, color: '#9c27b0', type: 'dashed' },
       symbol: 'none',
@@ -297,15 +301,15 @@ const renderChart = () => {
   }
 
   const yAxisConfigs: any[] = [
-    { type: 'value', scale: true, name: '价格', position: 'left', offset: 0 },
-    { type: 'value', scale: true, name: '概率/分', min: -1, max: 1, position: 'left', offset: 50 },
+    { id: 'price', type: 'value', scale: true, name: '价格', position: 'left', offset: 0 },
+    { id: 'score', type: 'value', scale: true, name: '概率/分', min: -1, max: 1, position: 'left', offset: 50 },
   ]
   if (props.strategyReturns.length > 0) {
-    yAxisConfigs.push({ type: 'value', scale: true, name: '收益率(%)', position: 'right', axisLabel: { formatter: '{value}%' }, offset: 0 })
+    yAxisConfigs.push({ id: 'returns', type: 'value', scale: true, name: '收益率(%)', position: 'right', axisLabel: { formatter: '{value}%' }, offset: 0 })
   }
   if (maxRank > 0) {
     yAxisConfigs.push({
-      type: 'value', scale: true, name: '排名', min: 1, max: maxRank, inverse: true, position: 'right',
+      id: 'rank', type: 'value', scale: true, name: '排名', min: 1, max: maxRank, inverse: true, position: 'right',
       offset: props.strategyReturns.length > 0 ? 65 : 0,
       axisLabel: { formatter: '#{value}' },
     })

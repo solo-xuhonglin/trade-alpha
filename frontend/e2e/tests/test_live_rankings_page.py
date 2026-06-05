@@ -25,7 +25,7 @@ class TestLiveRankingsPage:
             expect(headers.nth(i)).to_contain_text(text)
 
         # 验证标题"每日排名"无换行
-        title = page.locator(".v-toolbar-title")
+        title = page.locator(".v-toolbar-title").filter(has_text="每日排名")
         expect(title).to_contain_text("每日排名")
 
     def test_table_has_data_rows(self, goto_page):
@@ -47,17 +47,14 @@ class TestLiveRankingsPage:
         """Test that clicking K-line button opens prediction dialog."""
         page = goto_page("/live-suggestion/daily-rankings")
 
-        # 等待数据加载
+        # 等待表格渲染（含空状态行）
         page.wait_for_selector("[class*='v-data-table'] tbody tr", timeout=15000)
-        rows = page.locator("[class*='v-data-table'] tbody tr")
-
-        if rows.count() == 0:
-            pytest.skip("No data rows available for K-line test")
+        kline_btn = page.locator("button", has_text="K线")
+        if kline_btn.count() == 0:
+            pytest.skip("No K-line button available (no data rows)")
 
         # 点击第一行的"K线"按钮
-        kline_btn = page.locator("button", has_text="K线").first
-        expect(kline_btn).to_be_visible()
-        kline_btn.click()
+        kline_btn.first.click()
 
         # 验证弹窗打开
         dialog = page.locator(".v-dialog")
@@ -85,20 +82,24 @@ class TestLiveRankingsPage:
         """Test that StockKlineChart renders inside the dialog."""
         page = goto_page("/live-suggestion/daily-rankings")
 
-        # 等待数据加载
+        # 等待表格渲染（含空状态行）
         page.wait_for_selector("[class*='v-data-table'] tbody tr", timeout=15000)
-        rows = page.locator("[class*='v-data-table'] tbody tr")
-        if rows.count() == 0:
-            pytest.skip("No data rows available for K-line test")
+        kline_btn = page.locator("button", has_text="K线")
+        if kline_btn.count() == 0:
+            pytest.skip("No K-line button available (no data rows)")
 
         # 打开K线弹窗
-        kline_btn = page.locator("button", has_text="K线").first
-        kline_btn.click()
+        kline_btn.first.click()
 
         dialog = page.locator(".v-dialog")
         expect(dialog).to_be_visible(timeout=5000)
 
+        # Debug: capture browser console
+        page.on("console", lambda msg: print(f"[BROWSER {msg.type}] {msg.text}"))
+        page.on("pageerror", lambda err: print(f"[BROWSER ERROR] {err}"))
+
         # 等待图表渲染（ECharts canvas）
-        page.wait_for_timeout(2000)
+        page.wait_for_timeout(3000)
+
         canvas = dialog.locator("canvas").first
         expect(canvas).to_be_visible(timeout=5000)

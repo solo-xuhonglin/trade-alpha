@@ -94,7 +94,7 @@ class ExecutionPipeline:
         self.strategy_config = strategy_config
         self.mode = mode
         self.ts_codes = ts_codes or []
-        if not self.ts_codes:
+        if not self.ts_codes and mode != "live":
             raise ValueError("ts_codes is required for pipeline initialization")
 
         self._config = model_config
@@ -844,13 +844,13 @@ class ExecutionPipeline:
         universe_limit: int = 300,
         target_dates: Optional[list[str]] = None,
     ) -> PydanticObjectId:
-        """Generate next-day buy suggestions using latest market data.
+        """Generate buy suggestions for one or more target dates.
 
-        Phase 1 (warmup): Runs prediction loop from warmup_start to target_date
-        to build score buffers for EWMA smoothing. No orders, no snapshots.
-
-        Phase 2 (target day): Runs full prediction + make_decisions on target_date,
-        saves buy suggestions to LiveOrderSuggestion collection.
+        Uses a single sequential loop from warmup_start to last_target_date
+        (backtest-style).  Each day loads data and runs prediction to build
+        score buffers for EWMA smoothing.  Days not in target_dates are
+        skipped for DB write; target dates run make_decisions and save
+        scores + suggestions to DB.
 
         Returns the LiveSuggestionRun id.
         """
@@ -908,126 +908,117 @@ class ExecutionPipeline:
             self._score_buffer: Dict[str, List[float]] = {}
             total_orders = 0
 
-            # 6. Iterate through all target dates
-            current_warmup_date = warmup_start
-            for idx, target_date in enumerate(target_dates):
-                if task_id:
-                    await TaskService.update_progress(
-                        task_id,
-                        (idx / len(target_dates)) * 100,
-                        f"正在处理 {target_date} ({idx + 1}/{len(target_dates)})",
-                    )
+            # 6. Single sequential loop (backtest-style)
+            target_set = set(target_dates)
+            last_target = target_dates[-1]
+            total_targets = len(target_dates)
+            processed = 0
 
-                # 6a. Warmup from current_warmup_date to (target_date - 1)
-                date = current_warmup_date
-                while date < target_date:
-                    if ExecutionPipeline._skip_non_trading_day(date):
-                        date = _next_date(date)
-                        continue
-
-                    day_data = await ExecutionPipeline._load_day_data(date, ts_codes, self.data_loader)
-                    if not day_data:
-                        date = _next_date(date)
-                        continue
-
-                    close_prices = day_data["close"]
-                    vol_prices = day_data.get("vol", {})
-
-                    scored, _ = await self._predict(date, close_prices, name_map, target_date, vol_prices)
-                    if not scored:
-                        logger.debug(f"warmup {date}: no predictions")
-
+            date = warmup_start
+            while date <= last_target:
+                if ExecutionPipeline._skip_non_trading_day(date):
                     date = _next_date(date)
+                    continue
 
-                # 6b. Target day - full prediction + scoring
-                day_data = await ExecutionPipeline._load_day_data(target_date, ts_codes, self.data_loader)
+                day_data = await ExecutionPipeline._load_day_data(date, ts_codes, self.data_loader)
                 if not day_data:
-                    logger.warning(f"run_live_suggestion: no data for {target_date}, skipping")
-                    current_warmup_date = target_date
+                    date = _next_date(date)
                     continue
 
                 close_prices = day_data["close"]
                 vol_prices = day_data.get("vol", {})
 
-                scored, pred_results = await self._predict(target_date, close_prices, name_map, target_date, vol_prices)
+                scored, pred_results = await self._predict(date, close_prices, name_map, date, vol_prices)
                 if not scored:
-                    logger.warning(f"run_live_suggestion: no predictions for {target_date}, skipping")
-                    current_warmup_date = target_date
+                    date = _next_date(date)
                     continue
 
-                # 6c. Apply full_position_sell
-                self._daily_forced_sells = []
-                self._apply_full_position_sell(pred_results, close_prices, target_date, name_map)
+                # Only save if this date is a target date
+                if date in target_set:
+                    processed += 1
+                    if task_id:
+                        await TaskService.update_progress(
+                            task_id,
+                            (processed / total_targets) * 100,
+                            f"正在处理 {date} ({processed}/{total_targets})",
+                        )
 
-                # 6d. Generate buy suggestions
-                pending_orders = await self.strategy.make_decisions(
-                    scored_stocks=scored,
-                    portfolio=self.portfolio,
-                    trade_date=target_date,
-                    close_prices=close_prices,
-                )
+                    # Apply full_position_sell
+                    self._daily_forced_sells = []
+                    self._apply_full_position_sell(pred_results, close_prices, date, name_map)
 
-                logger.info(f"run_live_suggestion: {target_date} -> {len(pending_orders)} orders")
-
-                # 6e. Upsert all scored stocks to LiveDailyStockScore
-                for s in scored:
-                    pred = pred_results.get(s.ts_code, {})
-                    await LiveDailyStockScore.find_one_and_update(
-                        {"ts_code": s.ts_code, "trade_date": target_date},
-                        {"$set": {
-                            "stock_name": s.stock_name,
-                            "rank": pred.get("rank", 0),
-                            "composite_score": s.score,
-                            "ranking_score": s.ranking_score,
-                            "up_prob_3d": getattr(s, "up_prob_3d", 0.0),
-                            "up_prob_5d": getattr(s, "up_prob_5d", 0.0),
-                            "up_prob_10d": getattr(s, "up_prob_10d", 0.0),
-                            "trend_bonus": getattr(s, "trend_bonus", 0.0),
-                            "vol_penalty": getattr(s, "vol_penalty", 0.0),
-                            "momentum_bonus": pred.get("momentum_bonus", 0.0),
-                            "order_price": close_prices.get(s.ts_code, 0.0),
-                            "order_shares": next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0),
-                            "is_excluded": s.is_excluded,
-                            "updated_at": datetime.utcnow(),
-                        }},
-                        upsert=True,
+                    # Generate buy suggestions
+                    pending_orders = await self.strategy.make_decisions(
+                        scored_stocks=scored,
+                        portfolio=self.portfolio,
+                        trade_date=date,
+                        close_prices=close_prices,
                     )
 
-                # 6f. Save to LiveOrderSuggestion
-                settle_date = _next_date(target_date)
-                suggestions = []
-                for order in pending_orders:
-                    pred = pred_results.get(order.ts_code, {})
-                    kwargs = dict(
-                        run_id=run_record.id,
-                        ts_code=order.ts_code,
-                        stock_name=name_map.get(order.ts_code, order.ts_code),
-                        trade_date=target_date,
-                        settle_date=settle_date,
-                        action="buy",
-                        order_price=order.order_price,
-                        order_shares=order.order_shares,
-                        raw_score=pred.get("raw_score", order.score),
-                        composite_score=pred.get("composite_score", order.score),
-                        ranking_score=order.ranking_score,
-                        rank=pred.get("rank", 0),
-                        trend_bonus=pred.get("trend_bonus", 0.0),
-                        vol_penalty=pred.get("vol_penalty", 0.0),
-                        momentum_bonus=pred.get("momentum_bonus", 0.0),
-                        is_excluded=pred.get("is_excluded", False),
-                        excluded_reason=pred.get("excluded_reason", None),
-                        reason=order.reason or "live_suggestion",
-                    )
-                    for h in self._config.classification_horizons:
-                        key = f"up_prob_{h}d"
-                        kwargs[key] = pred.get(key, getattr(order, key, 0.0))
-                    suggestions.append(LiveOrderSuggestion(**kwargs))
+                    logger.info(f"run_live_suggestion: {date} -> {len(pending_orders)} orders")
 
-                if suggestions:
-                    await LiveOrderSuggestion.insert_many(suggestions)
+                    # Upsert all scored stocks to LiveDailyStockScore
+                    from trade_alpha.dao.mongodb import get_database
+                    db = await get_database()
+                    for s in scored:
+                        pred = pred_results.get(s.ts_code, {})
+                        await db.live_daily_stock_score.find_one_and_update(
+                            {"ts_code": s.ts_code, "trade_date": date},
+                            {"$set": {
+                                "stock_name": s.stock_name,
+                                "rank": int(pred.get("rank", 0)),
+                                "composite_score": float(s.score),
+                                "ranking_score": float(s.ranking_score),
+                                "up_prob_3d": float(getattr(s, "up_prob_3d", 0.0)),
+                                "up_prob_5d": float(getattr(s, "up_prob_5d", 0.0)),
+                                "up_prob_10d": float(getattr(s, "up_prob_10d", 0.0)),
+                                "trend_bonus": float(getattr(s, "trend_bonus", 0.0)),
+                                "vol_penalty": float(getattr(s, "vol_penalty", 0.0)),
+                                "momentum_bonus": float(pred.get("momentum_bonus", 0.0)),
+                                "order_price": float(close_prices.get(s.ts_code, 0.0)),
+                                "order_shares": int(next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0)),
+                                "is_excluded": bool(s.is_excluded),
+                                "updated_at": datetime.utcnow(),
+                            }},
+                            upsert=True,
+                        )
 
-                total_orders += len(suggestions)
-                current_warmup_date = target_date
+                    # Save to LiveOrderSuggestion
+                    settle_date = _next_date(date)
+                    suggestions = []
+                    for order in pending_orders:
+                        pred = pred_results.get(order.ts_code, {})
+                        kwargs = dict(
+                            run_id=run_record.id,
+                            ts_code=order.ts_code,
+                            stock_name=name_map.get(order.ts_code, order.ts_code),
+                            trade_date=date,
+                            settle_date=settle_date,
+                            action="buy",
+                            order_price=order.order_price,
+                            order_shares=order.order_shares,
+                            raw_score=pred.get("raw_score", order.score),
+                            composite_score=pred.get("composite_score", order.score),
+                            ranking_score=next((s.ranking_score for s in scored if s.ts_code == order.ts_code), 0.0),
+                            rank=pred.get("rank", 0),
+                            trend_bonus=pred.get("trend_bonus", 0.0),
+                            vol_penalty=pred.get("vol_penalty", 0.0),
+                            momentum_bonus=pred.get("momentum_bonus", 0.0),
+                            is_excluded=pred.get("is_excluded", False),
+                            excluded_reason=pred.get("excluded_reason", None),
+                            reason=order.reason or "live_suggestion",
+                        )
+                        for h in self._config.classification_horizons:
+                            key = f"up_prob_{h}d"
+                            kwargs[key] = pred.get(key, getattr(order, key, 0.0))
+                        suggestions.append(LiveOrderSuggestion(**kwargs))
+
+                    if suggestions:
+                        await LiveOrderSuggestion.insert_many(suggestions)
+
+                    total_orders += len(suggestions)
+
+                date = _next_date(date)
 
             # 7. Update run record
             run_record.order_count = total_orders

@@ -13,6 +13,8 @@ class PositionEmbed(BaseModel):
     shares: int
     fee: float
     entry_score: float
-    entry_3d_prob: float
-    entry_5d_prob: float
+    entry_3d_prob: float = 0.0
+    entry_5d_prob: float = 0.0
+    entry_10d_prob: float = 0.0
+    entry_20d_prob: float = 0.0
     hold_days: int = 0

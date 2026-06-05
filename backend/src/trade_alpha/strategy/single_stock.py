@@ -55,7 +55,7 @@ class SingleStockStrategy(PositionManager):
         if not target_stock:
             return []
 
-        logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, score={target_stock.score:.3f}")
+        logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, up_prob_10d={target_stock.up_prob_10d:.3f}, up_prob_20d={target_stock.up_prob_20d:.3f}, score={target_stock.score:.3f}")
 
         orders: List[PendingOrder] = []
         close_prices = close_prices or {}
@@ -73,6 +73,8 @@ class SingleStockStrategy(PositionManager):
                     score=current_position.entry_score,
                     up_prob_3d=current_position.entry_3d_prob,
                     up_prob_5d=current_position.entry_5d_prob,
+                    up_prob_10d=current_position.entry_10d_prob,
+                    up_prob_20d=current_position.entry_20d_prob,
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
                 ))
@@ -92,6 +94,8 @@ class SingleStockStrategy(PositionManager):
                     score=target_stock.score,
                     up_prob_3d=target_stock.up_prob_3d,
                     up_prob_5d=target_stock.up_prob_5d,
+                    up_prob_10d=target_stock.up_prob_10d,
+                    up_prob_20d=target_stock.up_prob_20d,
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
                 ))

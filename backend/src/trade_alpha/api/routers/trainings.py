@@ -210,6 +210,7 @@ async def list_trainings(config_id: str = Query(None)):
             "accuracy_3d": t.model_metrics.get("accuracy", {}).get("label_3d"),
             "accuracy_5d": t.model_metrics.get("accuracy", {}).get("label_5d"),
             "accuracy_10d": t.model_metrics.get("accuracy", {}).get("label_10d"),
+            "accuracy_20d": t.model_metrics.get("accuracy", {}).get("label_20d"),
             "model_snapshot": model_snapshot,
             "created_at": t.created_at,
         })

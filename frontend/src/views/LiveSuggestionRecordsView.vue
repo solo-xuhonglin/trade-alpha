@@ -74,7 +74,7 @@
   <v-dialog v-model="ordersDialog" max-width="1200px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
-        <div class="d-flex align-center ga-2">
+        <div class="d-flex align-center ga-2" style="flex-shrink: 0; white-space: nowrap;">
           <v-icon color="teal">mdi-finance</v-icon>
           推荐股票榜单
           <v-chip v-if="selectedRun" size="small" variant="outlined" class="ml-2">
@@ -184,20 +184,20 @@ const historyHeaders = [
 ]
 
 const orderHeaders = [
-  { title: '排名', key: 'rank', align: 'center' as const },
-  { title: '股票', key: 'stock_name' },
-  { title: '代码', key: 'ts_code' },
-  { title: '综合评分', key: 'composite_score' },
-  { title: '排序评分', key: 'ranking_score' },
-  { title: '现价', key: 'order_price' },
-  { title: '股数', key: 'order_shares' },
-  { title: '涨概率(3日)', key: 'up_prob_3d' },
-  { title: '涨概率(5日)', key: 'up_prob_5d' },
-  { title: '涨概率(10日)', key: 'up_prob_10d' },
-  { title: '涨概率(20日)', key: 'up_prob_20d' },
-  { title: '趋势加分', key: 'trend_bonus' },
-  { title: '波动扣分', key: 'vol_penalty' },
-  { title: '动量加成', key: 'momentum_bonus' },
+  { title: '排名', key: 'rank', align: 'center' as const, nowrap: true },
+  { title: '股票', key: 'stock_name', nowrap: true },
+  { title: '代码', key: 'ts_code', nowrap: true },
+  { title: '综合评分', key: 'composite_score', nowrap: true },
+  { title: '排序评分', key: 'ranking_score', nowrap: true },
+  { title: '现价', key: 'order_price', nowrap: true },
+  { title: '股数', key: 'order_shares', nowrap: true },
+  { title: '涨概率(3日)', key: 'up_prob_3d', nowrap: true },
+  { title: '涨概率(5日)', key: 'up_prob_5d', nowrap: true },
+  { title: '涨概率(10日)', key: 'up_prob_10d', nowrap: true },
+  { title: '涨概率(20日)', key: 'up_prob_20d', nowrap: true },
+  { title: '趋势加分', key: 'trend_bonus', nowrap: true },
+  { title: '波动扣分', key: 'vol_penalty', nowrap: true },
+  { title: '动量加成', key: 'momentum_bonus', nowrap: true },
 ]
 
 const statusColor = (s: string) =>

@@ -31,6 +31,8 @@ async def init_db():
     from trade_alpha.dao.stock_daily import StockDaily
     from trade_alpha.dao.stock_list import StockList
     from trade_alpha.dao.order_suggestion import OrderSuggestion
+    from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
+    from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
     from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
     from trade_alpha.task.dao import Task
     from trade_alpha.dao.data_analysis_result import DataAnalysisResult
@@ -51,6 +53,8 @@ async def init_db():
             StockDaily,
             StockList,
             OrderSuggestion,
+            LiveDailyStockScore,
+            LiveOrderSuggestion,
             LiveSuggestionRun,
             Task,
             DataAnalysisResult,

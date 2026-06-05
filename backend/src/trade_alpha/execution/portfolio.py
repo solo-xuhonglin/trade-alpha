@@ -176,7 +176,7 @@ class PortfolioManager:
                 ts_code=ts_code, stock_name=stock_name,
                 buy_date="", buy_price=matched_price,
                 shares=order_shares, fee=matched_fee,
-                entry_score=0, entry_3d_prob=0, entry_5d_prob=0, hold_days=0,
+                entry_score=0, entry_3d_prob=0, entry_5d_prob=0, entry_10d_prob=0, entry_20d_prob=0, hold_days=0,
             )
 
     def settle_sell(self, ts_code: str, shares: int, price: float) -> None:

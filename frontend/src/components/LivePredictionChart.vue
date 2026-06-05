@@ -105,7 +105,7 @@ const dialog = ref(props.modelValue)
 watch(() => props.modelValue, (v) => { dialog.value = v })
 watch(dialog, (v) => {
   emit('update:modelValue', v)
-  if (v && chartData.value.length === 0) {
+  if (v) {
     loadChartData()
   }
 })
@@ -165,7 +165,19 @@ const loadChartData = async () => {
     if (scores.length === 0) return
     if (!scoreRes.data.start_date || !scoreRes.data.end_date) return
 
-    const klineRes = await dataApi.getData(props.tsCode, scoreRes.data.start_date, scoreRes.data.end_date)
+    // Query K-line data from a broader range to ensure data availability
+    // (scores may exist for dates where stock_daily hasn't sync'd yet)
+    const startYear = parseInt(scoreRes.data.start_date.substring(0, 4), 10)
+    const startMonth = parseInt(scoreRes.data.start_date.substring(4, 6), 10) - 1
+    const startDay = parseInt(scoreRes.data.start_date.substring(6, 8), 10)
+    const startDt = new Date(startYear, startMonth, startDay)
+    startDt.setDate(startDt.getDate() - 60)
+    const y = startDt.getFullYear()
+    const m = String(startDt.getMonth() + 1).padStart(2, '0')
+    const d = String(startDt.getDate()).padStart(2, '0')
+    const extendedStart = `${y}${m}${d}`
+
+    const klineRes = await dataApi.getData(props.tsCode, extendedStart, scoreRes.data.end_date)
     const klineItems = klineRes.data
 
     const scoreMap = new Map(scores.map(s => [s.trade_date, s]))
@@ -175,12 +187,17 @@ const loadChartData = async () => {
         ...k,
         ...scoreMap.get(k.trade_date),
       }))
-    chartData.value = merged
+    chartData.value = merged.length > 0 ? merged : klineItems
   } catch (e) {
     console.error('Failed to load chart data:', e)
     chartData.value = []
   } finally {
     loadingChart.value = false
   }
+}
+
+// Load data immediately if dialog starts open (e.g. first-time creation)
+if (props.modelValue) {
+  loadChartData()
 }
 </script>
