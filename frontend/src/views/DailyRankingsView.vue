@@ -1,7 +1,7 @@
 <template>
   <v-card border rounded>
     <v-toolbar flat color="transparent">
-      <v-toolbar-title>每日排名</v-toolbar-title>
+      <v-toolbar-title style="white-space: nowrap; flex-shrink: 0;">每日排名</v-toolbar-title>
       <v-spacer />
       <v-text-field
         v-model="selectedDate"
