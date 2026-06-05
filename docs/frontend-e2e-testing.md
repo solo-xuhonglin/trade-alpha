@@ -24,8 +24,9 @@
 | 7 | test_trainings_page.py | TestTrainingsPage | 训练记录页面测试 |
 | 8 | test_backtest_page.py | TestBacktestPage | 回测页面测试 |
 | 9 | test_prediction_chart.py | TestPredictionChart | 预测图表页面测试 |
-| 10 | test_trade_calendar_page.py | TestTradeCalendarPage | 交易日历页面测试 |
-| 11 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
+| 10 | test_live_rankings_page.py | TestLiveRankingsPage | 每日排名+K线弹窗页面测试 |
+| 11 | test_trade_calendar_page.py | TestTradeCalendarPage | 交易日历页面测试 |
+| 12 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
 
 ## 测试覆盖
 
@@ -42,6 +43,7 @@
 | 预测图表 | `/backtest/records` | 打开回测记录、K线按钮、下拉选股 |
 | 交易日历 | `/calendar` | 导航、日历网格、同步按钮、导航、图例 |
 | 交易记录 | `/trades` | 导航、加载交易列表、验证表头、验证数据 |
+| 每日排名 | `/live-suggestion/daily-rankings` | 导航、验证表头、K线按钮打开弹窗、ECharts图表渲染 |
 
 ## 依赖关系
 
