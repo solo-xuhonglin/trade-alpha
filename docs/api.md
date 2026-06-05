@@ -1389,6 +1389,29 @@ GET /api/live-suggestion/daily-scores
 }
 ```
 
+### GET /api/live-suggestion/daily-scores/stock/{ts_code}
+
+查询指定股票所有历史评分记录，按交易日期升序排列。
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "ts_code": "002594.SZ",
+      "stock_name": "比亚迪",
+      "trade_date": "20260401",
+      "rank": 5,
+      "composite_score": 0.85,
+      "ranking_score": 0.82,
+      ...
+    }
+  ],
+  "start_date": "20260401",
+  "end_date": "20260410"
+}
+```
+
 ### 获取实盘建议运行记录列表
 
 ```

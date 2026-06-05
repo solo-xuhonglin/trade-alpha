@@ -478,6 +478,7 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `DELETE` | `/data-analysis/results/{id}` | 删除分析结果 |
 | `POST` | `/live-suggestion/run` | 触发实盘建议任务（subprocess Popen 启动，支持可选 start_date/end_date 范围回填） |
 | `GET` | `/live-suggestion/daily-scores` | 获取每日全市场评分排名 |
+| `GET` | `/live-suggestion/daily-scores/stock/{ts_code}` | 查询指定股票所有历史评分记录 |
 | `GET` | `/live-suggestion/runs` | 获取实盘建议运行记录列表 |
 | `GET` | `/live-suggestion/runs/{run_id}` | 获取运行记录详情及订单 |
 | `DELETE` | `/live-suggestion/runs/{run_id}` | 删除运行记录及订单 |
