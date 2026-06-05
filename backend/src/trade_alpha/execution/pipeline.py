@@ -984,19 +984,13 @@ class ExecutionPipeline:
                         )
 
                     # Save to LiveOrderSuggestion
-                    settle_date = _next_date(date)
                     suggestions = []
                     for order in pending_orders:
                         pred = pred_results.get(order.ts_code, {})
                         kwargs = dict(
-                            run_id=run_record.id,
                             ts_code=order.ts_code,
                             stock_name=name_map.get(order.ts_code, order.ts_code),
                             trade_date=date,
-                            settle_date=settle_date,
-                            action="buy",
-                            order_price=order.order_price,
-                            order_shares=order.order_shares,
                             raw_score=pred.get("raw_score", order.score),
                             composite_score=pred.get("composite_score", order.score),
                             ranking_score=next((s.ranking_score for s in scored if s.ts_code == order.ts_code), 0.0),

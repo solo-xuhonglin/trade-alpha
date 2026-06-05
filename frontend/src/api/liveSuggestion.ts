@@ -50,9 +50,30 @@ export interface LiveSuggestionRunListResponse {
   total_pages: number
 }
 
-export interface LiveSuggestionRunDetailResponse {
-  run: LiveSuggestionRun
-  orders: OrderSuggestion[]
+export interface SuggestionDateSummary {
+  trade_date: string
+  total_count: number
+  excluded_count: number
+}
+
+export interface LiveSuggestion {
+  ts_code: string
+  stock_name: string
+  trade_date: string
+  raw_score: number
+  composite_score: number
+  ranking_score: number
+  rank: number
+  up_prob_3d: number
+  up_prob_5d: number
+  up_prob_10d: number
+  up_prob_20d: number
+  trend_bonus: number
+  vol_penalty: number
+  momentum_bonus: number
+  is_excluded: boolean
+  excluded_reason: string | null
+  reason: string | null
 }
 
 export interface LiveSuggestionTaskItem {
@@ -104,7 +125,7 @@ export interface DailyScoresResponse {
 }
 
 export const liveSuggestionApi = {
-  trigger: (body: { account_config_id: string; training_id: string; strategy_config_id: string; start_date?: string; end_date?: string }) =>
+  trigger: (body: { account_config_id: string; training_id: string; strategy_config_id: string; start_date?: string; end_date?: string; top_n?: number }) =>
     api.post<{ task_id: string; status: string; message: string }>('/live-suggestion/run', body),
 
   listDailyScores: (tradeDate?: string, page: number = 1, pageSize: number = 100) =>
@@ -120,11 +141,17 @@ export const liveSuggestionApi = {
   listRuns: (page: number = 1, page_size: number = 20) =>
     api.get<LiveSuggestionRunListResponse>('/live-suggestion/runs', { params: { page, page_size } }),
 
-  getRun: (runId: string) =>
-    api.get<LiveSuggestionRunDetailResponse>(`/live-suggestion/runs/${runId}`),
+  listSuggestionDates: (page?: number, pageSize?: number) =>
+    api.get<{ items: SuggestionDateSummary[]; total: number; page: number; page_size: number; total_pages: number }>(
+      '/live-suggestion/suggestion-dates',
+      { params: { page, page_size: pageSize } }
+    ),
 
-  deleteRun: (runId: string) =>
-    api.delete(`/live-suggestion/runs/${runId}`),
+  listSuggestions: (tradeDate: string, page?: number, pageSize?: number) =>
+    api.get<{ items: LiveSuggestion[]; total: number; page: number; page_size: number; total_pages: number; trade_date: string }>(
+      '/live-suggestion/suggestions',
+      { params: { trade_date: tradeDate, page, page_size: pageSize } }
+    ),
 
   listTasks: (page?: number, pageSize?: number, status?: string) => {
     const params: Record<string, any> = {}

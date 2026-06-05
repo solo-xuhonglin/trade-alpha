@@ -33,33 +33,25 @@ def _run_to_dict(r) -> dict:
     }
 
 
-def _order_to_dict(o) -> dict:
+def _suggestion_to_dict(s) -> dict:
     return {
-        "id": str(o.id),
-        "run_id": str(o.run_id),
-        "ts_code": o.ts_code,
-        "stock_name": o.stock_name,
-        "trade_date": o.trade_date,
-        "settle_date": o.settle_date,
-        "action": o.action,
-        "order_price": o.order_price,
-        "order_shares": o.order_shares,
-        "raw_score": o.raw_score,
-        "composite_score": o.composite_score,
-        "ranking_score": o.ranking_score,
-        "rank": o.rank,
-        "up_prob_3d": o.up_prob_3d,
-        "up_prob_5d": o.up_prob_5d,
-        "up_prob_10d": o.up_prob_10d,
-        "up_prob_20d": o.up_prob_20d,
-        "trend_bonus": o.trend_bonus,
-        "vol_penalty": o.vol_penalty,
-        "momentum_bonus": o.momentum_bonus,
-        "is_excluded": o.is_excluded,
-        "excluded_reason": o.excluded_reason,
-        "status": o.status,
-        "reason": o.reason,
-        "created_at": o.created_at,
+        "ts_code": s.ts_code,
+        "stock_name": s.stock_name,
+        "trade_date": s.trade_date,
+        "raw_score": s.raw_score,
+        "composite_score": s.composite_score,
+        "ranking_score": s.ranking_score,
+        "rank": s.rank,
+        "up_prob_3d": s.up_prob_3d,
+        "up_prob_5d": s.up_prob_5d,
+        "up_prob_10d": s.up_prob_10d,
+        "up_prob_20d": s.up_prob_20d,
+        "trend_bonus": s.trend_bonus,
+        "vol_penalty": s.vol_penalty,
+        "momentum_bonus": s.momentum_bonus,
+        "is_excluded": s.is_excluded,
+        "excluded_reason": s.excluded_reason,
+        "reason": s.reason,
     }
 
 
@@ -69,6 +61,7 @@ class LiveSuggestionRunRequest(BaseModel):
     strategy_config_id: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    top_n: int = 100
 
 
 @router.post("/run")
@@ -94,6 +87,7 @@ async def trigger_live_suggestion(body: LiveSuggestionRunRequest):
             "account_config_id": body.account_config_id,
             "training_id": body.training_id,
             "strategy_config_id": body.strategy_config_id,
+            "top_n": body.top_n,
         }
         if body.start_date:
             task_params["start_date"] = body.start_date
@@ -239,45 +233,74 @@ async def list_live_suggestion_runs(page: int = 1, page_size: int = 20):
     }
 
 
-@router.get("/runs/{run_id}")
-async def get_live_suggestion_run(run_id: str):
-    """Get a single live suggestion run with its orders."""
-    try:
-        obj_id = PydanticObjectId(run_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid run ID")
+@router.get("/suggestion-dates")
+async def list_suggestion_dates(
+    page: int = 1,
+    page_size: int = 20,
+):
+    """List dates that have suggestion data, with daily summaries."""
+    pipeline = [
+        {"$group": {
+            "_id": "$trade_date",
+            "total_count": {"$sum": 1},
+            "excluded_count": {"$sum": {"$cond": ["$is_excluded", 1, 0]}},
+        }},
+        {"$sort": {"_id": -1}},
+        {"$skip": (page - 1) * page_size},
+        {"$limit": page_size},
+    ]
+    items_cursor = LiveOrderSuggestion.aggregate(pipeline)
+    items = []
+    async for doc in items_cursor:
+        items.append({
+            "trade_date": doc["_id"],
+            "total_count": doc["total_count"],
+            "excluded_count": doc["excluded_count"],
+        })
 
-    run_record = await LiveSuggestionRun.get(obj_id)
-    if not run_record:
-        raise HTTPException(status_code=404, detail="Run not found")
-
-    orders = await LiveOrderSuggestion.find(
-        LiveOrderSuggestion.run_id == obj_id,
-        LiveOrderSuggestion.is_excluded == False,
-    ).sort(LiveOrderSuggestion.rank).to_list()
+    # Count total distinct dates
+    count_pipeline = [
+        {"$group": {"_id": "$trade_date"}},
+        {"$count": "total"},
+    ]
+    count_cursor = LiveOrderSuggestion.aggregate(count_pipeline)
+    total = 0
+    async for doc in count_cursor:
+        total = doc["total"]
+        break
 
     return {
-        "run": _run_to_dict(run_record),
-        "orders": [_order_to_dict(o) for o in orders],
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
     }
 
 
-@router.delete("/runs/{run_id}")
-async def delete_live_suggestion_run(run_id: str):
-    """Delete a live suggestion run and its orders."""
-    try:
-        obj_id = PydanticObjectId(run_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid run ID")
+@router.get("/suggestions")
+async def list_suggestions(
+    trade_date: str,
+    page: int = 1,
+    page_size: int = 100,
+):
+    """List suggestions for a specific trade date, sorted by rank."""
+    skip = (page - 1) * page_size
+    total = await LiveOrderSuggestion.find(
+        LiveOrderSuggestion.trade_date == trade_date
+    ).count()
+    items = await LiveOrderSuggestion.find(
+        LiveOrderSuggestion.trade_date == trade_date
+    ).sort(LiveOrderSuggestion.rank).skip(skip).limit(page_size).to_list()
 
-    run_record = await LiveSuggestionRun.get(obj_id)
-    if not run_record:
-        raise HTTPException(status_code=404, detail="Run not found")
-
-    await LiveOrderSuggestion.find(LiveOrderSuggestion.run_id == obj_id).delete()
-    await run_record.delete()
-
-    return {"message": "Run deleted"}
+    return {
+        "items": [_suggestion_to_dict(s) for s in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
+        "trade_date": trade_date,
+    }
 
 
 @router.get("/tasks")
