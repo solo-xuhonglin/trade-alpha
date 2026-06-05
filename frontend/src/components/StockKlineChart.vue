@@ -425,14 +425,14 @@ watch(() => props.data, async () => {
     await nextTick()
     renderChart()
   }
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 watch(() => props.horizons, async () => {
   if (props.data.length > 0) {
     await nextTick()
     renderChart()
   }
-})
+}, { immediate: true })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
