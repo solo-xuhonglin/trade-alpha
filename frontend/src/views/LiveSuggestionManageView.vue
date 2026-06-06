@@ -31,7 +31,7 @@
         </v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" sm="6" md="9">
+        <v-col cols="12" sm="6" md="6">
           <v-select
             v-model="form.strategy_config_id"
             :items="strategyOptions"
@@ -78,6 +78,15 @@
               <span v-else>未启用</span>
             </v-tooltip>
           </div>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
+            v-model.number="form.top_n"
+            label="市值排行前N"
+            type="number"
+            :min="1"
+            hide-details
+          />
         </v-col>
         <v-col cols="12" sm="6" md="3" class="d-flex align-center">
           <v-btn color="primary" block @click="runSuggestion" :loading="running" height="40">
@@ -201,6 +210,7 @@ const form = ref({
   strategy_config_id: '',
   start_date: '',
   end_date: '',
+  top_n: 100,
 })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
@@ -247,6 +257,7 @@ const runSuggestion = async () => {
       account_config_id: form.value.account_config_id,
       training_id: form.value.training_id,
       strategy_config_id: form.value.strategy_config_id,
+      top_n: form.value.top_n,
     }
     if (form.value.start_date) body.start_date = form.value.start_date.replace(/-/g, '')
     if (form.value.end_date) body.end_date = form.value.end_date.replace(/-/g, '')

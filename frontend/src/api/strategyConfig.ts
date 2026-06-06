@@ -7,6 +7,7 @@ export interface Strategy {
   min_order_value: number
   stop_loss_pct: number
   max_hold_days: number
+  min_hold_days: number
   buy_threshold: number
   sell_threshold: number
   max_positions?: number

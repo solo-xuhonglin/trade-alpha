@@ -106,10 +106,10 @@ function formatDate(d: string): string {
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
 }
 
-const loadDateSummaries = async (newPage?: number) => {
+const loadDateSummaries = async (options?: any) => {
   loading.value = true
   try {
-    const p = newPage ?? page.value
+    const p = typeof options === 'number' ? options : (options?.page ?? page.value)
     const res = await liveSuggestionApi.listSuggestionDates(p, pageSize)
     items.value = res.data.items || []
     total.value = res.data.total || 0
@@ -158,11 +158,11 @@ function viewDetails(item: SuggestionDateSummary) {
   loadDetails(1)
 }
 
-const loadDetails = async (newPage?: number) => {
+const loadDetails = async (options?: any) => {
   if (!selectedDate.value) return
   loadingDetails.value = true
   try {
-    const p = newPage ?? detailPage.value
+    const p = typeof options === 'number' ? options : (options?.page ?? detailPage.value)
     const res = await liveSuggestionApi.listSuggestions(selectedDate.value, p, detailPageSize)
     detailItems.value = res.data.items || []
     detailTotal.value = res.data.total || 0

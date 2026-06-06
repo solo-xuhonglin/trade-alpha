@@ -550,7 +550,7 @@
                   {{ backtestStrategyConfig?.use_momentum_boost ? 'mdi-check-circle' : 'mdi-close-circle' }}
                 </v-icon>
                 <span v-if="backtestStrategyConfig?.use_momentum_boost" class="text-body-2">
-                  &nbsp;窗口{{ backtestStrategyConfig?.momentum_window ?? '-' }} 权重{{ backtestStrategyConfig?.momentum_weight ?? '0.3' }} 上限{{ ((backtestStrategyConfig?.max_momentum_bonus ?? 0) * 100).toFixed(0) }}%
+                  &nbsp;窗口{{ backtestStrategyConfig?.momentum_window ?? '-' }} 权重 0.3 上限{{ ((backtestStrategyConfig?.max_momentum_bonus ?? 0) * 100).toFixed(0) }}%
                 </span>
               </v-col>
             </v-row>
@@ -797,7 +797,6 @@ const backtestModelConfig = ref<Record<string, any> | null>(null)
 const backtestStrategyConfig = ref<Partial<Strategy> | null>(null)
 const backtestAccountConfig = ref<Backtest['account_snapshot'] | null>(null)
 const excludedStocks = ref<any[]>([])
-const excludedLoading = ref(false)
 const accelerationExcluded = ref<any[]>([])
 const forcedSellStocks = ref<any[]>([])
 const tradingLoading = ref(false)
@@ -927,10 +926,6 @@ const deleteBacktest = async () => {
   loadingDelete.value = false
 }
 
-const toggleExcludedDetail = (item: any) => {
-  item._detail = !item._detail
-}
-
 const loadTradingData = async (resultId: string) => {
   tradingLoading.value = true
   try {
@@ -978,7 +973,6 @@ const renderCharts = () => {
   amountChart = echarts.init(amountChartRef.value)
   countChart = echarts.init(countChartRef.value)
 
-  const sortKey = pnlSortBy.value[0]?.key || 'total_pnl_amount'
   const sortOrder = pnlSortBy.value[0]?.order || 'desc'
   const sortMultiplier = sortOrder === 'desc' ? 1 : -1
 

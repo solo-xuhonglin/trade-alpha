@@ -25,7 +25,6 @@
       v-model:page="page"
       :items="items"
       :headers="headers"
-      :items-length="total"
       :loading="loading"
       @update:options="loadScores"
     >

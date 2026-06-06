@@ -72,7 +72,7 @@ class LiveSuggestionRunner(BaseRunner):
 
             result_id = await pipeline.run_live_suggestion(
                 task_id=self.task_id,
-                universe_limit=300,
+                universe_limit=params.get("top_n", 100),
                 target_dates=target_dates,
             )
 
