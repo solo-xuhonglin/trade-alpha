@@ -135,6 +135,7 @@ const loadingDetails = ref(false)
 
 const detailHeaders = [
   { title: '排名', key: 'rank', width: 80, nowrap: true },
+  { title: '类型', key: 'reason', width: 70, nowrap: true },
   { title: '股票', key: 'stock_name', width: 140, sortable: false, nowrap: true },
   { title: '综合评分', key: 'composite_score', width: 110, nowrap: true },
   { title: '排序评分', key: 'ranking_score', width: 110, nowrap: true },

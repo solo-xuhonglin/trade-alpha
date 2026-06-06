@@ -174,7 +174,7 @@ trade-alpha/
 - `prediction.py`: 预测结果 Document（包含 probabilities 字段）
 - `signal.py`: 交易信号 Document
 - `live_daily_stock_score.py`: 每日逐股评分/排名 Document（按 ts_code+trade_date upsert）
-- `live_portfolio.py`: 实盘投资组合 Document（包含现金、费率设置、持仓列表）
+- `live_portfolio.py`: 实盘投资组合 Document（仅包含持仓列表）
 - `live_order_suggestion.py`: 实盘订单建议 Document（原 OrderSuggestion，已重命名，同一 collection）
 - `order_suggestion.py`: 旧版订单建议 Document（保留向后兼容）
 - `data_analysis_result.py`: 数据分析结果 Document

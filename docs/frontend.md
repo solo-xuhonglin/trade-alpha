@@ -439,7 +439,7 @@ export const dataApi = {
 | 回测记录 | `backtestRecord.ts` | 回测列表、详情、删除 |
 | 数据分析 | `dataAnalysis.ts` | 数据分析任务、结果列表 |
 | 交易 | `trade.ts` | 交易流水列表 |
-| 实盘仓位管理 | `livePortfolio.ts` | 组合/持仓/费率 CRUD、股票搜索 |
+| 实盘仓位管理 | `livePortfolio.ts` | 持仓 CRUD、股票搜索 |
 
 ## 开发配置
 

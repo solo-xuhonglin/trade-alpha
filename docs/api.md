@@ -1586,4 +1586,4 @@ DELETE /api/live-suggestion/task/{task_id}
 | 模块 | URL 前缀 | 功能 |
 |------|----------|------|
 | 实盘建议管理 | `live-suggestion/` | 评分排名、订单建议、运行记录 |
-| 实盘仓位管理 | `live-portfolio/` | 获取/初始化组合、增删改持仓、搜索股票、费率设置 |
+| 实盘仓位管理 | `live-portfolio/` | 获取组合、增删改持仓、搜索股票 |

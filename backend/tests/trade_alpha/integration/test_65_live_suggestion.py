@@ -100,7 +100,119 @@ async def test_01_live_suggestion_flow():
 
 
 @pytest.mark.asyncio
-async def test_02_idempotent_runs():
+async def test_02_suggestion_with_positions():
+    """Test that suggestion pipeline handles suggestion_mode with positions."""
+    training = await _find_training()
+    assert training is not None
+
+    account = await create_account_config(name=f"{ACCOUNT_PREFIX}_s2", initial_capital=100000)
+    strategy = await create_strategy(
+        name=f"{ACCOUNT_PREFIX}_s2",
+        strategy_type="multi",
+        max_positions=5,
+        max_position_pct=0.5,
+        min_order_value=3000,
+        min_hold_days=3,
+        buy_threshold=0.2,
+        sell_threshold=0.0,
+        use_momentum_boost=True,
+        use_explosion_filter=True,
+        use_trend_bonus=True,
+        use_volatility_penalty=True,
+        use_acceleration_filter=True,
+    )
+    model_config = await get_config_by_id(training.config_id)
+    assert model_config is not None
+
+    # Create a LivePortfolio with a known position
+    from trade_alpha.dao.live_portfolio import LivePortfolio, LivePositionEmbed
+    from uuid import uuid4
+    from datetime import datetime
+
+    # Clean up any existing LivePortfolio
+    existing = await LivePortfolio.find_one()
+    if existing:
+        await existing.delete()
+
+    now = datetime.now()
+    live_pf = LivePortfolio(
+        positions=[
+            LivePositionEmbed(
+                id=str(uuid4()),
+                ts_code="002594.SZ",
+                stock_name="比亚迪",
+                shares=1000,
+                cost_price=200.0,
+                total_cost=200000.0,
+                created_at=now,
+                updated_at=now,
+            ),
+        ],
+        created_at=now,
+        updated_at=now,
+    )
+    await live_pf.insert()
+
+    try:
+        pipeline = ExecutionPipeline(
+            account_config=account,
+            training_id=training.id,
+            model_config=model_config,
+            strategy_config=strategy,
+            mode="multi",
+            ts_codes=["002594.SZ", "000001.SZ"],
+        )
+
+        run_id = await pipeline.run_live_suggestion(universe_limit=TEST_UNIVERSE_SIZE)
+        assert run_id is not None
+
+        run_record = await LiveSuggestionRun.get(run_id)
+        assert run_record is not None
+        assert run_record.status == "completed"
+
+        # Check that orders include both buy and potentially sell suggestions
+        orders = await LiveOrderSuggestion.find(
+            LiveOrderSuggestion.trade_date == run_record.target_date
+        ).to_list()
+        assert len(orders) > 0
+
+        buy_orders = [o for o in orders if o.reason == "buy_suggestion"]
+        sell_orders = [o for o in orders if o.reason is not None and o.reason != "buy_suggestion"]
+        print(f"test_02: total={len(orders)}, buy={len(buy_orders)}, sell={len(sell_orders)}")
+
+        # Verify pipeline completes and produces either buy or sell suggestions
+        assert len(orders) > 0
+
+        # Clean up orders for this date
+        await LiveOrderSuggestion.find(
+            LiveOrderSuggestion.trade_date == run_record.target_date
+        ).delete()
+
+    finally:
+        # Clean up
+        pf = await LivePortfolio.find_one()
+        if pf:
+            await pf.delete()
+
+        run_records = await LiveSuggestionRun.find(
+            LiveSuggestionRun.account_config_id == account.id
+        ).to_list()
+        for r in run_records:
+            await r.delete()
+
+        # Clean account and strategy
+        from trade_alpha.dao.account_config import AccountConfig as AcctDao
+        from trade_alpha.dao.strategy_config import StrategyConfig as StratDao
+        acct = await AcctDao.get(account.id)
+        if acct:
+            await acct.delete()
+        strat = await StratDao.get(strategy.id)
+        if strat:
+            await strat.delete()
+
+
+@pytest.mark.asyncio
+async def test_03_idempotent_runs():
     """Test that multiple runs produce independent records."""
     training = await _find_training()
     assert training is not None, "test_53 (LSTM training) must run before this test"
@@ -145,7 +257,7 @@ async def test_02_idempotent_runs():
 
 
 @pytest.mark.asyncio
-async def test_03_get_latest_trading_day():
+async def test_04_get_latest_trading_day():
     """Test that get_latest_trading_day works."""
     training = await _find_training()
     assert training is not None, "test_53 (LSTM training) must run before this test"
@@ -168,6 +280,6 @@ async def test_03_get_latest_trading_day():
         )
         target_date = await pipeline.data_loader.get_latest_trading_day()
         assert target_date is not None
-        print(f"test_03 passed: latest trading day = {target_date}")
+        print(f"test_04 passed: latest trading day = {target_date}")
     finally:
         await account.delete()

@@ -13,11 +13,6 @@ export interface LivePosition {
 
 export interface LivePortfolio {
   id: string
-  total_cash: number
-  buy_fee_rate: number
-  sell_fee_rate: number
-  stamp_tax_rate: number
-  min_fee: number
   positions: LivePosition[]
   created_at: string
   updated_at: string
@@ -33,23 +28,6 @@ export interface StockSearchItem {
 export const livePortfolioApi = {
   getPortfolio(): Promise<{ data: LivePortfolio }> {
     return request.get('/live-portfolio/')
-  },
-
-  initPortfolio(initial_cash: number): Promise<{ data: LivePortfolio }> {
-    return request.post('/live-portfolio/init', { initial_cash })
-  },
-
-  updateCash(total_cash: number): Promise<{ data: LivePortfolio }> {
-    return request.put('/live-portfolio/cash', { total_cash })
-  },
-
-  updateSettings(settings: {
-    buy_fee_rate?: number
-    sell_fee_rate?: number
-    stamp_tax_rate?: number
-    min_fee?: number
-  }): Promise<{ data: LivePortfolio }> {
-    return request.put('/live-portfolio/settings', settings)
   },
 
   addPosition(data: {

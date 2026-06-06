@@ -935,8 +935,31 @@ class ExecutionPipeline:
 
                 # Only save if this date is a target date
                 if date in target_set:
-                    # Reset portfolio for each target date (suggestion mode — each day independent)
+                    # Load real positions from LivePortfolio for sell suggestion
+                    from trade_alpha.dao.live_portfolio import LivePortfolio
+                    from trade_alpha.dao.position import PositionEmbed
+                    portfolio_doc = await LivePortfolio.find_one()
+                    real_positions: Dict[str, PositionEmbed] = {}
+                    if portfolio_doc:
+                        for pos in portfolio_doc.positions:
+                            real_positions[pos.ts_code] = PositionEmbed(
+                                ts_code=pos.ts_code,
+                                stock_name=pos.stock_name,
+                                buy_date="",
+                                buy_price=pos.cost_price,
+                                shares=pos.shares,
+                                fee=0.0,
+                                entry_score=0,
+                                entry_3d_prob=0,
+                                entry_5d_prob=0,
+                                entry_10d_prob=0,
+                                entry_20d_prob=0,
+                                hold_days=0,
+                            )
+
                     self.portfolio.reset()
+                    self.portfolio.positions = real_positions
+                    self.portfolio._cash_available = 0
 
                     processed += 1
                     if task_id:
@@ -950,15 +973,18 @@ class ExecutionPipeline:
                     self._daily_forced_sells = []
                     self._apply_full_position_sell(pred_results, close_prices, date, name_map)
 
-                    # Generate buy suggestions
+                    # Generate buy/sell suggestions
                     pending_orders = await self.strategy.make_decisions(
                         scored_stocks=scored,
                         portfolio=self.portfolio,
                         trade_date=date,
                         close_prices=close_prices,
+                        suggestion_mode=True,
                     )
 
-                    logger.info(f"run_live_suggestion: {date} -> {len(pending_orders)} orders")
+                    logger.info(f"run_live_suggestion: {date} -> {len(pending_orders)} orders "
+                                f"(buy={sum(1 for o in pending_orders if o.order_shares >= 0)}, "
+                                f"sell={sum(1 for o in pending_orders if o.order_shares < 0)})")
 
                     # Clear existing data for this date before saving fresh results
                     from trade_alpha.dao.mongodb import get_database

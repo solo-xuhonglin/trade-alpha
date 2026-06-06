@@ -61,11 +61,16 @@ class MultiStockStrategy(PositionManager):
         portfolio: PortfolioManager,
         trade_date: str,
         close_prices: Optional[Dict[str, float]] = None,
+        suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make decisions based on ranking.
 
         Uses portfolio.reserve_funds to determine buy feasibility and shares.
         PortfolioManager handles all cash pre-deduction internally.
+
+        When suggestion_mode=True, buy logic skips reserve_funds and generates
+        suggestion orders with order_shares=0 and reason="buy_suggestion".
+        Sell logic runs unchanged in suggestion mode.
         """
         if self.ts_codes:
             scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
@@ -93,7 +98,7 @@ class MultiStockStrategy(PositionManager):
         for pos in portfolio.positions.values():
             pos.hold_days += 1
 
-        logger.info(f"make_decisions trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)}")
+        logger.info(f"make_decisions trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
         for ts_code, pos in portfolio.positions.items():
             should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices)
             if should_sell:
@@ -120,6 +125,23 @@ class MultiStockStrategy(PositionManager):
         sell_ts_codes = {order.ts_code for order in orders}
         for stock in top_stocks:
             if stock.ts_code in sell_ts_codes:
+                continue
+
+            if suggestion_mode:
+                orders.append(PendingOrder(
+                    ts_code=stock.ts_code,
+                    stock_name=stock.stock_name,
+                    order_price=stock.close,
+                    order_shares=0,
+                    score=stock.score,
+                    up_prob_3d=stock.up_prob_3d,
+                    up_prob_5d=stock.up_prob_5d,
+                    up_prob_10d=stock.up_prob_10d,
+                    up_prob_20d=stock.up_prob_20d,
+                    trade_date=trade_date,
+                    settle_date=self._next_trade_date(trade_date),
+                    reason="buy_suggestion",
+                ))
                 continue
 
             success, shares, _fee = portfolio.reserve_funds(

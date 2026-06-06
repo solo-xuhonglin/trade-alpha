@@ -1,7 +1,7 @@
 """LivePortfolio Document model for manual position management."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel, Field
 from beanie import Document
 
@@ -20,16 +20,11 @@ class LivePositionEmbed(BaseModel):
 
 
 class LivePortfolio(Document):
-    """Portfolio document holding cash, positions and fee settings.
+    """Portfolio document holding stock positions.
 
     Only one document exists in the live_portfolio collection.
     """
 
-    total_cash: float = 0.0
-    buy_fee_rate: float = 0.0003
-    sell_fee_rate: float = 0.0003
-    stamp_tax_rate: float = 0.001
-    min_fee: float = 5.0
     positions: List[LivePositionEmbed] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
