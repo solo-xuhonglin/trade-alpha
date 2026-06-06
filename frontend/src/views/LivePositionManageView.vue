@@ -33,21 +33,19 @@
 
     <!-- Positions Table -->
     <v-card border rounded>
-      <v-card-title class="d-flex align-center pa-4">
-        <span class="text-subtitle-1">持仓列表</span>
-        <v-spacer />
-        <v-btn color="primary" variant="tonal" size="small" prepend-icon="mdi-plus" @click="openAddDialog">
-          新增持仓
-        </v-btn>
-      </v-card-title>
-      <v-card-text class="pa-0">
-        <v-data-table
-          :headers="positionHeaders"
-          :items="portfolio.positions"
-          hide-default-footer
-          class="pa-0"
-        >
-          <template v-slot:item.cost_price="{ item }">
+      <v-data-table
+        :headers="positionHeaders"
+        :items="portfolio.positions"
+        hide-default-footer
+        class="pa-0"
+      >
+        <template v-slot:top>
+          <v-toolbar flat>
+            <v-toolbar-title>持仓列表</v-toolbar-title>
+            <v-btn prepend-icon="mdi-plus" rounded="lg" text="新增持仓" border @click="openAddDialog()"></v-btn>
+          </v-toolbar>
+        </template>
+        <template v-slot:item.cost_price="{ item }">
             ¥{{ formatMoney(item.cost_price) }}
           </template>
           <template v-slot:item.total_cost="{ item }">
@@ -65,7 +63,6 @@
             <div class="text-center text-medium-emphasis pa-4">暂无持仓，点击"新增持仓"添加</div>
           </template>
         </v-data-table>
-      </v-card-text>
     </v-card>
 
     <!-- Add/Edit Position Dialog -->

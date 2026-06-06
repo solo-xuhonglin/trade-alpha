@@ -136,6 +136,6 @@ const liveSuggestionItems = [
   { path: '/live-suggestion/positions', title: '仓位管理' },
   { path: '/live-suggestion/manage', title: '实盘管理' },
   { path: '/live-suggestion/daily-rankings', title: '每日排名' },
-  { path: '/live-suggestion/records', title: '实盘记录' },
+  { path: '/live-suggestion/daily-suggestions', title: '每日建议' },
 ]
 </script>

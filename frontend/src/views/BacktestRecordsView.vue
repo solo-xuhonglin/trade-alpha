@@ -478,11 +478,11 @@
           <v-chip v-if="backtestConfigItem" size="small" variant="outlined" class="ml-2">{{ backtestConfigItem.name }}</v-chip>
         </v-toolbar-title>
         <v-spacer />
-        <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-compare" class="mr-1"
+        <v-btn size="small" variant="tonal" prepend-icon="mdi-compare" class="mr-1"
           @click="loadAccountConfigs()">对比账户</v-btn>
-        <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-compare" class="mr-1"
+        <v-btn size="small" variant="tonal" prepend-icon="mdi-compare" class="mr-1"
           @click="loadStrategyConfigs()">对比策略</v-btn>
-        <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-compare" class="mr-1"
+        <v-btn size="small" variant="tonal" prepend-icon="mdi-compare" class="mr-1"
           @click="loadModelConfigs()">对比模型</v-btn>
         <v-btn icon variant="text" @click="backtestConfigDialog = false">
           <v-icon>mdi-close</v-icon>
@@ -793,7 +793,7 @@
       <v-card-actions class="pa-4 pt-0">
         <v-spacer />
         <v-btn variant="text" @click="strategyCompareDialog = false">取消</v-btn>
-        <v-btn color="primary" variant="tonal" :disabled="!selectedStrategyForCompare" @click="openStrategyCompare">开始对比</v-btn>
+        <v-btn color="primary" variant="text" :disabled="!selectedStrategyForCompare" @click="openStrategyCompare">开始对比</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

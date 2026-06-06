@@ -116,10 +116,10 @@ function getRankColor(rank: number): string {
   return 'grey'
 }
 
-const loadScores = async (newPage?: number) => {
+const loadScores = async (options?: any) => {
   loading.value = true
   try {
-    const p = newPage ?? page.value
+    const p = typeof options === 'number' ? options : (options?.page ?? page.value)
     const tradeDate = selectedDate.value ? selectedDate.value.replace(/-/g, '') : undefined
     const res = await liveSuggestionApi.listDailyScores(tradeDate, p, pageSize)
     items.value = res.data.items || []
