@@ -957,31 +957,36 @@ class ExecutionPipeline:
 
                     logger.info(f"run_live_suggestion: {date} -> {len(pending_orders)} orders")
 
-                    # Upsert all scored stocks to LiveDailyStockScore
+                    # Clear existing data for this date before saving fresh results
                     from trade_alpha.dao.mongodb import get_database
                     db = await get_database()
+                    await db.live_daily_stock_score.delete_many({"trade_date": date})
+                    await db.live_order_suggestions.delete_many({"trade_date": date})
+
+                    # Bulk insert scored stocks to LiveDailyStockScore
+                    score_docs = []
                     for s in scored:
                         pred = pred_results.get(s.ts_code, {})
-                        await db.live_daily_stock_score.find_one_and_update(
-                            {"ts_code": s.ts_code, "trade_date": date},
-                            {"$set": {
-                                "stock_name": s.stock_name,
-                                "rank": int(pred.get("rank", 0)),
-                                "composite_score": float(s.score),
-                                "ranking_score": float(s.ranking_score),
-                                "up_prob_3d": float(getattr(s, "up_prob_3d", 0.0)),
-                                "up_prob_5d": float(getattr(s, "up_prob_5d", 0.0)),
-                                "up_prob_10d": float(getattr(s, "up_prob_10d", 0.0)),
-                                "trend_bonus": float(getattr(s, "trend_bonus", 0.0)),
-                                "vol_penalty": float(getattr(s, "vol_penalty", 0.0)),
-                                "momentum_bonus": float(pred.get("momentum_bonus", 0.0)),
-                                "order_price": float(close_prices.get(s.ts_code, 0.0)),
-                                "order_shares": int(next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0)),
-                                "is_excluded": bool(s.is_excluded),
-                                "updated_at": datetime.utcnow(),
-                            }},
-                            upsert=True,
-                        )
+                        score_docs.append({
+                            "ts_code": s.ts_code,
+                            "stock_name": s.stock_name,
+                            "trade_date": date,
+                            "rank": int(pred.get("rank", 0)),
+                            "composite_score": float(s.score),
+                            "ranking_score": float(s.ranking_score),
+                            "up_prob_3d": float(getattr(s, "up_prob_3d", 0.0)),
+                            "up_prob_5d": float(getattr(s, "up_prob_5d", 0.0)),
+                            "up_prob_10d": float(getattr(s, "up_prob_10d", 0.0)),
+                            "trend_bonus": float(getattr(s, "trend_bonus", 0.0)),
+                            "vol_penalty": float(getattr(s, "vol_penalty", 0.0)),
+                            "momentum_bonus": float(pred.get("momentum_bonus", 0.0)),
+                            "order_price": float(close_prices.get(s.ts_code, 0.0)),
+                            "order_shares": int(next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0)),
+                            "is_excluded": bool(s.is_excluded),
+                            "updated_at": datetime.utcnow(),
+                        })
+                    if score_docs:
+                        await db.live_daily_stock_score.insert_many(score_docs)
 
                     # Save to LiveOrderSuggestion
                     suggestions = []

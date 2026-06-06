@@ -13,6 +13,7 @@ from trade_alpha.task.service import TaskService
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
+from trade_alpha.dao.mongodb import get_database
 
 router = APIRouter(prefix="/live-suggestion", tags=["live-suggestion"])
 
@@ -239,6 +240,11 @@ async def list_suggestion_dates(
     page_size: int = 20,
 ):
     """List dates that have suggestion data, with daily summaries."""
+    # Use raw Motor collection to work around Beanie aggregate() bug
+    # with Motor 3.x (AsyncIOMotorLatentCommandCursor not awaitable)
+    db = await get_database()
+    collection = db["live_order_suggestions"]
+
     pipeline = [
         {"$group": {
             "_id": "$trade_date",
@@ -249,9 +255,9 @@ async def list_suggestion_dates(
         {"$skip": (page - 1) * page_size},
         {"$limit": page_size},
     ]
-    items_cursor = LiveOrderSuggestion.aggregate(pipeline)
+    cursor = collection.aggregate(pipeline)
     items = []
-    async for doc in items_cursor:
+    async for doc in cursor:
         items.append({
             "trade_date": doc["_id"],
             "total_count": doc["total_count"],
@@ -263,7 +269,7 @@ async def list_suggestion_dates(
         {"$group": {"_id": "$trade_date"}},
         {"$count": "total"},
     ]
-    count_cursor = LiveOrderSuggestion.aggregate(count_pipeline)
+    count_cursor = collection.aggregate(count_pipeline)
     total = 0
     async for doc in count_cursor:
         total = doc["total"]
