@@ -1,21 +1,20 @@
 """Run live suggestion and print results.
 
 Usage:
-    python scripts/run_live_suggestion.py --account <id> --training <id> --strategy <id>
+    python scripts/run_live_suggestion.py --training <id> --strategy <id>
 
 Example:
-    python scripts/run_live_suggestion.py --account 65d8abc... --training 65d8def... --strategy 65d8ghi...
+    python scripts/run_live_suggestion.py --training 65d8def... --strategy 65d8ghi...
 """
 import asyncio
 import argparse
 import sys
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.mongodb import document_models
-from trade_alpha.execution.pipeline import ExecutionPipeline
+from trade_alpha.execution.suggestion_pipeline import SuggestionPipeline
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.models.training.config import get_config_by_id
 from trade_alpha.logging import get_logger
@@ -25,7 +24,6 @@ logger = get_logger("run_live_suggestion")
 
 async def main():
     parser = argparse.ArgumentParser(description="Run live suggestion")
-    parser.add_argument("--account", required=True, help="Account config ID")
     parser.add_argument("--training", required=True, help="Training ID")
     parser.add_argument("--strategy", required=True, help="Strategy config ID")
     args = parser.parse_args()
@@ -37,11 +35,6 @@ async def main():
     await init_beanie(db, document_models=document_models)
 
     # Load configs
-    account = await AccountConfig.get(args.account)
-    if not account:
-        logger.error(f"Account config not found: {args.account}")
-        sys.exit(1)
-
     training = await get_training_by_id(args.training)
     if not training:
         logger.error(f"Training not found: {args.training}")
@@ -58,24 +51,21 @@ async def main():
         sys.exit(1)
 
     # Build pipeline
-    pipeline = ExecutionPipeline(
-        account_config=account,
+    pipeline = SuggestionPipeline(
         training_id=training.id,
         model_config=model_config,
         strategy_config=strategy,
-        mode="multi",
-        ts_codes=[],  # will be loaded dynamically
     )
 
     # Run
-    run_id = await pipeline.run_live_suggestion()
+    run_id = await pipeline.run()
     logger.info(f"Live suggestion completed: run_id={run_id}")
 
     # Print summary
     from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
-    from trade_alpha.dao.order_suggestion import OrderSuggestion
+    from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
     run_record = await LiveSuggestionRun.get(run_id)
-    suggestions = await OrderSuggestion.find(OrderSuggestion.run_id == run_id).to_list()
+    suggestions = await LiveOrderSuggestion.find(LiveOrderSuggestion.trade_date == run_record.target_date).to_list()
     print(f"\n=== Live Suggestion Result ===")
     print(f"Run ID: {run_id}")
     print(f"Target Date: {run_record.target_date}")

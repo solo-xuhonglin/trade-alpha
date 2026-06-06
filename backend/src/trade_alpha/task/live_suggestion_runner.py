@@ -6,10 +6,9 @@ from beanie import PydanticObjectId
 
 from trade_alpha.task.runner import BaseRunner
 from trade_alpha.task.service import TaskService
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.models import training as training_module
-from trade_alpha.execution.pipeline import ExecutionPipeline
+from trade_alpha.execution.suggestion_pipeline import SuggestionPipeline
 from trade_alpha.logging import get_logger
 
 logger = get_logger("task.live_suggestion_runner")
@@ -51,13 +50,10 @@ class LiveSuggestionRunner(BaseRunner):
                     await TaskService.fail_task(self.task_id, f"Strategy config not found: {params['strategy_config_id']}")
                     return
 
-            pipeline = ExecutionPipeline(
-                account_config=account_config,
+            pipeline = SuggestionPipeline(
                 training_id=PydanticObjectId(params["training_id"]),
                 model_config=model_config,
                 strategy_config=strategy_config,
-                mode="live",
-                ts_codes=None,
             )
 
             target_dates: Optional[list[str]] = None
@@ -70,7 +66,7 @@ class LiveSuggestionRunner(BaseRunner):
                 ).sort(TradeCalendar.cal_date).to_list()
                 target_dates = [c.cal_date for c in calendar_days]
 
-            result_id = await pipeline.run_live_suggestion(
+            result_id = await pipeline.run(
                 task_id=self.task_id,
                 universe_limit=params.get("top_n", 100),
                 target_dates=target_dates,

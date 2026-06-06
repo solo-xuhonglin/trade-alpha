@@ -9,6 +9,7 @@
 | **策略评估** | `train_model.py` | 训练预测模型 |
 | | `backtest_single.py` | 单股票策略评估 |
 | | `backtest_portfolio.py` | 组合策略评估 |
+| | `run_live_suggestion.py` | 运行实盘建议流水线（不需要账户配置） |
 | **数据管理** | `activate_stocks.py` | 将有指标数据且超过200条的股票设为 active |
 | | `check_stock_sync_status.py` | 检查股票同步状态 |
 | | `clean_stock_data.py` | 清理股票数据 |

@@ -30,13 +30,13 @@ class PortfolioManager:
 
     def __init__(
         self,
-        account_config: AccountConfig,
+        account_config: Optional[AccountConfig] = None,
         initial_capital: float = 100000.0,
         max_positions: int = 10,
         max_position_pct: float = 0.1,
-        min_order_value: float = 5000.0,
+        min_order_value: float = 5000,
     ):
-        self._cash_available: float = initial_capital
+        self._cash_available: float = initial_capital if account_config is not None else 0
         self._cash_reserved: float = 0.0
         self.positions: Dict[str, PositionEmbed] = {}
         self._pending_buys: Dict[str, "PendingBuy"] = {}
@@ -225,12 +225,18 @@ class PortfolioManager:
     # ------------------------------------------------------------------
 
     def calc_buy_fee(self, cost: float) -> float:
+        if self._account_config is None:
+            return 0.0
         return max(cost * self._account_config.buy_fee_rate, self._account_config.min_fee)
 
     def calc_sell_fee(self, cost: float) -> float:
+        if self._account_config is None:
+            return 0.0
         return max(cost * self._account_config.sell_fee_rate, self._account_config.min_fee)
 
     def calc_stamp_tax(self, cost: float) -> float:
+        if self._account_config is None:
+            return 0.0
         return cost * self._account_config.stamp_tax_rate
 
     # ------------------------------------------------------------------
@@ -251,7 +257,10 @@ class PortfolioManager:
 
     def reset(self) -> None:
         """Reset portfolio to initial state (live suggestion daily reset)."""
-        self._cash_available = self._account_config.initial_capital
+        if self._account_config is not None:
+            self._cash_available = self._account_config.initial_capital
+        else:
+            self._cash_available = 0
         self._cash_reserved = 0.0
         self.positions.clear()
         self._pending_buys.clear()

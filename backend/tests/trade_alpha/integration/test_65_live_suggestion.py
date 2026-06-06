@@ -7,7 +7,7 @@ import time
 import pytest
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
-from trade_alpha.execution.pipeline import ExecutionPipeline
+from trade_alpha.execution.suggestion_pipeline import SuggestionPipeline
 from trade_alpha.models.training import trainer
 from trade_alpha.models.training.config import get_config_by_id
 from trade_alpha.strategy.service import create_strategy
@@ -53,16 +53,13 @@ async def test_01_live_suggestion_flow():
     assert model_config is not None
 
     try:
-        pipeline = ExecutionPipeline(
-            account_config=account,
+        pipeline = SuggestionPipeline(
             training_id=training.id,
             model_config=model_config,
             strategy_config=strategy,
-            mode="multi",
-            ts_codes=["002594.SZ", "000001.SZ"],
         )
 
-        run_id = await pipeline.run_live_suggestion(universe_limit=TEST_UNIVERSE_SIZE)
+        run_id = await pipeline.run(universe_limit=TEST_UNIVERSE_SIZE)
         assert run_id is not None
 
         run_record = await LiveSuggestionRun.get(run_id)
@@ -154,16 +151,13 @@ async def test_02_suggestion_with_positions():
     await live_pf.insert()
 
     try:
-        pipeline = ExecutionPipeline(
-            account_config=account,
+        pipeline = SuggestionPipeline(
             training_id=training.id,
             model_config=model_config,
             strategy_config=strategy,
-            mode="multi",
-            ts_codes=["002594.SZ", "000001.SZ"],
         )
 
-        run_id = await pipeline.run_live_suggestion(universe_limit=TEST_UNIVERSE_SIZE)
+        run_id = await pipeline.run(universe_limit=TEST_UNIVERSE_SIZE)
         assert run_id is not None
 
         run_record = await LiveSuggestionRun.get(run_id)
@@ -226,15 +220,13 @@ async def test_03_idempotent_runs():
     try:
         run_ids = []
         for _ in range(2):
-            pipeline = ExecutionPipeline(
-                account_config=account,
+            pipeline = SuggestionPipeline(
                 training_id=training.id,
                 model_config=model_config,
                 strategy_config=strategy,
-                mode="multi",
-                ts_codes=["002594.SZ", "000001.SZ"],
             )
-            run_id = await pipeline.run_live_suggestion(universe_limit=TEST_UNIVERSE_SIZE)
+
+            run_id = await pipeline.run(universe_limit=TEST_UNIVERSE_SIZE)
             run_ids.append(run_id)
 
         assert run_ids[0] != run_ids[1], "Each run should produce a unique run_id"
@@ -270,13 +262,10 @@ async def test_04_get_latest_trading_day():
     assert model_config is not None
 
     try:
-        pipeline = ExecutionPipeline(
-            account_config=account,
+        pipeline = SuggestionPipeline(
             training_id=training.id,
             model_config=model_config,
             strategy_config=strategy,
-            mode="multi",
-            ts_codes=["002594.SZ", "000001.SZ"],
         )
         target_date = await pipeline.data_loader.get_latest_trading_day()
         assert target_date is not None

@@ -2,7 +2,7 @@
 
 import pytest
 import pytest_asyncio
-from trade_alpha.execution.pipeline import ExecutionPipeline
+from trade_alpha.execution.backtest_pipeline import BacktestPipeline
 from trade_alpha.execution.service import delete_execution_by_name
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
@@ -56,7 +56,7 @@ class TestBacktestLSTM:
 
         await delete_execution_by_name(self.backtest_name)
 
-        pipeline = ExecutionPipeline(
+        pipeline = BacktestPipeline(
             account_config=self.account_config,
             training_id=self.training.id,
             model_config=self.model_config,

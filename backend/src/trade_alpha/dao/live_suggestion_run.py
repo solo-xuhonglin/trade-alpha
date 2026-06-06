@@ -9,9 +9,9 @@ from beanie import Document, PydanticObjectId
 class LiveSuggestionRun(Document):
     """Record of a single live suggestion run session."""
 
-    account_config_id: PydanticObjectId
+    account_config_id: Optional[PydanticObjectId] = None
     training_id: PydanticObjectId
-    strategy_config_id: PydanticObjectId
+    strategy_config_id: Optional[PydanticObjectId] = None
 
     target_date: str
     warmup_start: str

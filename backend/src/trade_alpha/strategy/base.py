@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from beanie import PydanticObjectId
 import numpy as np
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
@@ -20,7 +19,7 @@ class PositionManager:
 
     def __init__(
         self,
-        account_config: AccountConfig,
+        account_config=None,  # made optional, no strict type
         max_positions: int = 10,
         max_position_pct: float = 0.3,
         min_order_value: float = 5000,
@@ -111,15 +110,20 @@ class PositionManager:
             action = "buy" if order.order_shares > 0 else "sell"
 
             if action == "buy":
-                fee = self.calc_buy_fee(matched_price * shares, self.account_config.buy_fee_rate, self.account_config.min_fee)
+                fee_rate = self.account_config.buy_fee_rate if self.account_config else 0
+                min_fee = self.account_config.min_fee if self.account_config else 0
+                fee = self.calc_buy_fee(matched_price * shares, fee_rate, min_fee)
                 cost = matched_price * shares + fee
                 if cash is not None and cash + net_cash_change < cost:
                     unfilled_orders.append(order)
                     continue
                 cash_after = -cost
             else:
-                fee = max(matched_price * shares * self.account_config.sell_fee_rate, self.account_config.min_fee)
-                stamp_tax = matched_price * shares * self.account_config.stamp_tax_rate
+                fee_rate = self.account_config.sell_fee_rate if self.account_config else 0
+                min_fee = self.account_config.min_fee if self.account_config else 0
+                fee = max(matched_price * shares * fee_rate, min_fee)
+                stamp_rate = self.account_config.stamp_tax_rate if self.account_config else 0
+                stamp_tax = matched_price * shares * stamp_rate
                 cash_after = matched_price * shares - fee - stamp_tax
 
             net_cash_change += cash_after

@@ -332,9 +332,15 @@ trade-alpha/
 
 ### 9. 执行模块 (execution)
 
-#### pipeline.py - 统一流程编排
+#### backtest_pipeline.py - 回测流程编排
 
-- 协调数据加载、预测、策略决策的完整回测/实盘流程
+原 `pipeline.py` 已拆分为三个独立文件：
+- **`backtest_pipeline.py`**（现名）：包含回测核心流程 `run_backtest()`、基线对比、持仓卖出等逻辑
+- **`suggestion_pipeline.py`**：独立的实盘建议流水线 `SuggestionPipeline`，无需 `AccountConfig`
+- **`scoring.py`**：共享的评分工具函数（动量加成、趋势加分、波动率惩罚、爆炸过滤）
+- **`pipeline.py`**：保留为向后兼容的包装模块
+
+BacktestPipeline 协调数据加载、预测、策略决策的完整回测流程：
 - 支持多股票组合策略和单股票策略模式
 - 资金、持仓、费用计算委托给 `PortfolioManager`
 - 执行上下文管理，确保状态一致性
@@ -343,12 +349,31 @@ trade-alpha/
 
 **核心方法**:
 - `run_backtest()`: 回测模式执行
-- `run_live()`: 实盘模式执行
-- `run_live_suggestion(target_dates=None)`: 实盘建议模式，支持指定 `target_dates` 列表进行多日回填；每次运行先预热 EWMA 缓冲区，再逐日预测评分，将全量评分 upsert 到 `LiveDailyStockScore`，Top-K 买入建议保存到 `LiveOrderSuggestion`
 
 **策略模式**:
 - `multi`: 多股票组合策略，基于评分排名
 - `single`: 单股票策略，基于预测概率
+
+#### suggestion_pipeline.py - 实盘建议流水线
+
+独立的建议流水线 `SuggestionPipeline`，从原 `ExecutionPipeline.run_live_suggestion()` 提取：
+- 无需 `AccountConfig` 参数，`PortfolioManager` 以无现金/无费用模式运行
+- 从 `LivePortfolio` 加载实际持仓进行卖出判断
+- 所有买入建议以 `reason="buy_suggestion"`、`order_shares=0` 标记
+- 支持指定 `target_dates` 列表进行多日回填
+- 每次运行先预热 EWMA 缓冲区，再逐日预测评分
+
+**核心方法**:
+- `run(target_dates=None, universe_limit=300)`: 执行建议流水线
+
+#### scoring.py - 共享评分函数
+
+从原 `ExecutionPipeline` 提取的五个评分工具函数：
+- `smooth_scores()`: EWMA 平滑复合分数
+- `apply_momentum_boost()`: 基于收盘价上涨天数比例计算动量加成
+- `apply_trend_bonus()`: 基于线性回归 R² 加权的趋势加分
+- `apply_volatility_penalty()`: 基于 OHLC 日内振幅的波动率惩罚
+- `filter_explosions()`: 基于价格涨幅和成交量倍数的爆炸检测过滤
 
 #### portfolio.py - 投资组合管理
 
