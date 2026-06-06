@@ -72,6 +72,16 @@
             class="mb-3"
           />
           <v-text-field
+            v-model="positionForm.trade_date"
+            label="交易日期"
+            type="text"
+            placeholder="YYYYMMDD"
+            hide-details="auto"
+            class="mb-3"
+            :disabled="!positionForm.ts_code"
+            :readonly="positionDialog.isEdit"
+          />
+          <v-text-field
             v-model.number="positionForm.price"
             :label="positionDialog.isEdit ? '成本价' : '买入单价'"
             type="number"
@@ -114,8 +124,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { livePortfolioApi, type LivePortfolio, type LivePosition, type StockSearchItem } from '@/api/livePortfolio'
+import { dataApi } from '@/api/data'
 
 const portfolio = ref<LivePortfolio>({
   id: '',
@@ -181,9 +192,52 @@ const positionDialog = ref({
 
 const positionForm = ref({
   ts_code: null as ({ ts_code: string; name: string } | null),
+  trade_date: '',
   shares: 100,
   price: 0,
 })
+
+// ---- Auto-fill latest trade date & close when stock is selected ----
+const fillLatestPrice = async (tsCode: string) => {
+  try {
+    const res = await dataApi.getDataPaginated(tsCode, 1, 1)
+    const items = res.data.items
+    if (items && items.length > 0) {
+      positionForm.value.trade_date = items[0].trade_date
+      positionForm.value.price = items[0].close
+    }
+  } catch {
+    // silent
+  }
+}
+
+// Watch for stock selection
+watch(
+  () => positionForm.value.ts_code,
+  (newVal) => {
+    if (newVal && newVal.ts_code && !positionDialog.value.isEdit) {
+      fillLatestPrice(newVal.ts_code)
+    }
+  },
+)
+
+// ---- Auto-fill close price when trade date changes ----
+watch(
+  () => positionForm.value.trade_date,
+  async (newDate, oldDate) => {
+    if (!newDate || !positionForm.value.ts_code || positionDialog.value.isEdit) return
+    if (newDate === oldDate) return
+    try {
+      const res = await dataApi.getData(positionForm.value.ts_code.ts_code, newDate, newDate)
+      const items = res.data
+      if (items && items.length > 0) {
+        positionForm.value.price = items[0].close
+      }
+    } catch {
+      // silent
+    }
+  },
+)
 
 const positionValid = computed(() => {
   if (!positionDialog.value.isEdit && !positionForm.value.ts_code) return false
@@ -194,13 +248,13 @@ const positionValid = computed(() => {
 
 const openAddDialog = () => {
   positionDialog.value = { show: true, isEdit: false, loading: false, editItem: null }
-  positionForm.value = { ts_code: null, shares: 100, price: 0 }
+  positionForm.value = { ts_code: null, trade_date: '', shares: 100, price: 0 }
   onStockSearch('')
 }
 
 const openEditDialog = (item: LivePosition) => {
   positionDialog.value = { show: true, isEdit: true, loading: false, editItem: item }
-  positionForm.value = { ts_code: null, shares: item.shares, price: item.cost_price }
+  positionForm.value = { ts_code: null, trade_date: '', shares: item.shares, price: item.cost_price }
 }
 
 const savePosition = async () => {
