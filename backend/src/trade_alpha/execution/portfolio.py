@@ -248,3 +248,10 @@ class PortfolioManager:
         shares = int(max_cost / (price * (1 + fee_rate)) / 100) * 100
         fee = max(shares * price * fee_rate, 5.0)
         return shares, fee
+
+    def reset(self) -> None:
+        """Reset portfolio to initial state (live suggestion daily reset)."""
+        self._cash_available = self._account_config.initial_capital
+        self._cash_reserved = 0.0
+        self.positions.clear()
+        self._pending_buys.clear()

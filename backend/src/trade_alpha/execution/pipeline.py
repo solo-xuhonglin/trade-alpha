@@ -935,6 +935,9 @@ class ExecutionPipeline:
 
                 # Only save if this date is a target date
                 if date in target_set:
+                    # Reset portfolio for each target date (suggestion mode — each day independent)
+                    self.portfolio.reset()
+
                     processed += 1
                     if task_id:
                         await TaskService.update_progress(
