@@ -162,10 +162,6 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 const onStockSearch = (val: string | undefined) => {
   if (searchTimer) clearTimeout(searchTimer)
   const q = val ?? ''
-  if (!q.trim()) {
-    stockSearchItems.value = []
-    return
-  }
   searchTimer = setTimeout(async () => {
     searchingStock.value = true
     try {
@@ -206,7 +202,7 @@ const positionValid = computed(() => {
 const openAddDialog = () => {
   positionDialog.value = { show: true, isEdit: false, loading: false, editItem: null }
   positionForm.value = { ts_code: null, shares: 100, price: 0 }
-  stockSearchItems.value = []
+  onStockSearch('')
 }
 
 const openEditDialog = (item: LivePosition) => {

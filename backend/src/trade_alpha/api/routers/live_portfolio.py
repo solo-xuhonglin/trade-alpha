@@ -166,16 +166,22 @@ async def delete_position(position_id: str):
 
 @router.get("/stocks/search")
 async def search_stocks(q: str = ""):
-    """Search stocks from StockList by ts_code or name (fuzzy match)."""
-    if not q.strip():
-        return {"items": []}
+    """Search stocks from StockList by ts_code or name (fuzzy match).
+
+    When q is empty, returns top 100 stocks by market cap.
+    """
     keyword = q.strip()
-    items = await StockList.find(
-        {"$or": [
-            {"ts_code": {"$regex": keyword, "$options": "i"}},
-            {"name": {"$regex": keyword, "$options": "i"}},
-        ]}
-    ).limit(20).to_list()
+    if keyword:
+        items = await StockList.find(
+            {"$or": [
+                {"ts_code": {"$regex": keyword, "$options": "i"}},
+                {"name": {"$regex": keyword, "$options": "i"}},
+            ]}
+        ).sort(-StockList.total_mv).limit(20).to_list()
+    else:
+        items = await StockList.find(
+            StockList.total_mv != None
+        ).sort(-StockList.total_mv).limit(100).to_list()
     return {
         "items": [
             {"ts_code": s.ts_code, "name": s.name, "industry": s.industry, "market": s.market}
