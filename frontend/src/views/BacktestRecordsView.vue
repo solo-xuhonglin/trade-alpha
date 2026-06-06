@@ -478,6 +478,12 @@
           <v-chip v-if="backtestConfigItem" size="small" variant="outlined" class="ml-2">{{ backtestConfigItem.name }}</v-chip>
         </v-toolbar-title>
         <v-spacer />
+        <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-compare" class="mr-1"
+          @click="loadAccountConfigs()">对比账户</v-btn>
+        <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-compare" class="mr-1"
+          @click="loadStrategyConfigs()">对比策略</v-btn>
+        <v-btn size="small" variant="tonal" color="info" prepend-icon="mdi-compare" class="mr-1"
+          @click="loadModelConfigs()">对比模型</v-btn>
         <v-btn icon variant="text" @click="backtestConfigDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
@@ -726,14 +732,129 @@
       </v-card-text>
     </v-card>
   </v-dialog>
+
+  <!-- Account Config Compare Picker -->
+  <v-dialog v-model="accountCompareDialog" max-width="500px">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center pa-4">
+        选择对比账户配置
+        <v-btn icon variant="text" size="small" @click="accountCompareDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-select
+          v-model="selectedAccountForCompare"
+          :items="accountConfigList"
+          item-title="name"
+          item-value="id"
+          label="账户配置"
+          return-object
+          clearable
+        />
+      </v-card-text>
+      <v-card-actions class="pa-4 pt-0">
+        <v-spacer />
+        <v-btn variant="text" @click="accountCompareDialog = false">取消</v-btn>
+        <v-btn color="primary" variant="tonal" :disabled="!selectedAccountForCompare" @click="openAccountCompare">开始对比</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <ConfigCompareDialog
+    v-model="accountCompareResultDialog"
+    :configA="backtestAccountConfig ?? {}"
+    :configB="selectedAccountForCompare ?? {}"
+    :fields="accountCompareFields"
+    titleA="当前回测"
+    :titleB="selectedAccountForCompare?.name"
+  />
+
+  <!-- Strategy Config Compare Picker -->
+  <v-dialog v-model="strategyCompareDialog" max-width="500px">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center pa-4">
+        选择对比策略配置
+        <v-btn icon variant="text" size="small" @click="strategyCompareDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-select
+          v-model="selectedStrategyForCompare"
+          :items="strategyConfigList"
+          item-title="name"
+          item-value="id"
+          label="策略配置"
+          return-object
+          clearable
+        />
+      </v-card-text>
+      <v-card-actions class="pa-4 pt-0">
+        <v-spacer />
+        <v-btn variant="text" @click="strategyCompareDialog = false">取消</v-btn>
+        <v-btn color="primary" variant="tonal" :disabled="!selectedStrategyForCompare" @click="openStrategyCompare">开始对比</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <ConfigCompareDialog
+    v-model="strategyCompareResultDialog"
+    :configA="backtestStrategyConfig ?? {}"
+    :configB="selectedStrategyForCompare ?? {}"
+    :fields="strategyCompareFields"
+    titleA="当前回测"
+    :titleB="selectedStrategyForCompare?.name"
+  />
+
+  <!-- Model Config Compare Picker -->
+  <v-dialog v-model="modelCompareDialog" max-width="500px">
+    <v-card>
+      <v-card-title class="d-flex justify-space-between align-center pa-4">
+        选择对比模型配置
+        <v-btn icon variant="text" size="small" @click="modelCompareDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-select
+          v-model="selectedModelForCompare"
+          :items="modelConfigList"
+          item-title="name"
+          item-value="id"
+          label="模型配置"
+          return-object
+          clearable
+        />
+      </v-card-text>
+      <v-card-actions class="pa-4 pt-0">
+        <v-spacer />
+        <v-btn variant="text" @click="modelCompareDialog = false">取消</v-btn>
+        <v-btn color="primary" variant="tonal" :disabled="!selectedModelForCompare" @click="openModelCompare">开始对比</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <ConfigCompareDialog
+    v-model="modelCompareResultDialog"
+    :configA="backtestModelConfig ?? {}"
+    :configB="selectedModelForCompare ?? {}"
+    :fields="modelCompareFields"
+    titleA="当前回测"
+    :titleB="selectedModelForCompare?.name"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import { backtestRecordApi, type Backtest, type DailyDetail, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
-import { type Strategy } from '@/api/strategyConfig'
+import { strategyConfigApi, type Strategy } from '@/api/strategyConfig'
+import { accountConfigApi, type AccountConfig } from '@/api/accountConfig'
+import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 import * as echarts from 'echarts'
 import PredictionChart from '@/components/PredictionChart.vue'
+import ConfigCompareDialog from '@/components/ConfigCompareDialog.vue'
+import type { CompareField } from '@/components/ConfigCompareDialog.vue'
 
 const loading = ref(false)
 const loadingDelete = ref(false)
@@ -751,6 +872,105 @@ const amountChartRef = ref<HTMLDivElement>()
 const countChartRef = ref<HTMLDivElement>()
 const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_pnl_amount', order: 'desc' }])
 const backtestConfigDialog = ref(false)
+
+// Compare state
+const accountCompareDialog = ref(false)
+const strategyCompareDialog = ref(false)
+const modelCompareDialog = ref(false)
+const accountCompareResultDialog = ref(false)
+const strategyCompareResultDialog = ref(false)
+const modelCompareResultDialog = ref(false)
+const selectedAccountForCompare = ref<AccountConfig | null>(null)
+const selectedStrategyForCompare = ref<Strategy | null>(null)
+const selectedModelForCompare = ref<ModelConfig | null>(null)
+const accountConfigList = ref<AccountConfig[]>([])
+const strategyConfigList = ref<Strategy[]>([])
+const modelConfigList = ref<ModelConfig[]>([])
+
+const accountCompareFields: CompareField[] = [
+  { key: 'name', label: '名称', group: '基本信息' },
+  { key: 'initial_capital', label: '初始资金', group: '基本信息', type: 'number' },
+  { key: 'buy_fee_rate', label: '买入费率', group: '费率', type: 'number' },
+  { key: 'sell_fee_rate', label: '卖出费率', group: '费率', type: 'number' },
+  { key: 'stamp_tax_rate', label: '印花税率', group: '费率', type: 'number' },
+  { key: 'min_fee', label: '最低手续费', group: '费率', type: 'number' },
+  { key: 'cash', label: '现金', group: '资金', type: 'number' },
+  { key: 'position', label: '持仓', group: '资金', type: 'number' },
+]
+
+const strategyCompareFields: CompareField[] = [
+  { key: 'name', label: '策略名称' },
+  { key: 'type', label: '策略类型' },
+  { key: 'min_order_value', label: '最小订单金额', group: '基本配置', type: 'number' },
+  { key: 'stop_loss_pct', label: '止损比例', group: '基本配置', type: 'number' },
+  { key: 'max_hold_days', label: '最大持仓天数', group: '基本配置', type: 'number' },
+  { key: 'min_hold_days', label: '最低持有天数', group: '基本配置', type: 'number' },
+  { key: 'buy_threshold', label: '买入阈值', group: '基本配置', type: 'number' },
+  { key: 'sell_threshold', label: '卖出阈值', group: '基本配置', type: 'number' },
+  { key: 'max_positions', label: '最大持仓数', group: '多股票配置', type: 'number' },
+  { key: 'max_position_pct', label: '单票最大仓位', group: '多股票配置', type: 'number' },
+  { key: 'sell_rank_n', label: '卖出排名阈值', group: '多股票配置', type: 'number' },
+  { key: 'hold_score_threshold', label: '持仓评分保护阈值', group: '多股票配置', type: 'number' },
+  { key: 'use_momentum_boost', label: '动量加权', group: '排名优化', type: 'boolean' },
+  { key: 'momentum_window', label: '动量窗口', group: '排名优化', type: 'number' },
+  { key: 'max_momentum_bonus', label: '最大动量加成', group: '排名优化', type: 'number' },
+  { key: 'ranking_smooth_window', label: '平滑窗口', group: '排名优化', type: 'number' },
+  { key: 'ranking_smooth_alpha', label: '平滑系数', group: '排名优化', type: 'number' },
+  { key: 'use_trend_bonus', label: '趋势加分', group: '排名优化', type: 'boolean' },
+  { key: 'trend_bonus_window', label: '趋势窗口', group: '排名优化', type: 'number' },
+  { key: 'trend_bonus_scale', label: '趋势斜率系数', group: '排名优化', type: 'number' },
+  { key: 'trend_r2_threshold', label: 'R²阈值', group: '排名优化', type: 'number' },
+  { key: 'trend_max_bonus', label: '最大趋势加分', group: '排名优化', type: 'number' },
+  { key: 'use_volatility_penalty', label: '波动扣分', group: '排名优化', type: 'boolean' },
+  { key: 'vol_penalty_window', label: '波动窗口', group: '排名优化', type: 'number' },
+  { key: 'vol_range_tolerance', label: '振幅容忍度', group: '排名优化', type: 'number' },
+  { key: 'vol_penalty_scale', label: '扣分系数', group: '排名优化', type: 'number' },
+  { key: 'vol_max_penalty', label: '最大扣分', group: '排名优化', type: 'number' },
+  { key: 'use_explosion_filter', label: '暴涨排除', group: '交易优化', type: 'boolean' },
+  { key: 'explosion_price_threshold', label: '涨幅阈值', group: '交易优化', type: 'number' },
+  { key: 'explosion_volume_ratio', label: '量比阈值', group: '交易优化', type: 'number' },
+  { key: 'explosion_window', label: '参考窗口', group: '交易优化', type: 'number' },
+  { key: 'use_full_position_sell', label: '满仓容忍度', group: '交易优化', type: 'boolean' },
+  { key: 'full_position_threshold', label: '仓位阈值', group: '交易优化', type: 'number' },
+  { key: 'full_position_days', label: '持续天数', group: '交易优化', type: 'number' },
+  { key: 'full_position_score_window', label: '评分窗口', group: '交易优化', type: 'number' },
+  { key: 'full_position_sell_count', label: '每次卖出数量', group: '交易优化', type: 'number' },
+  { key: 'use_acceleration_filter', label: '加速排除', group: '交易优化', type: 'boolean' },
+  { key: 'acceleration_window', label: '检测窗口', group: '交易优化', type: 'number' },
+  { key: 'acceleration_cum_return', label: '累计涨幅阈值', group: '交易优化', type: 'number' },
+  { key: 'acceleration_up_ratio', label: '上涨天数占比', group: '交易优化', type: 'number' },
+]
+
+const modelCompareFields: CompareField[] = [
+  { key: 'name', label: '配置名称' },
+  { key: 'model_type', label: '模型类型' },
+  { key: 'feature_fields', label: '特征字段', group: '字段配置', type: 'array' },
+  { key: 'standardize_fields', label: '标准化字段', group: '字段配置', type: 'array' },
+  { key: 'winsorize_fields', label: '缩尾字段', group: '字段配置', type: 'array' },
+  { key: 'label_mode', label: '标签计算模式', group: '标签参数' },
+  { key: 'classification_horizons', label: '预测周期', group: '标签参数', type: 'array' },
+  { key: 'classification_threshold_3d', label: '3日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_threshold_5d', label: '5日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_threshold_10d', label: '10日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'xgb_n_estimators', label: 'n_estimators', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_max_depth', label: 'max_depth', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_learning_rate', label: 'learning_rate', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_min_child_weight', label: 'min_child_weight', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_subsample', label: 'subsample', group: 'XGBoost', type: 'number' },
+  { key: 'xgb_colsample_bytree', label: 'colsample_bytree', group: 'XGBoost', type: 'number' },
+  { key: 'lstm_hidden_size', label: 'hidden_size', group: 'LSTM', type: 'number' },
+  { key: 'lstm_num_layers', label: 'num_layers', group: 'LSTM', type: 'number' },
+  { key: 'lstm_dropout', label: 'dropout', group: 'LSTM', type: 'number' },
+  { key: 'lstm_epochs', label: 'epochs', group: 'LSTM', type: 'number' },
+  { key: 'lstm_batch_size', label: 'batch_size', group: 'LSTM', type: 'number' },
+  { key: 'lstm_learning_rate', label: 'learning_rate', group: 'LSTM', type: 'number' },
+  { key: 'lstm_sequence_length', label: 'sequence_length', group: 'LSTM', type: 'number' },
+  { key: 'lstm_normalization_window', label: 'normalization_window', group: 'LSTM', type: 'number' },
+  { key: 'lstm_weight_decay', label: 'weight_decay', group: 'LSTM', type: 'number' },
+  { key: 'lr_scheduler_factor', label: 'lr_scheduler_factor', group: 'LSTM', type: 'number' },
+  { key: 'lr_scheduler_patience', label: 'lr_scheduler_patience', group: 'LSTM', type: 'number' },
+  { key: 'val_size', label: 'val_size', group: 'LSTM', type: 'number' },
+]
 
 const dailyDetailDialog = ref(false)
 const dailyDetails = ref<DailyDetail[]>([])
@@ -909,6 +1129,42 @@ const viewResult = (item: Backtest) => {
     : null
   backtestAccountConfig.value = item.account_snapshot ? { ...item.account_snapshot } : null
   backtestConfigDialog.value = true
+}
+
+const loadAccountConfigs = async () => {
+  accountCompareDialog.value = true
+  const res = await accountConfigApi.list()
+  accountConfigList.value = res.data
+}
+
+const loadStrategyConfigs = async () => {
+  strategyCompareDialog.value = true
+  const res = await strategyConfigApi.list()
+  strategyConfigList.value = res.data
+}
+
+const loadModelConfigs = async () => {
+  modelCompareDialog.value = true
+  const res = await modelConfigApi.list()
+  modelConfigList.value = res.data
+}
+
+const openAccountCompare = () => {
+  if (!selectedAccountForCompare.value) return
+  accountCompareDialog.value = false
+  accountCompareResultDialog.value = true
+}
+
+const openStrategyCompare = () => {
+  if (!selectedStrategyForCompare.value) return
+  strategyCompareDialog.value = false
+  strategyCompareResultDialog.value = true
+}
+
+const openModelCompare = () => {
+  if (!selectedModelForCompare.value) return
+  modelCompareDialog.value = false
+  modelCompareResultDialog.value = true
 }
 
 const confirmDelete = (item: Backtest) => {
