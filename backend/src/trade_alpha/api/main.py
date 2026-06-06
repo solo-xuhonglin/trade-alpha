@@ -24,6 +24,7 @@ from trade_alpha.api.routers import (
     tasks,
     trade_calendar,
     live_suggestion,
+    live_portfolio,
 )
 from trade_alpha.api.error_handlers import register_exception_handlers
 from trade_alpha.dao import init_db, close_db
@@ -147,6 +148,7 @@ app.include_router(data_analysis.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(trade_calendar.router, prefix="/api")
 app.include_router(live_suggestion.router, prefix="/api")
+app.include_router(live_portfolio.router, prefix="/api")
 
 
 @app.get("/")

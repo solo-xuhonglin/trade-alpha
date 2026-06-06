@@ -98,7 +98,8 @@ trade-alpha/
 │   │       ├── backtest_records.py
 │   │       ├── data_analysis.py
 │   │       ├── model_configs.py  # 模型配置 API
-│   │       └── trainings.py     # 训练 API
+│   │       ├── trainings.py     # 训练 API
+│   │       └── live_portfolio.py     # 实盘仓位管理 API
 │   ├── tests/                # 测试
 │   └── scripts/              # 脚本
 ├── frontend/                  # 前端项目
@@ -173,6 +174,7 @@ trade-alpha/
 - `prediction.py`: 预测结果 Document（包含 probabilities 字段）
 - `signal.py`: 交易信号 Document
 - `live_daily_stock_score.py`: 每日逐股评分/排名 Document（按 ts_code+trade_date upsert）
+- `live_portfolio.py`: 实盘投资组合 Document（包含现金、费率设置、持仓列表）
 - `live_order_suggestion.py`: 实盘订单建议 Document（原 OrderSuggestion，已重命名，同一 collection）
 - `order_suggestion.py`: 旧版订单建议 Document（保留向后兼容）
 - `data_analysis_result.py`: 数据分析结果 Document
@@ -456,6 +458,7 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `model_configs.py` | 模型配置 CRUD |
 | `trainings.py` | 训练管理（异步任务模式） |
 | `live_suggestion.py` | 实盘建议管理 |
+| `live_portfolio.py` | 实盘仓位管理 CRUD |
 
 **异步任务 API**（基于 subprocess 执行）:
 

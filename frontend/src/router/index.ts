@@ -85,8 +85,13 @@ const routes = [
   },
   {
     path: '/live-suggestion',
-    redirect: '/live-suggestion/manage',
+    redirect: '/live-suggestion/positions',
     children: [
+      {
+        path: 'positions',
+        name: 'LivePositionManage',
+        component: () => import('@/views/LivePositionManageView.vue')
+      },
       {
         path: 'manage',
         name: 'LiveSuggestionManage',
