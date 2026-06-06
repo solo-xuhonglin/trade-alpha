@@ -445,7 +445,7 @@ const openDialog = (item?: ModelConfig, isCopy = false) => {
   if (item) {
     editingId.value = isCopy ? null : item.id
     form.value = {
-      name: item.name + '_copy',
+      name: isCopy ? item.name + '_copy' : item.name,
       model_type: item.model_type,
       feature_fields: [...item.feature_fields],
       standardize_fields: [...item.standardize_fields],

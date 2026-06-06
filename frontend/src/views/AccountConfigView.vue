@@ -195,7 +195,7 @@ const openDialog = (item?: AccountConfig, isCopy = false) => {
   if (item) {
     editingId.value = isCopy ? null : item.id
     form.value = {
-      name: item.name + '_copy',
+      name: isCopy ? item.name + '_copy' : item.name,
       initial_capital: item.initial_capital,
       buy_fee_rate: item.buy_fee_rate,
       sell_fee_rate: item.sell_fee_rate,
