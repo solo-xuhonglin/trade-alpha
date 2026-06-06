@@ -57,14 +57,7 @@
             clearable
             return-object
             @update:search-input="onStockSearch"
-          >
-            <template v-slot:item="{ props, item }">
-              <v-list-item v-bind="props" :title="`${item.raw.name} (${item.raw.ts_code})`" :subtitle="item.raw.industry || ''" />
-            </template>
-            <template v-slot:selection="{ item }">
-              {{ item.raw.name }} ({{ item.raw.ts_code }})
-            </template>
-          </v-autocomplete>
+          />
           <div v-if="positionDialog.isEdit" class="mb-3">
             <div class="text-caption text-medium-emphasis">股票</div>
             <div class="text-body-1 font-weight-medium">{{ positionDialog.editItem?.stock_name }} ({{ positionDialog.editItem?.ts_code }})</div>
