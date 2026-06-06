@@ -597,7 +597,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
   if (item) {
     editingId.value = isCopy ? null : item.id
     form.value = {
-      name: item.name + '_copy',
+      name: isCopy ? item.name + '_copy' : item.name,
       type: item.type,
       min_order_value: item.min_order_value,
       stop_loss_pct: item.stop_loss_pct,
