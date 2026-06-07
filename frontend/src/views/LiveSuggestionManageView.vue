@@ -3,7 +3,7 @@
     <v-card-title class="text-subtitle-1">发起实盘建议</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.training_id"
             :items="trainingOptions"
@@ -13,14 +13,6 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="4">
-          <v-text-field v-model="form.start_date" label="开始日期" type="date" />
-        </v-col>
-        <v-col cols="12" sm="6" md="4">
-          <v-text-field v-model="form.end_date" label="结束日期" type="date" />
-        </v-col>
-      </v-row>
-      <v-row>
         <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.portfolio_id"
@@ -31,9 +23,15 @@
             clearable
           />
         </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="form.start_date" label="开始日期" type="date" />
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="form.end_date" label="结束日期" type="date" />
+        </v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" sm="6" md="6">
+        <v-col cols="12" sm="6" md="3">
           <v-select
             v-model="form.strategy_config_id"
             :items="strategyOptions"
@@ -312,11 +310,11 @@ onMounted(async () => {
       strategyConfigApi.list(),
       livePortfolioApi.listOptions(),
     ])
-    trainingOptions.value = (train.data ?? []).map((t: any) => ({
+    trainingOptions.value = (train.data ?? []).map(t => ({
       label: t.name || `${t.model_type}_${t.updated_at || t.created_at || ''}`,
       value: t.id,
     }))
-    strategyOptions.value = (strats.data ?? []).map((s: any) => ({
+    strategyOptions.value = (strats.data ?? []).map(s => ({
       label: s.name,
       value: s.id,
     }))
