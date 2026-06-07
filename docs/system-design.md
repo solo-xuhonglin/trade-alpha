@@ -73,7 +73,9 @@ trade-alpha/
 │   │   │   └── account_manager.py  # 运行时投资组合引擎
 │   │   ├── backtest/          # 回测模块
 │   │   ├── execution/         # 统一执行框架
-│   │   │   ├── pipeline.py         # 统一流程编排
+│   │   │   ├── backtest_pipeline.py # 回测流程编排
+│   │   │   ├── suggestion_pipeline.py # 实盘建议独立流水线
+│   │   │   ├── scoring.py          # 共享评分函数（动量/趋势/波动率/爆炸过滤）
 │   │   │   ├── portfolio.py        # 投资组合管理（资金/持仓/费用）
 │   │   │   ├── data_loader.py      # 数据加载器
 │   │   │   ├── schemas.py          # 数据结构定义
@@ -335,10 +337,9 @@ trade-alpha/
 #### backtest_pipeline.py - 回测流程编排
 
 原 `pipeline.py` 已拆分为三个独立文件：
-- **`backtest_pipeline.py`**（现名）：包含回测核心流程 `run_backtest()`、基线对比、持仓卖出等逻辑
+- **`backtest_pipeline.py`**：包含回测核心流程 `run_backtest()`、基线对比、持仓卖出等逻辑
 - **`suggestion_pipeline.py`**：独立的实盘建议流水线 `SuggestionPipeline`，无需 `AccountConfig`
 - **`scoring.py`**：共享的评分工具函数（动量加成、趋势加分、波动率惩罚、爆炸过滤）
-- **`pipeline.py`**：保留为向后兼容的包装模块
 
 BacktestPipeline 协调数据加载、预测、策略决策的完整回测流程：
 - 支持多股票组合策略和单股票策略模式
