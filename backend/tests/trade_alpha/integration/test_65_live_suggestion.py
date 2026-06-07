@@ -126,11 +126,6 @@ async def test_02_suggestion_with_positions():
     from uuid import uuid4
     from datetime import datetime
 
-    # Clean up any existing LivePortfolio
-    existing = await LivePortfolio.find_one()
-    if existing:
-        await existing.delete()
-
     now = datetime.now()
     live_pf = LivePortfolio(
         positions=[
@@ -149,6 +144,7 @@ async def test_02_suggestion_with_positions():
         updated_at=now,
     )
     await live_pf.insert()
+    test_pf_id = live_pf.id
 
     try:
         pipeline = SuggestionPipeline(
@@ -157,7 +153,7 @@ async def test_02_suggestion_with_positions():
             strategy_config=strategy,
         )
 
-        run_id = await pipeline.run(universe_limit=TEST_UNIVERSE_SIZE)
+        run_id = await pipeline.run(universe_limit=TEST_UNIVERSE_SIZE, live_portfolio=live_pf)
         assert run_id is not None
 
         run_record = await LiveSuggestionRun.get(run_id)
@@ -183,8 +179,8 @@ async def test_02_suggestion_with_positions():
         ).delete()
 
     finally:
-        # Clean up
-        pf = await LivePortfolio.find_one()
+        # Clean up only the test portfolio by ID
+        pf = await LivePortfolio.get(test_pf_id)
         if pf:
             await pf.delete()
 

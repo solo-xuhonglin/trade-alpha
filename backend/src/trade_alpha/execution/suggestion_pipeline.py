@@ -268,18 +268,18 @@ class SuggestionPipeline:
         task_id: Optional[PydanticObjectId] = None,
         universe_limit: int = 300,
         target_dates: Optional[list[str]] = None,
+        live_portfolio: Optional[LivePortfolio] = None,
     ) -> PydanticObjectId:
         """Run suggestion pipeline for one or more target dates.
 
-        Uses a single sequential loop from warmup_start to last_target_date
-        (backtest-style). Each day loads data and runs prediction to build
-        score buffers for EWMA smoothing. Days not in target_dates are
-        skipped for DB write; target dates run make_decisions and save
-        scores + suggestions to DB.
+        Args:
+            task_id: Optional task ID for progress updates
+            universe_limit: Max stocks to score
+            target_dates: List of target dates (YYYYMMDD), auto-detected if None
+            live_portfolio: Optional LivePortfolio to use instead of DB lookup
 
         Returns the LiveSuggestionRun id.
         """
-        from trade_alpha.dao.live_portfolio import LivePortfolio
         from trade_alpha.dao.position import PositionEmbed
         from trade_alpha.dao.mongodb import get_database
 
@@ -359,8 +359,9 @@ class SuggestionPipeline:
 
                 # Only save if this date is a target date
                 if date in target_set:
-                    # Load real positions from LivePortfolio for sell suggestion
-                    portfolio_doc = await LivePortfolio.find_one()
+                    # Load positions: use injected portfolio or singleton from DB
+                    from trade_alpha.dao.live_portfolio import LivePortfolio as LPDao
+                    portfolio_doc = live_portfolio or await LPDao.find_one()
                     real_positions: Dict[str, PositionEmbed] = {}
                     if portfolio_doc:
                         for pos in portfolio_doc.positions:

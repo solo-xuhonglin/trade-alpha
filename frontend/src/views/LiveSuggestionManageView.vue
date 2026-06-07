@@ -13,10 +13,10 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="4">
           <v-text-field v-model="form.start_date" label="开始日期" type="date" />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="4">
           <v-text-field v-model="form.end_date" label="结束日期" type="date" />
         </v-col>
       </v-row>
@@ -127,8 +127,8 @@
         <v-spacer />
         <v-btn color="error" variant="text" @click="confirmDelete" :loading="deleteDialog.loading">删除</v-btn>
       </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </v-card>
+    </v-dialog>
 
   <v-card border rounded>
     <v-card-title>运行中的任务</v-card-title>
@@ -182,7 +182,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { liveSuggestionApi } from '@/api/liveSuggestion'
-import { accountConfigApi } from '@/api/accountConfig'
 import { trainingRecordApi } from '@/api/trainingRecord'
 import { strategyConfigApi } from '@/api/strategyConfig'
 import { getStatusColor, getStatusText } from '@/utils/taskStatus'
@@ -195,7 +194,6 @@ const stopDialog = ref({ show: false, loading: false, task_id: '', force: false 
 const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 
 const form = ref({
-  account_config_id: '',
   training_id: '',
   strategy_config_id: '',
   start_date: '',
@@ -204,7 +202,6 @@ const form = ref({
 })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
-const accountOptions = ref<{ label: string; value: string }[]>([])
 const strategyOptions = ref<{ label: string; value: string }[]>([])
 const selectedStrategy = ref<any>(null)
 
@@ -236,15 +233,14 @@ watch(() => form.value.strategy_config_id, async (newId) => {
 })
 
 const runSuggestion = async () => {
-  if (!form.value.account_config_id || !form.value.training_id || !form.value.strategy_config_id) {
-    error.value = '请选择账户配置、训练结果和策略配置'
+  if (!form.value.training_id || !form.value.strategy_config_id) {
+    error.value = '请选择训练结果和策略配置'
     return
   }
   running.value = true
   error.value = ''
   try {
     const body: any = {
-      account_config_id: form.value.account_config_id,
       training_id: form.value.training_id,
       strategy_config_id: form.value.strategy_config_id,
       top_n: form.value.top_n,

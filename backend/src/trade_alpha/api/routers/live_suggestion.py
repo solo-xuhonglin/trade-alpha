@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.models import training as training_module
 from trade_alpha.task.dao import TaskStatus, TaskType
@@ -21,9 +20,9 @@ router = APIRouter(prefix="/live-suggestion", tags=["live-suggestion"])
 def _run_to_dict(r) -> dict:
     return {
         "id": str(r.id),
-        "account_config_id": str(r.account_config_id),
+        "account_config_id": str(r.account_config_id) if r.account_config_id else None,
         "training_id": str(r.training_id),
-        "strategy_config_id": str(r.strategy_config_id),
+        "strategy_config_id": str(r.strategy_config_id) if r.strategy_config_id else None,
         "target_date": r.target_date,
         "warmup_start": r.warmup_start,
         "warmup_days": r.warmup_days,
@@ -57,7 +56,6 @@ def _suggestion_to_dict(s) -> dict:
 
 
 class LiveSuggestionRunRequest(BaseModel):
-    account_config_id: str
     training_id: str
     strategy_config_id: str
     start_date: Optional[str] = None

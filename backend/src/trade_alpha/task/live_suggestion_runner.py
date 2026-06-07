@@ -28,11 +28,6 @@ class LiveSuggestionRunner(BaseRunner):
         logger.info(f"Starting live suggestion task {self.task_id}")
 
         try:
-            account_config = await AccountConfig.get(PydanticObjectId(params["account_config_id"]))
-            if not account_config:
-                await TaskService.fail_task(self.task_id, f"Account config not found: {params['account_config_id']}")
-                return
-
             training_record = await training_module.get_training_by_id(PydanticObjectId(params["training_id"]))
             if not training_record:
                 await TaskService.fail_task(self.task_id, f"Training not found: {params['training_id']}")

@@ -1,12 +1,12 @@
 """Tests for live portfolio feature (Layer 4).
 
 Tests manual position management without cash/fee fields.
+Tests create their own portfolio document and only operate on test data.
 """
 
 import pytest
 from trade_alpha.dao.live_portfolio import LivePortfolio, LivePositionEmbed
 from trade_alpha.api.routers.live_portfolio import (
-    _get_or_create_portfolio,
     _portfolio_to_dict,
 )
 
@@ -18,19 +18,27 @@ class TestLivePortfolio:
 
     @pytest.fixture(autouse=True)
     async def setup_teardown(self):
-        """Clean up portfolio before and after each test."""
-        existing = await LivePortfolio.find_one()
-        if existing:
-            await existing.delete()
+        """Create a test portfolio, yield, then clean up only test data."""
+        from datetime import datetime
+        now = datetime.now()
+        test_pf = LivePortfolio(positions=[], created_at=now, updated_at=now)
+        await test_pf.insert()
+        self.test_pf_id = test_pf.id
         yield
-        existing = await LivePortfolio.find_one()
-        if existing:
-            await existing.delete()
+        leftover = await LivePortfolio.get(self.test_pf_id)
+        if leftover:
+            await leftover.delete()
+
+    async def _get_test_portfolio(self) -> LivePortfolio:
+        """Refresh test portfolio from DB."""
+        pf = await LivePortfolio.get(self.test_pf_id)
+        assert pf is not None
+        return pf
 
     @pytest.mark.asyncio
     async def test_01_get_or_create_empty(self):
-        """Test that portfolio is created with empty positions list."""
-        portfolio = await _get_or_create_portfolio()
+        """Test that test portfolio was created with empty positions list."""
+        portfolio = await self._get_test_portfolio()
         assert portfolio.positions == []
         assert portfolio.id is not None
 
@@ -40,7 +48,7 @@ class TestLivePortfolio:
         from datetime import datetime
         from uuid import uuid4
 
-        portfolio = await _get_or_create_portfolio()
+        portfolio = await self._get_test_portfolio()
         now = datetime.now()
         portfolio.positions.append(LivePositionEmbed(
             id=str(uuid4()),
@@ -54,7 +62,7 @@ class TestLivePortfolio:
         ))
         await portfolio.save()
 
-        reloaded = await LivePortfolio.find_one()
+        reloaded = await LivePortfolio.get(self.test_pf_id)
         assert reloaded is not None
         assert len(reloaded.positions) == 1
         assert reloaded.positions[0].ts_code == "002594.SZ"
@@ -85,7 +93,7 @@ class TestLivePortfolio:
         )
         await portfolio.save()
 
-        reloaded = await LivePortfolio.find_one()
+        reloaded = await LivePortfolio.get(self.test_pf_id)
         assert reloaded.positions[0].shares == 500
         assert reloaded.positions[0].cost_price == 220.0
         assert reloaded.positions[0].total_cost == 110000.0
@@ -99,7 +107,7 @@ class TestLivePortfolio:
         portfolio.positions.pop(0)
         await portfolio.save()
 
-        reloaded = await LivePortfolio.find_one()
+        reloaded = await LivePortfolio.get(self.test_pf_id)
         assert len(reloaded.positions) == original_count - 1
 
     @pytest.mark.asyncio
@@ -138,7 +146,7 @@ class TestLivePortfolio:
         )
         await portfolio.save()
 
-        reloaded = await LivePortfolio.find_one()
+        reloaded = await LivePortfolio.get(self.test_pf_id)
         merged = reloaded.positions[0]
         assert merged.shares == old_shares + extra_shares
         # Weighted average: (old_total_cost + extra_cost) / new_shares
@@ -146,11 +154,11 @@ class TestLivePortfolio:
         assert abs(merged.cost_price - round(expected_price, 4)) < 0.001
 
     async def _get_or_create_populated(self) -> LivePortfolio:
-        """Helper: return a portfolio with at least 2 positions."""
+        """Helper: populate test portfolio with at least 2 positions if empty."""
         from datetime import datetime
         from uuid import uuid4
 
-        portfolio = await _get_or_create_portfolio()
+        portfolio = await self._get_test_portfolio()
         if len(portfolio.positions) < 2:
             now = datetime.now()
             positions = [
