@@ -1321,9 +1321,10 @@ POST /api/live-suggestion/run
 **请求体 (JSON)**:
 ```json
 {
-  "account_config_id": "507f1f77bcf86cd799439013",
   "training_id": "507f1f77bcf86cd799439014",
   "strategy_config_id": "507f1f77bcf86cd799439015",
+  "portfolio_id": "507f1f77bcf86cd799439016",
+  "top_n": 300,
   "start_date": "2026-06-01",
   "end_date": "2026-06-03"
 }
@@ -1331,9 +1332,10 @@ POST /api/live-suggestion/run
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `account_config_id` | string | 是 | 账户配置 ID |
 | `training_id` | string | 是 | 训练结果 ID |
 | `strategy_config_id` | string | 是 | 策略配置 ID |
+| `portfolio_id` | string | 否 | 实盘组合 ID，不传则使用默认组合 |
+| `top_n` | int | 否 | 市值排名前 N，不传则不限制 |
 | `start_date` | string | 否 | 回填开始日期 (YYYY-MM-DD)，不传则使用最新交易日 |
 | `end_date` | string | 否 | 回填结束日期 (YYYY-MM-DD)，不传则使用最新交易日 |
 
@@ -1400,15 +1402,84 @@ GET /api/live-suggestion/daily-scores
     {
       "ts_code": "002594.SZ",
       "stock_name": "比亚迪",
-      "trade_date": "20260401",
+      "trade_date": "2026-04-01",
       "rank": 5,
       "composite_score": 0.85,
       "ranking_score": 0.82,
       ...
     }
   ],
-  "start_date": "20260401",
-  "end_date": "20260410"
+  "start_date": "2026-04-01",
+  "end_date": "2026-04-10"
+}
+```
+
+### 获取建议日期列表
+
+```
+GET /api/live-suggestion/suggestion-dates
+```
+
+**参数**:
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "trade_date": "2026-06-03",
+      "total_count": 300,
+      "excluded_count": 45
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
+### 获取指定日期建议列表
+
+```
+GET /api/live-suggestion/suggestions
+```
+
+**参数**:
+- `trade_date` (query, required): 交易日期 (YYYY-MM-DD)
+- `page` (query, optional): 页码，默认 1
+- `page_size` (query, optional): 每页数量，默认 20
+
+**响应**:
+```json
+{
+  "items": [
+    {
+      "ts_code": "002594.SZ",
+      "stock_name": "比亚迪",
+      "trade_date": "2026-06-03",
+      "raw_score": 0.78,
+      "composite_score": 0.85,
+      "ranking_score": 0.82,
+      "rank": 1,
+      "up_prob_3d": 0.72,
+      "up_prob_5d": 0.68,
+      "up_prob_10d": 0.65,
+      "trend_bonus": 0.03,
+      "vol_penalty": 0.0,
+      "momentum_bonus": 0.02,
+      "is_excluded": false,
+      "excluded_reason": null,
+      "reason": null
+    }
+  ],
+  "total": 300,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 15,
+  "trade_date": "2026-06-03"
 }
 ```
 
@@ -1581,9 +1652,152 @@ DELETE /api/live-suggestion/task/{task_id}
 }
 ```
 
+## 实盘仓位管理
+
+### 获取组合列表（选项）
+
+```
+GET /api/live-portfolio/options
+```
+
+**响应**:
+```json
+{
+  "items": [
+    {"id": "507f1f77bcf86cd799439011", "name": "default"}
+  ]
+}
+```
+
+### 获取组合详情
+
+```
+GET /api/live-portfolio/
+```
+
+**参数**:
+- `id` (query, optional): 组合 ID，不传则返回默认组合
+
+**响应**:
+```json
+{
+  "id": "507f1f77bcf86cd799439011",
+  "name": "default",
+  "positions": [
+    {
+      "id": "pos-uuid-123",
+      "ts_code": "002594.SZ",
+      "stock_name": "比亚迪",
+      "shares": 1000,
+      "cost_price": 280.50,
+      "total_cost": 280500.00,
+      "created_at": "2026-06-03T10:00:00",
+      "updated_at": "2026-06-03T10:00:00"
+    }
+  ],
+  "created_at": "2026-06-03T10:00:00",
+  "updated_at": "2026-06-03T10:00:00"
+}
+```
+
+### 创建新组合
+
+```
+POST /api/live-portfolio/
+```
+
+**请求体 (JSON)**:
+```json
+{
+  "name": "my-portfolio"
+}
+```
+
+**响应**: 组合详情（同上）
+
+### 添加持仓（手动增仓，无现金扣减）
+
+```
+POST /api/live-portfolio/positions
+```
+
+**参数**:
+- `portfolio_id` (query, optional): 组合 ID，不传则使用默认组合
+
+**请求体 (JSON)**:
+```json
+{
+  "ts_code": "002594.SZ",
+  "stock_name": "比亚迪",
+  "shares": 100,
+  "price": 280.50
+}
+```
+
+**响应**: 更新后的组合详情
+
+### 编辑持仓
+
+```
+PUT /api/live-portfolio/positions/{position_id}
+```
+
+**参数**:
+- `portfolio_id` (query, optional): 组合 ID
+
+**请求体 (JSON)**:
+```json
+{
+  "shares": 200,
+  "cost_price": 275.00
+}
+```
+
+**响应**: 更新后的组合详情
+
+### 删除持仓
+
+```
+DELETE /api/live-portfolio/positions/{position_id}
+```
+
+**参数**:
+- `portfolio_id` (query, optional): 组合 ID
+
+**响应**: 更新后的组合详情
+
+### 搜索股票
+
+```
+GET /api/live-portfolio/stocks/search
+```
+
+**参数**:
+- `q` (query, optional): 搜索关键词（ts_code 或名称模糊匹配），为空时返回市值前 100
+
+**响应**:
+```json
+{
+  "items": [
+    {"ts_code": "002594.SZ", "name": "比亚迪", "industry": "汽车", "market": "主板"}
+  ]
+}
+```
+
 ## API 模块一览
 
 | 模块 | URL 前缀 | 功能 |
 |------|----------|------|
+| 数据显示 | `data/` | 股票列表、数据下载 |
+| 指标计算 | `indicators/` | 技术指标计算 |
+| 预测 | `predict/` | 模型预测 |
+| 策略配置 | `strategy-config/` | 策略 CRUD |
+| 账户配置 | `account-config/` | 账户 CRUD |
+| 模型配置 | `model-configs/` | 模型配置 CRUD |
+| 训练管理 | `trainings/` | 训练任务（异步） |
+| 回测管理 | `backtest/` | 回测任务（异步）|
+| 回测记录 | `backtest-records/` | 回测结果查询 |
+| 数据分析 | `data-analysis/` | 数据分析任务（异步） |
+| 交易日历 | `trade-calendar/` | 交易日期同步 |
 | 实盘建议管理 | `live-suggestion/` | 评分排名、订单建议、运行记录 |
 | 实盘仓位管理 | `live-portfolio/` | 获取组合、增删改持仓、搜索股票 |

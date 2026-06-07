@@ -720,3 +720,29 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
   "feature_fields": ["ma_5", "ma_10", "pct_chg"]
 }
 ```
+
+### live_portfolio
+
+实盘组合集合，手动管理持仓。
+
+#### 字段说明
+
+| 字段 | 类型 | 说明 | 默认值 |
+|------|------|------|-------|
+| `name` | string | 组合名称 | "" |
+| `positions` | array | 持仓列表（嵌入文档） | [] |
+| `created_at` | datetime | 创建时间 | now |
+| `updated_at` | datetime | 更新时间 | now |
+
+**positions 嵌入文档（LivePositionEmbed）**:
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 持仓唯一标识（UUID） |
+| `ts_code` | string | 股票代码 |
+| `stock_name` | string | 股票名称 |
+| `shares` | int | 持仓股数 |
+| `cost_price` | float | 成本价 |
+| `total_cost` | float | 总成本 |
+| `created_at` | datetime | 创建时间 |
+| `updated_at` | datetime | 更新时间 |

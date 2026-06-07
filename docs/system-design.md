@@ -508,6 +508,8 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `POST` | `/live-suggestion/run` | 触发实盘建议任务（subprocess Popen 启动，支持可选 start_date/end_date 范围回填） |
 | `GET` | `/live-suggestion/daily-scores` | 获取每日全市场评分排名 |
 | `GET` | `/live-suggestion/daily-scores/stock/{ts_code}` | 查询指定股票所有历史评分记录 |
+| `GET` | `/live-suggestion/suggestion-dates` | 获取建议日期列表 |
+| `GET` | `/live-suggestion/suggestions` | 获取指定日期建议列表 |
 | `GET` | `/live-suggestion/runs` | 获取实盘建议运行记录列表 |
 | `GET` | `/live-suggestion/runs/{run_id}` | 获取运行记录详情及订单 |
 | `DELETE` | `/live-suggestion/runs/{run_id}` | 删除运行记录及订单 |
@@ -515,6 +517,13 @@ name 字段具备唯一索引，支持按名称直接查询。
 | `GET` | `/live-suggestion/task/{task_id}` | 查询实盘建议任务状态 |
 | `POST` | `/live-suggestion/task/{task_id}/stop` | 停止实盘建议任务 |
 | `DELETE` | `/live-suggestion/task/{task_id}` | 删除实盘建议任务 |
+| `GET` | `/live-portfolio/` | 获取组合详情 |
+| `GET` | `/live-portfolio/options` | 获取组合列表选项 |
+| `POST` | `/live-portfolio/` | 创建新组合 |
+| `POST` | `/live-portfolio/positions` | 添加持仓 |
+| `PUT` | `/live-portfolio/positions/{position_id}` | 编辑持仓 |
+| `DELETE` | `/live-portfolio/positions/{position_id}` | 删除持仓 |
+| `GET` | `/live-portfolio/stocks/search` | 搜索股票 |
 
 **执行方式对比**：
 

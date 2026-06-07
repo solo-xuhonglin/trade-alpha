@@ -32,12 +32,19 @@ frontend/
 │   │   ├── backtest.ts         # 回测管理 API
 │   │   ├── backtestRecord.ts   # 回测记录 API
 │   │   ├── dataAnalysis.ts     # 数据分析 API
-│   │   └── trade.ts           # 交易记录 API
+│   │   ├── trade.ts           # 交易记录 API
+│   │   ├── liveSuggestion.ts  # 实盘建议 API
+│   │   ├── livePortfolio.ts   # 实盘仓位 API
+│   │   └── tradeCalendar.ts   # 交易日历 API
 │   ├── components/             # 公共组件
-│   │   └── AppLayout.vue      # 应用布局
+│   │   ├── AppLayout.vue      # 应用布局
+│   │   ├── ActiveTaskPanel.vue # 运行中任务面板（可复用）
+│   │   ├── StatusChip.vue     # 任务状态标签（可复用）
+│   │   └── StrategyChips.vue  # 策略排名优化标签（可复用）
 │   ├── views/                  # 页面视图
-│   │   ├── DataView.vue       # 数据管理
-│   │   ├── DataAnalysisView.vue  # 数据分析
+│   │   ├── DataListView.vue   # 数据管理
+│   │   ├── DataAnalysisManageView.vue  # 数据分析管理
+│   │   ├── DataAnalysisRecordsView.vue # 数据分析记录
 │   │   ├── AccountConfigView.vue   # 账户配置
 │   │   ├── StrategyConfigView.vue  # 策略配置
 │   │   ├── ModelConfigView.vue     # 模型配置
@@ -46,7 +53,11 @@ frontend/
 │   │   ├── BacktestManageView.vue     # 回测管理
 │   │   ├── BacktestRecordsView.vue     # 回测记录
 │   │   ├── TradesView.vue     # 交易记录
-│   │   └── LivePositionManageView.vue  # 仓位管理
+│   │   ├── LivePositionManageView.vue  # 仓位管理
+│   │   ├── LiveSuggestionManageView.vue # 实盘建议管理
+│   │   ├── LiveDailySuggestionsView.vue # 每日建议
+│   │   ├── DailyRankingsView.vue       # 每日评分排名
+│   │   └── TradeCalendarView.vue       # 交易日历
 │   ├── router/
 │   │   └── index.ts           # 路由配置
 │   ├── plugins/
@@ -83,6 +94,11 @@ frontend/
 │    回测管理 │                                 │
 │    回测记录 │                                 │
 │    交易记录 │                                 │
+│  ▼ 实盘建议 │                                 │
+│    管理     │                                 │
+│    仓位管理 │                                 │
+│    每日建议 │                                 │
+│    每日排名 │                                 │
 │            │                                 │
 └────────────┴─────────────────────────────────┘
      ↑
@@ -103,7 +119,10 @@ frontend/
 | `/backtest/manage` | 回测管理 | 发起回测任务 |
 | `/backtest/records` | 回测记录 | 查看回测历史 |
 | `/backtest/trades` | 交易记录 | 查看交易流水 |
+| `/live-suggestion/manage` | 实盘建议管理 | 发起建议任务、查看运行中任务 |
 | `/live-suggestion/positions` | 仓位管理 | 手动管理持仓、现金调整、费率设置 |
+| `/live-suggestion/daily-suggestions` | 每日建议 | 查看每日建议股票列表 |
+| `/live-suggestion/daily-rankings` | 每日排名 | 全市场评分排名 |
 
 ## 页面设计
 
@@ -285,6 +304,79 @@ frontend/
 **组件**:
 - 数据表格：交易流水
 - 筛选下拉：多维度筛选
+
+### 11. 实盘建议管理 `/live-suggestion/manage`
+
+**功能**:
+- 选择训练结果、策略配置、实盘组合
+- 设置时间范围和市值排行前 N
+- 发起实盘建议任务
+- 查看运行中任务状态
+
+**组件**:
+- 表单：选择参数
+- `StrategyChips`：显示策略排名优化状态
+- `ActiveTaskPanel`：运行中任务面板（支持停止/删除任务）
+
+### 12. 仓位管理 `/live-suggestion/positions`
+
+**功能**:
+- 选择/创建实盘组合
+- 手动添加/编辑/删除持仓
+- 搜索股票（模糊匹配 ts_code 或名称）
+- 查看持仓汇总（持仓数、总成本）
+
+**组件**:
+- 组合选择器
+- 数据表格：持仓列表
+- 持仓表单弹窗
+- 股票搜索框
+
+### 13. 每日建议 `/live-suggestion/daily-suggestions`
+
+**功能**:
+- 选择建议日期
+- 查看该日期的建议股票列表（评分、排名、方向概率、排除标记）
+- 支持分页浏览
+
+**组件**:
+- 日期选择器
+- 数据表格：建议列表
+
+### 14. 每日排名 `/live-suggestion/daily-rankings`
+
+**功能**:
+- 选择交易日期
+- 查看全市场评分排名
+- 查看评分明细（综合评分、排名评分、方向概率、趋势加分等）
+
+**组件**:
+- 日期选择器
+- 数据表格：评分排名列表
+
+## 共享组件
+
+### ActiveTaskPanel.vue
+
+运行中任务面板，用于管理训练/回测/实盘建议等异步任务的实时状态：
+
+- 自动轮询任务进度
+- 支持停止（可选强制）和删除任务
+- 可配置任务标签、错误列显示
+- 通过 `api-stop` 和 `api-delete` 属性注入具体 API
+
+### StatusChip.vue
+
+任务状态标签：
+- `pending` → 灰色
+- `running` → 蓝色
+- `completed` → 绿色
+- `failed` → 红色
+- `cancelled` → 黄色
+
+### StrategyChips.vue
+
+策略排名优化标签，显示策略中启用的排名优化项（动量加成/趋势加分/波动扣分/暴涨排除）。
 
 ## API 封装
 
