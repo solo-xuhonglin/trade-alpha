@@ -365,6 +365,11 @@ class SuggestionPipeline:
                     real_positions: Dict[str, PositionEmbed] = {}
                     if portfolio_doc:
                         for pos in portfolio_doc.positions:
+                            if hasattr(pos, 'created_at') and pos.created_at:
+                                buy_date = pos.created_at
+                            else:
+                                buy_date = datetime.strptime(date, "%Y%m%d")
+                            hold_days = (datetime.strptime(date, "%Y%m%d") - buy_date).days
                             real_positions[pos.ts_code] = PositionEmbed(
                                 ts_code=pos.ts_code,
                                 stock_name=pos.stock_name,
@@ -377,7 +382,7 @@ class SuggestionPipeline:
                                 entry_5d_prob=0,
                                 entry_10d_prob=0,
                                 entry_20d_prob=0,
-                                hold_days=0,
+                                hold_days=hold_days,
                             )
 
                     self.portfolio.reset()
