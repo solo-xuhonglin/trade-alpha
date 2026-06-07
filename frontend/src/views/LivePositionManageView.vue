@@ -1,5 +1,45 @@
 <template>
   <div>
+    <!-- Portfolio Selector -->
+    <v-card border rounded class="mb-4">
+      <v-card-text class="d-flex align-center ga-4">
+        <v-select
+          v-model="selectedPortfolioId"
+          :items="portfolioOptions"
+          item-title="name"
+          item-value="id"
+          label="选择组合"
+          style="max-width: 300px;"
+          hide-details
+          @update:model-value="onPortfolioChange"
+        />
+        <v-btn prepend-icon="mdi-plus" variant="tonal" color="primary" @click="createPortfolioDialog.show = true">
+          新建组合
+        </v-btn>
+      </v-card-text>
+    </v-card>
+
+    <v-dialog v-model="createPortfolioDialog.show" max-width="400px">
+      <v-card>
+        <v-card-title>新建组合</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="createPortfolioDialog.name"
+            label="组合名称"
+            hide-details
+            @keyup.enter="confirmCreatePortfolio"
+          />
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" @click="createPortfolioDialog.show = false">取消</v-btn>
+          <v-btn color="primary" variant="tonal" :loading="createPortfolioDialog.loading" :disabled="!createPortfolioDialog.name" @click="confirmCreatePortfolio">
+            创建
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Positions Table -->
     <v-card border rounded>
       <v-data-table
@@ -125,7 +165,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { livePortfolioApi, type LivePortfolio, type LivePosition, type StockSearchItem } from '@/api/livePortfolio'
+import { livePortfolioApi, type LivePortfolio, type LivePosition, type StockSearchItem, type PortfolioOption } from '@/api/livePortfolio'
 import { dataApi } from '@/api/data'
 
 const portfolio = ref<LivePortfolio>({
@@ -136,6 +176,14 @@ const portfolio = ref<LivePortfolio>({
 })
 
 const formatMoney = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const selectedPortfolioId = ref<string | undefined>(undefined)
+const portfolioOptions = ref<PortfolioOption[]>([])
+const createPortfolioDialog = ref({
+  show: false,
+  loading: false,
+  name: '',
+})
 
 const positionHeaders = [
   { title: '股票名称', key: 'stock_name' },
@@ -149,14 +197,46 @@ const positionHeaders = [
 // ---- Load ----
 const loadPortfolio = async () => {
   try {
-    const res = await livePortfolioApi.getPortfolio()
+    const res = await livePortfolioApi.getPortfolio(selectedPortfolioId.value)
     portfolio.value = res.data
   } catch {
     // silent
   }
 }
 
-onMounted(loadPortfolio)
+onMounted(async () => {
+  await loadPortfolioOptions()
+  await loadPortfolio()
+})
+
+async function loadPortfolioOptions() {
+  try {
+    const res = await livePortfolioApi.listOptions()
+    portfolioOptions.value = res.data.items
+    if (!selectedPortfolioId.value && portfolioOptions.value.length > 0) {
+      const def = portfolioOptions.value.find(p => p.name === 'default') || portfolioOptions.value[0]
+      selectedPortfolioId.value = def.id
+    }
+  } catch { /* silent */ }
+}
+
+async function onPortfolioChange(id: string) {
+  selectedPortfolioId.value = id
+  await loadPortfolio()
+}
+
+async function confirmCreatePortfolio() {
+  createPortfolioDialog.value.loading = true
+  try {
+    const res = await livePortfolioApi.createPortfolio(createPortfolioDialog.value.name)
+    createPortfolioDialog.value.show = false
+    createPortfolioDialog.value.name = ''
+    await loadPortfolioOptions()
+    selectedPortfolioId.value = res.data.id
+    await loadPortfolio()
+  } catch { /* silent */ }
+  finally { createPortfolioDialog.value.loading = false }
+}
 
 // ---- Stock Search ----
 const stockSearchItems = ref<(StockSearchItem & { label: string })[]>([])
@@ -264,7 +344,7 @@ const savePosition = async () => {
       const res = await livePortfolioApi.updatePosition(positionDialog.value.editItem.id, {
         shares: positionForm.value.shares,
         cost_price: positionForm.value.price,
-      })
+      }, selectedPortfolioId.value)
       portfolio.value = res.data
     } else if (positionForm.value.ts_code) {
       const res = await livePortfolioApi.addPosition({
@@ -272,7 +352,7 @@ const savePosition = async () => {
         stock_name: positionForm.value.ts_code.name,
         shares: positionForm.value.shares,
         price: positionForm.value.price,
-      })
+      }, selectedPortfolioId.value)
       portfolio.value = res.data
     }
     positionDialog.value.show = false
@@ -298,7 +378,7 @@ const confirmDelete = async () => {
   if (!deleteDialog.value.item) return
   deleteDialog.value.loading = true
   try {
-    const res = await livePortfolioApi.deletePosition(deleteDialog.value.item.id)
+    const res = await livePortfolioApi.deletePosition(deleteDialog.value.item.id, selectedPortfolioId.value)
     portfolio.value = res.data
     deleteDialog.value.show = false
   } catch {

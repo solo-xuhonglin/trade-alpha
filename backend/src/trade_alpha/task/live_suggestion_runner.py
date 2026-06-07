@@ -7,6 +7,7 @@ from beanie import PydanticObjectId
 from trade_alpha.task.runner import BaseRunner
 from trade_alpha.task.service import TaskService
 from trade_alpha.dao.strategy_config import StrategyConfig
+from trade_alpha.dao.live_portfolio import LivePortfolio
 from trade_alpha.models import training as training_module
 from trade_alpha.execution.suggestion_pipeline import SuggestionPipeline
 from trade_alpha.logging import get_logger
@@ -61,10 +62,17 @@ class LiveSuggestionRunner(BaseRunner):
                 ).sort(TradeCalendar.cal_date).to_list()
                 target_dates = [c.cal_date for c in calendar_days]
 
+            portfolio_id = params.get("portfolio_id")
+            if portfolio_id:
+                live_portfolio = await LivePortfolio.get(PydanticObjectId(portfolio_id))
+            else:
+                live_portfolio = await LivePortfolio.find_one(LivePortfolio.name == "default")
+
             result_id = await pipeline.run(
                 task_id=self.task_id,
                 universe_limit=params.get("top_n", 100),
                 target_dates=target_dates,
+                live_portfolio=live_portfolio,
             )
 
             await TaskService.complete_task(self.task_id, str(result_id))

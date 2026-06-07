@@ -25,9 +25,23 @@ export interface StockSearchItem {
   market: string | null
 }
 
+export interface PortfolioOption {
+  id: string
+  name: string
+}
+
 export const livePortfolioApi = {
-  getPortfolio(): Promise<{ data: LivePortfolio }> {
-    return request.get('/live-portfolio/')
+  listOptions(): Promise<{ data: { items: PortfolioOption[] } }> {
+    return request.get('/live-portfolio/options')
+  },
+
+  createPortfolio(name: string): Promise<{ data: PortfolioOption }> {
+    return request.post('/live-portfolio/', { name })
+  },
+
+  getPortfolio(id?: string): Promise<{ data: LivePortfolio }> {
+    const params = id ? { portfolio_id: id } : {}
+    return request.get('/live-portfolio/', { params })
   },
 
   addPosition(data: {
@@ -35,19 +49,23 @@ export const livePortfolioApi = {
     stock_name: string
     shares: number
     price: number
-  }): Promise<{ data: LivePortfolio }> {
-    return request.post('/live-portfolio/positions', data)
+  }, portfolioId?: string): Promise<{ data: LivePortfolio }> {
+    const params = portfolioId ? { portfolio_id: portfolioId } : {}
+    return request.post('/live-portfolio/positions', data, { params })
   },
 
   updatePosition(
     id: string,
-    data: { shares?: number; cost_price?: number }
+    data: { shares?: number; cost_price?: number },
+    portfolioId?: string
   ): Promise<{ data: LivePortfolio }> {
-    return request.put(`/live-portfolio/positions/${id}`, data)
+    const params = portfolioId ? { portfolio_id: portfolioId } : {}
+    return request.put(`/live-portfolio/positions/${id}`, data, { params })
   },
 
-  deletePosition(id: string): Promise<{ data: LivePortfolio }> {
-    return request.delete(`/live-portfolio/positions/${id}`)
+  deletePosition(id: string, portfolioId?: string): Promise<{ data: LivePortfolio }> {
+    const params = portfolioId ? { portfolio_id: portfolioId } : {}
+    return request.delete(`/live-portfolio/positions/${id}`, { params })
   },
 
   searchStocks(q: string): Promise<{ data: { items: StockSearchItem[] } }> {

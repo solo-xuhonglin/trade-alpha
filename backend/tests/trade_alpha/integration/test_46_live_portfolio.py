@@ -1,7 +1,8 @@
 """Tests for live portfolio feature (Layer 4).
 
 Tests manual position management without cash/fee fields.
-Tests create their own portfolio document and only operate on test data.
+Creates a named default portfolio (test_live_portfolio) for downstream tests.
+CRUD tests use their own temp portfolio isolated from the default.
 """
 
 import pytest
@@ -9,6 +10,7 @@ from trade_alpha.dao.live_portfolio import LivePortfolio, LivePositionEmbed
 from trade_alpha.api.routers.live_portfolio import (
     _portfolio_to_dict,
 )
+from trade_alpha.test_config import TEST_LIVE_PORTFOLIO_NAME
 
 
 @pytest.mark.integration
@@ -18,26 +20,39 @@ class TestLivePortfolio:
 
     @pytest.fixture(autouse=True)
     async def setup_teardown(self):
-        """Create a test portfolio, yield, then clean up only test data."""
+        """Create a temp portfolio for CRUD tests, clean up after."""
         from datetime import datetime
         now = datetime.now()
-        test_pf = LivePortfolio(positions=[], created_at=now, updated_at=now)
+        ts = now.strftime("%Y%m%d%H%M%S%f")
+        self.test_pf_name = f"test_temp_{ts}"
+        test_pf = LivePortfolio(name=self.test_pf_name, positions=[], created_at=now, updated_at=now)
         await test_pf.insert()
-        self.test_pf_id = test_pf.id
         yield
-        leftover = await LivePortfolio.get(self.test_pf_id)
+        leftover = await LivePortfolio.find_one(LivePortfolio.name == self.test_pf_name)
         if leftover:
             await leftover.delete()
 
     async def _get_test_portfolio(self) -> LivePortfolio:
-        """Refresh test portfolio from DB."""
-        pf = await LivePortfolio.get(self.test_pf_id)
+        """Refresh temp portfolio from DB by name."""
+        pf = await LivePortfolio.find_one(LivePortfolio.name == self.test_pf_name)
         assert pf is not None
         return pf
 
     @pytest.mark.asyncio
+    async def test_ensure_default_live_portfolio(self):
+        """Ensure default named portfolio exists for Layer 6 tests."""
+        existing = await LivePortfolio.find_one(LivePortfolio.name == TEST_LIVE_PORTFOLIO_NAME)
+        if existing:
+            return
+
+        from datetime import datetime
+        now = datetime.now()
+        pf = LivePortfolio(name=TEST_LIVE_PORTFOLIO_NAME, positions=[], created_at=now, updated_at=now)
+        await pf.insert()
+
+    @pytest.mark.asyncio
     async def test_01_get_or_create_empty(self):
-        """Test that test portfolio was created with empty positions list."""
+        """Test that temp portfolio was created with empty positions list."""
         portfolio = await self._get_test_portfolio()
         assert portfolio.positions == []
         assert portfolio.id is not None
@@ -62,7 +77,7 @@ class TestLivePortfolio:
         ))
         await portfolio.save()
 
-        reloaded = await LivePortfolio.get(self.test_pf_id)
+        reloaded = await LivePortfolio.find_one(LivePortfolio.name == self.test_pf_name)
         assert reloaded is not None
         assert len(reloaded.positions) == 1
         assert reloaded.positions[0].ts_code == "002594.SZ"
@@ -93,7 +108,7 @@ class TestLivePortfolio:
         )
         await portfolio.save()
 
-        reloaded = await LivePortfolio.get(self.test_pf_id)
+        reloaded = await LivePortfolio.find_one(LivePortfolio.name == self.test_pf_name)
         assert reloaded.positions[0].shares == 500
         assert reloaded.positions[0].cost_price == 220.0
         assert reloaded.positions[0].total_cost == 110000.0
@@ -107,7 +122,7 @@ class TestLivePortfolio:
         portfolio.positions.pop(0)
         await portfolio.save()
 
-        reloaded = await LivePortfolio.get(self.test_pf_id)
+        reloaded = await LivePortfolio.find_one(LivePortfolio.name == self.test_pf_name)
         assert len(reloaded.positions) == original_count - 1
 
     @pytest.mark.asyncio
@@ -146,7 +161,7 @@ class TestLivePortfolio:
         )
         await portfolio.save()
 
-        reloaded = await LivePortfolio.get(self.test_pf_id)
+        reloaded = await LivePortfolio.find_one(LivePortfolio.name == self.test_pf_name)
         merged = reloaded.positions[0]
         assert merged.shares == old_shares + extra_shares
         # Weighted average: (old_total_cost + extra_cost) / new_shares
@@ -154,7 +169,7 @@ class TestLivePortfolio:
         assert abs(merged.cost_price - round(expected_price, 4)) < 0.001
 
     async def _get_or_create_populated(self) -> LivePortfolio:
-        """Helper: populate test portfolio with at least 2 positions if empty."""
+        """Helper: populate temp portfolio with at least 2 positions if empty."""
         from datetime import datetime
         from uuid import uuid4
 

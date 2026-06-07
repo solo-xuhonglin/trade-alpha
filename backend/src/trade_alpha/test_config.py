@@ -19,6 +19,7 @@ TEST_EXCLUDED_TS_CODES = [
 TEST_MODEL_CONFIG_NAME = "test_model_config"
 TEST_STRATEGY_NAME = "test_strategy"
 TEST_ACCOUNT_CONFIG_NAME = "test_account_config"
+TEST_LIVE_PORTFOLIO_NAME = "test_live_portfolio"
 
 # Data sync years (aligns with production config)
 DATA_YEARS = load_config().data_years
@@ -27,3 +28,6 @@ DATA_YEARS = load_config().data_years
 PROD_TRAINING_NAME = "prod_training"
 PROD_ACCOUNT_CONFIG_NAME = "prod_account_config"
 PROD_MODEL_CONFIG_NAME = "prod_model_config"
+
+# Universe size for suggestion pipeline tests
+TEST_UNIVERSE_SIZE = 30

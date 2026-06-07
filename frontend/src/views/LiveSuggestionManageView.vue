@@ -21,6 +21,18 @@
         </v-col>
       </v-row>
       <v-row>
+        <v-col cols="12" sm="6" md="3">
+          <v-select
+            v-model="form.portfolio_id"
+            :items="portfolioOptions"
+            item-title="name"
+            item-value="id"
+            label="实盘组合"
+            clearable
+          />
+        </v-col>
+      </v-row>
+      <v-row>
         <v-col cols="12" sm="6" md="6">
           <v-select
             v-model="form.strategy_config_id"
@@ -184,6 +196,7 @@ import { ref, watch, onMounted } from 'vue'
 import { liveSuggestionApi } from '@/api/liveSuggestion'
 import { trainingRecordApi } from '@/api/trainingRecord'
 import { strategyConfigApi } from '@/api/strategyConfig'
+import { livePortfolioApi } from '@/api/livePortfolio'
 import { getStatusColor, getStatusText } from '@/utils/taskStatus'
 import { formatDate } from '@/utils/date'
 import { useTaskPolling } from '@/composables/useTaskPolling'
@@ -196,6 +209,7 @@ const deleteDialog = ref({ show: false, loading: false, task_id: '' })
 const form = ref({
   training_id: '',
   strategy_config_id: '',
+  portfolio_id: '',
   start_date: '',
   end_date: '',
   top_n: 100,
@@ -204,6 +218,7 @@ const form = ref({
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const strategyOptions = ref<{ label: string; value: string }[]>([])
 const selectedStrategy = ref<any>(null)
+const portfolioOptions = ref<{ id: string; name: string }[]>([])
 
 const { activeTasks, startPolling } = useTaskPolling({
   pollFn: async () => {
@@ -245,6 +260,7 @@ const runSuggestion = async () => {
       strategy_config_id: form.value.strategy_config_id,
       top_n: form.value.top_n,
     }
+    if (form.value.portfolio_id) body.portfolio_id = form.value.portfolio_id
     if (form.value.start_date) body.start_date = form.value.start_date.replace(/-/g, '')
     if (form.value.end_date) body.end_date = form.value.end_date.replace(/-/g, '')
     await liveSuggestionApi.trigger(body)
@@ -284,9 +300,10 @@ const confirmDelete = async () => {
 
 onMounted(async () => {
   try {
-    const [train, strats] = await Promise.all([
+    const [train, strats, pf] = await Promise.all([
       trainingRecordApi.list(),
       strategyConfigApi.list(),
+      livePortfolioApi.listOptions(),
     ])
     trainingOptions.value = (train.data ?? []).map((t: any) => ({
       label: t.name || `${t.model_type}_${t.updated_at || t.created_at || ''}`,
@@ -296,6 +313,9 @@ onMounted(async () => {
       label: s.name,
       value: s.id,
     }))
+    portfolioOptions.value = pf.data.items
+    const def = portfolioOptions.value.find(p => p.name === 'default')
+    if (def) form.value.portfolio_id = def.id
   } catch (e) {
     // silently handle
   }

@@ -125,8 +125,14 @@ export interface DailyScoresResponse {
 }
 
 export const liveSuggestionApi = {
-  trigger: (body: { account_config_id: string; training_id: string; strategy_config_id: string; start_date?: string; end_date?: string; top_n?: number }) =>
-    api.post<{ task_id: string; status: string; message: string }>('/live-suggestion/run', body),
+  trigger: (body: {
+    training_id: string
+    strategy_config_id: string
+    portfolio_id?: string
+    start_date?: string
+    end_date?: string
+    top_n?: number
+  }) => api.post<{ task_id: string; status: string; message: string }>('/live-suggestion/run', body),
 
   listDailyScores: (tradeDate?: string, page: number = 1, pageSize: number = 100) =>
     api.get<DailyScoresResponse>('/live-suggestion/daily-scores', {

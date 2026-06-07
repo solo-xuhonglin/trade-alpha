@@ -22,9 +22,10 @@ class LivePositionEmbed(BaseModel):
 class LivePortfolio(Document):
     """Portfolio document holding stock positions.
 
-    Only one document exists in the live_portfolio collection.
+    Named portfolio documents; use name field to distinguish instances.
     """
 
+    name: str = ""
     positions: List[LivePositionEmbed] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

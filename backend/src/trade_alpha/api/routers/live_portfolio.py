@@ -4,11 +4,21 @@ from datetime import datetime
 from typing import List
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from trade_alpha.dao.live_portfolio import LivePortfolio, LivePositionEmbed
 from trade_alpha.dao.stock_list import StockList
+from bson import ObjectId
+
+
+def _parse_oid(id_str: str) -> ObjectId:
+    """Parse a string into an ObjectId, raising 400 on invalid."""
+    try:
+        return ObjectId(id_str)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid ObjectId: {id_str}")
+
 
 router = APIRouter(prefix="/live-portfolio", tags=["live-portfolio"])
 
@@ -16,6 +26,10 @@ router = APIRouter(prefix="/live-portfolio", tags=["live-portfolio"])
 # ---------------------------------------------------------------------------
 # Request/Response schemas
 # ---------------------------------------------------------------------------
+
+class CreatePortfolioRequest(BaseModel):
+    name: str
+
 
 class AddPositionRequest(BaseModel):
     ts_code: str
@@ -33,14 +47,19 @@ class UpdatePositionRequest(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-async def _get_or_create_portfolio() -> LivePortfolio:
-    """Get the single portfolio document, creating with defaults if missing."""
-    portfolio = await LivePortfolio.find_one()
-    if portfolio is None:
+async def _get_or_create_portfolio(portfolio_id: str | None = None) -> LivePortfolio:
+    """Get portfolio by id, or default when id is None."""
+    if portfolio_id:
+        pf = await LivePortfolio.get(_parse_oid(portfolio_id))
+        if pf is None:
+            raise HTTPException(status_code=404, detail="Portfolio not found")
+        return pf
+    pf = await LivePortfolio.find_one(LivePortfolio.name == "default")
+    if pf is None:
         now = datetime.now()
-        portfolio = LivePortfolio(positions=[], created_at=now, updated_at=now)
-        await portfolio.insert()
-    return portfolio
+        pf = LivePortfolio(name="default", positions=[], created_at=now, updated_at=now)
+        await pf.insert()
+    return pf
 
 
 async def _save_portfolio(p: LivePortfolio) -> None:
@@ -53,19 +72,46 @@ async def _save_portfolio(p: LivePortfolio) -> None:
 # ---------------------------------------------------------------------------
 
 
+@router.get("/options")
+async def list_portfolio_options():
+    """List all portfolio names and IDs."""
+    portfolios = await LivePortfolio.find_all().to_list()
+    return {
+        "items": [
+            {"id": str(p.id), "name": p.name or "default"}
+            for p in portfolios
+        ]
+    }
+
+
 @router.get("/")
-async def get_portfolio():
-    """Get portfolio with positions."""
-    portfolio = await _get_or_create_portfolio()
+async def get_portfolio(id: str | None = Query(None)):
+    """Get portfolio by id, or default when id is omitted."""
+    portfolio = await _get_or_create_portfolio(id)
+    return _portfolio_to_dict(portfolio)
+
+
+@router.post("/")
+async def create_portfolio(body: CreatePortfolioRequest):
+    """Create a new named portfolio."""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Portfolio name cannot be empty")
+    existing = await LivePortfolio.find_one(LivePortfolio.name == name)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Portfolio '{name}' already exists")
+    now = datetime.now()
+    portfolio = LivePortfolio(name=name, positions=[], created_at=now, updated_at=now)
+    await portfolio.insert()
     return _portfolio_to_dict(portfolio)
 
 
 @router.post("/positions")
-async def add_position(body: AddPositionRequest):
+async def add_position(body: AddPositionRequest, portfolio_id: str | None = Query(None)):
     """Add a position (no cash deduction)."""
     if body.shares <= 0 or body.price <= 0:
         raise HTTPException(status_code=400, detail="Shares and price must be positive")
-    portfolio = await _get_or_create_portfolio()
+    portfolio = await _get_or_create_portfolio(portfolio_id)
 
     now = datetime.now()
     cost = body.shares * body.price
@@ -146,9 +192,9 @@ async def update_position(position_id: str, body: UpdatePositionRequest):
 
 
 @router.delete("/positions/{position_id}")
-async def delete_position(position_id: str):
+async def delete_position(position_id: str, portfolio_id: str | None = Query(None)):
     """Delete a position (no cash adjustment)."""
-    portfolio = await _get_or_create_portfolio()
+    portfolio = await _get_or_create_portfolio(portfolio_id)
 
     target_idx = None
     for i, pos in enumerate(portfolio.positions):

@@ -61,6 +61,7 @@ class LiveSuggestionRunRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     top_n: int = 100
+    portfolio_id: Optional[str] = None
 
 
 @router.post("/run")
@@ -82,6 +83,7 @@ async def trigger_live_suggestion(body: LiveSuggestionRunRequest):
             "training_id": body.training_id,
             "strategy_config_id": body.strategy_config_id,
             "top_n": body.top_n,
+            "portfolio_id": body.portfolio_id,
         }
         if body.start_date:
             task_params["start_date"] = body.start_date
