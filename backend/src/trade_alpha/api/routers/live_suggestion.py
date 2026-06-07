@@ -72,10 +72,6 @@ async def trigger_live_suggestion(body: LiveSuggestionRunRequest):
     import sys
 
     try:
-        account_config = await AccountConfig.get(PydanticObjectId(body.account_config_id))
-        if not account_config:
-            raise HTTPException(status_code=404, detail="Account config not found")
-
         training = await training_module.get_training_by_id(PydanticObjectId(body.training_id))
         if not training:
             raise HTTPException(status_code=404, detail="Training not found")
@@ -85,7 +81,6 @@ async def trigger_live_suggestion(body: LiveSuggestionRunRequest):
             raise HTTPException(status_code=404, detail="Strategy config not found")
 
         task_params = {
-            "account_config_id": body.account_config_id,
             "training_id": body.training_id,
             "strategy_config_id": body.strategy_config_id,
             "top_n": body.top_n,

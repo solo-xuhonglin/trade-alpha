@@ -3,17 +3,7 @@
     <v-card-title class="text-subtitle-1">发起实盘建议</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="3">
-          <v-select
-            v-model="form.account_config_id"
-            :items="accountOptions"
-            item-title="label"
-            item-value="value"
-            label="账户配置"
-            clearable
-          />
-        </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="4">
           <v-select
             v-model="form.training_id"
             :items="trainingOptions"
@@ -298,15 +288,10 @@ const confirmDelete = async () => {
 
 onMounted(async () => {
   try {
-    const [accts, train, strats] = await Promise.all([
-      accountConfigApi.list(),
+    const [train, strats] = await Promise.all([
       trainingRecordApi.list(),
       strategyConfigApi.list(),
     ])
-    accountOptions.value = (accts.data ?? []).map((a: any) => ({
-      label: a.name,
-      value: a.id,
-    }))
     trainingOptions.value = (train.data ?? []).map((t: any) => ({
       label: t.name || `${t.model_type}_${t.updated_at || t.created_at || ''}`,
       value: t.id,
