@@ -1,7 +1,7 @@
 """Live portfolio API router for manual position management."""
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
@@ -10,6 +10,9 @@ from pydantic import BaseModel
 from trade_alpha.dao.live_portfolio import LivePortfolio, LivePositionEmbed
 from trade_alpha.dao.stock_list import StockList
 from bson import ObjectId
+
+
+DEFAULT_PORTFOLIO_NAME = "default"
 
 
 def _parse_oid(id_str: str) -> ObjectId:
@@ -39,25 +42,25 @@ class AddPositionRequest(BaseModel):
 
 
 class UpdatePositionRequest(BaseModel):
-    shares: int | None = None
-    cost_price: float | None = None
+    shares: Optional[int] = None
+    cost_price: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-async def _get_or_create_portfolio(portfolio_id: str | None = None) -> LivePortfolio:
+async def _get_or_create_portfolio(portfolio_id: Optional[str] = None) -> LivePortfolio:
     """Get portfolio by id, or default when id is None."""
     if portfolio_id:
         pf = await LivePortfolio.get(_parse_oid(portfolio_id))
         if pf is None:
             raise HTTPException(status_code=404, detail="Portfolio not found")
         return pf
-    pf = await LivePortfolio.find_one(LivePortfolio.name == "default")
+    pf = await LivePortfolio.find_one(LivePortfolio.name == DEFAULT_PORTFOLIO_NAME)
     if pf is None:
         now = datetime.now()
-        pf = LivePortfolio(name="default", positions=[], created_at=now, updated_at=now)
+        pf = LivePortfolio(name=DEFAULT_PORTFOLIO_NAME, positions=[], created_at=now, updated_at=now)
         await pf.insert()
     return pf
 
@@ -78,14 +81,14 @@ async def list_portfolio_options():
     portfolios = await LivePortfolio.find_all().to_list()
     return {
         "items": [
-            {"id": str(p.id), "name": p.name or "default"}
+            {"id": str(p.id), "name": p.name or DEFAULT_PORTFOLIO_NAME}
             for p in portfolios
         ]
     }
 
 
 @router.get("/")
-async def get_portfolio(id: str | None = Query(None)):
+async def get_portfolio(id: Optional[str] = Query(None)):
     """Get portfolio by id, or default when id is omitted."""
     portfolio = await _get_or_create_portfolio(id)
     return _portfolio_to_dict(portfolio)
@@ -107,7 +110,7 @@ async def create_portfolio(body: CreatePortfolioRequest):
 
 
 @router.post("/positions")
-async def add_position(body: AddPositionRequest, portfolio_id: str | None = Query(None)):
+async def add_position(body: AddPositionRequest, portfolio_id: Optional[str] = Query(None)):
     """Add a position (no cash deduction)."""
     if body.shares <= 0 or body.price <= 0:
         raise HTTPException(status_code=400, detail="Shares and price must be positive")
@@ -153,14 +156,14 @@ async def add_position(body: AddPositionRequest, portfolio_id: str | None = Quer
 
 
 @router.put("/positions/{position_id}")
-async def update_position(position_id: str, body: UpdatePositionRequest):
+async def update_position(position_id: str, body: UpdatePositionRequest, portfolio_id: Optional[str] = Query(None)):
     """Update position shares and/or cost price (no cash adjustment)."""
     if body.shares is not None and body.shares <= 0:
         raise HTTPException(status_code=400, detail="Shares must be positive")
     if body.cost_price is not None and body.cost_price <= 0:
         raise HTTPException(status_code=400, detail="Cost price must be positive")
 
-    portfolio = await _get_or_create_portfolio()
+    portfolio = await _get_or_create_portfolio(portfolio_id)
 
     target_idx = None
     for i, pos in enumerate(portfolio.positions):
@@ -192,7 +195,7 @@ async def update_position(position_id: str, body: UpdatePositionRequest):
 
 
 @router.delete("/positions/{position_id}")
-async def delete_position(position_id: str, portfolio_id: str | None = Query(None)):
+async def delete_position(position_id: str, portfolio_id: Optional[str] = Query(None)):
     """Delete a position (no cash adjustment)."""
     portfolio = await _get_or_create_portfolio(portfolio_id)
 
@@ -243,6 +246,7 @@ async def search_stocks(q: str = ""):
 def _portfolio_to_dict(p: LivePortfolio) -> dict:
     return {
         "id": str(p.id),
+        "name": p.name or DEFAULT_PORTFOLIO_NAME,
         "positions": [
             {
                 "id": pos.id,

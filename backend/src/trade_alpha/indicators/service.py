@@ -1,7 +1,7 @@
 """Indicators service module."""
 
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 import pandas as pd
 from trade_alpha.dao import StockDaily
@@ -81,7 +81,7 @@ def _in_target_range(trade_date: str, start_date: Optional[str], end_date: Optio
 
 async def calculate_and_store_ma(
     ts_code: str,
-    periods: list[int] | None = None,
+    periods: Optional[List[int]] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> int:

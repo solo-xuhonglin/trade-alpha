@@ -35,12 +35,13 @@ export const livePortfolioApi = {
     return request.get('/live-portfolio/options')
   },
 
-  createPortfolio(name: string): Promise<{ data: PortfolioOption }> {
+  createPortfolio(name: string): Promise<{ data: LivePortfolio }> {
     return request.post('/live-portfolio/', { name })
   },
 
   getPortfolio(id?: string): Promise<{ data: LivePortfolio }> {
-    const params = id ? { portfolio_id: id } : {}
+    const params: Record<string, string> = {}
+    if (id) params.id = id
     return request.get('/live-portfolio/', { params })
   },
 
@@ -50,7 +51,8 @@ export const livePortfolioApi = {
     shares: number
     price: number
   }, portfolioId?: string): Promise<{ data: LivePortfolio }> {
-    const params = portfolioId ? { portfolio_id: portfolioId } : {}
+    const params: Record<string, string> = {}
+    if (portfolioId) params.portfolio_id = portfolioId
     return request.post('/live-portfolio/positions', data, { params })
   },
 
@@ -59,12 +61,14 @@ export const livePortfolioApi = {
     data: { shares?: number; cost_price?: number },
     portfolioId?: string
   ): Promise<{ data: LivePortfolio }> {
-    const params = portfolioId ? { portfolio_id: portfolioId } : {}
+    const params: Record<string, string> = {}
+    if (portfolioId) params.portfolio_id = portfolioId
     return request.put(`/live-portfolio/positions/${id}`, data, { params })
   },
 
   deletePosition(id: string, portfolioId?: string): Promise<{ data: LivePortfolio }> {
-    const params = portfolioId ? { portfolio_id: portfolioId } : {}
+    const params: Record<string, string> = {}
+    if (portfolioId) params.portfolio_id = portfolioId
     return request.delete(`/live-portfolio/positions/${id}`, { params })
   },
 

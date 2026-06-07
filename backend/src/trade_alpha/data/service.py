@@ -2,7 +2,7 @@
 
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic, fetch_trading_calendar
 from trade_alpha.dao import StockDaily, StockList, TradeCalendar
 from trade_alpha.dao.mongodb import get_database
@@ -167,9 +167,9 @@ async def update_stock_data_count():
 
 async def find_stock_daily_by_ts_code(
     ts_code: str,
-    start_date: str = None,
-    end_date: str = None,
-) -> list[StockDaily]:
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> List[StockDaily]:
     """Find stock daily records by ts_code with optional date filter, sorted by trade_date ascending."""
     conditions = [StockDaily.ts_code == ts_code]
     if start_date:
@@ -269,7 +269,7 @@ async def fetch_and_store_trade_calendar() -> dict:
     }
 
 
-async def get_trade_calendar_records(start_date: str | None = None, end_date: str | None = None) -> list[dict]:
+async def get_trade_calendar_records(start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[dict]:
     """Query trade calendar records, optionally filtered by date range. Includes daily stats from stored fields."""
     query = TradeCalendar.find_all()
     if start_date:
@@ -284,9 +284,19 @@ async def get_trade_calendar_records(start_date: str | None = None, end_date: st
 
     records = await query.sort(TradeCalendar.cal_date).to_list()
 
-    has_open_day_stats = any(r.is_open and r.stock_count is not None for r in records)
-    need_compute = start_date and end_date and not has_open_day_stats
-    if need_compute:
+    # Check if the latest trading days in range have stats populated
+    open_days_with_stats = [(r.cal_date, r.stock_count) for r in records if r.is_open]
+    need_compute = False
+    if open_days_with_stats:
+        check_count = min(3, len(open_days_with_stats))
+        for _, sc in open_days_with_stats[-check_count:]:
+            if sc is None:
+                need_compute = True
+                break
+    else:
+        need_compute = True
+
+    if need_compute and start_date and end_date:
         await _compute_and_store_calendar_stats(start_date, end_date)
         records = await query.sort(TradeCalendar.cal_date).to_list()
 

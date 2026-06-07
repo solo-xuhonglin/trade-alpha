@@ -193,9 +193,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { liveSuggestionApi } from '@/api/liveSuggestion'
+import { liveSuggestionApi, type LiveSuggestionTaskItem } from '@/api/liveSuggestion'
 import { trainingRecordApi } from '@/api/trainingRecord'
-import { strategyConfigApi } from '@/api/strategyConfig'
+import { strategyConfigApi, type Strategy } from '@/api/strategyConfig'
 import { livePortfolioApi } from '@/api/livePortfolio'
 import { getStatusColor, getStatusText } from '@/utils/taskStatus'
 import { formatDate } from '@/utils/date'
@@ -217,10 +217,10 @@ const form = ref({
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
 const strategyOptions = ref<{ label: string; value: string }[]>([])
-const selectedStrategy = ref<any>(null)
+const selectedStrategy = ref<Strategy | null>(null)
 const portfolioOptions = ref<{ id: string; name: string }[]>([])
 
-const { activeTasks, startPolling } = useTaskPolling({
+const { activeTasks, startPolling } = useTaskPolling<LiveSuggestionTaskItem>({
   pollFn: async () => {
     const res = await liveSuggestionApi.listTasks(1, 20)
     return { data: { items: res.data.items } }
@@ -255,7 +255,14 @@ const runSuggestion = async () => {
   running.value = true
   error.value = ''
   try {
-    const body: any = {
+    const body: {
+      training_id: string
+      strategy_config_id: string
+      portfolio_id?: string
+      start_date?: string
+      end_date?: string
+      top_n: number
+    } = {
       training_id: form.value.training_id,
       strategy_config_id: form.value.strategy_config_id,
       top_n: form.value.top_n,
@@ -265,8 +272,8 @@ const runSuggestion = async () => {
     if (form.value.end_date) body.end_date = form.value.end_date.replace(/-/g, '')
     await liveSuggestionApi.trigger(body)
     startPolling()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || '发起失败，请重试'
+  } catch (e: unknown) {
+    error.value = (e as any)?.response?.data?.detail || '发起失败，请重试'
   } finally {
     running.value = false
   }
@@ -276,10 +283,10 @@ const confirmStop = async () => {
   stopDialog.value.loading = true
   try {
     await liveSuggestionApi.stopTask(stopDialog.value.task_id, stopDialog.value.force)
-    activeTasks.value = activeTasks.value.filter((t: any) => t.task_id !== stopDialog.value.task_id)
+    activeTasks.value = activeTasks.value.filter(t => t.task_id !== stopDialog.value.task_id)
     stopDialog.value.show = false
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || '停止失败'
+  } catch (e: unknown) {
+    error.value = (e as any)?.response?.data?.detail || '停止失败'
   } finally {
     stopDialog.value.loading = false
   }
@@ -289,10 +296,10 @@ const confirmDelete = async () => {
   deleteDialog.value.loading = true
   try {
     await liveSuggestionApi.deleteTask(deleteDialog.value.task_id)
-    activeTasks.value = activeTasks.value.filter((t: any) => t.task_id !== deleteDialog.value.task_id)
+    activeTasks.value = activeTasks.value.filter(t => t.task_id !== deleteDialog.value.task_id)
     deleteDialog.value.show = false
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || '删除失败'
+  } catch (e: unknown) {
+    error.value = (e as any)?.response?.data?.detail || '删除失败'
   } finally {
     deleteDialog.value.loading = false
   }
