@@ -114,7 +114,8 @@ const loadDateSummaries = async (options?: any) => {
     items.value = res.data.items || []
     total.value = res.data.total || 0
     itemsLength.value = res.data.total || 0
-  } catch {
+  } catch (e) {
+    console.error('Failed to load suggestion dates:', e)
     items.value = []
     total.value = 0
     itemsLength.value = 0
@@ -168,7 +169,8 @@ const loadDetails = async (options?: any) => {
     detailItems.value = res.data.items || []
     detailTotal.value = res.data.total || 0
     detailItemsLength.value = res.data.total || 0
-  } catch {
+  } catch (e) {
+    console.error('Failed to load suggestion details:', e)
     detailItems.value = []
     detailTotal.value = 0
     detailItemsLength.value = 0

@@ -69,7 +69,7 @@ class BacktestRunRequest(BaseModel):
 
 
 @router.post("/run")
-async def trigger_backtest(body: BacktestRunRequest):
+async def trigger_backtest(body: BacktestRunRequest) -> dict:
     """Trigger backtest task in subprocess."""
     import subprocess
     import sys
@@ -219,7 +219,7 @@ async def list_backtest_tasks(
 
 
 @router.get("/results/{result_id}")
-async def get_backtest_result(result_id: str):
+async def get_backtest_result(result_id: str) -> dict:
     """Get backtest result by ID."""
     try:
         obj_id = PydanticObjectId(result_id)
