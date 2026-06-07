@@ -58,7 +58,7 @@
         hide-default-footer
       >
         <template v-slot:item.status="{ item }">
-          <v-chip :color="getStatusColor(item.status)" size="small">{{ getStatusText(item.status) }}</v-chip>
+          <StatusChip :status="item.status" />
         </template>
         <template v-slot:item.progress="{ item }">
           <div class="d-flex flex-column">
@@ -107,26 +107,6 @@ const activeTaskHeaders = [
   { title: '进度', key: 'progress' },
   { title: '创建时间', key: 'created_at' },
 ]
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'pending': return 'info'
-    case 'running': return 'warning'
-    case 'completed': return 'success'
-    case 'failed': return 'error'
-    default: return ''
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'pending': return '等待中'
-    case 'running': return '运行中'
-    case 'completed': return '已完成'
-    case 'failed': return '失败'
-    default: return status
-  }
-}
 
 let pollInterval: number | null = null
 
