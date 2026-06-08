@@ -124,25 +124,21 @@ class MultiStockStrategy(PositionManager):
 
         sell_ts_codes = {order.ts_code for order in orders}
 
-        # In suggestion mode, limit buy suggestions to available portfolio slots
-        buy_limit = None
-        if suggestion_mode:
-            available_slots = self.max_positions - len(portfolio.positions) + len(sell_ts_codes)
-            buy_limit = max(0, available_slots)
-
-        bought_count = 0
+        # In suggestion mode, limit buy suggestions following the same
+        # position count check as reserve_funds in backtest flow.
+        suggestion_count = 0
         for stock in top_stocks:
             if stock.ts_code in sell_ts_codes:
                 continue
 
             if suggestion_mode:
-                if bought_count >= buy_limit:
+                if len(portfolio.positions) + suggestion_count >= self.max_positions:
                     logger.info(
-                        f"make_decisions trade_date={trade_date} reached buy_limit={buy_limit}, "
-                        f"positions={len(portfolio.positions)} sells={len(sell_ts_codes)} max={self.max_positions}"
+                        f"make_decisions trade_date={trade_date} reached max_positions={self.max_positions}, "
+                        f"positions={len(portfolio.positions)} suggestions={suggestion_count}"
                     )
                     break
-                bought_count += 1
+                suggestion_count += 1
                 orders.append(PendingOrder(
                     ts_code=stock.ts_code,
                     stock_name=stock.stock_name,
