@@ -3,6 +3,8 @@
 import asyncio
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
+from trade_alpha.api.main import app
 from trade_alpha.dao.mongodb import init_db, close_db
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import fetch_and_store_stock_list
@@ -24,6 +26,14 @@ async def setup_db():
     await init_db()
     yield
     await close_db()
+
+
+@pytest_asyncio.fixture
+async def client():
+    """Create an HTTP client for testing API endpoints."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test/api") as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="session")

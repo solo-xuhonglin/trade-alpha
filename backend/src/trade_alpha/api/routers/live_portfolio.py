@@ -5,11 +5,12 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from trade_alpha.dao.live_portfolio import LivePortfolio, LivePositionEmbed
 from trade_alpha.dao.stock_list import StockList
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 
 DEFAULT_PORTFOLIO_NAME = "default"
@@ -32,6 +33,14 @@ router = APIRouter(prefix="/live-portfolio", tags=["live-portfolio"])
 
 class CreatePortfolioRequest(BaseModel):
     name: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Portfolio name cannot be empty")
+        return stripped
 
 
 class AddPositionRequest(BaseModel):
@@ -61,7 +70,10 @@ async def _get_or_create_portfolio(portfolio_id: Optional[str] = None) -> LivePo
     if pf is None:
         now = datetime.now()
         pf = LivePortfolio(name=DEFAULT_PORTFOLIO_NAME, positions=[], created_at=now, updated_at=now)
-        await pf.insert()
+        try:
+            await pf.insert()
+        except DuplicateKeyError:
+            pf = await LivePortfolio.find_one(LivePortfolio.name == DEFAULT_PORTFOLIO_NAME)
     return pf
 
 
@@ -105,8 +117,22 @@ async def create_portfolio(body: CreatePortfolioRequest):
         raise HTTPException(status_code=400, detail=f"Portfolio '{name}' already exists")
     now = datetime.now()
     portfolio = LivePortfolio(name=name, positions=[], created_at=now, updated_at=now)
-    await portfolio.insert()
+    try:
+        await portfolio.insert()
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail=f"Portfolio '{name}' already exists")
     return _portfolio_to_dict(portfolio)
+
+
+@router.delete("/{portfolio_id}")
+async def delete_portfolio(portfolio_id: str):
+    """Delete a named portfolio."""
+    obj_id = _parse_oid(portfolio_id)
+    pf = await LivePortfolio.get(obj_id)
+    if pf is None:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    await pf.delete()
+    return {"detail": "Portfolio deleted"}
 
 
 @router.post("/positions")

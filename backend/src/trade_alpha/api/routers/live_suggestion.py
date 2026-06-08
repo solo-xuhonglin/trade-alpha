@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
+from trade_alpha.api.deps import parse_obj_id
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.models import training as training_module
 from trade_alpha.task.dao import TaskStatus, TaskType
@@ -12,7 +13,9 @@ from trade_alpha.task.service import TaskService
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
+from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.mongodb import get_database
+from beanie.odm.operators.find.comparison import In
 
 router = APIRouter(prefix="/live-suggestion", tags=["live-suggestion"])
 
@@ -286,6 +289,10 @@ async def list_suggestions(
     page_size: int = 100,
 ):
     """List suggestions for a specific trade date, sorted by rank."""
+    from collections import defaultdict
+    from bisect import bisect_left
+    from datetime import timedelta
+
     skip = (page - 1) * page_size
     total = await LiveOrderSuggestion.find(
         LiveOrderSuggestion.trade_date == trade_date
@@ -294,7 +301,7 @@ async def list_suggestions(
         LiveOrderSuggestion.trade_date == trade_date
     ).sort(LiveOrderSuggestion.rank).skip(skip).limit(page_size).to_list()
 
-    return {
+    result = {
         "items": [_suggestion_to_dict(s) for s in items],
         "total": total,
         "page": page,
@@ -302,6 +309,50 @@ async def list_suggestions(
         "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
         "trade_date": trade_date,
     }
+
+    # --- 建议验证：批量计算实际 N 日涨跌幅 ---
+    if not items:
+        return result
+
+    end_date = (datetime.strptime(trade_date, "%Y%m%d") + timedelta(days=50)).strftime("%Y%m%d")
+    ts_codes = list(set(s.ts_code for s in items))
+
+    daily_records = await StockDaily.find(
+            In(StockDaily.ts_code, ts_codes),
+            StockDaily.trade_date >= trade_date,
+            StockDaily.trade_date <= end_date,
+        ).sort(StockDaily.trade_date).to_list()
+
+    ts_dates: dict[str, list[tuple[str, Optional[float]]]] = defaultdict(list)
+    for doc in daily_records:
+        ts_dates[doc.ts_code].append((doc.trade_date, doc.close))
+
+    for item_data, s in zip(result["items"], items):
+        dates_with_close = ts_dates.get(s.ts_code, [])
+        if not dates_with_close:
+            continue
+        all_dates = [d for d, _ in dates_with_close]
+        base_idx = bisect_left(all_dates, s.trade_date)
+        if base_idx >= len(all_dates) or all_dates[base_idx] != s.trade_date:
+            continue
+        base_close = dates_with_close[base_idx][1]
+        if base_close is None:
+            continue
+
+        for n in (3, 5, 10, 20):
+            target_idx = base_idx + n
+            if target_idx < len(dates_with_close):
+                target_close = dates_with_close[target_idx][1]
+                if target_close is not None:
+                    ret = (target_close - base_close) / base_close * 100
+                    item_data[f"actual_return_{n}d"] = round(ret, 2)
+                    prob = getattr(s, f"up_prob_{n}d", None)
+                    if prob is not None:
+                        item_data[f"direction_correct_{n}d"] = (
+                            (prob > 0.5 and ret > 0) or (prob < 0.5 and ret < 0)
+                        )
+
+    return result
 
 
 @router.get("/tasks")
@@ -390,10 +441,7 @@ async def stop_live_suggestion_task(task_id: str, force: bool = False):
 @router.delete("/task/{task_id}")
 async def delete_live_suggestion_task(task_id: str):
     """Delete a live suggestion task."""
-    try:
-        obj_id = PydanticObjectId(task_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid task ID")
+    obj_id = parse_obj_id(task_id, "Invalid task ID")
 
     await TaskService.delete_task(obj_id)
 

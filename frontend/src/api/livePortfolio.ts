@@ -39,6 +39,10 @@ export const livePortfolioApi = {
     return request.post('/live-portfolio/', { name })
   },
 
+  deletePortfolio(id: string): Promise<void> {
+    return request.delete(`/live-portfolio/${id}`)
+  },
+
   getPortfolio(id?: string): Promise<{ data: LivePortfolio }> {
     const params: Record<string, string> = {}
     if (id) params.id = id

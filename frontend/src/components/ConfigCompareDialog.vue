@@ -58,14 +58,17 @@ export interface CompareField {
   type?: 'number' | 'string' | 'boolean' | 'array'
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
-  configA: Record<string, any>
-  configB: Record<string, any>
+  configA?: Record<string, any>
+  configB?: Record<string, any>
   fields: CompareField[]
   titleA?: string
   titleB?: string
-}>()
+}>(), {
+  configA: null,
+  configB: null,
+})
 
 defineEmits<{
   'update:modelValue': [value: boolean]

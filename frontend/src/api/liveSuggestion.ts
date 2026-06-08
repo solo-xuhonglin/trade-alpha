@@ -73,6 +73,14 @@ export interface LiveSuggestion {
   momentum_bonus: number
   is_excluded: boolean
   excluded_reason: string | null
+  actual_return_3d?: number | null
+  actual_return_5d?: number | null
+  actual_return_10d?: number | null
+  actual_return_20d?: number | null
+  direction_correct_3d?: boolean | null
+  direction_correct_5d?: boolean | null
+  direction_correct_10d?: boolean | null
+  direction_correct_20d?: boolean | null
   reason: string | null
 }
 

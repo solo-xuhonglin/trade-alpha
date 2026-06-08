@@ -5,6 +5,7 @@ from typing import Optional
 from beanie import PydanticObjectId
 from datetime import datetime
 
+from trade_alpha.api.deps import parse_obj_id
 from trade_alpha.models import training
 from trade_alpha.task.dao import TaskStatus, TaskType
 from trade_alpha.task.service import TaskService
@@ -29,10 +30,10 @@ async def trigger_training(
     import sys
 
     try:
-        config_obj_id = PydanticObjectId(config_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid config ID format")
-    
+        config_obj_id = parse_obj_id(config_id, "Invalid config ID format")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     try:
         validate_date_range(start_date, end_date)
     except ValueError as e:
@@ -74,10 +75,7 @@ async def trigger_training(
 @router.get("/task/{task_id}")
 async def get_training_task(task_id: str):
     """Get training task status."""
-    try:
-        obj_id = PydanticObjectId(task_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid task ID")
+    obj_id = parse_obj_id(task_id, "Invalid task ID")
 
     task = await TaskService.get_task(obj_id)
     if not task:
@@ -250,10 +248,7 @@ async def get_training(training_id: str):
 @router.delete("/{training_id}")
 async def delete_training(training_id: str):
     """Delete training."""
-    try:
-        obj_id = PydanticObjectId(training_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid training ID")
+    obj_id = parse_obj_id(training_id, "Invalid training ID")
 
     deleted = await training.delete_training(obj_id)
     if not deleted:

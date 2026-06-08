@@ -16,6 +16,16 @@
         <v-btn prepend-icon="mdi-plus" variant="tonal" color="primary" @click="createPortfolioDialog.show = true">
           新建组合
         </v-btn>
+        <v-btn
+          v-if="selectedPortfolioId"
+          prepend-icon="mdi-delete"
+          variant="tonal"
+          color="error"
+          :disabled="portfolioOptions.length <= 1"
+          @click="deletePortfolioDialog.show = true"
+        >
+          删除组合
+        </v-btn>
       </v-card-text>
     </v-card>
 
@@ -27,6 +37,7 @@
             v-model="createPortfolioDialog.name"
             label="组合名称"
             hide-details
+            :error-messages="createPortfolioDialog.error"
             @keyup.enter="confirmCreatePortfolio"
           />
         </v-card-text>
@@ -35,6 +46,32 @@
           <v-btn variant="text" @click="createPortfolioDialog.show = false">取消</v-btn>
           <v-btn color="primary" variant="tonal" :loading="createPortfolioDialog.loading" :disabled="!createPortfolioDialog.name" @click="confirmCreatePortfolio">
             创建
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Delete Portfolio Confirmation Dialog -->
+    <v-dialog v-model="deletePortfolioDialog.show" max-width="400px">
+      <v-card>
+        <v-card-title class="text-h6 d-flex justify-space-between align-center pa-4">
+          确认删除组合
+          <v-btn icon variant="text" size="small" @click="deletePortfolioDialog.show = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <p>确定删除选中的组合？</p>
+          <p v-if="portfolio.positions.length > 0" class="text-red mt-2">
+            该组合下还有 {{ portfolio.positions.length }} 个持仓，删除后不可恢复。
+          </p>
+          <p v-if="deletePortfolioDialog.error" class="text-error mt-2">{{ deletePortfolioDialog.error }}</p>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" @click="deletePortfolioDialog.show = false">取消</v-btn>
+          <v-btn color="error" variant="tonal" :loading="deletePortfolioDialog.loading" @click="confirmDeletePortfolio">
+            删除
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -183,6 +220,13 @@ const createPortfolioDialog = ref({
   show: false,
   loading: false,
   name: '',
+  error: '',
+})
+
+const deletePortfolioDialog = ref({
+  show: false,
+  loading: false,
+  error: '',
 })
 
 const positionHeaders = [
@@ -227,6 +271,7 @@ async function onPortfolioChange(id: string) {
 
 async function confirmCreatePortfolio() {
   createPortfolioDialog.value.loading = true
+  createPortfolioDialog.value.error = ''
   try {
     const res = await livePortfolioApi.createPortfolio(createPortfolioDialog.value.name)
     createPortfolioDialog.value.show = false
@@ -234,8 +279,31 @@ async function confirmCreatePortfolio() {
     await loadPortfolioOptions()
     selectedPortfolioId.value = res.data.id
     await loadPortfolio()
-  } catch { /* silent */ }
+  } catch (e: any) {
+    createPortfolioDialog.value.error = e?.response?.data?.detail || e?.message || '创建失败'
+  }
   finally { createPortfolioDialog.value.loading = false }
+}
+
+async function confirmDeletePortfolio() {
+  if (!selectedPortfolioId.value) return
+  deletePortfolioDialog.value.loading = true
+  deletePortfolioDialog.value.error = ''
+  try {
+    await livePortfolioApi.deletePortfolio(selectedPortfolioId.value)
+    deletePortfolioDialog.value.show = false
+    await loadPortfolioOptions()
+    // Switch to first available portfolio
+    if (portfolioOptions.value.length > 0) {
+      selectedPortfolioId.value = portfolioOptions.value[0].id
+      await loadPortfolio()
+    } else {
+      portfolio.value = { id: '', positions: [], created_at: '', updated_at: '' }
+    }
+  } catch (e: any) {
+    deletePortfolioDialog.value.error = e?.response?.data?.detail || e?.message || '删除失败'
+  }
+  finally { deletePortfolioDialog.value.loading = false }
 }
 
 // ---- Stock Search ----

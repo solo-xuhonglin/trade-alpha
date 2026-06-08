@@ -6,6 +6,8 @@ from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
 
+from trade_alpha.api.deps import parse_obj_id
+from trade_alpha.logging import get_logger
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.models import training as training_module
 from trade_alpha.execution.backtest_pipeline import BacktestPipeline
@@ -74,6 +76,8 @@ async def trigger_backtest(body: BacktestRunRequest) -> dict:
     import subprocess
     import sys
 
+    logger = get_logger("backtest.trigger")
+
     try:
         account_config = await AccountConfig.get(PydanticObjectId(body.account_config_id))
         if not account_config:
@@ -116,6 +120,7 @@ async def trigger_backtest(body: BacktestRunRequest) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Backtest trigger failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -221,10 +226,7 @@ async def list_backtest_tasks(
 @router.get("/results/{result_id}")
 async def get_backtest_result(result_id: str) -> dict:
     """Get backtest result by ID."""
-    try:
-        obj_id = PydanticObjectId(result_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid result ID")
+    obj_id = parse_obj_id(result_id, "Invalid result ID")
 
     result = await ExecutionResult.get(obj_id)
     if not result:

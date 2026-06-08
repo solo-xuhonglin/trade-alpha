@@ -3,34 +3,8 @@
 from datetime import datetime
 from typing import Optional, TypeVar, Generic, Any
 from pydantic import BaseModel, Field, field_validator
-import re
 
-
-def _validate_trade_date(date_str: str) -> str:
-    """验证交易日期格式，支持 YYYYMMDD 或 YYYY-MM-DD 格式，统一转换为 YYYYMMDD 格式返回"""
-    # 检查是否已经是 YYYYMMDD 格式
-    db_pattern = r'^\d{8}$'
-    if re.match(db_pattern, date_str):
-        try:
-            year = int(date_str[:4])
-            month = int(date_str[4:6])
-            day = int(date_str[6:8])
-            if 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31:
-                return date_str
-        except:
-            pass
-    
-    # 检查是否是 YYYY-MM-DD 格式，如果是则转换为 YYYYMMDD
-    api_pattern = r'^\d{4}-\d{2}-\d{2}$'
-    if re.match(api_pattern, date_str):
-        try:
-            year, month, day = map(int, date_str.split('-'))
-            if 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31:
-                return f"{year:04d}{month:02d}{day:02d}"
-        except:
-            pass
-    
-    raise ValueError(f"Invalid trade date format: '{date_str}'. Expected YYYYMMDD or YYYY-MM-DD")
+from trade_alpha.api.validators import validate_trade_date
 
 T = TypeVar("T")
 
@@ -62,7 +36,7 @@ class DataFetchRequest(BaseModel):
     @field_validator('start_date', 'end_date')
     @classmethod
     def validate_dates(cls, v: str) -> str:
-        return _validate_trade_date(v)
+        return validate_trade_date(v)
 
 
 class StrategyCreateRequest(BaseModel):

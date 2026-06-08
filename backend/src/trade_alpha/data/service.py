@@ -11,28 +11,6 @@ from trade_alpha.logging import get_logger
 
 logger = get_logger("data_service")
 
-INDICATOR_FIELDS = [
-    "ma_5", "ma_10", "ma_20", "ma_40", "ma_60",
-    "macd", "macd_signal", "macd_hist",
-    "pct_chg",
-    "bias_5", "bias_10", "bias_20", "bias_60",
-    "close_position_5", "close_position_10", "close_position_20", "close_position_60",
-    "vol_ratio_5", "vol_ratio_10", "vol_ratio_20", "vol_ratio_60",
-    "kdj_k", "kdj_d", "kdj_j",
-    "boll_upper", "boll_middle", "boll_lower", "boll_position",
-    "rsi_6", "rsi_12",
-    "trend_arrangement_5", "trend_arrangement_10", "trend_arrangement_20",
-    "trend_slope_5", "trend_slope_10", "trend_slope_20",
-    "trend_volume_5", "trend_volume_10", "trend_volume_20",
-    "trend_stability_5", "trend_stability_10", "trend_stability_20",
-    "obv", "obv_chg_5", "obv_chg_10", "obv_chg_20",
-    "candle_body_pct", "candle_upper_pct", "candle_lower_pct",
-    "close_location_pct", "gap_pct", "gap_fill_pct",
-    "week_open", "week_high", "week_low", "week_close",
-    "week_vol_avg", "week_amount_avg",
-]
-NUM_INDICATOR_FIELDS = len(INDICATOR_FIELDS)
-
 
 async def fetch_and_store_stock_daily(ts_code: str, start_date: str, end_date: str) -> int:
     """Fetch stock daily data from Tushare and store to MongoDB."""
@@ -203,33 +181,6 @@ fetch_and_store = fetch_and_store_stock_daily
 update_stock_list = fetch_and_store_stock_list
 
 
-async def _compute_and_store_calendar_stats(start_date: str, end_date: str) -> None:
-    """Compute stock_count and indicator_rate for each date and store in TradeCalendar records."""
-    db = await get_database()
-    projection = {"_id": 0, "trade_date": 1}
-    for f in INDICATOR_FIELDS:
-        projection[f] = 1
-    cursor = db["stock_daily"].find(
-        {"trade_date": {"$gte": start_date, "$lte": end_date}},
-        projection,
-    )
-    day_stats: dict[str, dict] = {}
-    async for doc in cursor:
-        td = doc["trade_date"]
-        if td not in day_stats:
-            day_stats[td] = {"count": 0, "non_null": 0}
-        day_stats[td]["count"] += 1
-        day_stats[td]["non_null"] += sum(1 for f in INDICATOR_FIELDS if doc.get(f) is not None)
-
-    for td, st in day_stats.items():
-        cnt = st["count"]
-        nnull = st["non_null"]
-        rate = round(nnull / (cnt * NUM_INDICATOR_FIELDS), 4) if cnt > 0 else 0.0
-        await TradeCalendar.find(
-            TradeCalendar.cal_date == td
-        ).update({"$set": {"stock_count": cnt, "indicator_rate": rate}})
-
-
 async def fetch_and_store_trade_calendar() -> dict:
     """Fetch trading calendar from Tushare and store to MongoDB."""
     config = load_config()
@@ -260,8 +211,6 @@ async def fetch_and_store_trade_calendar() -> dict:
     if new_records:
         await TradeCalendar.insert_many(new_records)
 
-    await _compute_and_store_calendar_stats(start_date, end_date)
-
     return {
         "start_date": start_date,
         "end_date": end_date,
@@ -270,7 +219,12 @@ async def fetch_and_store_trade_calendar() -> dict:
 
 
 async def get_trade_calendar_records(start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[dict]:
-    """Query trade calendar records, optionally filtered by date range. Includes daily stats from stored fields."""
+    """Query trade calendar records with real-time stock_count and indicator_rate.
+
+    Stats are computed on-the-fly via MongoDB aggregation on stock_daily,
+    using ma_5 as a proxy for indicator completeness (all indicators are
+    computed in batch, so if ma_5 is set, others are too).
+    """
     query = TradeCalendar.find_all()
     if start_date:
         query = TradeCalendar.find(TradeCalendar.cal_date >= start_date)
@@ -284,21 +238,28 @@ async def get_trade_calendar_records(start_date: Optional[str] = None, end_date:
 
     records = await query.sort(TradeCalendar.cal_date).to_list()
 
-    # Check if the latest trading days in range have stats populated
-    open_days_with_stats = [(r.cal_date, r.stock_count) for r in records if r.is_open]
-    need_compute = False
-    if open_days_with_stats:
-        check_count = min(3, len(open_days_with_stats))
-        for _, sc in open_days_with_stats[-check_count:]:
-            if sc is None:
-                need_compute = True
-                break
-    else:
-        need_compute = True
-
-    if need_compute and start_date and end_date:
-        await _compute_and_store_calendar_stats(start_date, end_date)
-        records = await query.sort(TradeCalendar.cal_date).to_list()
+    # Real-time aggregation: stock_count + indicator_ready per trade_date
+    day_stats: dict[str, dict] = {}
+    if start_date and end_date:
+        db = await get_database()
+        pipeline = [
+            {"$match": {"trade_date": {"$gte": start_date, "$lte": end_date}}},
+            {"$group": {
+                "_id": "$trade_date",
+                "stock_count": {"$sum": 1},
+                "indicator_ready": {
+                    "$sum": {"$cond": [{"$ne": ["$ma_5", None]}, 1, 0]}
+                },
+            }},
+        ]
+        async for doc in db.stock_daily.aggregate(pipeline):
+            td = doc["_id"]
+            cnt = doc["stock_count"]
+            ready = doc["indicator_ready"]
+            day_stats[td] = {
+                "stock_count": cnt,
+                "indicator_rate": round(ready / cnt, 4) if cnt > 0 else 0.0,
+            }
 
     result = []
     for r in records:
@@ -308,9 +269,10 @@ async def get_trade_calendar_records(start_date: Optional[str] = None, end_date:
             "is_open": r.is_open,
             "pretrade_date": r.pretrade_date,
         }
-        if r.stock_count is not None:
-            item["stock_count"] = r.stock_count
-            item["indicator_rate"] = r.indicator_rate or 0.0
+        stats = day_stats.get(r.cal_date)
+        if stats:
+            item["stock_count"] = stats["stock_count"]
+            item["indicator_rate"] = stats["indicator_rate"]
         result.append(item)
 
     return result

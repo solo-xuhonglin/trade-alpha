@@ -79,6 +79,56 @@
         <template v-slot:item.momentum_bonus="{ item }">
           {{ item.momentum_bonus.toFixed(4) }}
         </template>
+        <!-- 建议验证：实际涨跌幅 -->
+        <template v-slot:item.actual_return_3d="{ item }">
+          <span v-if="item.actual_return_3d !== null && item.actual_return_3d !== undefined"
+                :class="item.actual_return_3d > 0 ? 'text-red' : 'text-green'">
+            {{ item.actual_return_3d > 0 ? '+' : '' }}{{ item.actual_return_3d?.toFixed(2) }}%
+          </span>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <template v-slot:item.actual_return_5d="{ item }">
+          <span v-if="item.actual_return_5d !== null && item.actual_return_5d !== undefined"
+                :class="item.actual_return_5d > 0 ? 'text-red' : 'text-green'">
+            {{ item.actual_return_5d > 0 ? '+' : '' }}{{ item.actual_return_5d?.toFixed(2) }}%
+          </span>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <template v-slot:item.actual_return_10d="{ item }">
+          <span v-if="item.actual_return_10d !== null && item.actual_return_10d !== undefined"
+                :class="item.actual_return_10d > 0 ? 'text-red' : 'text-green'">
+            {{ item.actual_return_10d > 0 ? '+' : '' }}{{ item.actual_return_10d?.toFixed(2) }}%
+          </span>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <template v-slot:item.actual_return_20d="{ item }">
+          <span v-if="item.actual_return_20d !== null && item.actual_return_20d !== undefined"
+                :class="item.actual_return_20d > 0 ? 'text-red' : 'text-green'">
+            {{ item.actual_return_20d > 0 ? '+' : '' }}{{ item.actual_return_20d?.toFixed(2) }}%
+          </span>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <!-- 建议验证：方向是否正确 -->
+        <template v-slot:item.direction_correct_3d="{ item }">
+          <v-icon v-if="item.direction_correct_3d === true" color="success">mdi-check</v-icon>
+          <v-icon v-else-if="item.direction_correct_3d === false" color="error">mdi-close</v-icon>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <template v-slot:item.direction_correct_5d="{ item }">
+          <v-icon v-if="item.direction_correct_5d === true" color="success">mdi-check</v-icon>
+          <v-icon v-else-if="item.direction_correct_5d === false" color="error">mdi-close</v-icon>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <template v-slot:item.direction_correct_10d="{ item }">
+          <v-icon v-if="item.direction_correct_10d === true" color="success">mdi-check</v-icon>
+          <v-icon v-else-if="item.direction_correct_10d === false" color="error">mdi-close</v-icon>
+          <span v-else class="text-grey">—</span>
+        </template>
+        <template v-slot:item.direction_correct_20d="{ item }">
+          <v-icon v-if="item.direction_correct_20d === true" color="success">mdi-check</v-icon>
+          <v-icon v-else-if="item.direction_correct_20d === false" color="error">mdi-close</v-icon>
+          <span v-else class="text-grey">—</span>
+        </template>
       </v-data-table-server>
     </v-card>
   </v-dialog>
@@ -143,6 +193,14 @@ const detailHeaders = [
   { title: '趋势加分', key: 'trend_bonus', width: 100, nowrap: true },
   { title: '波动扣分', key: 'vol_penalty', width: 100, nowrap: true },
   { title: '动量加成', key: 'momentum_bonus', width: 100, nowrap: true },
+  { title: '实涨3d', key: 'actual_return_3d', width: 90, nowrap: true },
+  { title: '实涨5d', key: 'actual_return_5d', width: 90, nowrap: true },
+  { title: '实涨10d', key: 'actual_return_10d', width: 90, nowrap: true },
+  { title: '实涨20d', key: 'actual_return_20d', width: 90, nowrap: true },
+  { title: '方向3d', key: 'direction_correct_3d', width: 80, nowrap: true },
+  { title: '方向5d', key: 'direction_correct_5d', width: 80, nowrap: true },
+  { title: '方向10d', key: 'direction_correct_10d', width: 80, nowrap: true },
+  { title: '方向20d', key: 'direction_correct_20d', width: 80, nowrap: true },
   { title: '原因', key: 'reason', width: 200, sortable: false, nowrap: true },
 ]
 

@@ -2,8 +2,8 @@
 
 from datetime import datetime
 from typing import List
-from pydantic import BaseModel, Field
-from beanie import Document
+from pydantic import BaseModel, Field, field_validator
+from beanie import Document, Indexed
 
 
 class LivePositionEmbed(BaseModel):
@@ -25,7 +25,7 @@ class LivePortfolio(Document):
     Named portfolio documents; use name field to distinguish instances.
     """
 
-    name: str = ""
+    name: str = Indexed(unique=True)
     positions: List[LivePositionEmbed] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

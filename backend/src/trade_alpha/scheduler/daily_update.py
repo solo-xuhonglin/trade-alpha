@@ -219,13 +219,4 @@ async def run_daily_update() -> bool:
         f"{total_new_records} new records"
     )
 
-    # Update calendar stock_count / indicator_rate for the latest trading day(s)
-    if total_new_records > 0:
-        from trade_alpha.data.service import _compute_and_store_calendar_stats
-        try:
-            await _compute_and_store_calendar_stats(latest_trade_date, latest_trade_date)
-            logger.info(f"Updated calendar stats for {latest_trade_date}")
-        except Exception as e:
-            logger.error(f"Failed to update calendar stats: {e}")
-
     return processed > 0

@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { dataAnalysisApi, DEFAULT_FEATURE_FIELDS, type AnalysisTaskStatus } from '@/api/dataAnalysis'
+import StatusChip from '@/components/StatusChip.vue'
 
 const loadingAnalysis = ref(false)
 const activeTasks = ref<AnalysisTaskStatus[]>([])
