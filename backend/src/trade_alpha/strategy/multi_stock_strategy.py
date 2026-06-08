@@ -126,9 +126,11 @@ class MultiStockStrategy(PositionManager):
 
         # In suggestion mode, limit buy suggestions following the same
         # position count check as reserve_funds in backtest flow.
+        # Also skip stocks already held (same as reserve_funds ts_code check).
         suggestion_count = 0
+        hold_ts_codes = set(portfolio.positions.keys())
         for stock in top_stocks:
-            if stock.ts_code in sell_ts_codes:
+            if stock.ts_code in hold_ts_codes:
                 continue
 
             if suggestion_mode:
