@@ -18,7 +18,7 @@ from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
-from trade_alpha.dao.scheduled_task import ScheduledTaskConfig, ScheduledTaskLog
+from trade_alpha.dao.scheduled_task import ScheduledTaskConfig
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.scheduler.daily_update import run_daily_update
@@ -181,6 +181,9 @@ async def run_data_sync_job():
 
 async def create_scheduler() -> AsyncIOScheduler:
     """Create and configure scheduler from DB configs."""
+    # Lazy import to avoid circular dependency
+    from trade_alpha.scheduler.service import _JOB_FN_MAP, _execute_and_log
+
     scheduler = AsyncIOScheduler()
 
     configs = await ScheduledTaskConfig.find_all().to_list()
@@ -188,7 +191,7 @@ async def create_scheduler() -> AsyncIOScheduler:
         if not cfg.enabled:
             continue
 
-        job_fn = _resolve_job_fn(cfg.task_key)
+        job_fn = _JOB_FN_MAP.get(cfg.task_key)
         if job_fn is None:
             continue
 
@@ -197,7 +200,7 @@ async def create_scheduler() -> AsyncIOScheduler:
             continue
 
         scheduler.add_job(
-            _wrap_job(job_fn, cfg),
+            _wrap_job(job_fn, cfg, _execute_and_log),
             trigger=trigger,
             id=cfg.task_key,
             name=cfg.name,
@@ -209,16 +212,6 @@ async def create_scheduler() -> AsyncIOScheduler:
     return scheduler
 
 
-def _resolve_job_fn(task_key: str):
-    """Resolve job function by task key."""
-    _map = {
-        "data_sync": run_data_sync_job,
-        "data_count": update_stock_data_count,
-        "daily_update": _run_daily_update_and_auto_suggest,
-    }
-    return _map.get(task_key)
-
-
 def _build_trigger(cfg: ScheduledTaskConfig):
     """Build APScheduler trigger from config."""
     if cfg.trigger_type == "interval" and cfg.interval_seconds:
@@ -228,32 +221,13 @@ def _build_trigger(cfg: ScheduledTaskConfig):
     return None
 
 
-def _wrap_job(job_fn, cfg: ScheduledTaskConfig):
-    """Wrap a job function to log execution to ScheduledTaskLog."""
+def _wrap_job(job_fn, cfg: ScheduledTaskConfig, execute_fn):
+    """Wrap a job function to log execution via _execute_and_log."""
     import functools
 
     @functools.wraps(job_fn)
     async def wrapper():
-        log_entry = ScheduledTaskLog(
-            config_id=cfg.id,
-            task_key=cfg.task_key,
-            status="running",
-            started_at=datetime.now(),
-        )
-        await log_entry.insert()
-        try:
-            await job_fn()
-            log_entry.status = "completed"
-            log_entry.result_message = "执行成功"
-        except Exception as e:
-            logger.error(f"Scheduled task {cfg.task_key} failed: {e}")
-            log_entry.status = "failed"
-            log_entry.error_message = str(e)
-        finally:
-            now = datetime.now()
-            log_entry.completed_at = now
-            log_entry.duration_ms = int((now - log_entry.started_at).total_seconds() * 1000)
-            await log_entry.save()
+        await execute_fn(job_fn, cfg)
 
     return wrapper
 

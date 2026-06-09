@@ -23,6 +23,47 @@ _JOB_FN_MAP = {
 }
 
 
+async def _execute_and_log(job_fn, cfg: ScheduledTaskConfig) -> dict:
+    """Execute a job function and record execution result in ScheduledTaskLog.
+
+    Args:
+        job_fn: Async job function to execute
+        cfg: The task config this job belongs to
+
+    Returns:
+        Dict with status and result_message
+    """
+    log_entry = ScheduledTaskLog(
+        config_id=cfg.id,
+        task_key=cfg.task_key,
+        status="running",
+        started_at=datetime.now(),
+    )
+    await log_entry.insert()
+
+    started_at = datetime.now()
+    try:
+        await job_fn()
+        elapsed_ms = int((datetime.now() - started_at).total_seconds() * 1000)
+        log_entry.status = "completed"
+        log_entry.completed_at = datetime.now()
+        log_entry.duration_ms = elapsed_ms
+        log_entry.result_message = "执行成功"
+        await log_entry.save()
+        logger.info(f"Task {cfg.task_key} completed in {elapsed_ms}ms")
+        return {"status": "completed", "result_message": "执行成功"}
+    except Exception as e:
+        elapsed_ms = int((datetime.now() - started_at).total_seconds() * 1000)
+        error_msg = str(e)
+        log_entry.status = "failed"
+        log_entry.completed_at = datetime.now()
+        log_entry.duration_ms = elapsed_ms
+        log_entry.error_message = error_msg
+        await log_entry.save()
+        logger.error(f"Task {cfg.task_key} failed: {error_msg}")
+        return {"status": "failed", "result_message": error_msg}
+
+
 class ScheduledTaskService:
     """Service for scheduled task config and log management."""
 
@@ -131,35 +172,7 @@ class ScheduledTaskService:
         if job_fn is None:
             raise ValueError(f"No handler registered for task_key: {cfg.task_key}")
 
-        log_entry = ScheduledTaskLog(
-            config_id=cfg.id,
-            task_key=cfg.task_key,
-            status="running",
-            started_at=datetime.now(),
-        )
-        await log_entry.insert()
-
-        started_at = datetime.now()
-        try:
-            await job_fn()
-            elapsed_ms = int((datetime.now() - started_at).total_seconds() * 1000)
-            log_entry.status = "completed"
-            log_entry.completed_at = datetime.now()
-            log_entry.duration_ms = elapsed_ms
-            log_entry.result_message = "Execution completed"
-            await log_entry.save()
-            logger.info(f"Manual trigger completed for {cfg.task_key} in {elapsed_ms}ms")
-            return {"status": "completed", "result_message": "Execution completed"}
-        except Exception as e:
-            elapsed_ms = int((datetime.now() - started_at).total_seconds() * 1000)
-            error_msg = str(e)
-            log_entry.status = "failed"
-            log_entry.completed_at = datetime.now()
-            log_entry.duration_ms = elapsed_ms
-            log_entry.error_message = error_msg
-            await log_entry.save()
-            logger.error(f"Manual trigger failed for {cfg.task_key}: {error_msg}")
-            return {"status": "failed", "result_message": error_msg}
+        return await _execute_and_log(job_fn, cfg)
 
     @staticmethod
     async def list_logs(
@@ -187,14 +200,22 @@ class ScheduledTaskService:
 
         logs = await query.sort(-ScheduledTaskLog.started_at).skip(skip).limit(page_size).to_list()
 
+        # Batch load config names to avoid N+1
+        config_ids = list(set(le.config_id for le in logs))
+        config_map: dict[str, str] = {}
+        if config_ids:
+            configs = await ScheduledTaskConfig.find(
+                {"_id": {"$in": config_ids}}
+            ).to_list()
+            config_map = {str(c.id): c.name for c in configs}
+
         items = []
         for log_entry in logs:
-            cfg = await ScheduledTaskConfig.get(log_entry.config_id)
             items.append({
                 "id": str(log_entry.id),
                 "config_id": str(log_entry.config_id),
                 "task_key": log_entry.task_key,
-                "task_name": cfg.name if cfg else None,
+                "task_name": config_map.get(str(log_entry.config_id)),
                 "status": log_entry.status,
                 "started_at": log_entry.started_at.isoformat() if log_entry.started_at else None,
                 "completed_at": log_entry.completed_at.isoformat() if log_entry.completed_at else None,
