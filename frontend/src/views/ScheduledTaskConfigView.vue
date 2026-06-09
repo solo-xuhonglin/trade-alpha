@@ -6,7 +6,7 @@
         :headers="headers"
         :items="configs"
         :loading="loading"
-        item-value="_id"
+        item-value="id"
       >
         <template v-slot:item.enabled="{ item }">
           <v-chip :color="item.enabled ? 'success' : 'default'" size="small">
@@ -34,7 +34,7 @@
         </template>
 
         <template v-slot:item.actions="{ item }">
-          <v-btn icon="mdi-play" variant="text" size="small" @click="handleTrigger(item)" :loading="triggeringId === item._id" />
+          <v-btn icon="mdi-play" variant="text" size="small" @click="handleTrigger(item)" :loading="triggeringId === item.id" />
           <v-btn icon="mdi-cog" variant="text" size="small" @click="openEdit(item)" />
         </template>
       </v-data-table>
@@ -176,8 +176,8 @@ async function handleSave() {
   if (!editItem.value) return
   saving.value = true
   try {
-    const { _id, name, task_key, created_at, updated_at, last_run_at, last_status, last_result_message, ...data } = editItem.value
-    await updateConfig(_id, data)
+    const { id, name, task_key, created_at, updated_at, last_run_at, last_status, last_result_message, ...data } = editItem.value
+    await updateConfig(id, data)
     snackbar.value = { show: true, message: '保存成功', color: 'success' }
     editDialog.value = false
     await fetchConfigs()
@@ -189,9 +189,9 @@ async function handleSave() {
 }
 
 async function handleTrigger(item: ScheduledTaskConfig) {
-  triggeringId.value = item._id
+  triggeringId.value = item.id
   try {
-    const res = await triggerConfig(item._id)
+    const res = await triggerConfig(item.id)
     snackbar.value = { show: true, message: `触发完成: ${res.data.status}`, color: res.data.status === 'completed' ? 'success' : 'error' }
     await fetchConfigs()
   } catch (e: any) {

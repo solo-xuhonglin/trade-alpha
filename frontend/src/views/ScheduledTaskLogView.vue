@@ -17,7 +17,10 @@
             />
           </v-col>
         </v-row>
-      </v-card-text>
+    <v-alert v-if="errorMsg" type="error" density="compact" closable class="mt-2" @click:close="errorMsg = null">
+      {{ errorMsg }}
+    </v-alert>
+  </v-card-text>
 
       <v-data-table-server
         :headers="headers"
@@ -64,6 +67,7 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = 20
 const filterTaskKey = ref<string | undefined>(undefined)
+const errorMsg = ref<string | null>(null)
 
 const taskKeyOptions = [
   { title: '数据同步', value: 'data_sync' },
@@ -94,8 +98,8 @@ async function fetchLogs() {
     })
     logs.value = res.data.items
     total.value = res.data.total
-  } catch {
-    // silent
+  } catch (e: any) {
+    errorMsg.value = '加载失败: ' + (e.message || e)
   } finally {
     loading.value = false
   }

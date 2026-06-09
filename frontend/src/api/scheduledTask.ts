@@ -1,7 +1,7 @@
 import api from './index'
 
 export interface ScheduledTaskConfig {
-  _id: string
+  id: string
   name: string
   task_key: string
   enabled: boolean
