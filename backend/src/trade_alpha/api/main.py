@@ -25,7 +25,9 @@ from trade_alpha.api.routers import (
     trade_calendar,
     live_suggestion,
     live_portfolio,
+    scheduled_tasks,
 )
+from trade_alpha.dao.scheduled_task import ensure_default_configs
 from trade_alpha.api.error_handlers import register_exception_handlers
 from trade_alpha.dao import init_db, close_db
 from trade_alpha.logging import generate_request_id, get_logger, setup_logging
@@ -113,9 +115,10 @@ async def recover_orphaned_tasks():
 async def lifespan(app: FastAPI):
     await init_db()
     await recover_orphaned_tasks()
+    await ensure_default_configs()
 
     scheduler = DataSyncScheduler()
-    scheduler.start()
+    await scheduler.start()
     app.state.scheduler = scheduler
 
     yield
@@ -149,6 +152,7 @@ app.include_router(tasks.router, prefix="/api")
 app.include_router(trade_calendar.router, prefix="/api")
 app.include_router(live_suggestion.router, prefix="/api")
 app.include_router(live_portfolio.router, prefix="/api")
+app.include_router(scheduled_tasks.router, prefix="/api")
 
 
 @app.get("/")

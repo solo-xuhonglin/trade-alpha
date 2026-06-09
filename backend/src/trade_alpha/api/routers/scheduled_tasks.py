@@ -17,7 +17,7 @@ from trade_alpha.scheduler.data_sync import (
 
 logger = get_logger("api.scheduled_tasks")
 
-router = APIRouter(prefix="/api/scheduled-tasks", tags=["scheduled-tasks"])
+router = APIRouter(prefix="/scheduled-tasks", tags=["scheduled-tasks"])
 
 _JOB_FN_MAP = {
     "data_sync": run_data_sync_job,

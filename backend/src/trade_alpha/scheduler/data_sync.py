@@ -18,6 +18,7 @@ from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
+from trade_alpha.dao.scheduled_task import ScheduledTaskConfig, ScheduledTaskLog
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.scheduler.daily_update import run_daily_update
@@ -178,35 +179,83 @@ async def run_data_sync_job():
     )
 
 
-def create_scheduler() -> AsyncIOScheduler:
-    """Create and configure scheduler."""
+async def create_scheduler() -> AsyncIOScheduler:
+    """Create and configure scheduler from DB configs."""
     scheduler = AsyncIOScheduler()
 
-    scheduler.add_job(
-        run_data_sync_job,
-        trigger=IntervalTrigger(seconds=60),
-        id="data_sync_job",
-        name="Data Sync Job",
-        replace_existing=True,
-    )
+    configs = await ScheduledTaskConfig.find_all().to_list()
+    for cfg in configs:
+        if not cfg.enabled:
+            continue
 
-    scheduler.add_job(
-        update_stock_data_count,
-        trigger=IntervalTrigger(hours=1),
-        id="update_data_count_job",
-        name="Update Stock Data Count Job",
-        replace_existing=True,
-    )
+        job_fn = _resolve_job_fn(cfg.task_key)
+        if job_fn is None:
+            continue
 
-    scheduler.add_job(
-        _run_daily_update_and_auto_suggest,
-        trigger=CronTrigger(hour=18, minute=0, timezone="Asia/Shanghai"),
-        id="daily_update_job",
-        name="Daily Stock Data Update + Auto Suggest",
-        replace_existing=True,
-    )
+        trigger = _build_trigger(cfg)
+        if trigger is None:
+            continue
+
+        scheduler.add_job(
+            _wrap_job(job_fn, cfg),
+            trigger=trigger,
+            id=cfg.task_key,
+            name=cfg.name,
+            replace_existing=True,
+            misfire_grace_time=7200,
+        )
+        logger.info(f"Scheduled job {cfg.task_key}: {cfg.name} ({cfg.trigger_type})")
 
     return scheduler
+
+
+def _resolve_job_fn(task_key: str):
+    """Resolve job function by task key."""
+    _map = {
+        "data_sync": run_data_sync_job,
+        "data_count": update_stock_data_count,
+        "daily_update": _run_daily_update_and_auto_suggest,
+    }
+    return _map.get(task_key)
+
+
+def _build_trigger(cfg: ScheduledTaskConfig):
+    """Build APScheduler trigger from config."""
+    if cfg.trigger_type == "interval" and cfg.interval_seconds:
+        return IntervalTrigger(seconds=cfg.interval_seconds)
+    elif cfg.trigger_type == "cron" and cfg.cron_hour is not None and cfg.cron_minute is not None:
+        return CronTrigger(hour=cfg.cron_hour, minute=cfg.cron_minute, timezone="Asia/Shanghai")
+    return None
+
+
+def _wrap_job(job_fn, cfg: ScheduledTaskConfig):
+    """Wrap a job function to log execution to ScheduledTaskLog."""
+    import functools
+
+    @functools.wraps(job_fn)
+    async def wrapper():
+        log_entry = ScheduledTaskLog(
+            config_id=cfg.id,
+            task_key=cfg.task_key,
+            status="running",
+            started_at=datetime.now(),
+        )
+        await log_entry.insert()
+        try:
+            await job_fn()
+            log_entry.status = "completed"
+            log_entry.result_message = "执行成功"
+        except Exception as e:
+            logger.error(f"Scheduled task {cfg.task_key} failed: {e}")
+            log_entry.status = "failed"
+            log_entry.error_message = str(e)
+        finally:
+            now = datetime.now()
+            log_entry.completed_at = now
+            log_entry.duration_ms = int((now - log_entry.started_at).total_seconds() * 1000)
+            await log_entry.save()
+
+    return wrapper
 
 
 async def _trigger_auto_suggestion():
@@ -252,33 +301,32 @@ async def _trigger_auto_suggestion():
 
 
 async def _run_daily_update_and_auto_suggest():
-    """Wrapper for 18:00 cron: run daily update, then auto-trigger live suggestion if data was updated."""
-    has_new_data = await run_daily_update()
-    if has_new_data:
-        logger.info("Daily update processed new data, triggering auto suggest")
-        try:
-            await _trigger_auto_suggestion()
-        except Exception as e:
-            logger.error(f"Auto suggest failed: {e}")
-    else:
-        logger.info("No new data from daily update, skipping auto suggest")
+    """Wrapper for 18:00 cron: run daily update, then always trigger live suggestion."""
+    await run_daily_update()
+    logger.info("Daily update completed, triggering auto suggest")
+    try:
+        await _trigger_auto_suggestion()
+    except Exception as e:
+        logger.error(f"Auto suggest failed: {e}")
 
 
 class DataSyncScheduler:
     """Data sync scheduler wrapper."""
 
     def __init__(self):
-        self.scheduler = create_scheduler()
+        self.scheduler = None
 
-    def start(self):
-        """Start scheduler."""
+    async def start(self):
+        """Start scheduler asynchronously."""
+        self.scheduler = await create_scheduler()
         self.scheduler.start()
         logger.info("Data sync scheduler started")
 
     def stop(self):
         """Stop scheduler."""
-        self.scheduler.shutdown(wait=False)
-        logger.info("Data sync scheduler stopped")
+        if self.scheduler:
+            self.scheduler.shutdown(wait=False)
+            logger.info("Data sync scheduler stopped")
 
 
 if __name__ == "__main__":
