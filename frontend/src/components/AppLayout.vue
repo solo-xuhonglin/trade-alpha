@@ -96,6 +96,22 @@
             :title="item.title"
           />
         </v-list-group>
+
+        <v-list-group value="scheduledTasks">
+          <template v-slot:activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              prepend-icon="mdi-clock-outline"
+              title="任务"
+            />
+          </template>
+          <v-list-item
+            v-for="item in scheduledTaskItems"
+            :key="item.path"
+            :to="item.path"
+            :title="item.title"
+          />
+        </v-list-group>
       </v-list>
     </v-navigation-drawer>
 

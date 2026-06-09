@@ -108,6 +108,22 @@ const routes = [
         component: () => import('@/views/DailyRankingsView.vue')
       },
     ]
+  },
+  {
+    path: '/scheduled-tasks',
+    redirect: '/scheduled-tasks/config',
+    children: [
+      {
+        path: 'config',
+        name: 'ScheduledTaskConfig',
+        component: () => import('@/views/ScheduledTaskConfigView.vue')
+      },
+      {
+        path: 'logs',
+        name: 'ScheduledTaskLog',
+        component: () => import('@/views/ScheduledTaskLogView.vue')
+      },
+    ]
   }
 ]
 
