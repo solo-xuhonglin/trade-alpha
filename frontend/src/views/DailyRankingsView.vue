@@ -55,10 +55,41 @@
       <template v-slot:item.order_price="{ item }">
         {{ item.order_price.toFixed(2) }}
       </template>
+      <template v-slot:item.rank_change="{ item }">
+        <span v-if="item.rank_change !== null && item.rank_change !== undefined">
+          <v-icon v-if="item.rank_change > 0" color="red" size="small">mdi-arrow-up</v-icon>
+          <v-icon v-else-if="item.rank_change < 0" color="green" size="small">mdi-arrow-down</v-icon>
+          <span :class="item.rank_change > 0 ? 'text-red' : 'text-green'" class="ml-1">
+            {{ Math.abs(item.rank_change) }}
+          </span>
+        </span>
+        <span v-else class="text-grey">—</span>
+      </template>
       <template v-slot:item.actions="{ item }">
         <v-btn size="x-small" variant="text" color="primary" @click="openKline(item)">
           K线
         </v-btn>
+      </template>
+      <template v-slot:item.avg_rank_3d="{ item }">
+        <v-chip v-if="item.avg_rank_3d !== null && item.avg_rank_3d !== undefined"
+                :color="getRankColor(item.avg_rank_3d)" size="small">
+          {{ item.avg_rank_3d }}
+        </v-chip>
+        <span v-else class="text-grey">—</span>
+      </template>
+      <template v-slot:item.avg_rank_5d="{ item }">
+        <v-chip v-if="item.avg_rank_5d !== null && item.avg_rank_5d !== undefined"
+                :color="getRankColor(item.avg_rank_5d)" size="small">
+          {{ item.avg_rank_5d }}
+        </v-chip>
+        <span v-else class="text-grey">—</span>
+      </template>
+      <template v-slot:item.avg_rank_20d="{ item }">
+        <v-chip v-if="item.avg_rank_20d !== null && item.avg_rank_20d !== undefined"
+                :color="getRankColor(item.avg_rank_20d)" size="small">
+          {{ item.avg_rank_20d }}
+        </v-chip>
+        <span v-else class="text-grey">—</span>
       </template>
     </v-data-table-server>
   </v-card>

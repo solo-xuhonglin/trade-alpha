@@ -15,6 +15,8 @@ from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.mongodb import get_database
+from collections import defaultdict
+
 from beanie.odm.operators.find.comparison import In
 
 router = APIRouter(prefix="/live-suggestion", tags=["live-suggestion"])
@@ -149,8 +151,43 @@ async def list_daily_scores(
         LiveDailyStockScore.trade_date == query_date
     ).sort(LiveDailyStockScore.rank).skip(skip).limit(page_size).to_list()
 
+    # --- 批量查询所有有数据的交易日 ---
+    db = await get_database()
+    raw_dates = await db.live_daily_stock_score.distinct("trade_date")
+    all_dates = sorted(raw_dates, reverse=True)  # 降序，最新的在前
+
+    # --- 获取前一个交易日的 rank map (排名变化) ---
+    prev_rank_map: dict[str, int] = {}
+    if len(all_dates) >= 2:
+        prev_date = all_dates[1]
+        prev_records = await LiveDailyStockScore.find(
+            LiveDailyStockScore.trade_date == prev_date
+        ).to_list()
+        prev_rank_map = {r.ts_code: r.rank for r in prev_records}
+
+    # --- 计算多日平均排名 ---
+    avg_rank_maps: dict[int, dict[str, int]] = {}
+    for N in (3, 5, 20):
+        if len(all_dates) < N:
+            continue
+        recent_dates = all_dates[:N]
+        records = await LiveDailyStockScore.find(
+            {"trade_date": {"$in": recent_dates}}
+        ).to_list()
+
+        score_sum: dict[str, float] = defaultdict(float)
+        score_count: dict[str, int] = defaultdict(int)
+        for r in records:
+            score_sum[r.ts_code] += r.composite_score
+            score_count[r.ts_code] += 1
+
+        avg_scores = {ts: score_sum[ts] / score_count[ts] for ts in score_sum}
+        sorted_codes = sorted(avg_scores.items(), key=lambda x: -x[1])
+        avg_rank_maps[N] = {ts: i + 1 for i, (ts, _) in enumerate(sorted_codes)}
+
+    # --- 构建响应 ---
     def _score_to_dict(s) -> dict:
-        return {
+        d = {
             "id": str(s.id),
             "ts_code": s.ts_code,
             "stock_name": s.stock_name,
@@ -169,6 +206,15 @@ async def list_daily_scores(
             "is_excluded": s.is_excluded,
             "updated_at": s.updated_at,
         }
+        # Rank change (vs previous trading day)
+        prev_rank = prev_rank_map.get(s.ts_code)
+        if prev_rank is not None:
+            d["rank_change"] = prev_rank - s.rank
+        # Average ranks
+        for N in (3, 5, 20):
+            if N in avg_rank_maps:
+                d[f"avg_rank_{N}d"] = avg_rank_maps[N].get(s.ts_code)
+        return d
 
     return {
         "items": [_score_to_dict(s) for s in items],
@@ -289,7 +335,6 @@ async def list_suggestions(
     page_size: int = 100,
 ):
     """List suggestions for a specific trade date, sorted by rank."""
-    from collections import defaultdict
     from bisect import bisect_left
     from datetime import timedelta
 

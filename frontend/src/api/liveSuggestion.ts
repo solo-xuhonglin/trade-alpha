@@ -120,6 +120,10 @@ export interface LiveDailyStockScore {
   order_price: number
   order_shares: number
   is_excluded: boolean
+  avg_rank_3d?: number | null
+  avg_rank_5d?: number | null
+  avg_rank_20d?: number | null
+  rank_change?: number | null
   updated_at: string
 }
 
