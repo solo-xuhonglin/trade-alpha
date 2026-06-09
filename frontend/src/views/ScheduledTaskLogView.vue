@@ -1,60 +1,63 @@
 <template>
-  <v-container>
-    <v-card>
-      <v-card-title class="text-h6">执行历史</v-card-title>
-
-      <v-card-text>
-        <v-row>
-          <v-col cols="auto">
-            <v-select
-              v-model="filterTaskKey"
-              :items="taskKeyOptions"
-              label="任务类型"
-              clearable
-              density="compact"
-              style="min-width: 150px"
-              @update:model-value="page = 1; fetchLogs()"
-            />
-          </v-col>
-        </v-row>
-    <v-alert v-if="errorMsg" type="error" density="compact" closable class="mt-2" @click:close="errorMsg = null">
-      {{ errorMsg }}
-    </v-alert>
-  </v-card-text>
-
-      <v-data-table-server
-        :headers="headers"
-        :items="logs"
-        :items-length="total"
-        :loading="loading"
-        :items-per-page="pageSize"
-        v-model:page="page"
-        @update:options="fetchLogs"
-        item-value="id"
-      >
-        <template v-slot:item.started_at="{ item }">
-          {{ formatTime(item.started_at) }}
-        </template>
-
-        <template v-slot:item.duration_ms="{ item }">
-          {{ item.duration_ms != null ? (item.duration_ms / 1000).toFixed(1) + 's' : '-' }}
-        </template>
-
-        <template v-slot:item.status="{ item }">
-          <v-chip
-            :color="item.status === 'completed' ? 'success' : item.status === 'failed' ? 'error' : 'warning'"
-            size="x-small"
-          >
-            {{ item.status === 'completed' ? '成功' : item.status === 'failed' ? '失败' : '运行中' }}
-          </v-chip>
-        </template>
-
-        <template v-slot:item.result="{ item }">
-          {{ item.result_message || item.error_message || '-' }}
-        </template>
-      </v-data-table-server>
+  <v-card border rounded>
+    <v-card v-if="errorMsg" border rounded class="mb-4" color="error">
+      <v-card-text class="text-white">{{ errorMsg }}</v-card-text>
     </v-card>
-  </v-container>
+
+    <v-data-table-server
+      :headers="headers"
+      :items="logs"
+      :items-length="total"
+      :loading="loading"
+      :items-per-page="pageSize"
+      v-model:page="page"
+      @update:options="fetchLogs"
+      hover
+      item-value="id"
+    >
+      <template v-slot:top>
+        <v-toolbar flat>
+          <v-toolbar-title>
+            <v-icon color="medium-emphasis" icon="mdi-history" size="x-small" start />
+            执行历史
+          </v-toolbar-title>
+          <v-select
+            v-model="filterTaskKey"
+            :items="taskKeyOptions"
+            label="任务类型"
+            clearable
+            hide-details
+            style="max-width: 200px"
+            class="ml-4"
+            @update:model-value="page = 1; fetchLogs()"
+          />
+          <v-spacer />
+          <v-btn prepend-icon="mdi-refresh" rounded="lg" text="刷新" border @click="fetchLogs" :loading="loading" />
+        </v-toolbar>
+      </template>
+
+      <template v-slot:item.started_at="{ item }">
+        {{ formatTime(item.started_at) }}
+      </template>
+
+      <template v-slot:item.duration_ms="{ item }">
+        {{ item.duration_ms != null ? (item.duration_ms / 1000).toFixed(1) + 's' : '-' }}
+      </template>
+
+      <template v-slot:item.status="{ item }">
+        <v-chip
+          :color="item.status === 'completed' ? 'success' : item.status === 'failed' ? 'error' : 'warning'"
+          size="x-small"
+        >
+          {{ item.status === 'completed' ? '成功' : item.status === 'failed' ? '失败' : '运行中' }}
+        </v-chip>
+      </template>
+
+      <template v-slot:item.result="{ item }">
+        {{ item.result_message || item.error_message || '-' }}
+      </template>
+    </v-data-table-server>
+  </v-card>
 </template>
 
 <script setup lang="ts">
@@ -90,6 +93,7 @@ function formatTime(iso: string): string {
 
 async function fetchLogs() {
   loading.value = true
+  errorMsg.value = null
   try {
     const res = await getLogs({
       task_key: filterTaskKey.value,

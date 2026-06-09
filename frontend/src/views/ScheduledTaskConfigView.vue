@@ -1,102 +1,118 @@
 <template>
-  <v-container>
-    <v-card>
-      <v-card-title class="text-h6">任务配置</v-card-title>
-      <v-data-table
-        :headers="headers"
-        :items="configs"
-        :loading="loading"
-        item-value="id"
-      >
-        <template v-slot:item.enabled="{ item }">
-          <v-chip :color="item.enabled ? 'success' : 'default'" size="small">
-            {{ item.enabled ? '已启用' : '已禁用' }}
-          </v-chip>
-        </template>
+  <v-card border rounded>
+    <v-data-table
+      :headers="headers"
+      :items="configs"
+      :loading="loading"
+      hover
+      item-value="id"
+    >
+      <template v-slot:top>
+        <v-toolbar flat>
+          <v-toolbar-title>
+            <v-icon color="medium-emphasis" icon="mdi-clock-outline" size="x-small" start />
+            任务配置
+          </v-toolbar-title>
+          <v-btn prepend-icon="mdi-refresh" rounded="lg" text="刷新" border @click="fetchConfigs" :loading="loading" />
+        </v-toolbar>
+      </template>
 
-        <template v-slot:item.trigger="{ item }">
-          {{ formatTrigger(item) }}
-        </template>
+      <template v-slot:item.enabled="{ item }">
+        <v-chip :color="item.enabled ? 'success' : 'default'" size="small">
+          {{ item.enabled ? '已启用' : '已禁用' }}
+        </v-chip>
+      </template>
 
-        <template v-slot:item.last_status="{ item }">
-          <v-chip
-            v-if="item.last_status"
-            :color="item.last_status === 'completed' ? 'success' : item.last_status === 'failed' ? 'error' : 'warning'"
-            size="x-small"
-          >
-            {{ item.last_status === 'completed' ? '成功' : item.last_status === 'failed' ? '失败' : '运行中' }}
-          </v-chip>
-          <span v-else class="text-grey">-</span>
-        </template>
+      <template v-slot:item.trigger="{ item }">
+        {{ formatTrigger(item) }}
+      </template>
 
-        <template v-slot:item.last_run_at="{ item }">
-          {{ item.last_run_at ? formatTime(item.last_run_at) : '-' }}
-        </template>
+      <template v-slot:item.last_status="{ item }">
+        <v-chip
+          v-if="item.last_status"
+          :color="item.last_status === 'completed' ? 'success' : item.last_status === 'failed' ? 'error' : 'warning'"
+          size="x-small"
+        >
+          {{ item.last_status === 'completed' ? '成功' : item.last_status === 'failed' ? '失败' : '运行中' }}
+        </v-chip>
+        <span v-else class="text-grey">-</span>
+      </template>
 
-        <template v-slot:item.actions="{ item }">
+      <template v-slot:item.last_run_at="{ item }">
+        {{ item.last_run_at ? formatTime(item.last_run_at) : '-' }}
+      </template>
+
+      <template v-slot:item.actions="{ item }">
+        <div class="d-flex ga-1">
           <v-btn icon="mdi-play" variant="text" size="small" @click="handleTrigger(item)" :loading="triggeringId === item.id" />
           <v-btn icon="mdi-cog" variant="text" size="small" @click="openEdit(item)" />
-        </template>
-      </v-data-table>
-    </v-card>
+        </div>
+      </template>
+    </v-data-table>
+  </v-card>
 
-    <v-dialog v-model="editDialog" max-width="500">
-      <v-card v-if="editItem">
-        <v-card-title>编辑配置 - {{ editItem.name }}</v-card-title>
-        <v-card-text>
-          <v-switch v-model="editItem.enabled" label="启用" hide-details />
+  <v-dialog v-model="editDialog" max-width="500">
+    <v-card v-if="editItem">
+      <v-card-title class="d-flex justify-space-between align-center">
+        {{ editItem.name }}
+        <v-btn icon variant="text" size="small" @click="editDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-switch v-model="editItem.enabled" label="启用" hide-details />
 
+        <v-select
+          v-model="editItem.trigger_type"
+          :items="triggerTypeOptions"
+          label="周期类型"
+          item-title="title"
+          item-value="value"
+          hide-details
+          class="mt-2"
+        />
+
+        <template v-if="editItem.trigger_type === 'interval'">
           <v-select
-            v-model="editItem.trigger_type"
-            :items="triggerTypeOptions"
-            label="周期类型"
+            v-model.number="editItem.interval_seconds"
+            :items="intervalOptions"
+            label="间隔"
             item-title="title"
             item-value="value"
             hide-details
             class="mt-2"
           />
+        </template>
 
-          <template v-if="editItem.trigger_type === 'interval'">
-            <v-select
-              v-model.number="editItem.interval_seconds"
-              :items="intervalOptions"
-              label="间隔"
-              item-title="title"
-              item-value="value"
-              hide-details
-              class="mt-2"
-            />
-          </template>
+        <template v-else>
+          <v-select
+            v-model.number="editItem.cron_hour"
+            :items="hourOptions"
+            label="小时"
+            hide-details
+            class="mt-2"
+          />
+          <v-select
+            v-model.number="editItem.cron_minute"
+            :items="minuteOptions"
+            label="分钟"
+            hide-details
+            class="mt-2"
+          />
+        </template>
+      </v-card-text>
+      <v-divider />
+      <v-card-actions class="bg-surface-light">
+        <v-btn text="取消" variant="plain" @click="editDialog = false" />
+        <v-spacer />
+        <v-btn text="保存" color="primary" @click="handleSave" :loading="saving" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
-          <template v-else>
-            <v-select
-              v-model.number="editItem.cron_hour"
-              :items="hourOptions"
-              label="小时"
-              hide-details
-              class="mt-2"
-            />
-            <v-select
-              v-model.number="editItem.cron_minute"
-              :items="minuteOptions"
-              label="分钟"
-              hide-details
-              class="mt-2"
-            />
-          </template>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="editDialog = false">取消</v-btn>
-          <v-btn color="primary" @click="handleSave" :loading="saving">保存</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
-      {{ snackbar.message }}
-    </v-snackbar>
-  </v-container>
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
+    {{ snackbar.message }}
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
