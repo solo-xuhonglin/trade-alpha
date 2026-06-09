@@ -21,6 +21,7 @@
             <v-icon color="medium-emphasis" icon="mdi-history" size="x-small" start />
             执行历史
           </v-toolbar-title>
+          <v-spacer />
           <v-select
             v-model="filterTaskKey"
             :items="taskKeyOptions"
@@ -28,10 +29,9 @@
             clearable
             hide-details
             style="max-width: 200px"
-            class="ml-4"
+            class="mr-2"
             @update:model-value="page = 1; fetchLogs()"
           />
-          <v-spacer />
           <v-btn prepend-icon="mdi-refresh" rounded="lg" text="刷新" border @click="fetchLogs" :loading="loading" />
         </v-toolbar>
       </template>
