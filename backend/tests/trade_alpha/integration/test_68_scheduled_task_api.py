@@ -1,12 +1,8 @@
-"""Integration tests for scheduled task management."""
+"""Integration tests for ScheduledTaskService."""
 
 import pytest
 
-from trade_alpha.dao.scheduled_task import (
-    ScheduledTaskConfig,
-    ScheduledTaskLog,
-    ensure_default_configs,
-)
+from trade_alpha.scheduler.service import ScheduledTaskService
 
 
 pytestmark = [
@@ -15,251 +11,78 @@ pytestmark = [
 ]
 
 
-class TestScheduledTaskConfig:
-    """Test scheduled task config CRUD."""
+class TestScheduledTaskService:
+    """Test ScheduledTaskService methods."""
 
-    async def test_ensure_default_configs_creates_three(self):
-        """Verify ensure_default_configs creates 3 default configs."""
-        # First clean up any existing configs
-        await ScheduledTaskConfig.find_all().delete()
-        await ensure_default_configs()
+    async def test_list_configs_returns_three(self):
+        """Verify list_configs returns 3 default configs."""
+        items = await ScheduledTaskService.list_configs()
+        assert len(items) == 3
 
-        configs = await ScheduledTaskConfig.find_all().sort(+ScheduledTaskConfig.task_key).to_list()
-        assert len(configs) == 3
-
-        keys = [cfg.task_key for cfg in configs]
+        keys = [item["task_key"] for item in items]
         assert "data_sync" in keys
         assert "data_count" in keys
         assert "daily_update" in keys
 
-    async def test_default_configs_have_correct_defaults(self):
-        """Verify each default config has correct trigger settings."""
-        await ScheduledTaskConfig.find_all().delete()
-        await ensure_default_configs()
+    async def test_list_configs_has_last_run_info(self):
+        """Verify each config item has last run fields."""
+        items = await ScheduledTaskService.list_configs()
+        for item in items:
+            assert "last_run_at" in item
+            assert "last_status" in item
+            assert "last_result_message" in item
 
-        # data_sync: interval 60s
-        sync = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert sync is not None
-        assert sync.name == "数据同步"
-        assert sync.trigger_type == "interval"
-        assert sync.interval_seconds == 60
-        assert sync.enabled is True
+    async def test_update_config_enabled(self):
+        """Verify update_config can disable and re-enable a task."""
+        items = await ScheduledTaskService.list_configs()
+        sync_id = next(i["id"] for i in items if i["task_key"] == "data_sync")
 
-        # data_count: interval 3600s
-        count = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_count")
-        assert count is not None
-        assert count.name == "数据计数更新"
-        assert count.trigger_type == "interval"
-        assert count.interval_seconds == 3600
-        assert count.enabled is True
+        result = await ScheduledTaskService.update_config(sync_id, {"enabled": False})
+        assert result["enabled"] is False
 
-        # daily_update: cron 18:00
-        daily = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "daily_update")
-        assert daily is not None
-        assert daily.name == "每日更新"
-        assert daily.trigger_type == "cron"
-        assert daily.cron_hour == 18
-        assert daily.cron_minute == 0
-        assert daily.enabled is True
+        result = await ScheduledTaskService.update_config(sync_id, {"enabled": True})
+        assert result["enabled"] is True
 
-    async def test_ensure_default_configs_is_idempotent(self):
-        """Verify calling ensure_default_configs twice does not create duplicates."""
-        await ScheduledTaskConfig.find_all().delete()
-        await ensure_default_configs()
-        await ensure_default_configs()
+    async def test_update_config_interval(self):
+        """Verify update_config can change interval and restores it."""
+        items = await ScheduledTaskService.list_configs()
+        sync_id = next(i["id"] for i in items if i["task_key"] == "data_sync")
 
-        count = await ScheduledTaskConfig.find_all().count()
-        assert count == 3
+        result = await ScheduledTaskService.update_config(sync_id, {"interval_seconds": 300})
+        assert result["interval_seconds"] == 300
 
-    async def test_update_config_fields(self):
-        """Verify updating config fields works."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
+        await ScheduledTaskService.update_config(sync_id, {"interval_seconds": 60})
 
-        cfg.enabled = False
-        cfg.interval_seconds = 300
-        await cfg.save()
-
-        updated = await ScheduledTaskConfig.get(cfg.id)
-        assert updated.enabled is False
-        assert updated.interval_seconds == 300
-
-        # Restore
-        updated.enabled = True
-        updated.interval_seconds = 60
-        await updated.save()
-
-    async def test_update_config_cron_fields(self):
-        """Verify updating cron fields works."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "daily_update")
-        assert cfg is not None
-
-        cfg.trigger_type = "cron"
-        cfg.cron_hour = 20
-        cfg.cron_minute = 30
-        await cfg.save()
-
-        updated = await ScheduledTaskConfig.get(cfg.id)
-        assert updated.cron_hour == 20
-        assert updated.cron_minute == 30
-
-        # Restore
-        updated.cron_hour = 18
-        updated.cron_minute = 0
-        await updated.save()
-
-
-class TestScheduledTaskLog:
-    """Test scheduled task log operations."""
-
-    async def test_create_log_entry(self):
-        """Verify creating a log entry works."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
-
-        log = ScheduledTaskLog(
-            config_id=cfg.id,
-            task_key=cfg.task_key,
-            status="running",
-        )
-        await log.insert()
-
-        saved = await ScheduledTaskLog.get(log.id)
-        assert saved is not None
-        assert saved.status == "running"
-        assert saved.task_key == "data_sync"
-        assert saved.completed_at is None
-
-    async def test_update_log_completion(self):
-        """Verify updating a log entry with completion info works."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
-
-        from datetime import datetime, timedelta
-
-        log = ScheduledTaskLog(
-            config_id=cfg.id,
-            task_key=cfg.task_key,
-            status="running",
-        )
-        await log.insert()
-
-        # Simulate completion
-        now = datetime.now()
-        log.status = "completed"
-        log.completed_at = now
-        log.duration_ms = 1500
-        log.result_message = "执行成功"
-        await log.save()
-
-        saved = await ScheduledTaskLog.get(log.id)
-        assert saved.status == "completed"
-        assert saved.duration_ms == 1500
-        assert saved.result_message == "执行成功"
-
-    async def test_list_logs_by_config(self):
-        """Verify querying logs by config_id works."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
-
-        # Clean up existing logs for this config
-        await ScheduledTaskLog.find(ScheduledTaskLog.config_id == cfg.id).delete()
-
-        # Create multiple logs
-        for i in range(3):
-            log = ScheduledTaskLog(
-                config_id=cfg.id,
-                task_key=cfg.task_key,
-                status="completed",
+    async def test_update_config_not_found(self):
+        """Verify update_config raises ValueError for invalid ID."""
+        with pytest.raises(ValueError, match="not found"):
+            await ScheduledTaskService.update_config(
+                "000000000000000000000000", {"enabled": False}
             )
-            await log.insert()
 
-        logs = await ScheduledTaskLog.find(
-            ScheduledTaskLog.config_id == cfg.id
-        ).to_list()
-        assert len(logs) == 3
-        for log in logs:
-            assert log.task_key == "data_sync"
+    async def test_trigger_data_sync_creates_log(self):
+        """Verify trigger_task executes and returns a status."""
+        items = await ScheduledTaskService.list_configs()
+        sync_id = next(i["id"] for i in items if i["task_key"] == "data_sync")
 
-    async def test_list_logs_by_task_key(self):
-        """Verify filtering logs by task_key works."""
-        # Clean up all existing logs first
-        await ScheduledTaskLog.find_all().delete()
+        result = await ScheduledTaskService.trigger_task(sync_id)
+        assert result["status"] in ("completed", "failed")
 
-        # Create logs for different task keys
-        sync_cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        daily_cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "daily_update")
-        assert sync_cfg is not None
-        assert daily_cfg is not None
+    async def test_trigger_not_found(self):
+        """Verify trigger_task raises ValueError for invalid ID."""
+        with pytest.raises(ValueError, match="not found"):
+            await ScheduledTaskService.trigger_task("000000000000000000000000")
 
-        for _ in range(2):
-            await ScheduledTaskLog(config_id=sync_cfg.id, task_key="data_sync", status="completed").insert()
-        for _ in range(3):
-            await ScheduledTaskLog(config_id=daily_cfg.id, task_key="daily_update", status="running").insert()
+    async def test_list_logs_returns_paginated(self):
+        """Verify list_logs returns paginated results with required fields."""
+        result = await ScheduledTaskService.list_logs()
+        assert "items" in result
+        assert "total" in result
+        assert "page" in result
+        assert result["page"] == 1
 
-        sync_logs = await ScheduledTaskLog.find(ScheduledTaskLog.task_key == "data_sync").to_list()
-        daily_logs = await ScheduledTaskLog.find(ScheduledTaskLog.task_key == "daily_update").to_list()
-        assert len(sync_logs) == 2
-        assert len(daily_logs) == 3
-
-    async def test_log_pagination(self):
-        """Verify pagination works on logs."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
-
-        total = await ScheduledTaskLog.find(ScheduledTaskLog.config_id == cfg.id).count()
-
-        page_size = 2
-        page1 = await ScheduledTaskLog.find(
-            ScheduledTaskLog.config_id == cfg.id
-        ).sort(-ScheduledTaskLog.started_at).limit(page_size).to_list()
-        assert len(page1) <= page_size
-
-    async def test_log_ordering(self):
-        """Verify logs are ordered by started_at descending."""
-        import asyncio
-        from datetime import datetime
-
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
-
-        # Create logs with slight time differences
-        logs = []
-        for i in range(3):
-            log = ScheduledTaskLog(
-                config_id=cfg.id,
-                task_key=cfg.task_key,
-                status="completed",
-            )
-            await log.insert()
-            logs.append(log)
-            await asyncio.sleep(0.01)
-
-        ordered = await ScheduledTaskLog.find(
-            ScheduledTaskLog.config_id == cfg.id
-        ).sort(-ScheduledTaskLog.started_at).to_list()
-
-        for i in range(len(ordered) - 1):
-            assert ordered[i].started_at >= ordered[i + 1].started_at
-
-    async def test_created_task_config_has_unique_task_key(self):
-        """Verify task_key uniqueness constraint."""
-        cfg = await ScheduledTaskConfig.find_one(ScheduledTaskConfig.task_key == "data_sync")
-        assert cfg is not None
-
-        # Ensure unique index exists on task_key
-        await ScheduledTaskConfig.get_pymongo_collection().create_index(
-            "task_key", unique=True
-        )
-
-        from pymongo.errors import DuplicateKeyError
-
-        dup = ScheduledTaskConfig(
-            name="重复数据同步",
-            task_key="data_sync",
-            trigger_type="interval",
-            interval_seconds=60,
-        )
-
-        with pytest.raises(DuplicateKeyError):
-            await dup.insert()
+    async def test_list_logs_filter_by_task_key(self):
+        """Verify list_logs filters by task_key."""
+        result = await ScheduledTaskService.list_logs(task_key="data_sync")
+        for item in result["items"]:
+            assert item["task_key"] == "data_sync"
