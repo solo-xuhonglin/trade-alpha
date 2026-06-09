@@ -1,4 +1,4 @@
-import apiClient from './client'
+import api from './index'
 
 export interface ScheduledTaskConfig {
   _id: string
@@ -39,15 +39,15 @@ export interface LogListResponse {
 }
 
 export async function getConfigs(): Promise<{ data: { items: ScheduledTaskConfig[] } }> {
-  return apiClient.get('/scheduled-tasks')
+  return api.get('/scheduled-tasks')
 }
 
 export async function updateConfig(id: string, data: Partial<ScheduledTaskConfig>): Promise<void> {
-  return apiClient.put(`/scheduled-tasks/${id}`, data)
+  return api.put(`/scheduled-tasks/${id}`, data)
 }
 
 export async function triggerConfig(id: string): Promise<{ data: { status: string; result_message: string | null } }> {
-  return apiClient.post(`/scheduled-tasks/${id}/trigger`)
+  return api.post(`/scheduled-tasks/${id}/trigger`)
 }
 
 export async function getLogs(params: {
@@ -55,5 +55,5 @@ export async function getLogs(params: {
   page?: number
   page_size?: number
 }): Promise<{ data: LogListResponse }> {
-  return apiClient.get('/scheduled-tasks/logs', { params })
+  return api.get('/scheduled-tasks/logs', { params })
 }
