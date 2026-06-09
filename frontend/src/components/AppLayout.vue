@@ -154,4 +154,9 @@ const liveSuggestionItems = [
   { path: '/live-suggestion/daily-rankings', title: '每日排名' },
   { path: '/live-suggestion/daily-suggestions', title: '每日建议' },
 ]
+
+const scheduledTaskItems = [
+  { path: '/scheduled-tasks/config', title: '任务配置' },
+  { path: '/scheduled-tasks/logs', title: '执行历史' },
+]
 </script>
