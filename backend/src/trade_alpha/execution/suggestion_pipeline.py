@@ -232,7 +232,7 @@ class SuggestionPipeline:
 
         for r in pred_results.values():
             r["raw_score"] = r["score"]
-            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) + r.get("vol_penalty", 0) + r.get("momentum_bonus", 0)
+            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) - r.get("vol_penalty", 0) + r.get("momentum_bonus", 0)
 
         smooth_scores(pred_results, self.strategy_config, self._score_buffer)
 

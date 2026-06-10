@@ -38,19 +38,13 @@
         </div>
       </template>
       <template v-slot:item.composite_score="{ item }">
-        <span class="font-weight-medium">{{ item.composite_score.toFixed(4) }}</span>
-      </template>
-      <template v-slot:item.ranking_score="{ item }">
-        {{ item.ranking_score.toFixed(4) }}
-      </template>
-      <template v-slot:item.trend_bonus="{ item }">
-        {{ item.trend_bonus.toFixed(4) }}
-      </template>
-      <template v-slot:item.vol_penalty="{ item }">
-        {{ item.vol_penalty.toFixed(4) }}
-      </template>
-      <template v-slot:item.momentum_bonus="{ item }">
-        {{ item.momentum_bonus.toFixed(4) }}
+        <div class="font-weight-medium">{{ item.composite_score.toFixed(4) }}</div>
+        <div class="text-caption text-medium-emphasis" style="white-space: nowrap;">
+          ={{ item.ranking_score.toFixed(4) }}
+          <span v-if="item.trend_bonus" class="text-green-darken-1">+{{ item.trend_bonus.toFixed(4) }}</span>
+          <span v-if="item.vol_penalty" class="text-red-darken-1">-{{ item.vol_penalty.toFixed(4) }}</span>
+          <span v-if="item.momentum_bonus" class="text-green-darken-1">+{{ item.momentum_bonus.toFixed(4) }}</span>
+        </div>
       </template>
       <template v-slot:item.order_price="{ item }">
         {{ item.order_price.toFixed(2) }}
@@ -131,11 +125,11 @@ function openKline(item: LiveDailyStockScore) {
 const headers = [
   { title: '排名', key: 'rank', width: 80, nowrap: true },
   { title: '股票', key: 'stock_name', width: 140, sortable: false, nowrap: true },
-  { title: '综合评分', key: 'composite_score', width: 110, nowrap: true },
-  { title: '排序评分', key: 'ranking_score', width: 110, nowrap: true },
-  { title: '趋势加分', key: 'trend_bonus', width: 100, nowrap: true },
-  { title: '波动扣分', key: 'vol_penalty', width: 100, nowrap: true },
-  { title: '动量加成', key: 'momentum_bonus', width: 100, nowrap: true },
+  { title: '综合评分', key: 'composite_score', width: 280, nowrap: true },
+  { title: '排名变化', key: 'rank_change', width: 100, sortable: false, nowrap: true },
+  { title: '3日均排名', key: 'avg_rank_3d', width: 100, sortable: false, nowrap: true },
+  { title: '5日均排名', key: 'avg_rank_5d', width: 100, sortable: false, nowrap: true },
+  { title: '20日均排名', key: 'avg_rank_20d', width: 110, sortable: false, nowrap: true },
   { title: '参考价格', key: 'order_price', width: 100, nowrap: true },
   { title: '操作', key: 'actions', sortable: false, width: 100, nowrap: true },
 ]
