@@ -108,27 +108,6 @@
           </span>
           <span v-else class="text-grey">—</span>
         </template>
-        <!-- 建议验证：方向是否正确 -->
-        <template v-slot:item.direction_correct_3d="{ item }">
-          <v-icon v-if="item.direction_correct_3d === true" color="success">mdi-check</v-icon>
-          <v-icon v-else-if="item.direction_correct_3d === false" color="error">mdi-close</v-icon>
-          <span v-else class="text-grey">—</span>
-        </template>
-        <template v-slot:item.direction_correct_5d="{ item }">
-          <v-icon v-if="item.direction_correct_5d === true" color="success">mdi-check</v-icon>
-          <v-icon v-else-if="item.direction_correct_5d === false" color="error">mdi-close</v-icon>
-          <span v-else class="text-grey">—</span>
-        </template>
-        <template v-slot:item.direction_correct_10d="{ item }">
-          <v-icon v-if="item.direction_correct_10d === true" color="success">mdi-check</v-icon>
-          <v-icon v-else-if="item.direction_correct_10d === false" color="error">mdi-close</v-icon>
-          <span v-else class="text-grey">—</span>
-        </template>
-        <template v-slot:item.direction_correct_20d="{ item }">
-          <v-icon v-if="item.direction_correct_20d === true" color="success">mdi-check</v-icon>
-          <v-icon v-else-if="item.direction_correct_20d === false" color="error">mdi-close</v-icon>
-          <span v-else class="text-grey">—</span>
-        </template>
       </v-data-table-server>
     </v-card>
   </v-dialog>
@@ -197,10 +176,6 @@ const detailHeaders = [
   { title: '实涨5d', key: 'actual_return_5d', width: 90, nowrap: true },
   { title: '实涨10d', key: 'actual_return_10d', width: 90, nowrap: true },
   { title: '实涨20d', key: 'actual_return_20d', width: 90, nowrap: true },
-  { title: '方向3d', key: 'direction_correct_3d', width: 80, nowrap: true },
-  { title: '方向5d', key: 'direction_correct_5d', width: 80, nowrap: true },
-  { title: '方向10d', key: 'direction_correct_10d', width: 80, nowrap: true },
-  { title: '方向20d', key: 'direction_correct_20d', width: 80, nowrap: true },
   { title: '原因', key: 'reason', width: 200, sortable: false, nowrap: true },
 ]
 

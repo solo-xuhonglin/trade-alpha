@@ -15,14 +15,14 @@ class TestScheduledTaskService:
     """Test ScheduledTaskService methods."""
 
     async def test_list_configs_returns_three(self):
-        """Verify list_configs returns 3 default configs."""
+        """Verify list_configs returns 3 new configs."""
         items = await ScheduledTaskService.list_configs()
         assert len(items) == 3
 
         keys = [item["task_key"] for item in items]
         assert "data_sync" in keys
-        assert "data_count" in keys
-        assert "daily_update" in keys
+        assert "daily_data" in keys
+        assert "auto_suggest" in keys
 
     async def test_list_configs_has_last_run_info(self):
         """Verify each config item has last run fields."""
@@ -51,7 +51,7 @@ class TestScheduledTaskService:
         result = await ScheduledTaskService.update_config(sync_id, {"interval_seconds": 300})
         assert result["interval_seconds"] == 300
 
-        await ScheduledTaskService.update_config(sync_id, {"interval_seconds": 60})
+        await ScheduledTaskService.update_config(sync_id, {"interval_seconds": 1800})
 
     async def test_update_config_not_found(self):
         """Verify update_config raises ValueError for invalid ID."""
@@ -86,3 +86,12 @@ class TestScheduledTaskService:
         result = await ScheduledTaskService.list_logs(task_key="data_sync")
         for item in result["items"]:
             assert item["task_key"] == "data_sync"
+
+    async def test_trigger_auto_suggest_missing_params(self):
+        """Verify trigger auto_suggest raises error when params are missing."""
+        import pytest
+        items = await ScheduledTaskService.list_configs()
+        suggest_id = next(i["id"] for i in items if i["task_key"] == "auto_suggest")
+
+        with pytest.raises(ValueError, match="requires training_id and strategy_config_id"):
+            await ScheduledTaskService.trigger_task(suggest_id)

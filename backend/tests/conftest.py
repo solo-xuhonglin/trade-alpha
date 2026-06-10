@@ -7,6 +7,7 @@ from httpx import AsyncClient, ASGITransport
 from trade_alpha.api.main import app
 from trade_alpha.dao.mongodb import init_db, close_db
 from trade_alpha.dao import StockList
+from trade_alpha.dao.scheduled_task import ensure_default_configs
 from trade_alpha.data.service import fetch_and_store_stock_list
 from trade_alpha.models import training
 from trade_alpha.test_config import TEST_STOCK, TEST_MODEL_CONFIG_NAME
@@ -24,6 +25,7 @@ def event_loop():
 async def setup_db():
     """Setup database for all tests."""
     await init_db()
+    await ensure_default_configs()
     yield
     await close_db()
 

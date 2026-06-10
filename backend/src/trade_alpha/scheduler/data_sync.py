@@ -18,7 +18,7 @@ from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
-from trade_alpha.dao.scheduled_task import ScheduledTaskConfig
+from trade_alpha.dao.scheduled_task import ScheduledTaskConfig, ScheduledTaskLog
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.scheduler.daily_update import run_daily_update
@@ -135,7 +135,7 @@ async def check_active_stocks_sufficient() -> bool:
     return active_count >= config.top_market_cap_stocks
 
 
-async def run_data_sync_job():
+async def run_data_sync_job(**kwargs):
     """Execute one data sync job.
 
     Process up to 300 stocks per run with concurrency:
@@ -181,6 +181,11 @@ async def run_data_sync_job():
 
 async def create_scheduler() -> AsyncIOScheduler:
     """Create and configure scheduler from DB configs."""
+    # Mark stale running logs as failed (from previous process or crash)
+    stale_count = await _mark_stale_running_logs()
+    if stale_count > 0:
+        logger.info(f"Marked {stale_count} stale running log(s) as failed on startup")
+
     # Lazy import to avoid circular dependency
     from trade_alpha.scheduler.service import _JOB_FN_MAP, _execute_and_log
 
@@ -212,6 +217,29 @@ async def create_scheduler() -> AsyncIOScheduler:
     return scheduler
 
 
+async def _mark_stale_running_logs() -> int:
+    """Mark stale 'running' logs as failed (stuck from previous process crash).
+
+    A log is considered stale if its status is 'running' and started_at is
+    more than 1 hour ago.
+    """
+    cutoff = datetime.now() - timedelta(hours=1)
+    stale_logs = await ScheduledTaskLog.find(
+        ScheduledTaskLog.status == "running",
+        ScheduledTaskLog.started_at < cutoff,
+    ).to_list()
+
+    now = datetime.now()
+    for log in stale_logs:
+        log.status = "failed"
+        log.completed_at = now
+        log.duration_ms = int((now - log.started_at).total_seconds() * 1000)
+        log.error_message = "Process terminated before task completed"
+        await log.save()
+
+    return len(stale_logs)
+
+
 def _build_trigger(cfg: ScheduledTaskConfig):
     """Build APScheduler trigger from config."""
     if cfg.trigger_type == "interval" and cfg.interval_seconds:
@@ -232,34 +260,46 @@ def _wrap_job(job_fn, cfg: ScheduledTaskConfig, execute_fn):
     return wrapper
 
 
-async def _trigger_auto_suggestion():
-    """Trigger a live suggestion using the latest training and default configs."""
-    from trade_alpha.dao.account_config import AccountConfig
+async def _trigger_auto_suggestion(params: dict):
+    """Trigger a live suggestion using the specified config params.
+
+    Args:
+        params: Must contain training_id, strategy_config_id, and optionally
+                portfolio_id and top_n. Dates default to today.
+
+    Raises:
+        ValueError: If required params are missing or configs not found.
+    """
+    training_id = params.get("training_id")
+    strategy_config_id = params.get("strategy_config_id")
+    top_n = params.get("top_n", 100)
+    portfolio_id = params.get("portfolio_id")
+
+    if not training_id or not strategy_config_id:
+        raise ValueError("auto_suggest requires training_id and strategy_config_id in params")
+
+    from trade_alpha.models import get_training_by_id
     from trade_alpha.dao.strategy_config import StrategyConfig
-    from trade_alpha.dao.training import TrainingResult
 
-    account = await AccountConfig.find_one()
-    if not account:
-        logger.warning("Auto suggest: no account config found")
-        return
+    training_doc = await get_training_by_id(PydanticObjectId(training_id))
+    if not training_doc:
+        raise ValueError(f"Training not found: {training_id}")
 
-    training = await TrainingResult.find().sort(-TrainingResult.created_at).first_or_none()
-    if not training:
-        logger.warning("Auto suggest: no training record found")
-        return
-
-    strategy = await StrategyConfig.find_one()
+    strategy = await StrategyConfig.get(PydanticObjectId(strategy_config_id))
     if not strategy:
-        logger.warning("Auto suggest: no strategy config found")
-        return
+        raise ValueError(f"Strategy config not found: {strategy_config_id}")
+
+    task_params = {
+        "training_id": training_id,
+        "strategy_config_id": strategy_config_id,
+        "top_n": top_n,
+    }
+    if portfolio_id:
+        task_params["portfolio_id"] = portfolio_id
 
     task = await TaskService.create_task(
         TaskType.LIVE_SUGGESTION,
-        {
-            "account_config_id": str(account.id),
-            "training_id": str(training.id),
-            "strategy_config_id": str(strategy.id),
-        },
+        task_params,
     )
 
     proc = subprocess.Popen(
@@ -274,12 +314,18 @@ async def _trigger_auto_suggestion():
     logger.info(f"Auto suggest triggered: task_id={task.id}")
 
 
-async def _run_daily_update_and_auto_suggest():
-    """Wrapper for 18:00 cron: run daily update, then always trigger live suggestion."""
+async def _run_daily_data(**kwargs):
+    """Run daily data update + data count refresh at 17:00."""
     await run_daily_update()
-    logger.info("Daily update completed, triggering auto suggest")
+    await update_stock_data_count()
+    logger.info("Daily data update completed")
+
+
+async def _run_auto_suggest(cfg=None, **kwargs):
+    """Trigger auto suggestion at 18:00 with config params."""
+    params = cfg.params if cfg else {}
     try:
-        await _trigger_auto_suggestion()
+        await _trigger_auto_suggestion(params)
     except Exception as e:
         logger.error(f"Auto suggest failed: {e}")
 

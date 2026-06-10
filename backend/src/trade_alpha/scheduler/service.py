@@ -7,10 +7,10 @@ from typing import Optional
 from beanie import PydanticObjectId
 
 from trade_alpha.dao.scheduled_task import ScheduledTaskConfig, ScheduledTaskLog
-from trade_alpha.data.service import update_stock_data_count
 from trade_alpha.logging import get_logger
 from trade_alpha.scheduler.data_sync import (
-    _run_daily_update_and_auto_suggest,
+    _run_daily_data,
+    _run_auto_suggest,
     run_data_sync_job,
 )
 
@@ -18,8 +18,8 @@ logger = get_logger("scheduled_task_service")
 
 _JOB_FN_MAP = {
     "data_sync": run_data_sync_job,
-    "data_count": update_stock_data_count,
-    "daily_update": _run_daily_update_and_auto_suggest,
+    "daily_data": _run_daily_data,
+    "auto_suggest": _run_auto_suggest,
 }
 
 
@@ -43,7 +43,7 @@ async def _execute_and_log(job_fn, cfg: ScheduledTaskConfig) -> dict:
 
     started_at = datetime.now()
     try:
-        await job_fn()
+        await job_fn(cfg=cfg)
         elapsed_ms = int((datetime.now() - started_at).total_seconds() * 1000)
         log_entry.status = "completed"
         log_entry.completed_at = datetime.now()
@@ -167,6 +167,14 @@ class ScheduledTaskService:
         cfg = await ScheduledTaskConfig.get(obj_id)
         if cfg is None:
             raise ValueError(f"Scheduled task config not found: {config_id}")
+
+        # auto_suggest requires training_id and strategy_config_id in params
+        if cfg.task_key == "auto_suggest":
+            p = cfg.params or {}
+            if "training_id" not in p or "strategy_config_id" not in p:
+                raise ValueError(
+                    "auto_suggest requires training_id and strategy_config_id in params"
+                )
 
         job_fn = _JOB_FN_MAP.get(cfg.task_key)
         if job_fn is None:

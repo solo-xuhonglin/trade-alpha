@@ -54,7 +54,9 @@
       </template>
 
       <template v-slot:item.result="{ item }">
-        {{ item.result_message || item.error_message || '-' }}
+        <span class="text-truncate" style="max-width: 340px; display: inline-block; vertical-align: middle;">
+          {{ item.result_message || item.error_message || '-' }}
+        </span>
       </template>
     </v-data-table-server>
   </v-card>
@@ -79,11 +81,11 @@ const taskKeyOptions = [
 ]
 
 const headers = [
-  { title: '任务', key: 'task_name', sortable: false },
-  { title: '开始时间', key: 'started_at', sortable: false, width: 170 },
-  { title: '耗时', key: 'duration_ms', sortable: false, width: 80 },
-  { title: '状态', key: 'status', sortable: false, width: 80 },
-  { title: '结果', key: 'result', sortable: false },
+  { title: '任务', key: 'task_name', sortable: false, width: 120 },
+  { title: '开始时间', key: 'started_at', sortable: false, width: 180 },
+  { title: '耗时', key: 'duration_ms', sortable: false, width: 90 },
+  { title: '状态', key: 'status', sortable: false, width: 90 },
+  { title: '结果', key: 'result', sortable: false, width: 350 },
 ]
 
 function formatTime(iso: string): string {

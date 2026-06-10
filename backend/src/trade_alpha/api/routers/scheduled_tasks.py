@@ -3,10 +3,21 @@
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from trade_alpha.scheduler.service import ScheduledTaskService
 
 router = APIRouter(prefix="/scheduled-tasks", tags=["scheduled-tasks"])
+
+
+class UpdateScheduledTaskRequest(BaseModel):
+    """Request body for updating a scheduled task config."""
+    enabled: Optional[bool] = None
+    trigger_type: Optional[str] = None
+    interval_seconds: Optional[int] = None
+    cron_hour: Optional[int] = None
+    cron_minute: Optional[int] = None
+    params: Optional[Dict[str, Any]] = None
 
 
 @router.get("")
@@ -19,27 +30,10 @@ async def list_scheduled_tasks():
 @router.put("/{config_id}")
 async def update_scheduled_task(
     config_id: str,
-    enabled: Optional[bool] = None,
-    trigger_type: Optional[str] = None,
-    interval_seconds: Optional[int] = None,
-    cron_hour: Optional[int] = None,
-    cron_minute: Optional[int] = None,
-    params: Optional[Dict[str, Any]] = None,
+    body: UpdateScheduledTaskRequest,
 ):
     """Update a scheduled task configuration."""
-    data = {}
-    if enabled is not None:
-        data["enabled"] = enabled
-    if trigger_type is not None:
-        data["trigger_type"] = trigger_type
-    if interval_seconds is not None:
-        data["interval_seconds"] = interval_seconds
-    if cron_hour is not None:
-        data["cron_hour"] = cron_hour
-    if cron_minute is not None:
-        data["cron_minute"] = cron_minute
-    if params is not None:
-        data["params"] = params
+    data = body.model_dump(exclude_none=True)
 
     try:
         return await ScheduledTaskService.update_config(config_id, data)

@@ -48,25 +48,54 @@ class ScheduledTaskLog(Document):
 async def ensure_default_configs() -> None:
     """Ensure default scheduled task configs exist in database.
 
-    Creates the three default configurations (data_sync, data_count, daily_update)
-    if they do not already exist.
+    Handles migration from the old 3-config scheme (data_sync 60s, data_count,
+    daily_update) to the new 3-config scheme (data_sync 1800s, daily_data 17:00,
+    auto_suggest 18:00).
     """
+    # Migration: update data_sync interval from 60 to 1800
+    old_sync = await ScheduledTaskConfig.find_one(
+        ScheduledTaskConfig.task_key == "data_sync"
+    )
+    if old_sync is not None and old_sync.interval_seconds == 60:
+        old_sync.interval_seconds = 1800
+        old_sync.updated_at = datetime.now()
+        await old_sync.save()
+        logger.info("ensure_default_configs", "Migrated data_sync interval: 60 -> 1800")
+
+    # Migration: delete old data_count config
+    old_count = await ScheduledTaskConfig.find_one(
+        ScheduledTaskConfig.task_key == "data_count"
+    )
+    if old_count is not None:
+        await old_count.delete()
+        logger.info("ensure_default_configs", "Deleted old data_count config")
+
+    # Migration: delete old daily_update config
+    old_daily = await ScheduledTaskConfig.find_one(
+        ScheduledTaskConfig.task_key == "daily_update"
+    )
+    if old_daily is not None:
+        await old_daily.delete()
+        logger.info("ensure_default_configs", "Deleted old daily_update config")
+
+    # Create new defaults
     defaults = [
         {
             "name": "数据同步",
             "task_key": "data_sync",
             "trigger_type": "interval",
-            "interval_seconds": 60,
+            "interval_seconds": 1800,
         },
         {
-            "name": "数据计数更新",
-            "task_key": "data_count",
-            "trigger_type": "interval",
-            "interval_seconds": 3600,
+            "name": "每日数据更新",
+            "task_key": "daily_data",
+            "trigger_type": "cron",
+            "cron_hour": 17,
+            "cron_minute": 0,
         },
         {
-            "name": "每日更新",
-            "task_key": "daily_update",
+            "name": "实盘建议",
+            "task_key": "auto_suggest",
             "trigger_type": "cron",
             "cron_hour": 18,
             "cron_minute": 0,

@@ -51,7 +51,7 @@
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="editDialog" max-width="500">
+  <v-dialog v-model="editDialog" max-width="520">
     <v-card v-if="editItem">
       <v-card-title class="d-flex justify-space-between align-center">
         {{ editItem.name }}
@@ -59,48 +59,99 @@
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
+
+      <v-tabs v-model="tab" align-tabs="start" class="px-4">
+        <v-tab value="basic">基本设置</v-tab>
+        <v-tab v-if="showParamsTab" value="params">参数配置</v-tab>
+      </v-tabs>
+
+      <v-divider />
+
       <v-card-text>
-        <v-switch v-model="editItem.enabled" label="启用" hide-details />
+        <v-tabs-window v-model="tab">
+          <v-tabs-window-item value="basic">
+            <v-switch v-model="editItem.enabled" color="primary" label="启用" hide-details />
 
-        <v-select
-          v-model="editItem.trigger_type"
-          :items="triggerTypeOptions"
-          label="周期类型"
-          item-title="title"
-          item-value="value"
-          hide-details
-          class="mt-2"
-        />
+            <v-select
+              v-model="editItem.trigger_type"
+              :items="triggerTypeOptions"
+              label="周期类型"
+              item-title="title"
+              item-value="value"
+              hide-details
+              class="mt-2"
+            />
 
-        <template v-if="editItem.trigger_type === 'interval'">
-          <v-select
-            v-model.number="editItem.interval_seconds"
-            :items="intervalOptions"
-            label="间隔"
-            item-title="title"
-            item-value="value"
-            hide-details
-            class="mt-2"
-          />
-        </template>
+            <template v-if="editItem.trigger_type === 'interval'">
+              <v-select
+                v-model.number="editItem.interval_seconds"
+                :items="intervalOptions"
+                label="间隔"
+                item-title="title"
+                item-value="value"
+                hide-details
+                class="mt-2"
+              />
+            </template>
 
-        <template v-else>
-          <v-select
-            v-model.number="editItem.cron_hour"
-            :items="hourOptions"
-            label="小时"
-            hide-details
-            class="mt-2"
-          />
-          <v-select
-            v-model.number="editItem.cron_minute"
-            :items="minuteOptions"
-            label="分钟"
-            hide-details
-            class="mt-2"
-          />
-        </template>
+            <template v-else>
+              <v-select
+                v-model.number="editItem.cron_hour"
+                :items="hourOptions"
+                label="小时"
+                hide-details
+                class="mt-2"
+              />
+              <v-select
+                v-model.number="editItem.cron_minute"
+                :items="minuteOptions"
+                label="分钟"
+                hide-details
+                class="mt-2"
+              />
+            </template>
+          </v-tabs-window-item>
+
+          <v-tabs-window-item v-if="showParamsTab" value="params">
+            <v-select
+              v-model="editItem.params.training_id"
+              :items="trainingOptions"
+              label="训练结果"
+              item-title="title"
+              item-value="value"
+              hide-details
+              class="mb-3"
+            />
+            <v-select
+              v-model="editItem.params.portfolio_id"
+              :items="portfolioOptions"
+              label="实盘组合"
+              item-title="title"
+              item-value="value"
+              hide-details
+              clearable
+              class="mb-3"
+            />
+            <v-select
+              v-model="editItem.params.strategy_config_id"
+              :items="strategyOptions"
+              label="策略配置"
+              item-title="title"
+              item-value="value"
+              hide-details
+              class="mb-3"
+            />
+            <v-text-field
+              v-model.number="editItem.params.top_n"
+              label="市值排行前N"
+              type="number"
+              :min="1"
+              hide-details
+            />
+          </v-tabs-window-item>
+        </v-tabs-window>
       </v-card-text>
+
       <v-divider />
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="editDialog = false" />
@@ -116,8 +167,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getConfigs, updateConfig, triggerConfig, type ScheduledTaskConfig } from '@/api/scheduledTask'
+import { strategyConfigApi, type Strategy } from '@/api/strategyConfig'
+import { trainingRecordApi } from '@/api/trainingRecord'
+import { livePortfolioApi } from '@/api/livePortfolio'
 
 const configs = ref<ScheduledTaskConfig[]>([])
 const loading = ref(false)
@@ -125,16 +179,21 @@ const editDialog = ref(false)
 const editItem = ref<ScheduledTaskConfig | null>(null)
 const saving = ref(false)
 const triggeringId = ref<string | null>(null)
+const tab = ref(0)
+const strategyOptions = ref<{ title: string; value: string }[]>([])
+const trainingOptions = ref<{ title: string; value: string }[]>([])
+const portfolioOptions = ref<{ title: string; value: string }[]>([])
+const showParamsTab = computed(() => editItem.value?.task_key === 'auto_suggest')
 
 const snackbar = ref({ show: false, message: '', color: 'info' })
 
 const headers = [
-  { title: '任务名称', key: 'name', sortable: false },
-  { title: '周期', key: 'trigger', sortable: false },
+  { title: '任务名称', key: 'name', sortable: false, width: 200 },
+  { title: '周期', key: 'trigger', sortable: false, width: 150 },
   { title: '状态', key: 'enabled', sortable: false, width: 100 },
-  { title: '最后执行', key: 'last_run_at', sortable: false, width: 160 },
+  { title: '最后执行', key: 'last_run_at', sortable: false, width: 180 },
   { title: '最后状态', key: 'last_status', sortable: false, width: 100 },
-  { title: '操作', key: 'actions', sortable: false, width: 100 },
+  { title: '操作', key: 'actions', sortable: false, width: 90 },
 ]
 
 const triggerTypeOptions = [
@@ -171,8 +230,33 @@ function formatTime(iso: string): string {
   return d.toLocaleString('zh-CN', { hour12: false })
 }
 
-function openEdit(item: ScheduledTaskConfig) {
-  editItem.value = { ...item }
+async function openEdit(item: ScheduledTaskConfig) {
+  // Vuetify 4 DataTableItem wraps raw data in .raw property
+  editItem.value = { ...((item as any).raw ?? item) }
+  if (!editItem.value.params) {
+    editItem.value.params = {}
+  }
+  try {
+    const [strategyRes, trainingRes, portfolioRes] = await Promise.all([
+      strategyConfigApi.list(),
+      trainingRecordApi.list(),
+      livePortfolioApi.listOptions(),
+    ])
+    strategyOptions.value = strategyRes.data.map((s: Strategy) => ({
+      title: s.name,
+      value: s.id,
+    }))
+    trainingOptions.value = (trainingRes.data ?? []).map((t: any) => ({
+      title: t.name || t.id,
+      value: t.id,
+    }))
+    portfolioOptions.value = (portfolioRes.data.items ?? []).map((p: any) => ({
+      title: p.name,
+      value: p.id,
+    }))
+  } catch {
+    // silent
+  }
   editDialog.value = true
 }
 
@@ -194,7 +278,6 @@ async function handleSave() {
   try {
     const { id, name, task_key, created_at, updated_at, last_run_at, last_status, last_result_message, ...data } = editItem.value
     await updateConfig(id, data)
-    snackbar.value = { show: true, message: '保存成功', color: 'success' }
     editDialog.value = false
     await fetchConfigs()
   } catch (e: any) {
@@ -207,11 +290,10 @@ async function handleSave() {
 async function handleTrigger(item: ScheduledTaskConfig) {
   triggeringId.value = item.id
   try {
-    const res = await triggerConfig(item.id)
-    snackbar.value = { show: true, message: `触发完成: ${res.data.status}`, color: res.data.status === 'completed' ? 'success' : 'error' }
+    await triggerConfig(item.id)
     await fetchConfigs()
-  } catch (e: any) {
-    snackbar.value = { show: true, message: '触发失败: ' + (e.message || e), color: 'error' }
+  } catch {
+    // silent
   } finally {
     triggeringId.value = null
   }

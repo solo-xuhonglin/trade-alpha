@@ -98,12 +98,14 @@
           ¥{{ formatMoney(item.total_cost) }}
         </template>
         <template v-slot:item.actions="{ item }">
-          <v-btn icon variant="text" size="small" color="primary" @click="openEditDialog(item)">
-            <v-icon>mdi-pencil</v-icon>
-          </v-btn>
-          <v-btn icon variant="text" size="small" color="error" @click="openDeleteDialog(item)">
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
+          <div class="d-flex ga-1">
+            <v-btn icon variant="text" size="small" color="primary" @click="openEditDialog(item)">
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+            <v-btn icon variant="text" size="small" color="error" @click="openDeleteDialog(item)">
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
+          </div>
         </template>
         <template v-slot:no-data>
           <div class="text-center text-medium-emphasis pa-4">暂无持仓，点击"新增持仓"添加</div>

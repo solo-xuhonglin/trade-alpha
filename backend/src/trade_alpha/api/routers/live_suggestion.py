@@ -391,11 +391,6 @@ async def list_suggestions(
                 if target_close is not None:
                     ret = (target_close - base_close) / base_close * 100
                     item_data[f"actual_return_{n}d"] = round(ret, 2)
-                    prob = getattr(s, f"up_prob_{n}d", None)
-                    if prob is not None:
-                        item_data[f"direction_correct_{n}d"] = (
-                            (prob > 0.5 and ret > 0) or (prob < 0.5 and ret < 0)
-                        )
 
     return result
 
