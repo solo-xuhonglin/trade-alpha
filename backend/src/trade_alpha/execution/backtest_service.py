@@ -7,7 +7,7 @@ from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.logging import get_logger
 
-logger = get_logger("execution.service")
+logger = get_logger("backtest.service")
 
 
 async def get_execution_by_name(name: str) -> Optional[ExecutionResult]:
