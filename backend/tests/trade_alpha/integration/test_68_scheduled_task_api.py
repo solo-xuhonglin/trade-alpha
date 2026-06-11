@@ -31,6 +31,20 @@ class TestScheduledTaskService:
         yield cfg
         await cfg.delete()
 
+    @pytest.fixture
+    async def test_log(self, test_config):
+        log = await ScheduledTaskLog(
+            config_id=test_config.id,
+            task_key="test_unknown",
+            status="completed",
+            started_at=datetime.now(),
+            completed_at=datetime.now(),
+            duration_ms=100,
+            result_message="test execution",
+        ).insert()
+        yield log
+        await log.delete()
+
     # --- Config ---
 
     async def test_list_configs_includes_test_config(self, test_config):
@@ -84,3 +98,32 @@ class TestScheduledTaskService:
         """Verify trigger_task raises ValueError for unregistered task_key."""
         with pytest.raises(ValueError, match="No handler registered"):
             await ScheduledTaskService.trigger_task(str(test_config.id))
+
+    # --- Log ---
+
+    async def test_list_logs_has_required_fields(self, test_log):
+        """Verify list_logs items have required fields."""
+        result = await ScheduledTaskService.list_logs()
+        assert len(result["items"]) > 0
+        item = result["items"][0]
+        assert "id" in item
+        assert "config_id" in item
+        assert "task_key" in item
+        assert "status" in item
+        assert "started_at" in item
+        assert "completed_at" in item
+        assert "duration_ms" in item
+
+    async def test_list_logs_pagination(self):
+        """Verify list_logs returns paginated result structure."""
+        result = await ScheduledTaskService.list_logs(page=1, page_size=10)
+        assert result["page"] == 1
+        assert result["page_size"] == 10
+        assert "total" in result
+        assert "total_pages" in result
+
+    async def test_list_logs_filter_by_task_key(self, test_log):
+        """Verify list_logs filters by task_key."""
+        result = await ScheduledTaskService.list_logs(task_key="test_unknown")
+        for item in result["items"]:
+            assert item["task_key"] == "test_unknown"

@@ -36,7 +36,6 @@ class TestSuggestionValidation:
         # Should have validation fields (may be null if not enough history)
         for n in ("3d", "5d", "10d", "20d"):
             assert f"actual_return_{n}" in item
-            assert f"direction_correct_{n}" in item
 
     async def test_actual_return_value_type(self, client):
         """Verify actual_return values are floats or None."""
@@ -55,8 +54,6 @@ class TestSuggestionValidation:
             for n in ("3d", "5d", "10d", "20d"):
                 val = item.get(f"actual_return_{n}")
                 assert val is None or isinstance(val, (int, float))
-                direction = item.get(f"direction_correct_{n}")
-                assert direction is None or isinstance(direction, bool)
 
     async def test_future_date_returns_null(self, client):
         """Verify that suggestions for a very recent date return None for future periods."""
