@@ -60,7 +60,7 @@
                 <template v-slot:item.composite_score="{ item }">
                   <div class="font-weight-medium">{{ item.composite_score.toFixed(4) }}</div>
                   <div class="text-caption text-medium-emphasis" style="white-space: nowrap;">
-                    ={{ item.ranking_score.toFixed(4) }}
+                    ={{ item.raw_score.toFixed(4) }}
                     <span v-if="item.trend_bonus" class="text-green-darken-1">+{{ item.trend_bonus.toFixed(4) }}</span>
                     <span v-if="item.vol_penalty" class="text-red-darken-1">-{{ item.vol_penalty.toFixed(4) }}</span>
                     <span v-if="item.momentum_bonus" class="text-green-darken-1">+{{ item.momentum_bonus.toFixed(4) }}</span>

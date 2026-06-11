@@ -44,12 +44,12 @@ class StrategySnapshotEmbed(BaseModel):
     trend_bonus_window: int = 10
     trend_bonus_scale: float = 0.03
     trend_r2_threshold: float = 0.30
-    trend_max_bonus: float = 0.05
+    trend_max_bonus: float = 0.1
     use_volatility_penalty: bool = False
     vol_penalty_window: int = 10
-    vol_range_tolerance: float = 0.035
-    vol_penalty_scale: float = 0.005
-    vol_max_penalty: float = 0.05
+    vol_range_tolerance: float = 0.03
+    vol_penalty_scale: float = 0.5
+    vol_max_penalty: float = 0.1
     use_full_position_sell: bool = False
     full_position_threshold: float = 0.90
     full_position_days: int = 3
@@ -59,8 +59,8 @@ class StrategySnapshotEmbed(BaseModel):
     acceleration_window: int = 5
     acceleration_cum_return: float = 0.15
     acceleration_up_ratio: float = 0.80
-    ranking_smooth_window: int = 3
-    ranking_smooth_alpha: float = 0.5
+    ranking_smooth_window: int = 8
+    ranking_smooth_alpha: float = 0.3
 
 
 class ModelSnapshotEmbed(BaseModel):
@@ -72,28 +72,28 @@ class ModelSnapshotEmbed(BaseModel):
     standardize_fields: List[str] = Field(default_factory=list)
     winsorize_fields: List[str] = Field(default_factory=list)
     classification_horizons: List[int] = Field(default_factory=list)
-    label_mode: str = "threshold"
+    label_mode: str = "trend"
     classification_threshold_3d: float = 0.01
     classification_threshold_5d: float = 0.015
     classification_threshold_10d: float = 0.02
     xgb_n_estimators: int = 100
-    xgb_max_depth: int = 5
-    xgb_learning_rate: float = 0.01
+    xgb_max_depth: int = 6
+    xgb_learning_rate: float = 0.1
     xgb_min_child_weight: int = 1
-    xgb_subsample: float = 0.8
-    xgb_colsample_bytree: float = 0.8
-    lstm_hidden_size: int = 128
+    xgb_subsample: float = 1.0
+    xgb_colsample_bytree: float = 1.0
+    lstm_hidden_size: int = 64
     lstm_num_layers: int = 2
     lstm_dropout: float = 0.2
     lstm_epochs: int = 50
-    lstm_batch_size: int = 64
-    lstm_learning_rate: float = 0.0001
-    lstm_sequence_length: int = 20
-    lstm_normalization_window: int = 300
+    lstm_batch_size: int = 256
+    lstm_learning_rate: float = 0.0003
+    lstm_sequence_length: int = 60
+    lstm_normalization_window: int = 120
     use_memmap: bool = False
-    lstm_weight_decay: float = 0.001
+    lstm_weight_decay: float = 0.0005
     lr_scheduler_factor: float = 0.5
-    lr_scheduler_patience: int = 5
+    lr_scheduler_patience: int = 3
     val_size: float = 0.2
     label_smoothing: float = 0.1
     early_stopping_patience: int = 5

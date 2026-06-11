@@ -35,8 +35,8 @@ class StrategyConfig(Document):
     trend_max_bonus: float = 0.1
     use_volatility_penalty: bool = False
     vol_penalty_window: int = 10
-    vol_range_tolerance: float = 0.035
-    vol_penalty_scale: float = 0.005
+    vol_range_tolerance: float = 0.03
+    vol_penalty_scale: float = 0.5
     vol_max_penalty: float = 0.1
     use_full_position_sell: bool = False
     full_position_threshold: float = 0.90

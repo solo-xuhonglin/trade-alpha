@@ -13,6 +13,7 @@ class LiveDailyStockScore(Document):
     trade_date: str
     stock_name: Optional[str] = None
     rank: int = 0
+    raw_score: float = 0.0
     composite_score: float = 0.0
     ranking_score: float = 0.0
     up_prob_3d: float = 0.0

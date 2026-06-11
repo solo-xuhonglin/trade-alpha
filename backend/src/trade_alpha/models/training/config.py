@@ -14,34 +14,7 @@ from typing import Optional, List
 from beanie import PydanticObjectId
 from trade_alpha.dao import ModelConfig, TrainingResult
 from trade_alpha.logging import get_logger
-from trade_alpha.constants import (
-    DEFAULT_CLASSIFICATION_HORIZONS,
-    DEFAULT_LABEL_MODE,
-    DEFAULT_CLASSIFICATION_THRESHOLD_3D,
-    DEFAULT_CLASSIFICATION_THRESHOLD_5D,
-    DEFAULT_CLASSIFICATION_THRESHOLD_10D,
-    DEFAULT_CLASSIFICATION_THRESHOLD_20D,
-    DEFAULT_XGB_N_ESTIMATORS,
-    DEFAULT_XGB_MAX_DEPTH,
-    DEFAULT_XGB_LEARNING_RATE,
-    DEFAULT_XGB_MIN_CHILD_WEIGHT,
-    DEFAULT_XGB_SUBSAMPLE,
-    DEFAULT_XGB_COLSAMPLE_BYTREE,
-    DEFAULT_LSTM_HIDDEN_SIZE,
-    DEFAULT_LSTM_NUM_LAYERS,
-    DEFAULT_LSTM_DROPOUT,
-    DEFAULT_LSTM_EPOCHS,
-    DEFAULT_LSTM_BATCH_SIZE,
-    DEFAULT_LSTM_LEARNING_RATE,
-    DEFAULT_LSTM_SEQUENCE_LENGTH,
-    DEFAULT_LSTM_NORMALIZATION_WINDOW,
-    DEFAULT_LSTM_WEIGHT_DECAY,
-    DEFAULT_LR_SCHEDULER_FACTOR,
-    DEFAULT_LR_SCHEDULER_PATIENCE,
-    DEFAULT_VAL_SIZE,
-    DEFAULT_LABEL_SMOOTHING,
-    DEFAULT_EARLY_STOPPING_PATIENCE,
-)
+from trade_alpha.constants import DEFAULT_CLASSIFICATION_HORIZONS
 
 logger = get_logger("config_service")
 
@@ -73,66 +46,66 @@ async def create_config(
     standardize_fields: Optional[List[str]] = None,
     winsorize_fields: Optional[List[str]] = None,
     classification_horizons: Optional[List[int]] = None,
-    label_mode: str = DEFAULT_LABEL_MODE,
-    classification_threshold_3d: float = DEFAULT_CLASSIFICATION_THRESHOLD_3D,
-    classification_threshold_5d: float = DEFAULT_CLASSIFICATION_THRESHOLD_5D,
-    classification_threshold_10d: float = DEFAULT_CLASSIFICATION_THRESHOLD_10D,
-    classification_threshold_20d: float = DEFAULT_CLASSIFICATION_THRESHOLD_20D,
-    xgb_n_estimators: int = 100,
-    xgb_max_depth: int = 6,
-    xgb_learning_rate: float = 0.1,
-    xgb_min_child_weight: int = 1,
-    xgb_subsample: float = 1.0,
-    xgb_colsample_bytree: float = 1.0,
-    lstm_hidden_size: int = 64,
-    lstm_num_layers: int = 2,
-    lstm_dropout: float = 0.2,
-    lstm_epochs: int = 25,
-    lstm_batch_size: int = 256,
-    lstm_learning_rate: float = 0.0001,
-    lstm_sequence_length: int = 60,
-    lstm_normalization_window: int = 300,
-    use_memmap: bool = False,
-    label_smoothing: float = 0.1,
-    early_stopping_patience: int = 10,
-    lstm_weight_decay: float = DEFAULT_LSTM_WEIGHT_DECAY,
-    lr_scheduler_factor: float = DEFAULT_LR_SCHEDULER_FACTOR,
-    lr_scheduler_patience: int = DEFAULT_LR_SCHEDULER_PATIENCE,
-    val_size: float = DEFAULT_VAL_SIZE,
+    label_mode: Optional[str] = None,
+    classification_threshold_3d: Optional[float] = None,
+    classification_threshold_5d: Optional[float] = None,
+    classification_threshold_10d: Optional[float] = None,
+    classification_threshold_20d: Optional[float] = None,
+    xgb_n_estimators: Optional[int] = None,
+    xgb_max_depth: Optional[int] = None,
+    xgb_learning_rate: Optional[float] = None,
+    xgb_min_child_weight: Optional[int] = None,
+    xgb_subsample: Optional[float] = None,
+    xgb_colsample_bytree: Optional[float] = None,
+    lstm_hidden_size: Optional[int] = None,
+    lstm_num_layers: Optional[int] = None,
+    lstm_dropout: Optional[float] = None,
+    lstm_epochs: Optional[int] = None,
+    lstm_batch_size: Optional[int] = None,
+    lstm_learning_rate: Optional[float] = None,
+    lstm_sequence_length: Optional[int] = None,
+    lstm_normalization_window: Optional[int] = None,
+    use_memmap: Optional[bool] = None,
+    label_smoothing: Optional[float] = None,
+    early_stopping_patience: Optional[int] = None,
+    lstm_weight_decay: Optional[float] = None,
+    lr_scheduler_factor: Optional[float] = None,
+    lr_scheduler_patience: Optional[int] = None,
+    val_size: Optional[float] = None,
 ) -> ModelConfig:
     """Create model configuration.
 
     Args:
         name: config name (unique)
         model_type: model type (xgboost/lstm)
-        feature_fields: feature field list for model input, defaults to all indicators
-        standardize_fields: fields for Z-score normalization, defaults to feature_fields
-        winsorize_fields: fields for winsorization, defaults to empty
-        classification_horizons: classification horizon list, defaults to DEFAULT_CLASSIFICATION_HORIZONS
-        label_mode: label generation mode (threshold/quantile), defaults to DEFAULT_LABEL_MODE
-        classification_threshold_3d: 3-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_3D
-        classification_threshold_5d: 5-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_5D
-        classification_threshold_10d: 10-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_10D
-        classification_threshold_20d: 20-day classification threshold, defaults to DEFAULT_CLASSIFICATION_THRESHOLD_20D
-        xgb_n_estimators: XGBoost number of trees, defaults to 100
-        xgb_max_depth: XGBoost max tree depth, defaults to 6
-        xgb_learning_rate: XGBoost learning rate, defaults to 0.1
-        xgb_min_child_weight: XGBoost min child weight, defaults to 1
-        xgb_subsample: XGBoost subsample ratio, defaults to 1.0
-        xgb_colsample_bytree: XGBoost colsample ratio, defaults to 1.0
-        lstm_hidden_size: LSTM hidden layer size, defaults to 64
-        lstm_num_layers: LSTM number of layers, defaults to 2
-        lstm_dropout: LSTM dropout ratio, defaults to 0.2
-        lstm_epochs: LSTM training epochs, defaults to 50
-        lstm_batch_size: LSTM batch size, defaults to 256
-        lstm_learning_rate: LSTM learning rate, defaults to 0.0001
-        lstm_sequence_length: LSTM input sequence length, defaults to 60
-        label_smoothing: Label smoothing coefficient, defaults to 0.1
-        early_stopping_patience: Early stopping patience, defaults to 10
-        lstm_weight_decay: LSTM L2 regularization weight, defaults to 0.001
-        lr_scheduler_factor: Learning rate scheduler decay factor, defaults to 0.5
-        lr_scheduler_patience: Learning rate scheduler patience, defaults to 3
-        val_size: Validation set ratio (by date), defaults to 0.2
+        feature_fields: feature field list for model input
+        standardize_fields: fields for Z-score normalization
+        winsorize_fields: fields for winsorization
+        classification_horizons: classification horizon list
+        label_mode: label generation mode (threshold/quantile)
+        classification_threshold_3d: 3-day classification threshold
+        classification_threshold_5d: 5-day classification threshold
+        classification_threshold_10d: 10-day classification threshold
+        classification_threshold_20d: 20-day classification threshold
+        xgb_n_estimators: XGBoost number of trees
+        xgb_max_depth: XGBoost max tree depth
+        xgb_learning_rate: XGBoost learning rate
+        xgb_min_child_weight: XGBoost min child weight
+        xgb_subsample: XGBoost subsample ratio
+        xgb_colsample_bytree: XGBoost colsample ratio
+        lstm_hidden_size: LSTM hidden layer size
+        lstm_num_layers: LSTM number of layers
+        lstm_dropout: LSTM dropout ratio
+        lstm_epochs: LSTM training epochs
+        lstm_batch_size: LSTM batch size
+        lstm_learning_rate: LSTM learning rate
+        lstm_sequence_length: LSTM input sequence length
+        label_smoothing: Label smoothing coefficient
+        early_stopping_patience: Early stopping patience
+        lstm_weight_decay: LSTM L2 regularization weight
+        lr_scheduler_factor: Learning rate scheduler decay factor
+        lr_scheduler_patience: Learning rate scheduler patience
+        val_size: Validation set ratio (by date)
     """
     if not name:
         raise ValueError("name is required")
@@ -149,42 +122,14 @@ async def create_config(
     standardize_fields = standardize_fields or feature_fields.copy()
     winsorize_fields = winsorize_fields or []
 
-    config = ModelConfig(
-        name=name,
-        model_type=model_type,
-        feature_fields=feature_fields,
-        standardize_fields=standardize_fields,
-        winsorize_fields=winsorize_fields,
-        classification_horizons=classification_horizons,
-        label_mode=label_mode,
-        classification_threshold_3d=classification_threshold_3d,
-        classification_threshold_5d=classification_threshold_5d,
-        classification_threshold_10d=classification_threshold_10d,
-        classification_threshold_20d=classification_threshold_20d,
-        xgb_n_estimators=xgb_n_estimators,
-        xgb_max_depth=xgb_max_depth,
-        xgb_learning_rate=xgb_learning_rate,
-        xgb_min_child_weight=xgb_min_child_weight,
-        xgb_subsample=xgb_subsample,
-        xgb_colsample_bytree=xgb_colsample_bytree,
-        lstm_hidden_size=lstm_hidden_size,
-        lstm_num_layers=lstm_num_layers,
-        lstm_dropout=lstm_dropout,
-        lstm_epochs=lstm_epochs,
-        lstm_batch_size=lstm_batch_size,
-        lstm_learning_rate=lstm_learning_rate,
-        lstm_sequence_length=lstm_sequence_length,
-        lstm_normalization_window=lstm_normalization_window,
-        use_memmap=use_memmap,
-        lstm_weight_decay=lstm_weight_decay,
-        lr_scheduler_factor=lr_scheduler_factor,
-        lr_scheduler_patience=lr_scheduler_patience,
-        val_size=val_size,
-        label_smoothing=label_smoothing,
-        early_stopping_patience=early_stopping_patience,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-    )
+    # Include only non-None fields so DAO model defaults apply
+    field_names = ModelConfig.model_fields.keys()
+    kwargs = {k: v for k, v in locals().items()
+              if k in field_names and v is not None}
+    kwargs["created_at"] = datetime.now(timezone.utc)
+    kwargs["updated_at"] = datetime.now(timezone.utc)
+
+    config = ModelConfig(**kwargs)
     await config.insert()
     logger.info(f"Config created: id={config.id} name={name} model_type={model_type}")
     return config

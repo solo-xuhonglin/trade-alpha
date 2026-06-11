@@ -213,8 +213,8 @@ MongoDB 存储股票行情数据、技术指标、策略配置和执行结果（
 | `trend_max_bonus` | float | 趋势加分上限 | 0.1 |
 | `use_volatility_penalty` | bool | 是否启用波动扣分 | false |
 | `vol_penalty_window` | int | 振幅计算窗口天数 | 10 |
-| `vol_range_tolerance` | float | 振幅容忍度 | 0.035 |
-| `vol_penalty_scale` | float | 波动扣分系数 | 0.005 |
+| `vol_range_tolerance` | float | 波动率容差（超过此值扣分） | 0.03 |
+| `vol_penalty_scale` | float | 波动扣分系数 | 0.5 |
 | `vol_max_penalty` | float | 波动扣分上限 | 0.1 |
 | `use_full_position_sell` | bool | 是否启用满仓容忍卖出 | false |
 | `full_position_threshold` | float | 持仓占比阈值 | 0.90 |

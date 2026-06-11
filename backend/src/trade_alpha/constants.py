@@ -40,7 +40,7 @@ DEFAULT_VAL_SIZE: float = 0.2
 
 # Training defaults
 DEFAULT_LABEL_SMOOTHING: float = 0.1
-DEFAULT_EARLY_STOPPING_PATIENCE: int = 10
+DEFAULT_EARLY_STOPPING_PATIENCE: int = 5
 
 # Sell reason constants
 SELL_REASON_STOP_LOSS: str = "stop_loss"

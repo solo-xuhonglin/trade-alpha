@@ -4,12 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from beanie import PydanticObjectId
-from trade_alpha.constants import (
-    DEFAULT_LABEL_MODE,
-    DEFAULT_CLASSIFICATION_THRESHOLD_3D,
-    DEFAULT_CLASSIFICATION_THRESHOLD_5D,
-    DEFAULT_CLASSIFICATION_THRESHOLD_10D,
-)
+from trade_alpha.constants import DEFAULT_LABEL_MODE
 from trade_alpha.models import training
 
 router = APIRouter(prefix="/model-configs", tags=["model-configs"])
@@ -134,30 +129,30 @@ async def create_config(body: ConfigCreate):
             winsorize_fields=body.winsorize_fields,
             classification_horizons=body.classification_horizons,
             label_mode=body.label_mode,
-            classification_threshold_3d=body.classification_threshold_3d or DEFAULT_CLASSIFICATION_THRESHOLD_3D,
-            classification_threshold_5d=body.classification_threshold_5d or DEFAULT_CLASSIFICATION_THRESHOLD_5D,
-            classification_threshold_10d=body.classification_threshold_10d or DEFAULT_CLASSIFICATION_THRESHOLD_10D,
-            xgb_n_estimators=body.xgb_n_estimators or 100,
-            xgb_max_depth=body.xgb_max_depth or 6,
-            xgb_learning_rate=body.xgb_learning_rate or 0.1,
-            xgb_min_child_weight=body.xgb_min_child_weight or 1,
-            xgb_subsample=body.xgb_subsample or 1.0,
-            xgb_colsample_bytree=body.xgb_colsample_bytree or 1.0,
-            lstm_hidden_size=body.lstm_hidden_size or 64,
-            lstm_num_layers=body.lstm_num_layers or 2,
-            lstm_dropout=body.lstm_dropout or 0.2,
-            lstm_epochs=body.lstm_epochs or 25,
-            lstm_batch_size=body.lstm_batch_size or 256,
-            lstm_learning_rate=body.lstm_learning_rate or 0.0001,
-            lstm_sequence_length=body.lstm_sequence_length or 60,
-            lstm_normalization_window=body.lstm_normalization_window or 300,
-            use_memmap=body.use_memmap or False,
-            lstm_weight_decay=body.lstm_weight_decay or 0.001,
-            lr_scheduler_factor=body.lr_scheduler_factor or 0.5,
-            lr_scheduler_patience=body.lr_scheduler_patience or 3,
-            val_size=body.val_size or 0.2,
-            label_smoothing=body.label_smoothing or 0.1,
-            early_stopping_patience=body.early_stopping_patience or 5,
+            classification_threshold_3d=body.classification_threshold_3d,
+            classification_threshold_5d=body.classification_threshold_5d,
+            classification_threshold_10d=body.classification_threshold_10d,
+            xgb_n_estimators=body.xgb_n_estimators,
+            xgb_max_depth=body.xgb_max_depth,
+            xgb_learning_rate=body.xgb_learning_rate,
+            xgb_min_child_weight=body.xgb_min_child_weight,
+            xgb_subsample=body.xgb_subsample,
+            xgb_colsample_bytree=body.xgb_colsample_bytree,
+            lstm_hidden_size=body.lstm_hidden_size,
+            lstm_num_layers=body.lstm_num_layers,
+            lstm_dropout=body.lstm_dropout,
+            lstm_epochs=body.lstm_epochs,
+            lstm_batch_size=body.lstm_batch_size,
+            lstm_learning_rate=body.lstm_learning_rate,
+            lstm_sequence_length=body.lstm_sequence_length,
+            lstm_normalization_window=body.lstm_normalization_window,
+            use_memmap=body.use_memmap,
+            lstm_weight_decay=body.lstm_weight_decay,
+            lr_scheduler_factor=body.lr_scheduler_factor,
+            lr_scheduler_patience=body.lr_scheduler_patience,
+            val_size=body.val_size,
+            label_smoothing=body.label_smoothing,
+            early_stopping_patience=body.early_stopping_patience,
         )
         return config_to_dict(c)
     except ValueError as e:

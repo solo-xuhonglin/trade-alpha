@@ -430,6 +430,7 @@ class SuggestionPipeline:
                             "trade_date": date,
                             "rank": int(pred.get("rank", 0)),
                             "composite_score": float(s.score),
+                            "raw_score": float(pred.get("raw_score", 0.0)),
                             "ranking_score": float(s.ranking_score),
                             "up_prob_3d": float(getattr(s, "up_prob_3d", 0.0)),
                             "up_prob_5d": float(getattr(s, "up_prob_5d", 0.0)),
