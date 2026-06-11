@@ -67,3 +67,20 @@ class TestScheduledTaskService:
         """Verify update_config raises ValueError for invalid ID."""
         with pytest.raises(ValueError, match="not found"):
             await ScheduledTaskService.update_config("000000000000000000000000", {})
+
+    # --- Trigger ---
+
+    async def test_trigger_invalid_id_format(self):
+        """Verify trigger_task raises ValueError for malformed ID."""
+        with pytest.raises(ValueError, match="Invalid config ID"):
+            await ScheduledTaskService.trigger_task("bad-id")
+
+    async def test_trigger_not_found(self):
+        """Verify trigger_task raises ValueError for nonexistent config."""
+        with pytest.raises(ValueError, match="not found"):
+            await ScheduledTaskService.trigger_task("000000000000000000000000")
+
+    async def test_trigger_unknown_handler(self, test_config):
+        """Verify trigger_task raises ValueError for unregistered task_key."""
+        with pytest.raises(ValueError, match="No handler registered"):
+            await ScheduledTaskService.trigger_task(str(test_config.id))
