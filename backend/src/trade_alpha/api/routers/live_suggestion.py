@@ -3,7 +3,6 @@ from fastapi import APIRouter, HTTPException
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
 
 from trade_alpha.api.deps import parse_obj_id
 from trade_alpha.dao.strategy_config import StrategyConfig
@@ -11,13 +10,7 @@ from trade_alpha.models import training as training_module
 from trade_alpha.task.dao import TaskStatus, TaskType
 from trade_alpha.task.service import TaskService
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
-from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
-from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
-from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.mongodb import get_database
-from collections import defaultdict
-
-from beanie.odm.operators.find.comparison import In
 
 router = APIRouter(prefix="/live-suggestion", tags=["live-suggestion"])
 
@@ -35,28 +28,6 @@ def _run_to_dict(r) -> dict:
         "order_count": r.order_count,
         "error_message": r.error_message,
         "created_at": r.created_at,
-    }
-
-
-def _suggestion_to_dict(s) -> dict:
-    return {
-        "ts_code": s.ts_code,
-        "stock_name": s.stock_name,
-        "trade_date": s.trade_date,
-        "raw_score": s.raw_score,
-        "composite_score": s.composite_score,
-        "ranking_score": s.ranking_score,
-        "rank": s.rank,
-        "up_prob_3d": s.up_prob_3d,
-        "up_prob_5d": s.up_prob_5d,
-        "up_prob_10d": s.up_prob_10d,
-        "up_prob_20d": s.up_prob_20d,
-        "trend_bonus": s.trend_bonus,
-        "vol_penalty": s.vol_penalty,
-        "momentum_bonus": s.momentum_bonus,
-        "is_excluded": s.is_excluded,
-        "excluded_reason": s.excluded_reason,
-        "reason": s.reason,
     }
 
 
@@ -128,141 +99,15 @@ async def list_daily_scores(
     page_size: int = 100,
 ):
     """List daily stock scores, optionally filtered by trade_date. Defaults to latest date."""
-    if trade_date:
-        query_date = trade_date
-    else:
-        latest = await LiveDailyStockScore.find_all().sort(-LiveDailyStockScore.trade_date).limit(1).first_or_none()
-        if not latest:
-            return {
-                "items": [],
-                "total": 0,
-                "page": page,
-                "page_size": page_size,
-                "total_pages": 0,
-                "trade_date": None,
-            }
-        query_date = latest.trade_date
-
-    skip = (page - 1) * page_size
-    total = await LiveDailyStockScore.find(
-        LiveDailyStockScore.trade_date == query_date
-    ).count()
-    items = await LiveDailyStockScore.find(
-        LiveDailyStockScore.trade_date == query_date
-    ).sort(LiveDailyStockScore.rank).skip(skip).limit(page_size).to_list()
-
-    # --- 批量查询所有有数据的交易日 ---
-    db = await get_database()
-    raw_dates = await db.live_daily_stock_score.distinct("trade_date")
-    all_dates = sorted(raw_dates, reverse=True)  # 降序，最新的在前
-
-    # --- 获取前一个交易日的 rank map (排名变化) ---
-    prev_rank_map: dict[str, int] = {}
-    if len(all_dates) >= 2:
-        prev_date = all_dates[1]
-        prev_records = await LiveDailyStockScore.find(
-            LiveDailyStockScore.trade_date == prev_date
-        ).to_list()
-        prev_rank_map = {r.ts_code: r.rank for r in prev_records}
-
-    # --- 计算多日平均排名 ---
-    avg_rank_maps: dict[int, dict[str, int]] = {}
-    for N in (3, 5, 20):
-        if len(all_dates) < N:
-            continue
-        recent_dates = all_dates[:N]
-        records = await LiveDailyStockScore.find(
-            {"trade_date": {"$in": recent_dates}}
-        ).to_list()
-
-        score_sum: dict[str, float] = defaultdict(float)
-        score_count: dict[str, int] = defaultdict(int)
-        for r in records:
-            score_sum[r.ts_code] += r.composite_score
-            score_count[r.ts_code] += 1
-
-        avg_scores = {ts: score_sum[ts] / score_count[ts] for ts in score_sum}
-        sorted_codes = sorted(avg_scores.items(), key=lambda x: -x[1])
-        avg_rank_maps[N] = {ts: i + 1 for i, (ts, _) in enumerate(sorted_codes)}
-
-    # --- 构建响应 ---
-    def _score_to_dict(s) -> dict:
-        d = {
-            "id": str(s.id),
-            "ts_code": s.ts_code,
-            "stock_name": s.stock_name,
-            "trade_date": s.trade_date,
-            "rank": s.rank,
-            "raw_score": s.raw_score,
-            "composite_score": s.composite_score,
-            "ranking_score": s.ranking_score,
-            "up_prob_3d": s.up_prob_3d,
-            "up_prob_5d": s.up_prob_5d,
-            "up_prob_10d": s.up_prob_10d,
-            "trend_bonus": s.trend_bonus,
-            "vol_penalty": s.vol_penalty,
-            "momentum_bonus": s.momentum_bonus,
-            "order_price": s.order_price,
-            "order_shares": s.order_shares,
-            "is_excluded": s.is_excluded,
-            "updated_at": s.updated_at,
-        }
-        # Rank change (vs previous trading day)
-        prev_rank = prev_rank_map.get(s.ts_code)
-        if prev_rank is not None:
-            d["rank_change"] = prev_rank - s.rank
-        # Average ranks
-        for N in (3, 5, 20):
-            if N in avg_rank_maps:
-                d[f"avg_rank_{N}d"] = avg_rank_maps[N].get(s.ts_code)
-        return d
-
-    return {
-        "items": [_score_to_dict(s) for s in items],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": max(1, (total + page_size - 1) // page_size),
-        "trade_date": query_date,
-    }
+    from trade_alpha.execution.suggestion_service import list_daily_scores as svc
+    return await svc(trade_date, page, page_size)
 
 
 @router.get("/daily-scores/stock/{ts_code}")
 async def list_stock_daily_scores(ts_code: str):
     """Return all daily scores for a stock, sorted by trade_date ascending."""
-    items = await LiveDailyStockScore.find(
-        LiveDailyStockScore.ts_code == ts_code
-    ).sort(LiveDailyStockScore.trade_date).to_list()
-
-    if not items:
-        return {"items": [], "start_date": None, "end_date": None}
-
-    def _to_dict(s) -> dict:
-        return {
-            "ts_code": s.ts_code,
-            "stock_name": s.stock_name,
-            "trade_date": s.trade_date,
-            "rank": s.rank,
-            "raw_score": s.raw_score,
-            "composite_score": s.composite_score,
-            "ranking_score": s.ranking_score,
-            "up_prob_3d": s.up_prob_3d,
-            "up_prob_5d": s.up_prob_5d,
-            "up_prob_10d": s.up_prob_10d,
-            "trend_bonus": s.trend_bonus,
-            "vol_penalty": s.vol_penalty,
-            "momentum_bonus": s.momentum_bonus,
-            "order_price": s.order_price,
-            "order_shares": s.order_shares,
-            "is_excluded": s.is_excluded,
-            "updated_at": s.updated_at,
-        }
-
-    return {
-        "items": [_to_dict(s) for s in items],
-        "start_date": items[0].trade_date,
-        "end_date": items[-1].trade_date,
-    }
+    from trade_alpha.execution.suggestion_service import list_stock_daily_scores as svc
+    return await svc(ts_code)
 
 
 @router.get("/runs")
@@ -337,64 +182,8 @@ async def list_suggestions(
     page_size: int = 100,
 ):
     """List suggestions for a specific trade date, sorted by rank."""
-    from bisect import bisect_left
-    from datetime import timedelta
-
-    skip = (page - 1) * page_size
-    total = await LiveOrderSuggestion.find(
-        LiveOrderSuggestion.trade_date == trade_date
-    ).count()
-    items = await LiveOrderSuggestion.find(
-        LiveOrderSuggestion.trade_date == trade_date
-    ).sort(LiveOrderSuggestion.rank).skip(skip).limit(page_size).to_list()
-
-    result = {
-        "items": [_suggestion_to_dict(s) for s in items],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
-        "trade_date": trade_date,
-    }
-
-    # --- 建议验证：批量计算实际 N 日涨跌幅 ---
-    if not items:
-        return result
-
-    end_date = (datetime.strptime(trade_date, "%Y%m%d") + timedelta(days=50)).strftime("%Y%m%d")
-    ts_codes = list(set(s.ts_code for s in items))
-
-    daily_records = await StockDaily.find(
-            In(StockDaily.ts_code, ts_codes),
-            StockDaily.trade_date >= trade_date,
-            StockDaily.trade_date <= end_date,
-        ).sort(StockDaily.trade_date).to_list()
-
-    ts_dates: dict[str, list[tuple[str, Optional[float]]]] = defaultdict(list)
-    for doc in daily_records:
-        ts_dates[doc.ts_code].append((doc.trade_date, doc.close))
-
-    for item_data, s in zip(result["items"], items):
-        dates_with_close = ts_dates.get(s.ts_code, [])
-        if not dates_with_close:
-            continue
-        all_dates = [d for d, _ in dates_with_close]
-        base_idx = bisect_left(all_dates, s.trade_date)
-        if base_idx >= len(all_dates) or all_dates[base_idx] != s.trade_date:
-            continue
-        base_close = dates_with_close[base_idx][1]
-        if base_close is None:
-            continue
-
-        for n in (3, 5, 10, 20):
-            target_idx = base_idx + n
-            if target_idx < len(dates_with_close):
-                target_close = dates_with_close[target_idx][1]
-                if target_close is not None:
-                    ret = (target_close - base_close) / base_close * 100
-                    item_data[f"actual_return_{n}d"] = round(ret, 2)
-
-    return result
+    from trade_alpha.execution.suggestion_service import list_suggestions as svc
+    return await svc(trade_date, page, page_size)
 
 
 @router.get("/tasks")
