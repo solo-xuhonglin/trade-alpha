@@ -36,7 +36,7 @@
                 </div>
                 <div class="text-caption d-flex justify-space-between">
                   <span class="text-medium-emphasis">波动扣分</span>
-                  <span class="text-error">{{ (volPenalty >= 0 ? '+' : '') + volPenalty.toFixed(4) }}</span>
+                  <span class="text-error">-{{ Math.abs(volPenalty).toFixed(4) }}</span>
                 </div>
                 <div class="text-caption d-flex justify-space-between">
                   <span class="text-medium-emphasis">动量加成</span>
