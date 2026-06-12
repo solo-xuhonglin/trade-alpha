@@ -8,7 +8,6 @@ from trade_alpha.constants import (
     SELL_REASON_SCORE_BELOW,
     SELL_REASON_STOP_LOSS,
 )
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.portfolio import PortfolioManager
@@ -24,9 +23,7 @@ class MultiStockStrategy(PositionManager):
 
     def __init__(
         self,
-        account_config: AccountConfig,
         strategy_config: Optional[StrategyConfig],
-        max_positions: int = 10,
         ts_codes: Optional[List[str]] = None,
     ):
         buy_threshold = strategy_config.buy_threshold if strategy_config else 0.1
@@ -35,15 +32,14 @@ class MultiStockStrategy(PositionManager):
         stop_loss_pct = strategy_config.stop_loss_pct if strategy_config else -0.1
         min_hold_days = strategy_config.min_hold_days if strategy_config and strategy_config.min_hold_days is not None else 3
         max_hold_days = strategy_config.max_hold_days if strategy_config else 30
-        cfg_max_positions = strategy_config.max_positions if strategy_config else 10
+        max_positions = strategy_config.max_positions if strategy_config else 10
         max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
         sell_rank_n = strategy_config.sell_rank_n if strategy_config else 15
         hold_score_threshold = strategy_config.hold_score_threshold if strategy_config else 0.05
 
         super().__init__(
-            account_config=account_config,
-            max_positions=cfg_max_positions or max_positions,
-            max_position_pct=max_position_pct or 0.3,
+            max_positions=max_positions,
+            max_position_pct=max_position_pct,
             min_order_value=min_order_value,
             stop_loss_pct=stop_loss_pct,
             max_hold_days=max_hold_days,

@@ -68,9 +68,7 @@ class SuggestionPipeline:
 
         # Strategy for decision making
         self.strategy = MultiStockStrategy(
-            account_config=None,
             strategy_config=strategy_config,
-            max_positions=10,
             ts_codes=[],
         )
 

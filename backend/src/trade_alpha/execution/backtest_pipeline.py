@@ -109,15 +109,12 @@ class BacktestPipeline:
         # Initialize strategy based on mode
         if mode == "single":
             self.strategy = SingleStockStrategy(
-                account_config=account_config,
                 strategy_config=strategy_config,
                 target_ts_code=self.ts_codes[0],
             )
         else:
             self.strategy = MultiStockStrategy(
-                account_config=account_config,
                 strategy_config=strategy_config,
-                max_positions=10,
                 ts_codes=self.ts_codes,
             )
 
@@ -346,6 +343,10 @@ class BacktestPipeline:
             open_prices=day_data["open"], high_prices=day_data["high"],
             low_prices=day_data["low"], backtest_id=backtest_id,
             cash=self.portfolio.cash,
+            buy_fee_rate=self.account_config.buy_fee_rate,
+            sell_fee_rate=self.account_config.sell_fee_rate,
+            stamp_tax_rate=self.account_config.stamp_tax_rate,
+            min_fee=self.account_config.min_fee,
         )
 
         all_trades = filled_trades + [

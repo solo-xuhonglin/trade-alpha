@@ -1,10 +1,8 @@
 """Integration tests for suggestion validation (actual N-day returns)."""
 
 import pytest
-from datetime import datetime, timedelta
 
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
-from trade_alpha.dao.stock_daily import StockDaily
 
 
 pytestmark = [
@@ -56,30 +54,29 @@ class TestSuggestionValidation:
                 assert val is None or isinstance(val, (int, float))
 
     async def test_future_date_returns_null(self, client):
-        """Verify that suggestions for a very recent date return None for future periods."""
-        today = datetime.now().strftime("%Y%m%d")
+        """Verify far-out actual_return periods are None when data is unavailable.
 
-        # Find suggestions close to today if any
-        recent = await LiveOrderSuggestion.find(
-            LiveOrderSuggestion.trade_date == today
-        ).first_or_none()
-        if not recent:
-            pytest.skip("No suggestions for today's date")
+        Uses the most recent available suggestion date. Return periods beyond
+        available StockDaily data should be None (e.g. 20d may not have enough
+        trading days after the latest date).
+        """
+        all_dates = sorted(await LiveOrderSuggestion.distinct("trade_date"))
+        if not all_dates:
+            pytest.skip("No suggestion data available")
 
+        trade_date = all_dates[-1]  # most recent date with suggestions
         resp = await client.get(
             f"/live-suggestion/suggestions",
-            params={"trade_date": today, "page_size": 5},
+            params={"trade_date": trade_date, "page_size": 5},
         )
         assert resp.status_code == 200
         data = resp.json()
 
         for item in data["items"]:
-            # Most recent dates should have null for further-out periods
             for n in ("10d", "20d"):
                 val = item.get(f"actual_return_{n}")
                 if val is not None:
-                    # Could have value if enough history - that's fine
-                    pass
+                    pass  # May have value if enough history - that's fine
 
     async def test_direction_correct_logic(self, client):
         """Verify direction_correct follows the spec: prob>0.5 & ret>0 or prob<0.5 & ret<0."""

@@ -2,7 +2,6 @@
 
 from typing import Dict, List, Optional
 
-from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.portfolio import PortfolioManager
@@ -18,7 +17,6 @@ class SingleStockStrategy(PositionManager):
 
     def __init__(
         self,
-        account_config: AccountConfig,
         strategy_config: Optional[StrategyConfig],
         target_ts_code: str,
     ):
@@ -29,7 +27,6 @@ class SingleStockStrategy(PositionManager):
         max_hold_days = strategy_config.max_hold_days if strategy_config else 30
 
         super().__init__(
-            account_config=account_config,
             max_positions=1,
             max_position_pct=0.95,
             min_order_value=min_order_value,

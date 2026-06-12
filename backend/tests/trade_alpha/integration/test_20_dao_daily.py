@@ -3,7 +3,7 @@
 import pytest
 from trade_alpha.dao import StockDaily, StockList
 from trade_alpha.data.service import fetch_and_store_stock_daily
-from trade_alpha.scheduler.data_sync import get_data_period
+from trade_alpha.scheduler.data_sync_job import get_data_period
 from trade_alpha.test_config import TEST_STOCK
 
 

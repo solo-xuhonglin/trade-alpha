@@ -19,7 +19,6 @@ class PositionManager:
 
     def __init__(
         self,
-        account_config=None,  # made optional, no strict type
         max_positions: int = 10,
         max_position_pct: float = 0.3,
         min_order_value: float = 5000,
@@ -29,7 +28,6 @@ class PositionManager:
         sell_threshold: float = -0.1,
         min_hold_days: int = 3,
     ):
-        self.account_config = account_config
         self.max_positions = max_positions
         self.max_position_pct = max_position_pct
         self.min_order_value = min_order_value
@@ -80,8 +78,15 @@ class PositionManager:
         low_prices: Dict[str, float],
         backtest_id: Optional[PydanticObjectId] = None,
         cash: Optional[float] = None,
+        buy_fee_rate: float = 0,
+        sell_fee_rate: float = 0,
+        stamp_tax_rate: float = 0,
+        min_fee: float = 0,
     ) -> Tuple[List[ExecutionTrade], List[PendingOrder], float]:
         """Settle pending orders using T+1 OHLC matching.
+
+        Fee rates are passed explicitly by the caller (pipeline) rather than
+        stored on the strategy, keeping fee configuration out of strategy layer.
 
         Processes sell orders first to increase available cash, then processes buy
         orders with a cash sufficiency check to prevent negative cash balance.
@@ -110,20 +115,15 @@ class PositionManager:
             action = "buy" if order.order_shares > 0 else "sell"
 
             if action == "buy":
-                fee_rate = self.account_config.buy_fee_rate if self.account_config else 0
-                min_fee = self.account_config.min_fee if self.account_config else 0
-                fee = self.calc_buy_fee(matched_price * shares, fee_rate, min_fee)
+                fee = self.calc_buy_fee(matched_price * shares, buy_fee_rate, min_fee)
                 cost = matched_price * shares + fee
                 if cash is not None and cash + net_cash_change < cost:
                     unfilled_orders.append(order)
                     continue
                 cash_after = -cost
             else:
-                fee_rate = self.account_config.sell_fee_rate if self.account_config else 0
-                min_fee = self.account_config.min_fee if self.account_config else 0
-                fee = max(matched_price * shares * fee_rate, min_fee)
-                stamp_rate = self.account_config.stamp_tax_rate if self.account_config else 0
-                stamp_tax = matched_price * shares * stamp_rate
+                fee = max(matched_price * shares * sell_fee_rate, min_fee)
+                stamp_tax = matched_price * shares * stamp_tax_rate
                 cash_after = matched_price * shares - fee - stamp_tax
 
             net_cash_change += cash_after

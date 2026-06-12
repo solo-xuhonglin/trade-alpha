@@ -152,7 +152,7 @@ async def _check_and_update_single_stock(
     return True, n
 
 
-async def run_daily_update() -> bool:
+async def run_daily_update_job() -> bool:
     """Run daily update for all active stocks.
 
     Called by scheduler at 18:00.
