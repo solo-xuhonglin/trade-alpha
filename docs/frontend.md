@@ -35,7 +35,8 @@ frontend/
 │   │   ├── trade.ts           # 交易记录 API
 │   │   ├── liveSuggestion.ts  # 实盘建议 API
 │   │   ├── livePortfolio.ts   # 实盘仓位 API
-│   │   └── tradeCalendar.ts   # 交易日历 API
+│   │   ├── tradeCalendar.ts   # 交易日历 API
+│   │   └── scheduledTask.ts   # 定时任务 API
 │   ├── components/             # 公共组件
 │   │   ├── AppLayout.vue      # 应用布局
 │   │   ├── ActiveTaskPanel.vue # 运行中任务面板（可复用）
@@ -57,7 +58,9 @@ frontend/
 │   │   ├── LiveSuggestionManageView.vue # 实盘建议管理
 │   │   ├── LiveDailySuggestionsView.vue # 每日建议
 │   │   ├── DailyRankingsView.vue       # 每日评分排名
-│   │   └── TradeCalendarView.vue       # 交易日历
+│   │   ├── TradeCalendarView.vue       # 交易日历
+│   │   ├── ScheduledTaskConfigView.vue  # 定时任务配置
+│   │   └── ScheduledTaskLogView.vue     # 定时任务日志
 │   ├── router/
 │   │   └── index.ts           # 路由配置
 │   ├── plugins/
@@ -99,6 +102,9 @@ frontend/
 │    仓位管理 │                                 │
 │    每日建议 │                                 │
 │    每日排名 │                                 │
+│  ▼ 定时任务 │                                 │
+│    配置     │                                 │
+│    日志     │                                 │
 │            │                                 │
 └────────────┴─────────────────────────────────┘
      ↑
@@ -123,6 +129,8 @@ frontend/
 | `/live-suggestion/positions` | 仓位管理 | 手动管理持仓、现金调整、费率设置 |
 | `/live-suggestion/daily-suggestions` | 每日建议 | 查看每日建议股票列表 |
 | `/live-suggestion/daily-rankings` | 每日排名 | 全市场评分排名 |
+| `/scheduled-tasks/config` | 定时任务配置 | 查看/编辑定时任务 |
+| `/scheduled-tasks/logs` | 定时任务日志 | 查看执行历史 |
 
 ## 页面设计
 
@@ -218,7 +226,7 @@ frontend/
 
 **组件**:
 - 表单：选择配置、输入名称和时间范围
-- 任务列表：运行中的训练任务
+- 任务列表：运行中的训练任务（ActiveTaskPanel）
 
 ### 7. 训练记录 `/trainings/records`
 
@@ -251,12 +259,6 @@ frontend/
 - **特征重要性**：仅 XGBoost 模型显示，所有特征的重要性进度条（按重要性排序）
 - **训练Loss**：仅 LSTM 模型显示，表格化展示 Train Loss、Val Loss 和 Val AUC，包含最佳 AUC 信息
 
-**前端改进**:
-1. **条件标签页显示**：根据模型类型只显示相关标签页
-2. **训练损失表格化**：LSTM 训练详情使用表格展示，更清晰易读
-3. **回测指标样式优化**：移除回测结果的加粗样式，界面更加简洁
-4. **交易筛选器重新排序**：训练结果筛选器移到回测结果之前
-
 **组件**:
 - 数据表格：训练记录
 - 筛选下拉：按配置筛选
@@ -276,7 +278,7 @@ frontend/
 
 **组件**:
 - 表单：选择参数
-- 任务列表：运行中的回测任务
+- 任务列表：运行中的回测任务（ActiveTaskPanel）
 
 ### 9. 回测记录 `/backtest/records`
 
@@ -336,23 +338,53 @@ frontend/
 
 **功能**:
 - 选择建议日期
-- 查看该日期的建议股票列表（评分、排名、方向概率、排除标记）
+- 卡片布局展示建议股票列表（评分、排名、方向概率、排除标记、评分明细）
+- 展开行查看评分明细（raw_score、trend_bonus、vol_penalty、momentum_bonus）
 - 支持分页浏览
 
 **组件**:
 - 日期选择器
-- 数据表格：建议列表
+- Vuetify 卡片表格布局
+- 展开行：评分明细表格
 
 ### 14. 每日排名 `/live-suggestion/daily-rankings`
 
 **功能**:
 - 选择交易日期
 - 查看全市场评分排名
-- 查看评分明细（综合评分、排名评分、方向概率、趋势加分等）
+- 多日均值排名（avg_rank_3d/5d/20d）
+- 排名变化（rank_change）
+- 评分明细列合并为 `composite_score`（含公式：score + trend_bonus - vol_penalty + momentum_bonus）
+- 悬浮提示显示评分公式组成
 
 **组件**:
 - 日期选择器
 - 数据表格：评分排名列表
+- 列头：综合评分（含 tooltip 显示评分公式）
+
+### 15. 定时任务配置 `/scheduled-tasks/config`
+
+**功能**:
+- 查看定时任务配置列表
+- 编辑任务配置（启用/禁用、触发类型、间隔/定时参数、任务参数）
+- 手动触发任务执行
+- 查看最后执行状态
+
+**组件**:
+- 数据表格：任务配置列表（含最后执行时间/状态）
+- 弹窗表单：编辑配置
+- 触发按钮：立即执行
+
+### 16. 定时任务日志 `/scheduled-tasks/logs`
+
+**功能**:
+- 查看定时任务执行历史
+- 按任务类型筛选
+- 查看执行状态、耗时、结果/错误信息
+
+**组件**:
+- 数据表格：执行日志列表
+- 筛选下拉：按任务类型
 
 ## 共享组件
 
@@ -453,151 +485,59 @@ export interface ApiSuccessResponse<T> {
 
 ```typescript
 // src/utils/notify.ts
-export interface Notification {
-  id: number
-  message: string
-  type: 'success' | 'error' | 'info' | 'warning'
-  duration?: number
-}
+import { notifyService } from '@/utils/notify'
 
-export const notifyService = {
-  success(message: string, duration?: number): number
-  error(message: string, duration?: number): number
-  info(message: string, duration?: number): number
-  warning(message: string, duration?: number): number
-}
-```
-
-**使用方式**：
-```typescript
-// 在组件中
+// 使用方式
 notifyService.success('操作成功')
 notifyService.error('操作失败')
+notifyService.info('提示信息')
+notifyService.warning('警告信息')
 ```
 
-**特性**：
-- 自动显示在页面顶部
-- 支持自动关闭（默认5秒）
-- 支持手动关闭
-- 自动处理重复消息
+**特点**:
+- 基于 Vuetify 的 `useDisplay()` 组件自适应显示位置
+- 支持链式操作
+- 自动错误处理集成
 
-### 数据 API
+### 实盘建议 API
 
 ```typescript
-// src/api/data.ts
-export interface Stock {
-  ts_code: string
-  name: string
-  industry?: string
-  market?: string
-  total_mv?: number
-  pe?: number
-  pb?: number
-  sync_status: string
-  data_count?: number
-  latest_date?: string
-}
+// src/api/liveSuggestion.ts
+export const liveSuggestionApi = {
+  trigger: (body: {
+    training_id: string,
+    strategy_config_id: string,
+    portfolio_id?: string,
+    start_date?: string,
+    end_date?: string,
+    top_n?: number
+  }) => api.post('/live-suggestion/run', body),
 
-export interface StockListResponse {
-  items: Stock[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
+  listDailyScores: (tradeDate?: string, page?: number, pageSize?: number) =>
+    api.get('/live-suggestion/daily-scores', { params: { trade_date: tradeDate, page, page_size: pageSize } }),
 
-export const dataApi = {
-  listStocks: (page = 1, pageSize = 20) =>
-    api.get<StockListResponse>('/data/stocks', { params: { page, page_size: pageSize } }),
-  updateStocks: () => api.post('/data/stocks/update'),
-  getData: (tsCode: string) => api.get(`/data/${tsCode}`),
-  fetchData: (tsCode: string, startDate: string, endDate: string) =>
-    api.post('/data', { ts_code: tsCode, start_date: startDate, end_date: endDate }),
-  deleteData: (tsCode: string) => api.delete(`/data/${tsCode}`),
-}
-```
+  listSuggestionDates: (page?: number, pageSize?: number) =>
+    api.get('/live-suggestion/suggestion-dates', { params: { page, page_size: pageSize } }),
 
-### API 模块说明
+  listSuggestions: (tradeDate: string, page?: number, pageSize?: number) =>
+    api.get('/live-suggestion/suggestions', { params: { trade_date: tradeDate, page, page_size: pageSize } }),
 
-| 模块 | 文件 | 功能 |
-|------|------|------|
-| 数据 | `data.ts` | 股票列表、数据下载 |
-| 账户配置 | `accountConfig.ts` | 账户配置 CRUD |
-| 策略配置 | `strategyConfig.ts` | 策略配置 CRUD |
-| 模型配置 | `modelConfig.ts` | 模型配置 CRUD |
-| 训练管理 | `training.ts` | 发起训练、任务状态 |
-| 训练记录 | `trainingRecord.ts` | 训练列表、预测、删除 |
-| 回测管理 | `backtest.ts` | 发起回测、任务状态 |
-| 回测记录 | `backtestRecord.ts` | 回测列表、详情、删除 |
-| 数据分析 | `dataAnalysis.ts` | 数据分析任务、结果列表 |
-| 交易 | `trade.ts` | 交易流水列表 |
-| 实盘仓位管理 | `livePortfolio.ts` | 持仓 CRUD、股票搜索 |
+  listRuns: (page?: number, pageSize?: number) =>
+    api.get('/live-suggestion/runs', { params: { page, page_size: pageSize } }),
 
-## 开发配置
+  listTasks: (page?: number, pageSize?: number, status?: string) =>
+    api.get('/live-suggestion/tasks', { params: { page, page_size: pageSize, status } }),
 
-### Vite 代理
+  getTask: (taskId: string) =>
+    api.get(`/live-suggestion/task/${taskId}`),
 
-开发时通过代理转发 API 请求：
+  stopTask: (taskId: string, force = false) =>
+    api.post(`/live-suggestion/task/${taskId}/stop?force=${force}`),
 
-```typescript
-// vite.config.ts
-export default defineConfig({
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      }
-    }
-  }
-})
-```
+  deleteTask: (taskId: string) =>
+    api.delete(`/live-suggestion/task/${taskId}`),
 
-### TypeScript 配置
-
-路径别名配置：
-
-```json
-// tsconfig.app.json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
-  }
+  listStockDailyScores: (tsCode: string) =>
+    api.get(`/live-suggestion/daily-scores/stock/${encodeURIComponent(tsCode)}`),
 }
 ```
-
-## 启动命令
-
-```bash
-# 安装依赖
-cd frontend
-npm install
-
-# 开发模式
-npm run dev
-
-# 构建生产版本
-npm run build
-
-# 预览生产版本
-npm run preview
-```
-
-## 构建产物
-
-构建后生成 `dist/` 目录：
-
-```
-dist/
-├── index.html
-├── assets/
-│   ├── index-xxx.js
-│   └── index-xxx.css
-└── ...
-```
-
-生产部署时，将 `dist/` 目录部署到 Web 服务器，或由后端 FastAPI 托管。
