@@ -25,14 +25,22 @@
 | 30 | test_30_service_data.py | TestServiceData | 验证股票日线数据服务 |
 | 31 | test_31_service_stock_list.py | TestServiceStockList | 验证股票列表服务 |
 | 33 | test_33_service_data_analysis.py | TestServiceDataAnalysis | 验证数据分析服务 |
+| 35 | test_35_task_service.py | TestTaskService | 验证后台任务服务 |
 | 41 | test_41_account_config_service.py | TestAccountConfigService | 验证账户管理服务 |
 | 42 | test_42_model_config_service.py | TestModelConfigService | 验证模型配置服务 |
 | 44 | test_44_strategy_service.py | TestStrategyService | 验证策略管理服务 |
+| 46 | test_46_live_portfolio.py | TestLivePortfolio | 验证实盘持仓管理服务 |
 | 51 | test_51_training_xgboost.py | TestTrainingService | 验证 XGBoost 训练服务 |
 | 52 | test_52_predict_xgboost.py | TestPredictIntegration | 验证 XGBoost 预测集成 |
 | 53 | test_53_training_lstm.py | TestTrainingServiceLSTM | 验证 LSTM 训练服务 |
 | 54 | test_54_predict_lstm.py | TestPredictIntegrationLSTM | 验证 LSTM 预测集成 |
+| 60 | test_60_task_subprocess.py | TestTaskService / TestTaskStatus / TestTaskPersistence | 验证子进程任务生命周期和持久化 |
 | 61 | test_61_backtest_lstm.py | TestBacktestLSTM | 验证 LSTM 单股票回测 |
+| 65 | test_65_live_suggestion.py | TestLiveSuggestion | 验证实盘建议流程 |
+| 66 | test_66_suggestion_validation.py | TestSuggestionValidation | 验证建议数据正确性 |
+| 67 | test_67_daily_rankings_avg.py | TestDailyRankingsAvg | 验证日均排名和变化字段 |
+| 68 | test_68_scheduled_task_api.py | TestScheduledTaskService | 验证定时任务配置管理 API |
+| 71 | test_71_suggestion.py | TestSuggestion | 验证建议生成管线和查询服务 |
 
 ## 依赖关系
 
@@ -69,7 +77,6 @@ Layer 3.5: 指标计算
 +-------------------------+
          (指标计算完成)
               |
-              |
               v
 
 Layer 3.75: 数据分析
@@ -78,30 +85,53 @@ Layer 3.75: 数据分析
 |        (33)             |
 +-------------------------+
 
-Layer 4: 基础配置 (账户/策略/模型配置)
-+-------------------------+     +-------------------------+     +-------------------------+
-| TestAccountConfigService|     |TestModelConfigService   |     |TestStrategyService (44)|
-|         (41)            |     |         (42)            |     |                         |
-+-------------------------+     +-------------------------+     +-------------------------+
+Layer 3.8: 后台任务
++-------------------------+
+| TestTaskService (35)    |
++-------------------------+
+
+Layer 4: 基础配置 (账户/策略/模型/持仓)
++-------------------------+     +-------------------------+
+| TestAccountConfigService|     |TestModelConfigService   |
+|         (41)            |     |         (42)            |
++-------------------------+     +-------------------------+
++-------------------------+     +-------------------------+
+|TestStrategyService (44) |     |TestLivePortfolio (46)   |
+|                         |     |(实盘持仓管理)           |
++-------------------------+     +-------------------------+
 
 Layer 5: 训练
-                                    +-------------------------+
-                                    |TestTrainingService(51)  |  <- XGBoost
-                                    +-------------------------+
-                                    +-------------------------+
-                                    |TestPredictIntegration(52)|
-                                    +-------------------------+
-                                    +-------------------------+
-                                    |TestTrainingServiceLSTM(53)|  <- LSTM
-                                    +-------------------------+
-                                    +-------------------------+
-                                    |TestPredictIntegrationLSTM(54)|
-                                    +-------------------------+
++-------------------------+
+|TestTrainingService(51)  |  <- XGBoost
++-------------------------+
+|TestPredictIntegration(52)|
++-------------------------+
+|TestTrainingServiceLSTM(53)|  <- LSTM
++-------------------------+
+|TestPredictIntegrationLSTM(54)|
++-------------------------+
 
-Layer 6: 回测
-                                    +-------------------------+
-                                    |  TestBacktestLSTM(61)   |  <- LSTM 回测
-                                    +-------------------------+
+Layer 6: 回测 + 子进程
++-------------------------+     +-------------------------+
+| TestTaskSubprocess(60)  |     | TestBacktestLSTM(61)    |
+| (子进程生命周期)        |     | (LSTM 单股票回测)       |
++-------------------------+     +-------------------------+
+
+Layer 6.5: 实盘建议 + 定时任务
++-------------------------+     +-------------------------+
+|TestLiveSuggestion(65)   |     |TestSuggestionValidation |
+| (实盘建议流程)          |     |        (66)             |
++-------------------------+     +-------------------------+
++-------------------------+     +-------------------------+
+|TestDailyRankingsAvg(67) |     |TestScheduledTaskAPI(68) |
+| (日均排名/变化)         |     | (定时任务配置管理)      |
++-------------------------+     +-------------------------+
+
+Layer 7: 建议管线
++-------------------------+
+| TestSuggestion (71)     |
+| (建议管线 + 查询服务)   |
++-------------------------+
 ```
 
 ## 统一 Fixtures
@@ -149,6 +179,11 @@ Layer 6: 回测
 | TestTrainingServiceLSTM | 共享一次 LSTM 训练 | 自动清理 | test_lstm_training |
 | TestPredictIntegrationLSTM | 共享 test_53 训练 | 自动清理 | - |
 | TestBacktestLSTM | 共享 test_lstm_training + test_account_config + test_strategy | **不清理** | test_backtest_lstm |
+| TestLiveSuggestion | 共享 test_backtest_lstm | **不清理** | - |
+| TestSuggestionValidation | 共享 test_backtest_lstm | **不清理** | - |
+| TestDailyRankingsAvg | 共享 test_backtest_lstm | **不清理** | - |
+| TestScheduledTaskService | test_*_temp | 自动清理 | - |
+| TestSuggestion | 共享 test_backtest_lstm | **不清理** | - |
 
 ## 统一指标接口
 
@@ -190,6 +225,7 @@ Layer 6: 回测
 | test_lstm_config | Layer 5 LSTM 训练配置 | conftest.py test_lstm_config fixture |
 | test_lstm_training | Layer 5 LSTM 训练结果 | TestTrainingServiceLSTM.shared_training |
 | test_backtest_lstm | Layer 6 LSTM 回测结果 | TestBacktestLSTM.test_run_backtest |
+| test_live_portfolio | Layer 4 实盘持仓 | TestLivePortfolio.test_ensure_default_live_portfolio |
 
 ## 运行命令
 

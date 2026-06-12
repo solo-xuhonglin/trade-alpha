@@ -17,8 +17,8 @@ class TestLiveRankingsPage:
 
         # 验证表头
         expected_headers = [
-            "排名", "股票", "综合评分", "排序评分",
-            "趋势加分", "波动扣分", "动量加成", "参考价格", "操作",
+            "排名", "股票", "综合评分", "排名变化",
+            "3日均排名", "5日均排名", "20日均排名", "参考价格", "操作",
         ]
         headers = page.locator("[class*='v-data-table'] thead th")
         for i, text in enumerate(expected_headers):

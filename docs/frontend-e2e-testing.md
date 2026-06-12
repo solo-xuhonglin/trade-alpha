@@ -27,6 +27,7 @@
 | 10 | test_live_rankings_page.py | TestLiveRankingsPage | 每日排名+K线弹窗页面测试 |
 | 11 | test_trade_calendar_page.py | TestTradeCalendarPage | 交易日历页面测试 |
 | 12 | test_trades_page.py | TestTradesPage | 交易记录页面测试 |
+| 13 | test_position_manage_page.py | TestPositionManagePage | 实盘持仓管理页面测试 |
 
 ## 测试覆盖
 
@@ -44,6 +45,7 @@
 | 交易日历 | `/calendar` | 导航、日历网格、同步按钮、导航、图例 |
 | 交易记录 | `/trades` | 导航、加载交易列表、验证表头、验证数据 |
 | 每日排名 | `/live-suggestion/daily-rankings` | 导航、验证表头、K线按钮打开弹窗、ECharts图表渲染 |
+| 实盘持仓 | `/live-suggestion/positions` | 导航、添加持仓按钮、验证表头、打开添加弹窗 |
 
 ## 依赖关系
 
