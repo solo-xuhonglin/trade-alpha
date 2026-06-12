@@ -2,7 +2,7 @@
 
 ## 目录
 
-`backend/scripts/` 下的脚本按用途分为三类：
+`backend/scripts/` 下的脚本按用途分为四类：
 
 | 类别 | 脚本 | 说明 |
 |------|------|------|
@@ -17,6 +17,7 @@
 | | `backfill_data_count.py` | 回填股票日线数据条数和最新日期 |
 | | `calculate_indicators.py` | 计算新指标（RSI、ATR、OBV）- 并行版本 |
 | | `fast_calculate_indicators.py` | 快速计算新指标（RSI、ATR、OBV）- 优化版本 |
+| **持仓管理** | `sync_live_portfolio.py` | 同步实盘持仓（增/删/改） |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 | **测试调试** | `test_trades.py` | 检查回测结果和交易记录数据 |
 | | `check_prediction_scores.py` | 检查回测快照中的预测分数 |
@@ -139,6 +140,36 @@ python scripts/fast_calculate_indicators.py --limit 10 --concurrency 10
 - `--ts-codes`: 指定股票代码列表
 - `--limit`: 限制处理股票数量（用于测试）
 - `--concurrency`: 并发任务数，默认 20
+
+---
+
+## 持仓管理
+
+### sync_live_portfolio.py — 同步实盘持仓
+
+通过 JSON 文件指定目标持仓，自动对比当前 API 中的持仓数据并执行增/删/改操作。
+
+```bash
+# 预览变更（不实际执行）
+python scripts/sync_live_portfolio.py positions.json --dry-run
+
+# 实际执行同步
+python scripts/sync_live_portfolio.py positions.json
+```
+
+#### JSON 格式
+
+```json
+{
+    "603256.SH": {"name": "宏和科技", "shares": 1000, "cost_price": 189.789},
+    "688347.SH": {"name": "华虹公司", "shares": 900, "cost_price": 209.056},
+    "unknown_1": {"name": "生益科技", "shares": 1500, "cost_price": 147.757}
+}
+```
+
+- **已知 ts_code**：直接以 `ts_code` 为 key
+- **未知 ts_code**：key 使用任意不含 `.` 的字符串，脚本会自动通过名称搜索匹配股票代码
+- 脚本会删除目标中不存在的持仓、更新股数/成本价变化的持仓、新增目标中未有的持仓
 
 ---
 
