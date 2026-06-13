@@ -138,7 +138,7 @@ class PositionManager:
                 fee=fee,
                 cash_after=cash_after,
                 status="filled",
-                reason=f"rank_{action}",
+                reason=order.reason or f"rank_{action}",
                 entry_score=order.score,
                 up_prob_3d=order.up_prob_3d,
                 up_prob_5d=order.up_prob_5d,
@@ -180,7 +180,7 @@ class PositionManager:
                 entry_5d_prob=pos.entry_5d_prob,
                 entry_10d_prob=pos.entry_10d_prob,
                 entry_20d_prob=pos.entry_20d_prob,
-                hold_days=pos.hold_days + 1,
+                hold_days=pos.hold_days,
             )
             pos_list.append(updated_pos)
 
