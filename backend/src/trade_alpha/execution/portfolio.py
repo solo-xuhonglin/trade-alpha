@@ -110,7 +110,7 @@ class PortfolioManager:
         else:
             if len(self.positions) + len(self._pending_buys) >= self._max_positions:
                 return False, 0, 0
-            max_cost = self._cash_available * self._max_position_pct
+            max_cost = total_value * self._max_position_pct
 
         shares, fee = self._calc_shares(max_cost, price)
         if shares < 100:
