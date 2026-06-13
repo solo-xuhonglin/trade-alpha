@@ -25,12 +25,13 @@
             :loading="loadingList"
           ></v-btn>
           <v-btn
-            prepend-icon="mdi-update"
+            prepend-icon="mdi-delete-sweep"
             rounded="lg"
-            text="更新股票列表"
+            text="清空股票信息"
             border
-            @click="updateStockList"
-            :loading="loadingUpdate"
+            color="error"
+            @click="clearConfirmDialog = true"
+            :loading="loadingClear"
           ></v-btn>
         </v-toolbar>
       </template>
@@ -140,6 +141,28 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <!-- 清空确认对话框 -->
+  <v-dialog v-model="clearConfirmDialog" max-width="420px">
+    <v-card>
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        <v-icon color="error" class="mr-2">mdi-alert-circle</v-icon>
+        确认清空
+        <v-btn icon variant="text" size="small" @click="clearConfirmDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text class="text-body-1 mt-2">
+        此操作将清空所有股票信息和历史日线数据，<strong>不可恢复</strong>。确定要继续吗？
+      </v-card-text>
+      <v-divider></v-divider>
+      <v-card-actions class="bg-surface-light">
+        <v-btn text="取消" variant="plain" @click="clearConfirmDialog = false"></v-btn>
+        <v-spacer></v-spacer>
+        <v-btn text="确认清空" color="error" @click="clearStocks" :loading="loadingClear"></v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -164,6 +187,7 @@ const loadingList = ref(false)
 const loadingUpdate = ref(false)
 const loadingDownload = ref(false)
 const loadingDelete = ref(false)
+const loadingClear = ref(false)
 
 const stocks = ref<Stock[]>([])
 const totalItems = ref(0)
@@ -189,6 +213,7 @@ const maxPageSize = 500
 
 const deleteDialog = ref(false)
 const deletingStock = ref<Stock | null>(null)
+const clearConfirmDialog = ref(false)
 
 const headers = [
   { title: '代码', key: 'ts_code', width: '100px' },
@@ -217,11 +242,12 @@ const handleOptionsChange = (options: { page: number; itemsPerPage: number }) =>
   loadStocks()
 }
 
-const updateStockList = async () => {
-  loadingUpdate.value = true
-  await dataApi.updateStocks()
+const clearStocks = async () => {
+  loadingClear.value = true
+  await dataApi.clearStocks()
+  clearConfirmDialog.value = false
   await loadStocks()
-  loadingUpdate.value = false
+  loadingClear.value = false
 }
 
 const openDownloadDialog = (stock: Stock) => {
