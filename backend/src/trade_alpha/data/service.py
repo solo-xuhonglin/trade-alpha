@@ -11,6 +11,8 @@ from trade_alpha.logging import get_logger
 
 logger = get_logger("data_service")
 
+TUSHARE_STOCK_FIELDS = {"name", "industry", "list_date", "market", "total_mv", "pe", "pb", "updated_at"}
+
 
 async def fetch_and_store_stock_daily(ts_code: str, start_date: str, end_date: str) -> int:
     """Fetch stock daily data from Tushare and store to MongoDB."""
@@ -80,8 +82,9 @@ async def fetch_and_store_stock_list() -> int:
             updated_at=datetime.now(timezone.utc),
         )
         if existing:
-            for key, value in stock.model_dump(exclude={"id", "sync_status", "data_count", "latest_date"}).items():
-                setattr(existing, key, value)
+            for key, value in stock.model_dump(exclude={"id"}).items():
+                if key in TUSHARE_STOCK_FIELDS:
+                    setattr(existing, key, value)
             await existing.save()
         else:
             await stock.insert()
