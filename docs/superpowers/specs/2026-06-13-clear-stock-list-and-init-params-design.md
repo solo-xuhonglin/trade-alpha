@@ -55,13 +55,13 @@ clearStocks: () => api.delete('/data/stocks/clear'),
 - `stock_count` → 替代 `config.top_market_cap_stocks`
 - `data_years` → 替代 `config.data_years`
 
-优先使用 params 中的值，没有则 fallback 到 `load_config()`。
+params 中必须包含这两个值，`stock_data_init_job` 内的函数不再调用 `load_config()` 获取 `data_years` 和 `top_market_cap_stocks`，改为通过参数传入。同时为 `stock_data_init` 的默认配置设置默认 params（`{"stock_count": "1500", "data_years": "12"}`）。
 
 修改函数签名和实现：
 
 | 函数 | 改动 |
 |------|------|
-| `run_stock_data_init_job` | 从 cfg.params 提取 stock_count/data_years，传给下游函数 |
+| `run_stock_data_init_job` | 从 cfg.params 提取 stock_count/data_years，传给下游函数；无 params 时抛出 ValueError |
 | `get_pending_stocks` | 增加 `top_limit` 可选参数 |
 | `get_data_period` | 增加 `data_years` 可选参数 |
 | `check_active_stocks_sufficient` | 增加 `stock_count` 可选参数 |
