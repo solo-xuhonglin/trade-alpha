@@ -8,14 +8,16 @@ from beanie import PydanticObjectId
 
 from trade_alpha.dao.scheduled_task import ScheduledTaskConfig, ScheduledTaskLog
 from trade_alpha.logging import get_logger
-from trade_alpha.scheduler.data_sync_job import run_data_sync_job
+from trade_alpha.scheduler.stock_data_init_job import run_stock_data_init_job
 from trade_alpha.scheduler.daily_update_job import run_daily_update_job
 from trade_alpha.scheduler.auto_suggest_job import run_auto_suggest_job
+from trade_alpha.scheduler.stock_list_sync_job import run_stock_list_sync_job
 
 logger = get_logger("scheduled_task_service")
 
 _JOB_FN_MAP = {
-    "data_sync": run_data_sync_job,
+    "stock_list_sync": run_stock_list_sync_job,
+    "stock_data_init": run_stock_data_init_job,
     "daily_data": run_daily_update_job,
     "auto_suggest": run_auto_suggest_job,
 }
