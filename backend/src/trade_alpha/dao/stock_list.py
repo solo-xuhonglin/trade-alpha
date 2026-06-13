@@ -22,6 +22,18 @@ class StockList(Document):
     data_count: Optional[int] = None
     latest_date: Optional[str] = None
 
+    @staticmethod
+    async def get_top_n_ts_codes(n: int) -> list[str]:
+        """Get ts_codes of top N stocks by total_mv descending."""
+        stocks = await StockList.find_all().sort(-StockList.total_mv).limit(n).to_list()
+        return [s.ts_code for s in stocks]
+
+    @staticmethod
+    async def get_all_ts_codes() -> set[str]:
+        """Get all existing ts_codes as a set."""
+        stocks = await StockList.find_all().to_list()
+        return {s.ts_code for s in stocks}
+
     class Settings:
         name = "stock_list"
         indexes = [
