@@ -60,6 +60,16 @@ async def ensure_default_configs() -> None:
         await old_sync.delete()
         logger.info("ensure_default_configs", "Deleted old data_sync config (replaced by stock_data_init)")
 
+    # Migration: set default params for existing stock_data_init config if missing
+    existing_init = await ScheduledTaskConfig.find_one(
+        ScheduledTaskConfig.task_key == "stock_data_init"
+    )
+    if existing_init is not None and not existing_init.params:
+        existing_init.params = {"stock_count": "1500", "data_years": "12"}
+        existing_init.updated_at = datetime.now()
+        await existing_init.save()
+        logger.info("ensure_default_configs", "Set default params for stock_data_init")
+
     # Migration: delete old data_count config
     old_count = await ScheduledTaskConfig.find_one(
         ScheduledTaskConfig.task_key == "data_count"
@@ -91,6 +101,7 @@ async def ensure_default_configs() -> None:
             "trigger_type": "cron",
             "cron_hour": 2,
             "cron_minute": 0,
+            "params": {"stock_count": "1500", "data_years": "12"},
         },
         {
             "name": "每日数据更新",
