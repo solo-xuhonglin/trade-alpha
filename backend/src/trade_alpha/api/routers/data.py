@@ -147,6 +147,10 @@ async def fetch_data_endpoint(request: DataFetchRequest):
 
     if daily_count > 0:
         await update_single_stock_data_count(ts_code=request.ts_code)
+        stock = await StockList.find_one(StockList.ts_code == request.ts_code)
+        if stock and stock.sync_status != "active":
+            stock.sync_status = "active"
+            await stock.save()
 
     return {"ts_code": request.ts_code, "daily_stored": daily_count}
 
