@@ -75,9 +75,10 @@ const filterTaskKey = ref<string | undefined>(undefined)
 const errorMsg = ref<string | null>(null)
 
 const taskKeyOptions = [
-  { title: '数据同步', value: 'data_sync' },
-  { title: '数据计数更新', value: 'data_count' },
-  { title: '每日更新', value: 'daily_update' },
+  { title: '股票列表同步', value: 'stock_list_sync' },
+  { title: '股票数据初始化', value: 'stock_data_init' },
+  { title: '每日数据更新', value: 'daily_data' },
+  { title: '实盘建议', value: 'auto_suggest' },
 ]
 
 const headers = [
