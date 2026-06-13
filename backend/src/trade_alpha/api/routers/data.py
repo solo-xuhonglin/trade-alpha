@@ -162,3 +162,16 @@ async def delete_data_endpoint(ts_code: str):
         stock.latest_date = None
         await stock.save()
     return {"daily_deleted": daily_count}
+
+
+@router.delete("/stocks/clear")
+async def clear_stocks_endpoint():
+    """Clear all stock list and daily data. Use with caution."""
+    from trade_alpha.dao.mongodb import get_database
+    db = await get_database()
+    stock_result = await db.stock_list.delete_many({})
+    daily_result = await db.stock_daily.delete_many({})
+    return {
+        "deleted_stocks": stock_result.deleted_count,
+        "deleted_daily": daily_result.deleted_count,
+    }
