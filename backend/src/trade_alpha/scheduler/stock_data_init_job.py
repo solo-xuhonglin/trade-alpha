@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 from beanie.odm.operators.find.comparison import NotIn, In
 
@@ -20,10 +20,12 @@ API_REQUEST_DELAY = 0.2
 MAX_CONCURRENT_STOCKS = 10
 
 
-def get_data_period() -> tuple[str, str]:
-    config = load_config()
+def get_data_period(data_years: Optional[int] = None) -> tuple[str, str]:
+    if data_years is None:
+        config = load_config()
+        data_years = config.data_years
     end_date = datetime.now().strftime("%Y%m%d")
-    start_date = (datetime.now() - timedelta(days=365 * config.data_years)).strftime("%Y%m%d")
+    start_date = (datetime.now() - timedelta(days=365 * data_years)).strftime("%Y%m%d")
     return start_date, end_date
 
 
@@ -35,9 +37,10 @@ async def ensure_stock_list() -> int:
     return count
 
 
-async def get_pending_stocks(limit: int = 300) -> List[StockList]:
-    config = load_config()
-    top_limit = config.top_market_cap_stocks
+async def get_pending_stocks(top_limit: Optional[int] = None, limit: int = 300) -> List[StockList]:
+    if top_limit is None:
+        config = load_config()
+        top_limit = config.top_market_cap_stocks
     top_stocks = await StockList.find(
         NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
     ).sort(-StockList.total_mv).limit(top_limit).to_list()
@@ -70,9 +73,9 @@ async def update_single_stock_data_count(ts_code: str) -> None:
             break
 
 
-async def process_single_stock(stock: StockList) -> bool:
+async def process_single_stock(stock: StockList, data_years: Optional[int] = None) -> bool:
     try:
-        start_date, end_date = get_data_period()
+        start_date, end_date = get_data_period(data_years=data_years)
         count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
         logger.info(f"Fetched {count} daily records for {stock.ts_code}")
         await asyncio.sleep(API_REQUEST_DELAY)
@@ -87,32 +90,52 @@ async def process_single_stock(stock: StockList) -> bool:
         return False
 
 
-async def check_active_stocks_sufficient() -> bool:
-    config = load_config()
+async def check_active_stocks_sufficient(stock_count: Optional[int] = None) -> bool:
+    if stock_count is None:
+        config = load_config()
+        stock_count = config.top_market_cap_stocks
     active_count = await StockList.find(
         StockList.sync_status == "active",
         NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
     ).count()
-    logger.info(f"Current active stocks: {active_count}, target: {config.top_market_cap_stocks}")
-    return active_count >= config.top_market_cap_stocks
+    logger.info(f"Current active stocks: {active_count}, target: {stock_count}")
+    return active_count >= stock_count
 
 
-async def run_stock_data_init_job(**kwargs):
-    """Execute one data init job. Process up to 300 stocks per run with concurrency."""
+async def run_stock_data_init_job(cfg=None, **kwargs):
+    """Execute one data init job. Process up to 300 stocks per run with concurrency.
+
+    Reads stock_count and data_years from cfg.params. Falls back to load_config()
+    if no cfg provided (for backward compatibility with direct API calls).
+    """
     logger.info("Starting stock data init job")
+
+    # Extract params from config
+    stock_count = None
+    data_years = None
+    if cfg and cfg.params:
+        try:
+            stock_count = int(cfg.params.get("stock_count", 0))
+        except (TypeError, ValueError):
+            pass
+        try:
+            data_years = int(cfg.params.get("data_years", 0))
+        except (TypeError, ValueError):
+            pass
+
     await ensure_stock_list()
-    if await check_active_stocks_sufficient():
+    if await check_active_stocks_sufficient(stock_count=stock_count):
         logger.info("Target active stocks reached, skipping data init job")
         return
-    pending_stocks = await get_pending_stocks(limit=300)
+    pending_stocks = await get_pending_stocks(top_limit=stock_count, limit=300)
     if not pending_stocks:
         logger.info("No stocks to process")
         return
     logger.info(f"Found {len(pending_stocks)} stocks to process")
     sem = asyncio.Semaphore(MAX_CONCURRENT_STOCKS)
-    async def process_with_semaphore(stock: StockList) -> bool:
+    async def process_with_semaphore(s: StockList) -> bool:
         async with sem:
-            return await process_single_stock(stock)
+            return await process_single_stock(s, data_years=data_years)
     tasks = [process_with_semaphore(s) for s in pending_stocks]
     results = await asyncio.gather(*tasks)
     success_count = sum(1 for r in results if r)
