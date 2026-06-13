@@ -48,19 +48,17 @@ class ScheduledTaskLog(Document):
 async def ensure_default_configs() -> None:
     """Ensure default scheduled task configs exist in database.
 
-    Handles migration from the old 3-config scheme (data_sync 60s, data_count,
-    daily_update) to the new 3-config scheme (data_sync 1800s, daily_data 17:00,
-    auto_suggest 18:00).
+    Handles migration:
+    - data_sync (interval 1800s) -> stock_data_init (cron 02:00)
+    - Adds stock_list_sync (cron 01:00)
     """
-    # Migration: update data_sync interval from 60 to 1800
+    # Migration: delete old data_sync config
     old_sync = await ScheduledTaskConfig.find_one(
         ScheduledTaskConfig.task_key == "data_sync"
     )
-    if old_sync is not None and old_sync.interval_seconds == 60:
-        old_sync.interval_seconds = 1800
-        old_sync.updated_at = datetime.now()
-        await old_sync.save()
-        logger.info("ensure_default_configs", "Migrated data_sync interval: 60 -> 1800")
+    if old_sync is not None:
+        await old_sync.delete()
+        logger.info("ensure_default_configs", "Deleted old data_sync config (replaced by stock_data_init)")
 
     # Migration: delete old data_count config
     old_count = await ScheduledTaskConfig.find_one(
@@ -81,10 +79,18 @@ async def ensure_default_configs() -> None:
     # Create new defaults
     defaults = [
         {
-            "name": "数据同步",
-            "task_key": "data_sync",
-            "trigger_type": "interval",
-            "interval_seconds": 1800,
+            "name": "股票列表同步",
+            "task_key": "stock_list_sync",
+            "trigger_type": "cron",
+            "cron_hour": 1,
+            "cron_minute": 0,
+        },
+        {
+            "name": "股票数据初始化",
+            "task_key": "stock_data_init",
+            "trigger_type": "cron",
+            "cron_hour": 2,
+            "cron_minute": 0,
         },
         {
             "name": "每日数据更新",
