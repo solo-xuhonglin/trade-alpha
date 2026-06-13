@@ -80,7 +80,7 @@ async def fetch_and_store_stock_list() -> int:
             updated_at=datetime.now(timezone.utc),
         )
         if existing:
-            for key, value in stock.model_dump(exclude={"id", "sync_status"}).items():
+            for key, value in stock.model_dump(exclude={"id", "sync_status", "data_count", "latest_date"}).items():
                 setattr(existing, key, value)
             await existing.save()
         else:
