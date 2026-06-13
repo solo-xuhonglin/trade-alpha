@@ -52,10 +52,19 @@ async def run_stock_list_sync_job(cfg=None, **kwargs):
     )
 
     # Step 5: Mark newly-ranked stocks as pending (new stocks already default to pending)
+    # Only mark stocks that genuinely need data initialization (data_count is None or 0)
     marked_count = 0
     for ts_code in newly_ranked:
         stock = await StockList.find_one(StockList.ts_code == ts_code)
-        if stock and stock.sync_status != "pending":
+        if not stock:
+            continue
+        has_data = stock.data_count is not None and stock.data_count > 0
+        if has_data:
+            if stock.sync_status != "active":
+                stock.sync_status = "active"
+                await stock.save()
+            continue
+        if stock.sync_status != "pending":
             stock.sync_status = "pending"
             await stock.save()
             marked_count += 1
