@@ -1,4 +1,4 @@
-"""Data sync job — fetch stock data and calculate indicators for pending stocks."""
+"""Stock data init job — fetch stock data and calculate indicators for pending stocks."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -97,12 +97,12 @@ async def check_active_stocks_sufficient() -> bool:
     return active_count >= config.top_market_cap_stocks
 
 
-async def run_data_sync_job(**kwargs):
-    """Execute one data sync job. Process up to 300 stocks per run with concurrency."""
-    logger.info("Starting data sync job")
+async def run_stock_data_init_job(**kwargs):
+    """Execute one data init job. Process up to 300 stocks per run with concurrency."""
+    logger.info("Starting stock data init job")
     await ensure_stock_list()
     if await check_active_stocks_sufficient():
-        logger.info("Target active stocks reached, skipping sync job")
+        logger.info("Target active stocks reached, skipping data init job")
         return
     pending_stocks = await get_pending_stocks(limit=300)
     if not pending_stocks:
@@ -118,6 +118,6 @@ async def run_data_sync_job(**kwargs):
     success_count = sum(1 for r in results if r)
     failed_count = sum(1 for r in results if not r)
     logger.info(
-        f"Data sync job completed: {len(pending_stocks)} stocks "
+        f"Stock data init job completed: {len(pending_stocks)} stocks "
         f"({success_count} succeeded, {failed_count} failed)"
     )
