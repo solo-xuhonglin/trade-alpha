@@ -122,16 +122,19 @@ GET /api/data/stocks/{ts_code}/candles
 
 注意：包含 `ma_5/10/20/60` 均线数据，可用于 K 线图中均线绘制。
 
-### 更新股票列表
+### 清空股票信息
+
+清空所有股票信息和历史日线数据，不可恢复。用于重新初始化数据。
 
 ```
-POST /api/data/stocks/update
+DELETE /api/data/stocks/clear
 ```
 
 **响应**:
 ```json
 {
-  "message": "Stock list updated successfully"
+  "deleted_stocks": 5528,
+  "deleted_daily": 200000
 }
 ```
 
@@ -1125,6 +1128,19 @@ GET /api/scheduled-tasks
   "items": [
     {
       "id": "507f1f77bcf86cd799439011",
+      "name": "股票列表同步",
+      "task_key": "stock_list_sync",
+      "enabled": true,
+      "trigger_type": "cron",
+      "cron_hour": 1,
+      "cron_minute": 0,
+      "last_status": "completed",
+      "last_started_at": "2026-06-13T01:00:00",
+      "last_duration_ms": 21000,
+      "params": {}
+    },
+    {
+      "id": "507f1f77bcf86cd799439012",
       "name": "股票数据初始化",
       "task_key": "stock_data_init",
       "enabled": true,
@@ -1132,13 +1148,41 @@ GET /api/scheduled-tasks
       "cron_hour": 2,
       "cron_minute": 0,
       "last_status": "completed",
-      "last_started_at": "2026-06-10T17:00:00",
-      "last_duration_ms": 60000,
+      "last_started_at": "2026-06-13T02:00:00",
+      "last_duration_ms": 10000,
+      "params": {"stock_count": "1500", "data_years": "12"}
+    },
+    {
+      "id": "507f1f77bcf86cd799439013",
+      "name": "每日数据更新",
+      "task_key": "daily_data",
+      "enabled": true,
+      "trigger_type": "cron",
+      "cron_hour": 17,
+      "cron_minute": 0,
+      "last_status": "completed",
+      "last_started_at": "2026-06-12T17:00:00",
+      "last_duration_ms": 155000,
       "params": {}
     }
   ]
 }
 ```
+
+**字段说明**:
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 配置 ID |
+| `name` | string | 任务名称 |
+| `task_key` | string | 任务标识（stock_list_sync / stock_data_init / daily_data / auto_suggest） |
+| `enabled` | boolean | 是否启用 |
+| `trigger_type` | string | 触发类型（interval / cron） |
+| `cron_hour` | int | 定时小时（cron 类型） |
+| `cron_minute` | int | 定时分钟（cron 类型） |
+| `params` | dict | 任务参数（stock_data_init: stock_count+data_years; auto_suggest: training_id+strategy_config_id+top_n） |
+| `last_status` | string | 最后执行状态 |
+| `last_started_at` | string | 最后执行时间 |
+| `last_duration_ms` | int | 最后执行耗时（毫秒） |
 
 ### 更新定时任务配置
 

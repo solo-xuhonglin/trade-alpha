@@ -37,10 +37,17 @@ Tushare API（前复权日线）
 
 通过 APScheduler 定时任务自动同步：
 
+**股票列表同步**（`scheduler/stock_list_sync_job.py`）：
+- 每日凌晨 01:00 执行
+- 从 Tushare 拉取最新股票列表，合并市值/PE/PB 数据
+- 检测新增股票和新入排名股票，标记为 `pending`
+- 已有数据的股票不会改变状态
+
 **全量初始化同步**（`scheduler/stock_data_init_job.py`）：
 - 每日凌晨 02:00 执行
 - 仅处理 `sync_status == "pending"` 的股票
 - 拉取全部历史数据 → 计算全部技术指标 → 更新为 `active`
+- 可通过前端任务配置页设置 `stock_count`（股票数量）和 `data_years`（数据年限）参数
 
 **每日增量更新**（`scheduler/daily_update_job.py`）：
 - 每天 17:00 执行
@@ -54,6 +61,7 @@ Tushare API（前复权日线）
 **状态流转**:
 - `pending` → `active`：全量初始化同步处理
 - `active` → `pending`：每日增量更新检测到除权
+- `pending`（新增/新入排名）：股票列表同步标记
 
 ---
 
