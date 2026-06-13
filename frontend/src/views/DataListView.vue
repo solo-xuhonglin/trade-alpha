@@ -143,18 +143,15 @@
   </v-dialog>
 
   <!-- 清空确认对话框 -->
-  <v-dialog v-model="clearConfirmDialog" max-width="420px">
+  <v-dialog v-model="clearConfirmDialog" max-width="400px">
     <v-card>
       <v-card-title class="text-h6 d-flex justify-space-between align-center">
-        <v-icon color="error" class="mr-2">mdi-alert-circle</v-icon>
         确认清空
         <v-btn icon variant="text" size="small" @click="clearConfirmDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
-      <v-card-text class="text-body-1 mt-2">
-        此操作将清空所有股票信息和历史日线数据，<strong>不可恢复</strong>。确定要继续吗？
-      </v-card-text>
+      <v-card-text>此操作将清空所有股票信息和历史日线数据，不可恢复。确定要继续吗？</v-card-text>
       <v-divider></v-divider>
       <v-card-actions class="bg-surface-light">
         <v-btn text="取消" variant="plain" @click="clearConfirmDialog = false"></v-btn>
