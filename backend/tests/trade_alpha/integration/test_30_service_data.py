@@ -26,7 +26,7 @@ class TestServiceData:
         if not existing:
             from trade_alpha.data.service import fetch_and_store_stock_daily
             from trade_alpha.indicators.service import calculate_all_indicators
-            from trade_alpha.scheduler.data_sync_job import get_data_period
+            from trade_alpha.scheduler.stock_data_init_job import get_data_period
 
             start_date, end_date = get_data_period()
             await fetch_and_store_stock_daily(TS_CODE, start_date, end_date)

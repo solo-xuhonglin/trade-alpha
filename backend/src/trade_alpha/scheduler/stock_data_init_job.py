@@ -14,7 +14,7 @@ from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
-logger = get_logger("data_sync")
+logger = get_logger("stock_data_init")
 
 API_REQUEST_DELAY = 0.2
 MAX_CONCURRENT_STOCKS = 10
