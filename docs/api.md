@@ -1125,13 +1125,12 @@ GET /api/scheduled-tasks
   "items": [
     {
       "id": "507f1f77bcf86cd799439011",
-      "name": "数据同步",
-      "task_key": "data_sync",
+      "name": "股票数据初始化",
+      "task_key": "stock_data_init",
       "enabled": true,
-      "trigger_type": "interval",
-      "interval_seconds": 1800,
-      "cron_hour": null,
-      "cron_minute": null,
+      "trigger_type": "cron",
+      "cron_hour": 2,
+      "cron_minute": 0,
       "last_status": "completed",
       "last_started_at": "2026-06-10T17:00:00",
       "last_duration_ms": 60000,
@@ -1205,7 +1204,7 @@ GET /api/scheduled-tasks/logs
     {
       "id": "507f1f77bcf86cd799439021",
       "config_id": "507f1f77bcf86cd799439011",
-      "task_key": "data_sync",
+      "task_key": "stock_data_init",
       "status": "completed",
       "started_at": "2026-06-10T17:00:00",
       "completed_at": "2026-06-10T17:01:00",

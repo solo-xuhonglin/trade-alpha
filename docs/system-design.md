@@ -83,8 +83,12 @@ trade-alpha/
 │   │   │   ├── data_loader.py      # 数据加载器
 │   │   │   └── schemas.py          # 数据结构定义
 │   │   ├── scheduler/          # 定时任务模块
-│   │   │   ├── data_sync.py       # 数据同步 + 每日数据更新（合并）
-│   │   │   └── service.py         # ScheduledTaskService 服务层
+│   │   │   ├── stock_data_init_job.py  # 全量数据初始化
+│   │   │   ├── daily_update_job.py     # 每日增量更新
+│   │   │   ├── auto_suggest_job.py     # 自动实盘建议
+│   │   │   ├── stock_list_sync_job.py  # 股票列表同步
+│   │   │   ├── scheduler.py            # 调度器生命周期
+│   │   │   └── service.py              # ScheduledTaskService 服务层
 │   │   ├── task/               # 异步任务模块（子进程执行）
 │   │   │   ├── dao.py              # 任务 Document + TaskStatus/TaskType
 │   │   │   ├── service.py          # 任务生命周期管理
@@ -463,11 +467,12 @@ name 字段具备唯一索引，支持按名称直接查询。
 - `ScheduledTaskConfig`: 定时任务配置 Document（task_key 唯一索引）
 - `ScheduledTaskLog`: 定时任务执行日志 Document
 
-**三个默认任务**:
+**四个默认任务**:
 
 | task_key | 类型 | 触发方式 | 说明 |
 |----------|------|---------|------|
-| `data_sync` | interval | 每 1800 秒（30分钟） | 全量数据同步 |
+| `stock_list_sync` | cron | 每日 01:00 | 刷新股票列表，标记新增/新入排名股票 |
+| `stock_data_init` | cron | 每日 02:00 | 全量数据初始化 |
 | `daily_data` | cron | 每日 17:00 | 增量更新当日数据 |
 | `auto_suggest` | cron | 每日 18:00 | 自动运行实盘建议 |
 
@@ -510,13 +515,13 @@ name 字段具备唯一索引，支持按名称直接查询。
 - `auto_suggest` 任务触发时，必须在 params 中包含 `training_id` 和 `strategy_config_id`
 - 未注册的 task_key 返回 400 错误
 
-#### scheduler/data_sync.py
+#### scheduler/stock_data_init_job.py
 
-全量数据初始化和每日增量数据同步（daily_update 功能已合并至此文件）：
+全量数据初始化：
 
-- `run_data_sync_job()`: 运行数据同步
-- `_run_daily_data()`: 增量更新当日数据
-- `_run_auto_suggest()`: 运行实盘建议（通过 subprocess 触发）
+- `run_stock_data_init_job()`: 运行数据初始化，处理 pending 股票
+- `get_data_period()`: 获取数据拉取的时间范围
+- `update_single_stock_data_count()`: 更新单只股票的数据统计
 
 ### 11. 任务模块 (task)
 

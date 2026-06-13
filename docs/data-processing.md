@@ -37,14 +37,13 @@ Tushare API（前复权日线）
 
 通过 APScheduler 定时任务自动同步：
 
-**全量初始化同步**（`scheduler/data_sync.py`）：
-- 每分钟执行，直到达到目标活跃股票数（默认 3000）
+**全量初始化同步**（`scheduler/stock_data_init_job.py`）：
+- 每日凌晨 02:00 执行
 - 仅处理 `sync_status == "pending"` 的股票
 - 拉取全部历史数据 → 计算全部技术指标 → 更新为 `active`
-- 达到目标后停止
 
-**每日增量更新**（`scheduler/daily_update.py`）：
-- 每天 18:00 执行
+**每日增量更新**（`scheduler/daily_update_job.py`）：
+- 每天 17:00 执行
 - 仅处理 `sync_status == "active"` 的股票
 - 自动补齐最新的交易日数据
 - **除权检测**：每次拉取时会多查已有数据的最后一天，对比新拉的 close 是否一致
