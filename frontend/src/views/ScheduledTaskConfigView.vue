@@ -112,42 +112,63 @@
             </template>
           </v-tabs-window-item>
 
-          <v-tabs-window-item v-if="showParamsTab" value="params">
-            <v-select
-              v-model="editItem.params.training_id"
-              :items="trainingOptions"
-              label="训练结果"
-              item-title="title"
-              item-value="value"
-              hide-details
-              class="mb-3"
-            />
-            <v-select
-              v-model="editItem.params.portfolio_id"
-              :items="portfolioOptions"
-              label="实盘组合"
-              item-title="title"
-              item-value="value"
-              hide-details
-              clearable
-              class="mb-3"
-            />
-            <v-select
-              v-model="editItem.params.strategy_config_id"
-              :items="strategyOptions"
-              label="策略配置"
-              item-title="title"
-              item-value="value"
-              hide-details
-              class="mb-3"
-            />
-            <v-text-field
-              v-model.number="editItem.params.top_n"
-              label="市值排行前N"
-              type="number"
-              :min="1"
-              hide-details
-            />
+          <v-tabs-window-item value="params">
+            <template v-if="editItem?.task_key === 'auto_suggest'">
+              <v-select
+                v-model="editItem.params.training_id"
+                :items="trainingOptions"
+                label="训练结果"
+                item-title="title"
+                item-value="value"
+                hide-details
+                class="mb-3"
+              />
+              <v-select
+                v-model="editItem.params.portfolio_id"
+                :items="portfolioOptions"
+                label="实盘组合"
+                item-title="title"
+                item-value="value"
+                hide-details
+                clearable
+                class="mb-3"
+              />
+              <v-select
+                v-model="editItem.params.strategy_config_id"
+                :items="strategyOptions"
+                label="策略配置"
+                item-title="title"
+                item-value="value"
+                hide-details
+                class="mb-3"
+              />
+              <v-text-field
+                v-model.number="editItem.params.top_n"
+                label="市值排行前N"
+                type="number"
+                :min="1"
+                hide-details
+              />
+            </template>
+            <template v-else-if="editItem?.task_key === 'stock_data_init'">
+              <v-text-field
+                v-model.number="editItem.params.stock_count"
+                label="股票数量"
+                type="number"
+                :min="100"
+                :max="6000"
+                hide-details
+                class="mb-3"
+              />
+              <v-text-field
+                v-model.number="editItem.params.data_years"
+                label="数据年限"
+                type="number"
+                :min="1"
+                :max="20"
+                hide-details
+              />
+            </template>
           </v-tabs-window-item>
         </v-tabs-window>
       </v-card-text>
@@ -183,7 +204,9 @@ const tab = ref(0)
 const strategyOptions = ref<{ title: string; value: string }[]>([])
 const trainingOptions = ref<{ title: string; value: string }[]>([])
 const portfolioOptions = ref<{ title: string; value: string }[]>([])
-const showParamsTab = computed(() => editItem.value?.task_key === 'auto_suggest')
+const showParamsTab = computed(() =>
+  ['auto_suggest', 'stock_data_init'].includes(editItem.value?.task_key ?? '')
+)
 
 const snackbar = ref({ show: false, message: '', color: 'info' })
 
