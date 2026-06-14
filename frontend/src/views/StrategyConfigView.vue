@@ -62,6 +62,7 @@
         <v-tabs v-model="activeTab" color="primary" v-if="form.type === 'multi'">
           <v-tab value="basic">基本配置</v-tab>
           <v-tab value="multi">多股票配置</v-tab>
+          <v-tab value="market">市场分析</v-tab>
           <v-tab value="ranking">排名优化</v-tab>
           <v-tab value="trading">交易优化</v-tab>
         </v-tabs>
@@ -293,6 +294,36 @@
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.ranking_smooth_alpha" type="number" step="0.01"
                     label="平滑系数" hint="手动指定 α（0~1），为空则用 2/(window+1)" persistent-hint></v-text-field>
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
+
+          <v-window-item value="market">
+            <div>
+              <v-row>
+                <v-col cols="12">
+                  <div class="text-body-2 mb-2">
+                    <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
+                    市场状态判断
+                    <v-chip size="x-small" variant="outlined" color="info">基于全市场排序分(ranking_score)中位数</v-chip>
+                  </div>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.market_trend_threshold" type="number" step="0.01"
+                    label="趋势阈值" hint="排序分中位数高于此值 -> 趋势市（默认 0.05）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.market_high_score_threshold" type="number" step="0.01"
+                    label="高分线" hint="排序分高于此值 -> 算高分股（默认 0.30）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.market_low_score_threshold" type="number" step="0.01"
+                    label="低分线" hint="排序分低于此值 -> 算低分股（默认 -0.30）" persistent-hint />
                 </v-col>
               </v-row>
             </div>
@@ -687,6 +718,9 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rank_up_min_improvement_pct: item.rank_up_min_improvement_pct ?? 0.20,
       ranking_smooth_window: item.ranking_smooth_window ?? 8,
       ranking_smooth_alpha: item.ranking_smooth_alpha ?? 0.3,
+      market_trend_threshold: item.market_trend_threshold ?? 0.05,
+      market_high_score_threshold: item.market_high_score_threshold ?? 0.30,
+      market_low_score_threshold: item.market_low_score_threshold ?? -0.30,
     }
   } else {
     editingId.value = null
@@ -738,6 +772,9 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rank_up_min_improvement_pct: 0.20,
       ranking_smooth_window: 8,
       ranking_smooth_alpha: 0.3,
+      market_trend_threshold: 0.05,
+      market_high_score_threshold: 0.30,
+      market_low_score_threshold: -0.30,
     }
   }
   dialog.value = true
@@ -792,6 +829,9 @@ const saveStrategy = async () => {
       rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
+      market_trend_threshold: form.value.market_trend_threshold,
+      market_high_score_threshold: form.value.market_high_score_threshold,
+      market_low_score_threshold: form.value.market_low_score_threshold,
     })
   } else {
     await strategyConfigApi.create({
@@ -842,6 +882,9 @@ const saveStrategy = async () => {
       rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
+      market_trend_threshold: form.value.market_trend_threshold,
+      market_high_score_threshold: form.value.market_high_score_threshold,
+      market_low_score_threshold: form.value.market_low_score_threshold,
     })
   }
   dialog.value = false

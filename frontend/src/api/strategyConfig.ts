@@ -50,6 +50,9 @@ export interface Strategy {
   vol_max_penalty?: number
   ranking_smooth_window?: number
   ranking_smooth_alpha?: number
+  market_trend_threshold?: number
+  market_high_score_threshold?: number
+  market_low_score_threshold?: number
   created_at: string
   updated_at?: string
 }
