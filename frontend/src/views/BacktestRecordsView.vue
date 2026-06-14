@@ -523,6 +523,8 @@
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最低手续费：</span>¥{{ backtestAccountConfig?.min_fee ?? '-' }}</v-col>
             </v-row>
 
+          </v-window-item>
+
           <v-window-item value="strategy">
             <div class="text-subtitle-2 font-weight-medium mb-1">策略信息</div>
             <v-row class="py-0">
