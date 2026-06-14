@@ -90,6 +90,7 @@ class StrategyCreateRequest(BaseModel):
     market_trend_threshold: Optional[float] = None
     market_high_score_threshold: Optional[float] = None
     market_low_score_threshold: Optional[float] = None
+    use_market_aware_trading: Optional[bool] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -142,6 +143,7 @@ class StrategyUpdateRequest(BaseModel):
     market_trend_threshold: Optional[float] = None
     market_high_score_threshold: Optional[float] = None
     market_low_score_threshold: Optional[float] = None
+    use_market_aware_trading: Optional[bool] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

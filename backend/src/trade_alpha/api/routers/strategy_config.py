@@ -68,6 +68,7 @@ def _strategy_to_dict(s) -> dict:
         "market_trend_threshold": s.market_trend_threshold,
         "market_high_score_threshold": s.market_high_score_threshold,
         "market_low_score_threshold": s.market_low_score_threshold,
+        "use_market_aware_trading": s.use_market_aware_trading,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -152,6 +153,7 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             market_trend_threshold=request.market_trend_threshold,
             market_high_score_threshold=request.market_high_score_threshold,
             market_low_score_threshold=request.market_low_score_threshold,
+            use_market_aware_trading=request.use_market_aware_trading,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -218,6 +220,7 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             market_trend_threshold=request.market_trend_threshold,
             market_high_score_threshold=request.market_high_score_threshold,
             market_low_score_threshold=request.market_low_score_threshold,
+            use_market_aware_trading=request.use_market_aware_trading,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

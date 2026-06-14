@@ -60,6 +60,7 @@ async def create_strategy(
     market_trend_threshold: Optional[float] = None,
     market_high_score_threshold: Optional[float] = None,
     market_low_score_threshold: Optional[float] = None,
+    use_market_aware_trading: Optional[bool] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -148,6 +149,7 @@ async def update_strategy(
     market_trend_threshold: Optional[float] = None,
     market_high_score_threshold: Optional[float] = None,
     market_low_score_threshold: Optional[float] = None,
+    use_market_aware_trading: Optional[bool] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -256,6 +258,8 @@ async def update_strategy(
         strategy.market_high_score_threshold = market_high_score_threshold
     if market_low_score_threshold is not None:
         strategy.market_low_score_threshold = market_low_score_threshold
+    if use_market_aware_trading is not None:
+        strategy.use_market_aware_trading = use_market_aware_trading
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
