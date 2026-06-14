@@ -263,6 +263,7 @@ class SuggestionPipeline:
                 stock.ts_code, stock.rank, window
             )
             stock.rank_improvement = improvement if improvement is not None else 0.0
+            pred_results[stock.ts_code]["rank_improvement"] = stock.rank_improvement
         if date == start_date:
             logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
             if scored:

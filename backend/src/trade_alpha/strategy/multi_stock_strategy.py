@@ -136,10 +136,10 @@ class MultiStockStrategy(PositionManager):
         hold_ts_codes = set(portfolio.positions.keys())
         purchased_ts_codes: set = set()
 
-        # Phase 1: Rank-up priority buy
+        # Phase 1: Rank-up priority buy (scan full pool, not just top_stocks)
         if self.use_rank_up_priority and self.rank_up_count > 0:
             rank_up_candidates = [
-                s for s in top_stocks
+                s for s in sorted_stocks
                 if s.ts_code not in hold_ts_codes
                 and s.rank_improvement >= self.rank_up_min_improvement_pct
                 and s.score > self.rank_up_min_score
