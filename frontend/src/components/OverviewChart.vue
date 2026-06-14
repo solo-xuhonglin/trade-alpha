@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 
 export interface OverviewChartItem {
@@ -26,12 +26,21 @@ const props = withDefaults(defineProps<{
 
 const chartRef = ref<HTMLDivElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
+let resizeObserver: ResizeObserver | null = null
+
+const handleResize = () => chartInstance?.resize()
+
+const tryRender = () => {
+  if (!chartRef.value || props.data.length === 0) return
+  if (chartRef.value.offsetHeight === 0) return
+  renderChart()
+}
 
 const renderChart = () => {
   if (!chartRef.value || props.data.length === 0) return
   if (chartInstance) chartInstance.dispose()
   chartInstance = echarts.init(chartRef.value)
-  window.addEventListener('resize', () => chartInstance?.resize())
+  window.addEventListener('resize', handleResize)
 
   const dates = props.data.map(d => d.date)
   const strategyReturns = props.data.map(d => +d.strategy_return.toFixed(2))
@@ -157,12 +166,28 @@ const renderChart = () => {
   })
 }
 
+onMounted(() => {
+  if (chartRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      if (chartInstance) {
+        chartInstance.resize()
+      } else if (props.data.length > 0 && chartRef.value!.offsetHeight > 0) {
+        renderChart()
+      }
+    })
+    resizeObserver.observe(chartRef.value)
+  }
+  nextTick(tryRender)
+})
+
 watch(() => props.data, async () => {
   await nextTick()
-  renderChart()
+  tryRender()
 }, { deep: true })
 
 onUnmounted(() => {
+  resizeObserver?.disconnect()
+  window.removeEventListener('resize', handleResize)
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
