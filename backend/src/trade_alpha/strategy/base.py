@@ -27,6 +27,7 @@ class PositionManager:
         buy_threshold: float = 0.1,
         sell_threshold: float = -0.1,
         min_hold_days: int = 3,
+        use_market_aware_trading: bool = False,
     ):
         self.max_positions = max_positions
         self.max_position_pct = max_position_pct
@@ -36,6 +37,8 @@ class PositionManager:
         self.min_hold_days = min_hold_days
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
+        self.market_regime = ""
+        self.use_market_aware_trading = use_market_aware_trading
 
     async def make_decisions(
         self,
