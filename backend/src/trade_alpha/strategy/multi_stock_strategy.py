@@ -38,6 +38,7 @@ class MultiStockStrategy(PositionManager):
         max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
         sell_rank_n = strategy_config.sell_rank_n if strategy_config else 15
         hold_score_threshold = strategy_config.hold_score_threshold if strategy_config else 0.05
+        use_market_aware_trading = strategy_config.use_market_aware_trading if strategy_config else False
 
         super().__init__(
             max_positions=max_positions,
@@ -48,6 +49,7 @@ class MultiStockStrategy(PositionManager):
             min_hold_days=min_hold_days,
             buy_threshold=buy_threshold,
             sell_threshold=sell_threshold,
+            use_market_aware_trading=use_market_aware_trading,
         )
         self.ts_codes = ts_codes or []
         self.sell_rank_n = sell_rank_n
@@ -139,9 +141,10 @@ class MultiStockStrategy(PositionManager):
         suggestion_count = 0
         hold_ts_codes = set(portfolio.positions.keys())
         purchased_ts_codes: set = set()
+        can_buy = not (self.use_market_aware_trading and self.market_regime == "trending_down")
 
         # Phase 1: Rank-up priority buy (scan full pool, not just top_stocks)
-        if self.use_rank_up_priority and self.rank_up_count > 0:
+        if can_buy and self.use_rank_up_priority and self.rank_up_count > 0:
             rank_up_candidates = [
                 s for s in full_candidates
                 if s.ts_code not in hold_ts_codes
@@ -197,7 +200,7 @@ class MultiStockStrategy(PositionManager):
 
         # Phase 2: Normal fill
         remaining_slots = self.max_positions - len(portfolio.positions) - suggestion_count
-        if remaining_slots > 0:
+        if can_buy and remaining_slots > 0:
             for stock in top_stocks:
                 if stock.ts_code in hold_ts_codes:
                     continue
@@ -262,9 +265,13 @@ class MultiStockStrategy(PositionManager):
         """
         current_score = score_map.get(position.ts_code, 0.0)
 
-        logger.debug(f"_check_sell ts_code={position.ts_code} hold_days={position.hold_days} min_hold_days={self.min_hold_days} current_score={current_score:.3f} sell_threshold={self.sell_threshold:.3f}")
+        effective_min_hold = self.min_hold_days
+        if self.use_market_aware_trading and self.market_regime == "sideways":
+            effective_min_hold = self.min_hold_days * 2
 
-        if position.hold_days < self.min_hold_days:
+        logger.debug(f"_check_sell ts_code={position.ts_code} hold_days={position.hold_days} min_hold_days={self.min_hold_days} effective_min_hold={effective_min_hold} current_score={current_score:.3f} sell_threshold={self.sell_threshold:.3f}")
+
+        if position.hold_days < effective_min_hold:
             if close_prices and position.ts_code in close_prices:
                 current_price = close_prices[position.ts_code]
                 cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
