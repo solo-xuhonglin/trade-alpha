@@ -522,7 +522,6 @@
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">印花税率：</span>{{ backtestAccountConfig?.stamp_tax_rate ? (backtestAccountConfig.stamp_tax_rate * 100).toFixed(2) + '%' : '-' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最低手续费：</span>¥{{ backtestAccountConfig?.min_fee ?? '-' }}</v-col>
             </v-row>
-          </v-window-item>
 
           <v-window-item value="strategy">
             <div class="text-subtitle-2 font-weight-medium mb-1">策略信息</div>
@@ -667,6 +666,27 @@
                   &nbsp;窗口{{ backtestStrategyConfig?.rank_up_window ?? '-' }} 买入{{ backtestStrategyConfig?.rank_up_count ?? '-' }} 提升{{ ((backtestStrategyConfig?.rank_up_min_improvement_pct ?? 0) * 100).toFixed(0) }}%
                 </span>
               </v-col>
+            </v-row>
+
+            <v-divider class="my-2" />
+            <div class="text-subtitle-2 font-weight-medium mb-1">市场分析</div>
+            <v-row class="py-0">
+              <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">市场状态指导交易：</span>
+                <v-icon :color="backtestStrategyConfig?.use_market_aware_trading ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_market_aware_trading ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_market_aware_trading" class="text-body-2">
+                  &nbsp;下跌不买入 / 横盘持仓翻倍
+                </span>
+              </v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">趋势阈值：</span>{{ backtestStrategyConfig?.market_trend_threshold ?? '0.05' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">高分线：</span>{{ backtestStrategyConfig?.market_high_score_threshold ?? '0.30' }}</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">低分线：</span>{{ backtestStrategyConfig?.market_low_score_threshold ?? '-0.30' }}</v-col>
             </v-row>
           </v-window-item>
 
@@ -988,6 +1008,10 @@ const strategyCompareFields: CompareField[] = [
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
+  { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
+  { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
+  { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
+  { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
 ]
 
 const modelCompareFields: CompareField[] = [

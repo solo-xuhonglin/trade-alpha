@@ -667,6 +667,10 @@ const compareFields: CompareField[] = [
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
+  { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
+  { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
+  { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
+  { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
 ]
 
 const loadStrategies = async () => {
