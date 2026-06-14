@@ -649,6 +649,17 @@
                 </span>
               </v-col>
             </v-row>
+            <v-row class="py-0">
+              <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">排名上涨优先：</span>
+                <v-icon :color="backtestStrategyConfig?.use_rank_up_priority ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_rank_up_priority ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_rank_up_priority" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.rank_up_window ?? '-' }} 买入{{ backtestStrategyConfig?.rank_up_count ?? '-' }} 提升{{ ((backtestStrategyConfig?.rank_up_min_improvement_pct ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
+            </v-row>
           </v-window-item>
 
           <v-window-item value="model">
@@ -963,6 +974,11 @@ const strategyCompareFields: CompareField[] = [
   { key: 'acceleration_window', label: '检测窗口', group: '交易优化', type: 'number' },
   { key: 'acceleration_cum_return', label: '累计涨幅阈值', group: '交易优化', type: 'number' },
   { key: 'acceleration_up_ratio', label: '上涨天数占比', group: '交易优化', type: 'number' },
+  { key: 'use_rank_up_priority', label: '排名上涨优先', group: '交易优化', type: 'boolean' },
+  { key: 'rank_up_window', label: '排名窗口', group: '交易优化', type: 'number' },
+  { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
+  { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
+  { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
 ]
 
 const modelCompareFields: CompareField[] = [

@@ -24,6 +24,8 @@ class ScoredStock:
     price_slope: float = 0.0
     price_r_squared: float = 0.0
     price_avg_range: float = 0.0
+    rank: int = 0
+    rank_improvement: float = 0.0
 
 
 @dataclass

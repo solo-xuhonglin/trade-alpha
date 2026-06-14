@@ -379,6 +379,38 @@
                     :disabled="!form.use_acceleration_filter"></v-text-field>
                 </v-col>
               </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_rank_up_priority" hide-details density="compact" color="primary"
+                  class="mr-2" label="排名上涨优先"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">N日排名均线向上时优先买入</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rank_up_window" type="number"
+                    label="排名窗口" hint="N 日均排名计算天数" persistent-hint
+                    :disabled="!form.use_rank_up_priority"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rank_up_count" type="number"
+                    label="优先买入数" hint="最多优先买入排名上涨的股票数" persistent-hint
+                    :disabled="!form.use_rank_up_priority"></v-text-field>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rank_up_min_score" type="number" step="0.05"
+                    label="最低评分" hint="排名上涨股票的最低评分门槛" persistent-hint
+                    :disabled="!form.use_rank_up_priority"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rank_up_min_improvement_pct" type="number" step="0.05"
+                    label="最小提升" hint="相对均排名的提升比例，0.20=20%" persistent-hint
+                    :disabled="!form.use_rank_up_priority"></v-text-field>
+                </v-col>
+              </v-row>
             </div>
           </v-window-item>
         </v-window>
@@ -589,6 +621,11 @@ const compareFields: CompareField[] = [
   { key: 'acceleration_window', label: '检测窗口', group: '交易优化', type: 'number' },
   { key: 'acceleration_cum_return', label: '累计涨幅阈值', group: '交易优化', type: 'number' },
   { key: 'acceleration_up_ratio', label: '上涨天数占比', group: '交易优化', type: 'number' },
+  { key: 'use_rank_up_priority', label: '排名上涨优先', group: '交易优化', type: 'boolean' },
+  { key: 'rank_up_window', label: '排名窗口', group: '交易优化', type: 'number' },
+  { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
+  { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
+  { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
 ]
 
 const loadStrategies = async () => {
@@ -643,6 +680,11 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       acceleration_window: item.acceleration_window ?? 5,
       acceleration_cum_return: item.acceleration_cum_return ?? 0.25,
       acceleration_up_ratio: item.acceleration_up_ratio ?? 0.80,
+      use_rank_up_priority: item.use_rank_up_priority ?? false,
+      rank_up_window: item.rank_up_window ?? 5,
+      rank_up_count: item.rank_up_count ?? 3,
+      rank_up_min_score: item.rank_up_min_score ?? 0.1,
+      rank_up_min_improvement_pct: item.rank_up_min_improvement_pct ?? 0.20,
       ranking_smooth_window: item.ranking_smooth_window ?? 8,
       ranking_smooth_alpha: item.ranking_smooth_alpha ?? 0.3,
     }
@@ -689,6 +731,11 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       acceleration_window: 5,
       acceleration_cum_return: 0.25,
       acceleration_up_ratio: 0.80,
+      use_rank_up_priority: false,
+      rank_up_window: 5,
+      rank_up_count: 3,
+      rank_up_min_score: 0.1,
+      rank_up_min_improvement_pct: 0.20,
       ranking_smooth_window: 8,
       ranking_smooth_alpha: 0.3,
     }
@@ -738,6 +785,11 @@ const saveStrategy = async () => {
       acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
       acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
       acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
+      use_rank_up_priority: form.value.type === 'multi' ? form.value.use_rank_up_priority : undefined,
+      rank_up_window: form.value.type === 'multi' ? form.value.rank_up_window : undefined,
+      rank_up_count: form.value.type === 'multi' ? form.value.rank_up_count : undefined,
+      rank_up_min_score: form.value.type === 'multi' ? form.value.rank_up_min_score : undefined,
+      rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
     })
@@ -783,6 +835,11 @@ const saveStrategy = async () => {
       acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
       acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
       acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
+      use_rank_up_priority: form.value.type === 'multi' ? form.value.use_rank_up_priority : undefined,
+      rank_up_window: form.value.type === 'multi' ? form.value.rank_up_window : undefined,
+      rank_up_count: form.value.type === 'multi' ? form.value.rank_up_count : undefined,
+      rank_up_min_score: form.value.type === 'multi' ? form.value.rank_up_min_score : undefined,
+      rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
     })

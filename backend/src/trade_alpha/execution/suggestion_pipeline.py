@@ -30,6 +30,7 @@ from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.schemas import ScoredStock
 from trade_alpha.logging import get_logger
+from trade_alpha.execution.rank_tracker import ScoredStockHistoryHelper
 
 logger = get_logger("execution.suggestion_pipeline")
 
@@ -65,6 +66,7 @@ class SuggestionPipeline:
 
         self.data_loader = DataLoader()
         self.predictor = None
+        self._stock_helper = ScoredStockHistoryHelper.from_config(self.strategy_config)
 
         # Strategy for decision making
         self.strategy = MultiStockStrategy(
@@ -171,10 +173,10 @@ class SuggestionPipeline:
             self._daily_forced_sells.append({"ts_code": ts_code, "reason": "full_position"})
 
     def _record_ranks(self, scored: List[ScoredStock], pred_results: Dict[str, Dict]) -> None:
-        """Sort scored stocks by score and write rank back into pred_results."""
         scored_sorted = sorted(scored, key=lambda s: s.ranking_score, reverse=True)
         for rank, stock in enumerate(scored_sorted, start=1):
             pred_results[stock.ts_code]["rank"] = rank
+            stock.rank = rank
 
     async def _predict(
         self,
@@ -254,6 +256,13 @@ class SuggestionPipeline:
                 kwargs[key] = r[key]
             scored.append(ScoredStock(**kwargs))
         self._record_ranks(scored, pred_results)
+        self._stock_helper.record_day(date, scored)
+        window = getattr(self.strategy_config, 'rank_up_window', 5)
+        for stock in scored:
+            improvement = self._stock_helper.compute_rank_improvement(
+                stock.ts_code, stock.rank, window
+            )
+            stock.rank_improvement = improvement if improvement is not None else 0.0
         if date == start_date:
             logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
             if scored:

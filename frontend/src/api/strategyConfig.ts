@@ -31,6 +31,12 @@ export interface Strategy {
   acceleration_window?: number
   acceleration_cum_return?: number
   acceleration_up_ratio?: number
+  use_rank_up_priority?: boolean
+  rank_up_window?: number
+  rank_up_count?: number
+  rank_up_min_score?: number
+  rank_up_min_improvement_pct?: number
+  ranking_smooth_window?: number
   use_trend_bonus?: boolean
   trend_bonus_window?: number
   trend_bonus_scale?: number

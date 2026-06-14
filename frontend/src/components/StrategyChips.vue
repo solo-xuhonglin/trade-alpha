@@ -104,6 +104,18 @@
       </span>
       <span v-else>未启用</span>
     </v-tooltip>
+    <v-tooltip location="top" max-width="300">
+      <template v-slot:activator="{ props }">
+        <v-chip size="x-small" variant="tonal" color="primary" class="mr-1 mb-1" v-bind="props"
+          :prepend-icon="strategy.use_rank_up_priority ? 'mdi-check' : 'mdi-close'">
+          排名上涨
+        </v-chip>
+      </template>
+      <span v-if="strategy.use_rank_up_priority">
+        窗口{{ strategy.rank_up_window ?? '-' }} 买入{{ strategy.rank_up_count ?? '-' }} 提升{{ ((strategy.rank_up_min_improvement_pct ?? 0) * 100).toFixed(0) }}%
+      </span>
+      <span v-else>未启用</span>
+    </v-tooltip>
   </div>
 </template>
 

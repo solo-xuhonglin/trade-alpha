@@ -3,6 +3,8 @@
 from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.constants import (
+    REASON_NORMAL_BUY,
+    REASON_PRIORITY_RANK_UP,
     SELL_REASON_HOLD_SCORE_LOW,
     SELL_REASON_MAX_HOLD_DAYS,
     SELL_REASON_SCORE_BELOW,
@@ -50,6 +52,11 @@ class MultiStockStrategy(PositionManager):
         self.ts_codes = ts_codes or []
         self.sell_rank_n = sell_rank_n
         self.hold_score_threshold = hold_score_threshold
+        self.use_rank_up_priority = strategy_config.use_rank_up_priority if strategy_config else False
+        self.rank_up_window = strategy_config.rank_up_window if strategy_config else 5
+        self.rank_up_count = strategy_config.rank_up_count if strategy_config else 3
+        self.rank_up_min_score = strategy_config.rank_up_min_score if strategy_config else 0.1
+        self.rank_up_min_improvement_pct = strategy_config.rank_up_min_improvement_pct if strategy_config else 0.20
 
     async def make_decisions(
         self,
@@ -123,25 +130,57 @@ class MultiStockStrategy(PositionManager):
         # In suggestion mode, limit buy suggestions following the same
         # position count check as reserve_funds in backtest flow.
         # Also skip stocks already held (same as reserve_funds ts_code check).
+
+        # Two-phase buy: Phase 1 = rank-up priority, Phase 2 = normal fill.
         suggestion_count = 0
         hold_ts_codes = set(portfolio.positions.keys())
-        for stock in top_stocks:
-            if stock.ts_code in hold_ts_codes:
-                continue
+        purchased_ts_codes: set = set()
 
-            if suggestion_mode:
-                if len(portfolio.positions) + suggestion_count >= self.max_positions:
-                    logger.info(
-                        f"make_decisions trade_date={trade_date} reached max_positions={self.max_positions}, "
-                        f"positions={len(portfolio.positions)} suggestions={suggestion_count}"
-                    )
-                    break
-                suggestion_count += 1
+        # Phase 1: Rank-up priority buy
+        if self.use_rank_up_priority and self.rank_up_count > 0:
+            rank_up_candidates = [
+                s for s in top_stocks
+                if s.ts_code not in hold_ts_codes
+                and s.rank_improvement >= self.rank_up_min_improvement_pct
+                and s.score > self.rank_up_min_score
+            ]
+            rank_up_candidates.sort(
+                key=lambda s: s.rank_improvement, reverse=True
+            )
+            for stock in rank_up_candidates[:self.rank_up_count]:
+                if stock.ts_code in hold_ts_codes:
+                    continue
+                if suggestion_mode:
+                    if len(portfolio.positions) + suggestion_count >= self.max_positions:
+                        break
+                    suggestion_count += 1
+                    purchased_ts_codes.add(stock.ts_code)
+                    orders.append(PendingOrder(
+                        ts_code=stock.ts_code,
+                        stock_name=stock.stock_name,
+                        order_price=stock.close,
+                        order_shares=0,
+                        score=stock.score,
+                        up_prob_3d=stock.up_prob_3d,
+                        up_prob_5d=stock.up_prob_5d,
+                        up_prob_10d=stock.up_prob_10d,
+                        up_prob_20d=stock.up_prob_20d,
+                        trade_date=trade_date,
+                        settle_date=self._next_trade_date(trade_date),
+                        reason=REASON_PRIORITY_RANK_UP,
+                    ))
+                    continue
+                success, shares, _fee = portfolio.reserve_funds(
+                    stock.ts_code, stock.close, close_prices,
+                )
+                if not success:
+                    continue
+                purchased_ts_codes.add(stock.ts_code)
                 orders.append(PendingOrder(
                     ts_code=stock.ts_code,
                     stock_name=stock.stock_name,
                     order_price=stock.close,
-                    order_shares=0,
+                    order_shares=shares,
                     score=stock.score,
                     up_prob_3d=stock.up_prob_3d,
                     up_prob_5d=stock.up_prob_5d,
@@ -149,32 +188,58 @@ class MultiStockStrategy(PositionManager):
                     up_prob_20d=stock.up_prob_20d,
                     trade_date=trade_date,
                     settle_date=self._next_trade_date(trade_date),
-                    reason="buy_suggestion",
+                    reason=REASON_PRIORITY_RANK_UP,
                 ))
-                continue
 
-            success, shares, _fee = portfolio.reserve_funds(
-                stock.ts_code, stock.close, close_prices,
-            )
-            if not success:
-                logger.debug(f"make_decisions BUY_FAIL reserve_funds ts_code={stock.ts_code} score={stock.score:.3f} rank_score={stock.ranking_score:.3f}")
-                continue
+        # Phase 2: Normal fill
+        remaining_slots = self.max_positions - len(portfolio.positions) - suggestion_count
+        if remaining_slots > 0:
+            for stock in top_stocks:
+                if stock.ts_code in hold_ts_codes:
+                    continue
+                if stock.ts_code in purchased_ts_codes:
+                    continue
 
-            logger.info(f"make_decisions BUY ts_code={stock.ts_code} score={stock.score:.3f} rank_score={stock.ranking_score:.3f} shares={shares}")
+                if suggestion_mode:
+                    if suggestion_count >= self.max_positions:
+                        break
+                    suggestion_count += 1
+                    orders.append(PendingOrder(
+                        ts_code=stock.ts_code,
+                        stock_name=stock.stock_name,
+                        order_price=stock.close,
+                        order_shares=0,
+                        score=stock.score,
+                        up_prob_3d=stock.up_prob_3d,
+                        up_prob_5d=stock.up_prob_5d,
+                        up_prob_10d=stock.up_prob_10d,
+                        up_prob_20d=stock.up_prob_20d,
+                        trade_date=trade_date,
+                        settle_date=self._next_trade_date(trade_date),
+                        reason=REASON_NORMAL_BUY,
+                    ))
+                    continue
 
-            orders.append(PendingOrder(
-                ts_code=stock.ts_code,
-                stock_name=stock.stock_name,
-                order_price=stock.close,
-                order_shares=shares,
-                score=stock.score,
-                up_prob_3d=stock.up_prob_3d,
-                up_prob_5d=stock.up_prob_5d,
-                up_prob_10d=stock.up_prob_10d,
-                up_prob_20d=stock.up_prob_20d,
-                trade_date=trade_date,
-                settle_date=self._next_trade_date(trade_date),
-            ))
+                success, shares, _fee = portfolio.reserve_funds(
+                    stock.ts_code, stock.close, close_prices,
+                )
+                if not success:
+                    continue
+
+                orders.append(PendingOrder(
+                    ts_code=stock.ts_code,
+                    stock_name=stock.stock_name,
+                    order_price=stock.close,
+                    order_shares=shares,
+                    score=stock.score,
+                    up_prob_3d=stock.up_prob_3d,
+                    up_prob_5d=stock.up_prob_5d,
+                    up_prob_10d=stock.up_prob_10d,
+                    up_prob_20d=stock.up_prob_20d,
+                    trade_date=trade_date,
+                    settle_date=self._next_trade_date(trade_date),
+                    reason=REASON_NORMAL_BUY,
+                ))
 
         return orders
 

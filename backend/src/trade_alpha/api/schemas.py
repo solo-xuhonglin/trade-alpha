@@ -82,6 +82,11 @@ class StrategyCreateRequest(BaseModel):
     acceleration_window: Optional[int] = 5
     acceleration_cum_return: Optional[float] = 0.15
     acceleration_up_ratio: Optional[float] = 0.80
+    use_rank_up_priority: Optional[bool] = False
+    rank_up_window: Optional[int] = 5
+    rank_up_count: Optional[int] = 3
+    rank_up_min_score: Optional[float] = 0.1
+    rank_up_min_improvement_pct: Optional[float] = 0.20
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -126,6 +131,11 @@ class StrategyUpdateRequest(BaseModel):
     acceleration_window: Optional[int] = None
     acceleration_cum_return: Optional[float] = None
     acceleration_up_ratio: Optional[float] = None
+    use_rank_up_priority: Optional[bool] = None
+    rank_up_window: Optional[int] = None
+    rank_up_count: Optional[int] = None
+    rank_up_min_score: Optional[float] = None
+    rank_up_min_improvement_pct: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

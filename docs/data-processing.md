@@ -318,7 +318,9 @@ score = score_3d × 0.4 + score_5d × 0.6
           基于收盘价日涨跌比，上涨天数多则加分，下跌天数多则扣分
       v.  暴涨排除：_filter_explosions()
           放量暴涨/暴跌标记排除，不参与排名
-      vi. 记录排名：_record_ranks()
+      vi. 排名提升计算：_compute_rank_improvement()
+          基于滑动窗口历史排名计算 rank_improvement，衡量每只股票排名的改善程度
+      vii. 记录排名：_record_ranks()
           按最终分从高到低排序
    f. Strategy.make_decisions() → PendingOrder
    g. Strategy.settle_orders() → ExecutionTrade + 更新现金/持仓

@@ -52,6 +52,11 @@ async def create_strategy(
     acceleration_window: Optional[int] = None,
     acceleration_cum_return: Optional[float] = None,
     acceleration_up_ratio: Optional[float] = None,
+    use_rank_up_priority: Optional[bool] = None,
+    rank_up_window: Optional[int] = None,
+    rank_up_count: Optional[int] = None,
+    rank_up_min_score: Optional[float] = None,
+    rank_up_min_improvement_pct: Optional[float] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -132,6 +137,11 @@ async def update_strategy(
     acceleration_window: Optional[int] = None,
     acceleration_cum_return: Optional[float] = None,
     acceleration_up_ratio: Optional[float] = None,
+    use_rank_up_priority: Optional[bool] = None,
+    rank_up_window: Optional[int] = None,
+    rank_up_count: Optional[int] = None,
+    rank_up_min_score: Optional[float] = None,
+    rank_up_min_improvement_pct: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -224,6 +234,16 @@ async def update_strategy(
         strategy.acceleration_cum_return = acceleration_cum_return
     if acceleration_up_ratio is not None:
         strategy.acceleration_up_ratio = acceleration_up_ratio
+    if use_rank_up_priority is not None:
+        strategy.use_rank_up_priority = use_rank_up_priority
+    if rank_up_window is not None:
+        strategy.rank_up_window = rank_up_window
+    if rank_up_count is not None:
+        strategy.rank_up_count = rank_up_count
+    if rank_up_min_score is not None:
+        strategy.rank_up_min_score = rank_up_min_score
+    if rank_up_min_improvement_pct is not None:
+        strategy.rank_up_min_improvement_pct = rank_up_min_improvement_pct
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

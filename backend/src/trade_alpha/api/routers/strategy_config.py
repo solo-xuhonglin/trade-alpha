@@ -60,6 +60,11 @@ def _strategy_to_dict(s) -> dict:
         "acceleration_window": s.acceleration_window,
         "acceleration_cum_return": s.acceleration_cum_return,
         "acceleration_up_ratio": s.acceleration_up_ratio,
+        "use_rank_up_priority": s.use_rank_up_priority,
+        "rank_up_window": s.rank_up_window,
+        "rank_up_count": s.rank_up_count,
+        "rank_up_min_score": s.rank_up_min_score,
+        "rank_up_min_improvement_pct": s.rank_up_min_improvement_pct,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -136,6 +141,11 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             acceleration_window=request.acceleration_window,
             acceleration_cum_return=request.acceleration_cum_return,
             acceleration_up_ratio=request.acceleration_up_ratio,
+            use_rank_up_priority=request.use_rank_up_priority,
+            rank_up_window=request.rank_up_window,
+            rank_up_count=request.rank_up_count,
+            rank_up_min_score=request.rank_up_min_score,
+            rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -194,6 +204,11 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             acceleration_window=request.acceleration_window,
             acceleration_cum_return=request.acceleration_cum_return,
             acceleration_up_ratio=request.acceleration_up_ratio,
+            use_rank_up_priority=request.use_rank_up_priority,
+            rank_up_window=request.rank_up_window,
+            rank_up_count=request.rank_up_count,
+            rank_up_min_score=request.rank_up_min_score,
+            rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

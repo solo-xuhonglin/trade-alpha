@@ -49,6 +49,11 @@ class StrategyConfig(Document):
     acceleration_window: int = 5
     acceleration_cum_return: float = 0.25
     acceleration_up_ratio: float = 0.80
+    use_rank_up_priority: bool = False
+    rank_up_window: int = 5
+    rank_up_count: int = 3
+    rank_up_min_score: float = 0.1
+    rank_up_min_improvement_pct: float = 0.20
     ranking_smooth_window: int = 8
     ranking_smooth_alpha: float = 0.3
     created_at: Optional[datetime] = None

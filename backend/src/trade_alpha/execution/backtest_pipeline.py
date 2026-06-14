@@ -29,6 +29,7 @@ from trade_alpha.execution.scoring import (
     apply_volatility_penalty,
     filter_explosions,
 )
+from trade_alpha.execution.rank_tracker import ScoredStockHistoryHelper
 
 logger = get_logger("execution.backtest_pipeline")
 
@@ -129,6 +130,7 @@ class BacktestPipeline:
         self.pending_orders: List[PendingOrder] = []
         self._score_buffer: Dict[str, List[float]] = {}
         self._daily_forced_sells: List[Dict] = []
+        self._stock_helper = ScoredStockHistoryHelper.from_config(self.strategy_config)
 
     def _append_pending_order(self, order: PendingOrder) -> None:
         """Append a pending order, skipping if a sell order for the same stock already exists.
@@ -214,6 +216,7 @@ class BacktestPipeline:
         scored_sorted = sorted(scored, key=lambda s: s.ranking_score, reverse=True)
         for rank, stock in enumerate(scored_sorted, start=1):
             pred_results[stock.ts_code]["rank"] = rank
+            stock.rank = rank
 
     def _apply_acceleration_filter(
         self,
@@ -469,6 +472,13 @@ class BacktestPipeline:
                 kwargs[key] = r[key]
             scored.append(ScoredStock(**kwargs))
         self._record_ranks(scored, pred_results)
+        self._stock_helper.record_day(date, scored)
+        window = getattr(self.strategy_config, 'rank_up_window', 5)
+        for stock in scored:
+            improvement = self._stock_helper.compute_rank_improvement(
+                stock.ts_code, stock.rank, window
+            )
+            stock.rank_improvement = improvement if improvement is not None else 0.0
         if date == start_date:
             logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
             if scored:

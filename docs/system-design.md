@@ -351,6 +351,7 @@ trade-alpha/
 - 多股票组合策略，基于评分排名选股
 - `make_decisions()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds` 获取可买股数
 - 支持最大持仓数限制、单只股票最大仓位限制、止损、最大持仓天数和最低持有天数（最低持有期内仅止损可触发卖出）
+- 支持两阶段买入（`use_rank_up_priority`）：第一阶段优先买入排名持续上涨的股票（基于 `ScoredStockHistory` 的历史排名计算 `rank_improvement`），第二阶段用剩余资金按综合评分买入其余股票
 
 #### single_stock.py - 单股票策略 (SingleStockStrategy)
 
@@ -439,7 +440,11 @@ composite_score = score + trend_bonus - trend_penalty - vol_penalty + momentum_b
 
 **核心数据结构**:
 - `ScoredStock`: 带评分的股票
+- `ScoredStockHistory`: 带评分历史记录的股票（用于排名上涨优先计算）
 - `PendingOrder`: 待执行订单
+
+**辅助类**:
+- `ScoredStockHistoryHelper`: 管理多只股票的历史评分记录，提供 `compute_rank_improvement()` 方法计算排名提升比例，支持滑动窗口更新和历史清理
 
 #### backtest_service.py - 回测结果查询服务
 
