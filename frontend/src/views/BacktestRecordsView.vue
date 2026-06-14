@@ -84,6 +84,7 @@
         <div v-if="selectedResult">
           <v-tabs v-model="resultTab" color="primary">
             <v-tab value="overview">概览</v-tab>
+            <v-tab value="market">市场分析</v-tab>
             <v-tab value="pnl">盈亏分析</v-tab>
             <v-tab value="trading">交易优化</v-tab>
           </v-tabs>
@@ -156,6 +157,13 @@
                   </tr>
                 </tbody>
               </v-table>
+            </v-window-item>
+
+          <v-window-item value="market">
+              <div v-if="marketChartData.length > 0">
+                <OverviewChart :data="marketChartData" :trend-threshold="marketTrendThreshold" />
+              </div>
+              <div v-else class="text-center text-medium-emphasis py-8">暂无市场数据</div>
             </v-window-item>
 
           <v-window-item value="pnl">
@@ -886,6 +894,7 @@ import { accountConfigApi, type AccountConfig } from '@/api/accountConfig'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
 import * as echarts from 'echarts'
 import PredictionChart from '@/components/PredictionChart.vue'
+import OverviewChart, { type OverviewChartItem } from '@/components/OverviewChart.vue'
 import ConfigCompareDialog from '@/components/ConfigCompareDialog.vue'
 import type { CompareField } from '@/components/ConfigCompareDialog.vue'
 
@@ -1019,6 +1028,9 @@ const expandedDates = ref<Set<string>>(new Set())
 const dailyPage = ref(1)
 const dailyPageSize = ref(15)
 const selectedMonth = ref('全部')
+
+const marketChartData = ref<OverviewChartItem[]>([])
+const marketTrendThreshold = ref(0.05)
 
 const monthOptions = computed(() => {
   if (!dailyDetails.value.length) return []
@@ -1157,6 +1169,7 @@ const viewResult = (item: Backtest) => {
     nextTick(() => {
       loadPnlDetails(item.id)
       loadTradingData(item.id)
+      loadMarketData()
     })
   }
 
@@ -1356,6 +1369,37 @@ const reasonLabel = (reason: string | undefined | null): string => {
     '': '-',
   }
   return map[reason || ''] || reason || '-'
+}
+
+const calculateReturns = (snapshots: { total_value: number; baseline_value: number }[]) => {
+  if (!snapshots.length) return { strategy_returns: [], baseline_returns: [] }
+  const firstStrat = snapshots[0].total_value
+  const firstBase = snapshots[0].baseline_value
+  return {
+    strategy_returns: snapshots.map(s => firstStrat > 0 ? ((s.total_value - firstStrat) / firstStrat * 100) : 0),
+    baseline_returns: snapshots.map(s => firstBase > 0 ? ((s.baseline_value - firstBase) / firstBase * 100) : 0),
+  }
+}
+
+const loadMarketData = async () => {
+  if (!selectedResult.value) return
+  try {
+    const res = await backtestRecordApi.getDailySnapshots(selectedResult.value.id)
+    const snaps = res.data.items
+    const { strategy_returns, baseline_returns } = calculateReturns(snaps)
+    marketChartData.value = snaps.map((s, i) => ({
+      date: s.date,
+      strategy_return: strategy_returns[i] || 0,
+      baseline_return: baseline_returns[i] || 0,
+      ranking_median: s.ranking_median,
+      ranking_high_pct: s.ranking_high_pct,
+      ranking_low_pct: s.ranking_low_pct,
+      ranking_regime: s.ranking_regime,
+    }))
+    marketTrendThreshold.value = (selectedResult.value as any).strategy_snapshot?.market_trend_threshold ?? 0.05
+  } catch (e) {
+    marketChartData.value = []
+  }
 }
 
 const viewDailyDetail = async (item: Backtest) => {
