@@ -30,6 +30,12 @@ let resizeObserver: ResizeObserver | null = null
 
 const handleResize = () => chartInstance?.resize()
 
+const regimeLabel: Record<string, string> = {
+  trending_up: '上涨趋势',
+  trending_down: '下跌趋势',
+  sideways: '横盘',
+}
+
 const tryRender = () => {
   if (!chartRef.value || props.data.length === 0) return
   if (chartRef.value.offsetHeight === 0) return
@@ -56,7 +62,7 @@ const renderChart = () => {
         if (!params || params.length === 0) return ''
         let html = `<b>${params[0].axisValue}</b>`
         if (props.data[params[0].dataIndex]?.ranking_regime) {
-          html += `<br>市场模式: ${props.data[params[0].dataIndex].ranking_regime}`
+          html += `<br>市场模式: ${regimeLabel[props.data[params[0].dataIndex].ranking_regime] || props.data[params[0].dataIndex].ranking_regime}`
         }
         params.forEach((p: any) => {
           if (p.value == null) return

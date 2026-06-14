@@ -522,7 +522,12 @@ class BacktestPipeline:
             ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
             ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
             trend_th = self.strategy_config.market_trend_threshold
-            ranking_regime = "trending" if ranking_median > trend_th else "sideways"
+            if ranking_median > trend_th:
+                ranking_regime = "trending_up"
+            elif ranking_median < -trend_th:
+                ranking_regime = "trending_down"
+            else:
+                ranking_regime = "sideways"
 
             await snapshot.update({
                 "$set": {
