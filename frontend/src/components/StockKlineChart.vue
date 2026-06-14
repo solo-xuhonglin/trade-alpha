@@ -284,7 +284,6 @@ const renderChart = () => {
           return '— 平'
         }
         const fmtPct = (v: any) => v != null ? (v * 100).toFixed(1) + '%' : '--'
-        const fmtRet = (v: any) => v != null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '--'
         const fmtScore = (v: any) => v != null ? v.toFixed(4) : '--'
         const fmtBonus = (v: any) => {
           if (v == null) return '--'
