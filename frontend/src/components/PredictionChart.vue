@@ -86,7 +86,7 @@
             <div v-else-if="chartData.length === 0" class="d-flex justify-center align-center flex-grow-1 text-medium-emphasis">
               该股票无预测数据
             </div>
-            <StockKlineChart v-else :data="chartData" :horizons="horizons" :buy-points="buyTrades" :sell-points="sellTrades" :buy-cancelled-points="buyCancelledTrades" :sell-cancelled-points="sellCancelledTrades" :strategy-returns="strategyReturns" :baseline-returns="baselineReturns" :daily-snapshots="dailySnapshots" />
+            <StockKlineChart v-else :data="chartData" :horizons="horizons" :buy-points="buyTrades" :sell-points="sellTrades" :buy-cancelled-points="buyCancelledTrades" :sell-cancelled-points="sellCancelledTrades" />
           </v-col>
         </v-row>
       </v-card-text>
@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import StockKlineChart from '@/components/StockKlineChart.vue'
-import { backtestRecordApi, type PredictionItem, type DailySnapshot } from '@/api/backtestRecord'
+import { backtestRecordApi, type PredictionItem } from '@/api/backtestRecord'
 import { dataApi } from '@/api/data'
 
 const props = defineProps<{
@@ -143,10 +143,6 @@ const sellTrades = ref<{ trade_date: string; price: number }[]>([])
 const buyCancelledTrades = ref<{ trade_date: string; price: number }[]>([])
 const sellCancelledTrades = ref<{ trade_date: string; price: number }[]>([])
 const totalPnlAmount = ref(0)
-
-const dailySnapshots = ref<DailySnapshot[]>([])
-const strategyReturns = ref<number[]>([])
-const baselineReturns = ref<number[]>([])
 
 const accuracyMap = computed(() => {
   const result: Record<number, { pct: number; correct: number; total: number }> = {}
@@ -210,26 +206,6 @@ const loadStocks = async () => {
   }
 }
 
-const calculateReturns = () => {
-  if (dailySnapshots.value.length === 0) {
-    strategyReturns.value = []
-    baselineReturns.value = []
-    return
-  }
-
-  const firstStrategyValue = dailySnapshots.value[0].total_value
-  const firstBaselineValue = dailySnapshots.value[0].baseline_value
-
-  strategyReturns.value = dailySnapshots.value.map(snap => {
-    return ((snap.total_value - firstStrategyValue) / firstStrategyValue) * 100
-  })
-
-  baselineReturns.value = dailySnapshots.value.map(snap => {
-    if (firstBaselineValue === 0) return 0
-    return ((snap.baseline_value - firstBaselineValue) / firstBaselineValue) * 100
-  })
-}
-
 const loadChartData = async () => {
   if (!selectedTsCode.value) return
   loadingChart.value = true
@@ -270,17 +246,6 @@ const loadChartData = async () => {
       buyCancelledTrades.value = []
       sellCancelledTrades.value = []
       totalPnlAmount.value = 0
-    }
-
-    // 加载每日快照用于收益率曲线（独立 try/catch）
-    try {
-      const snapRes = await backtestRecordApi.getDailySnapshots(props.backtestId)
-      dailySnapshots.value = snapRes.data.items
-      calculateReturns()
-    } catch (e) {
-      dailySnapshots.value = []
-      strategyReturns.value = []
-      baselineReturns.value = []
     }
   } catch (e) {
     console.error('Failed to load chart data:', e)

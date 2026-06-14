@@ -35,17 +35,11 @@ const props = withDefaults(defineProps<{
   sellPoints?: TradePoint[]
   buyCancelledPoints?: TradePoint[]
   sellCancelledPoints?: TradePoint[]
-  strategyReturns?: (number | null)[]
-  baselineReturns?: (number | null)[]
-  dailySnapshots?: { date: string; total_value: number; baseline_value: number }[]
 }>(), {
   buyPoints: () => [],
   sellPoints: () => [],
   buyCancelledPoints: () => [],
   sellCancelledPoints: () => [],
-  strategyReturns: () => [],
-  baselineReturns: () => [],
-  dailySnapshots: () => [],
 })
 
 const emit = defineEmits<{
@@ -260,57 +254,14 @@ const renderChart = () => {
     legendSelected['卖出（未成交）'] = true
   }
 
-  if (props.strategyReturns.length > 0) {
-    const returnData: (number | null)[] = dates.map(date => {
-      const idx = props.dailySnapshots.findIndex(s => s.date === date)
-      return idx >= 0 ? props.strategyReturns[idx] : null
-    })
-    const validReturnData = returnData.map(v => v ?? null)
-
-    series.push({
-      name: '策略收益率',
-      type: 'line',
-      data: validReturnData,
-      yAxisId: 'returns',
-      smooth: true,
-      lineStyle: { width: 2, color: '#ff9800' },
-      symbol: 'none',
-    })
-    legendData.push('策略收益率')
-    legendSelected['策略收益率'] = false
-  }
-
-  if (props.baselineReturns.length > 0) {
-    const baselineData: (number | null)[] = dates.map(date => {
-      const idx = props.dailySnapshots.findIndex(s => s.date === date)
-      return idx >= 0 ? props.baselineReturns[idx] : null
-    })
-    const validBaselineData = baselineData.map(v => v ?? null)
-
-    series.push({
-      name: '基准收益率',
-      type: 'line',
-      data: validBaselineData,
-      yAxisId: 'returns',
-      smooth: true,
-      lineStyle: { width: 2, color: '#9c27b0', type: 'dashed' },
-      symbol: 'none',
-    })
-    legendData.push('基准收益率')
-    legendSelected['基准收益率'] = false
-  }
-
   const yAxisConfigs: any[] = [
     { id: 'price', type: 'value', scale: true, name: '价格', position: 'left', offset: 0 },
     { id: 'score', type: 'value', scale: true, name: '概率/分', min: -1, max: 1, position: 'left', offset: 50 },
   ]
-  if (props.strategyReturns.length > 0) {
-    yAxisConfigs.push({ id: 'returns', type: 'value', scale: true, name: '收益率(%)', position: 'right', axisLabel: { formatter: '{value}%' }, offset: 0 })
-  }
   if (maxRank > 0) {
     yAxisConfigs.push({
       id: 'rank', type: 'value', scale: true, name: '排名', min: 1, max: maxRank, inverse: true, position: 'right',
-      offset: props.strategyReturns.length > 0 ? 65 : 0,
+      offset: 0,
       axisLabel: { formatter: '#{value}' },
     })
   }
@@ -344,7 +295,6 @@ const renderChart = () => {
         const showScoreLines = isVisible('复合评分') || isVisible('原始评分') || isVisible('排名分')
         const showProbs = props.horizons.some(h => isVisible(`涨(${h}d)`) || isVisible(`跌(${h}d)`))
         const showRank = isVisible('排名')
-        const showReturns = isVisible('策略收益率') || isVisible('基准收益率')
 
         let leftCol = `<div style="white-space:nowrap"><b>${d.trade_date}</b>`
         if (showOHLC) {
@@ -385,11 +335,6 @@ const renderChart = () => {
         if (showProbs) {
           props.horizons.forEach(h => {
             rightCol += `涨(${h}d): ${fmtPct(d[`up_prob_${h}d`])} 跌(${h}d): ${fmtPct(d[`down_prob_${h}d`])}<br>`
-          })
-        }
-        if (showReturns) {
-          props.horizons.forEach(h => {
-            rightCol += `实际${h}d: ${fmtRet(d[`actual_return_${h}d`])} ${labelText(d[`actual_label_${h}d`])}<br>`
           })
         }
         rightCol += '</div>'
