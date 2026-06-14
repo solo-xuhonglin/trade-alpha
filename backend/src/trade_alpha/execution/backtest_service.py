@@ -683,7 +683,16 @@ async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
 
     return {
         "items": [
-            {"date": s.date, "total_value": s.total_value, "baseline_value": s.baseline_value, "day_return": s.day_return}
+            {
+                "date": s.date,
+                "total_value": s.total_value,
+                "baseline_value": s.baseline_value,
+                "day_return": s.day_return,
+                "ranking_median": s.ranking_median,
+                "ranking_high_pct": s.ranking_high_pct,
+                "ranking_low_pct": s.ranking_low_pct,
+                "ranking_regime": s.ranking_regime,
+            }
             for s in snapshots
         ]
     }
