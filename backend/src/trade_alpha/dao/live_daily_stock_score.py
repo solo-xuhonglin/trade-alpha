@@ -22,6 +22,8 @@ class LiveDailyStockScore(Document):
     trend_bonus: float = 0.0
     vol_penalty: float = 0.0
     momentum_bonus: float = 0.0
+    momentum_penalty: float = 0.0
+    trend_penalty: float = 0.0
     order_price: float = 0.0
     order_shares: int = 0
     is_excluded: bool = False

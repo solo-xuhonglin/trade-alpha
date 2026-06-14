@@ -117,9 +117,9 @@ const horizons = ref<number[]>([3, 5, 10])
 const rank = computed(() => props.dailyScore.rank)
 const compositeScore = computed(() => props.dailyScore.composite_score)
 const rankingScore = computed(() => props.dailyScore.ranking_score)
-const trendBonus = computed(() => props.dailyScore.trend_bonus)
+const trendBonus = computed(() => (props.dailyScore.trend_bonus || 0) - (props.dailyScore.trend_penalty || 0))
 const volPenalty = computed(() => props.dailyScore.vol_penalty)
-const momentumBonus = computed(() => props.dailyScore.momentum_bonus)
+const momentumBonus = computed(() => (props.dailyScore.momentum_bonus || 0) - (props.dailyScore.momentum_penalty || 0))
 const orderPrice = computed(() => props.dailyScore.order_price)
 
 const accuracyMap = computed(() => {

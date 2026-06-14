@@ -24,6 +24,7 @@ class StrategyConfig(Document):
     use_momentum_boost: bool = False
     momentum_window: int = 12
     max_momentum_bonus: float = 0.15
+    use_momentum_penalty: bool = False
     use_explosion_filter: bool = False
     explosion_price_threshold: float = 0.08
     explosion_volume_ratio: float = 3.0
@@ -33,6 +34,7 @@ class StrategyConfig(Document):
     trend_bonus_scale: float = 0.03
     trend_r2_threshold: float = 0.30
     trend_max_bonus: float = 0.1
+    use_trend_penalty: bool = False
     use_volatility_penalty: bool = False
     vol_penalty_window: int = 10
     vol_range_tolerance: float = 0.03

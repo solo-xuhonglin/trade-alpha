@@ -36,6 +36,8 @@ async def create_strategy(
     trend_max_bonus: Optional[float] = None,
     use_volatility_penalty: Optional[bool] = None,
     vol_penalty_window: Optional[int] = None,
+    use_momentum_penalty: Optional[bool] = None,
+    use_trend_penalty: Optional[bool] = None,
     vol_range_tolerance: Optional[float] = None,
     vol_penalty_scale: Optional[float] = None,
     vol_max_penalty: Optional[float] = None,
@@ -114,6 +116,8 @@ async def update_strategy(
     trend_max_bonus: Optional[float] = None,
     use_volatility_penalty: Optional[bool] = None,
     vol_penalty_window: Optional[int] = None,
+    use_momentum_penalty: Optional[bool] = None,
+    use_trend_penalty: Optional[bool] = None,
     vol_range_tolerance: Optional[float] = None,
     vol_penalty_scale: Optional[float] = None,
     vol_max_penalty: Optional[float] = None,
@@ -194,6 +198,10 @@ async def update_strategy(
         strategy.vol_penalty_scale = vol_penalty_scale
     if vol_max_penalty is not None:
         strategy.vol_max_penalty = vol_max_penalty
+    if use_momentum_penalty is not None:
+        strategy.use_momentum_penalty = use_momentum_penalty
+    if use_trend_penalty is not None:
+        strategy.use_trend_penalty = use_trend_penalty
     if ranking_smooth_window is not None:
         strategy.ranking_smooth_window = ranking_smooth_window
     if ranking_smooth_alpha is not None:

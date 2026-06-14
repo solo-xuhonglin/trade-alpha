@@ -15,11 +15,35 @@
     <v-tooltip location="top" max-width="300">
       <template v-slot:activator="{ props }">
         <v-chip size="x-small" variant="tonal" color="info" class="mr-1 mb-1" v-bind="props"
+          :prepend-icon="strategy.use_momentum_penalty ? 'mdi-check' : 'mdi-close'">
+          动量扣分
+        </v-chip>
+      </template>
+      <span v-if="strategy.use_momentum_penalty">
+        窗口{{ strategy.momentum_window ?? '-' }} 最大扣分{{ ((strategy.max_momentum_bonus ?? 0) * 100).toFixed(0) }}%
+      </span>
+      <span v-else>未启用</span>
+    </v-tooltip>
+    <v-tooltip location="top" max-width="300">
+      <template v-slot:activator="{ props }">
+        <v-chip size="x-small" variant="tonal" color="info" class="mr-1 mb-1" v-bind="props"
           :prepend-icon="strategy.use_trend_bonus ? 'mdi-check' : 'mdi-close'">
           趋势加分
         </v-chip>
       </template>
       <span v-if="strategy.use_trend_bonus">
+        窗口{{ strategy.trend_bonus_window ?? '-' }} 系数{{ strategy.trend_bonus_scale ?? '0.03' }} 上限{{ ((strategy.trend_max_bonus ?? 0) * 100).toFixed(0) }}%
+      </span>
+      <span v-else>未启用</span>
+    </v-tooltip>
+    <v-tooltip location="top" max-width="300">
+      <template v-slot:activator="{ props }">
+        <v-chip size="x-small" variant="tonal" color="info" class="mr-1 mb-1" v-bind="props"
+          :prepend-icon="strategy.use_trend_penalty ? 'mdi-check' : 'mdi-close'">
+          趋势扣分
+        </v-chip>
+      </template>
+      <span v-if="strategy.use_trend_penalty">
         窗口{{ strategy.trend_bonus_window ?? '-' }} 系数{{ strategy.trend_bonus_scale ?? '0.03' }} 上限{{ ((strategy.trend_max_bonus ?? 0) * 100).toFixed(0) }}%
       </span>
       <span v-else>未启用</span>

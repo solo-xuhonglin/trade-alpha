@@ -38,6 +38,8 @@ class OrderSuggestion(Document):
     trend_bonus: float = 0.0
     vol_penalty: float = 0.0
     momentum_bonus: float = 0.0
+    momentum_penalty: float = 0.0
+    trend_penalty: float = 0.0
 
     # 排除标记
     is_excluded: bool = False

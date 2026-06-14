@@ -156,6 +156,8 @@ async def list_daily_scores(
             "trend_bonus": s.trend_bonus,
             "vol_penalty": s.vol_penalty,
             "momentum_bonus": s.momentum_bonus,
+            "momentum_penalty": s.momentum_penalty,
+            "trend_penalty": s.trend_penalty,
             "order_price": s.order_price,
             "order_shares": s.order_shares,
             "is_excluded": s.is_excluded,
@@ -164,6 +166,8 @@ async def list_daily_scores(
         prev_rank = prev_rank_map.get(s.ts_code)
         if prev_rank is not None:
             d["rank_change"] = prev_rank - s.rank
+        else:
+            d["rank_change"] = None
         for N in (3, 5, 20):
             if N in avg_rank_maps:
                 d[f"avg_rank_{N}d"] = avg_rank_maps[N].get(s.ts_code)
@@ -203,6 +207,8 @@ async def list_stock_daily_scores(ts_code: str) -> dict:
             "trend_bonus": s.trend_bonus,
             "vol_penalty": s.vol_penalty,
             "momentum_bonus": s.momentum_bonus,
+            "momentum_penalty": s.momentum_penalty,
+            "trend_penalty": s.trend_penalty,
             "order_price": s.order_price,
             "order_shares": s.order_shares,
             "is_excluded": s.is_excluded,
@@ -230,6 +236,8 @@ def _suggestion_to_dict(s) -> dict:
         "trend_bonus": s.trend_bonus,
         "vol_penalty": s.vol_penalty,
         "momentum_bonus": s.momentum_bonus,
+        "momentum_penalty": s.momentum_penalty,
+        "trend_penalty": s.trend_penalty,
         "is_excluded": s.is_excluded,
         "excluded_reason": s.excluded_reason,
         "reason": s.reason,

@@ -379,7 +379,7 @@ BacktestPipeline 协调数据加载、预测、策略决策的完整回测流程
 
 **综合评分公式**:
 ```
-composite_score = score + trend_bonus - vol_penalty + momentum_bonus
+composite_score = score + trend_bonus - trend_penalty - vol_penalty + momentum_bonus - momentum_penalty
 ```
 
 **策略模式**:
@@ -400,11 +400,13 @@ composite_score = score + trend_bonus - vol_penalty + momentum_bonus
 
 #### scoring.py - 共享评分函数
 
-从原 `ExecutionPipeline` 提取的五个评分工具函数：
+从原 `ExecutionPipeline` 提取的七个评分工具函数：
 - `smooth_scores()`: EWMA 平滑复合分数
-- `apply_momentum_boost()`: 基于收盘价上涨天数比例计算动量加成
 - `apply_trend_bonus()`: 基于线性回归 R² 加权的趋势加分
+- `apply_trend_penalty()`: 基于线性回归 R² 加权的趋势扣分（下跌趋势）
 - `apply_volatility_penalty()`: 基于 OHLC 日内振幅的波动率惩罚
+- `apply_momentum_boost()`: 基于收盘价上涨天数比例计算动量加成
+- `apply_momentum_penalty()`: 基于收盘价下跌天数比例计算动量扣分
 - `filter_explosions()`: 基于价格涨幅和成交量倍数的爆炸检测过滤
 
 #### portfolio.py - 投资组合管理

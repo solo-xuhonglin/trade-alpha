@@ -65,6 +65,8 @@ class StrategyCreateRequest(BaseModel):
     trend_r2_threshold: Optional[float] = 0.30
     trend_max_bonus: Optional[float] = 0.05
     use_volatility_penalty: Optional[bool] = False
+    use_momentum_penalty: Optional[bool] = False
+    use_trend_penalty: Optional[bool] = False
     vol_penalty_window: Optional[int] = 10
     vol_range_tolerance: Optional[float] = 0.035
     vol_penalty_scale: Optional[float] = 0.005
@@ -107,6 +109,8 @@ class StrategyUpdateRequest(BaseModel):
     trend_r2_threshold: Optional[float] = None
     trend_max_bonus: Optional[float] = None
     use_volatility_penalty: Optional[bool] = None
+    use_momentum_penalty: Optional[bool] = None
+    use_trend_penalty: Optional[bool] = None
     vol_penalty_window: Optional[int] = None
     vol_range_tolerance: Optional[float] = None
     vol_penalty_scale: Optional[float] = None

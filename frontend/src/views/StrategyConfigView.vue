@@ -197,49 +197,53 @@
             <div>
               <div class="d-flex align-center mb-2">
                 <v-switch v-model="form.use_momentum_boost" hide-details density="compact" color="primary"
-                  class="mr-2" label="动量加权"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="info">上涨天数占比加成</v-chip>
+                  class="mr-4" label="动量加权"></v-switch>
+                <v-switch v-model="form.use_momentum_penalty" hide-details density="compact" color="primary"
+                  class="mr-2" label="动量扣分"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">上涨天数占比加成/扣分</v-chip>
               </div>
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.momentum_window" type="number" label="窗口天数"
-                    hint="统计过去 N 天收盘价上涨天数占比" persistent-hint
-                    :disabled="!form.use_momentum_boost"></v-text-field>
+                    hint="统计过去 N 天收盘价涨跌天数占比" persistent-hint
+                    :disabled="!form.use_momentum_boost && !form.use_momentum_penalty"></v-text-field>
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.max_momentum_bonus" type="number" step="0.01"
-                    label="最大动量加成" hint="比例 × 最大加成 = 动量加成，加入综合分" persistent-hint
-                    :disabled="!form.use_momentum_boost"></v-text-field>
+                    label="最大加减分" hint="比例 × 最大值 = 加减分" persistent-hint
+                    :disabled="!form.use_momentum_boost && !form.use_momentum_penalty"></v-text-field>
                 </v-col>
               </v-row>
 
               <div class="d-flex align-center mb-2">
                 <v-switch v-model="form.use_trend_bonus" hide-details density="compact" color="primary"
-                  class="mr-2" label="趋势加分"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="info">R² 加权趋势，股价温和上涨加分</v-chip>
+                  class="mr-4" label="趋势加分"></v-switch>
+                <v-switch v-model="form.use_trend_penalty" hide-details density="compact" color="primary"
+                  class="mr-2" label="趋势扣分"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">斜率+R²加权，上涨加分/下跌扣分</v-chip>
               </div>
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_bonus_window" type="number"
                     label="窗口天数" hint="收盘价回归计算的天数" persistent-hint
-                    :disabled="!form.use_trend_bonus"></v-text-field>
+                    :disabled="!form.use_trend_bonus && !form.use_trend_penalty"></v-text-field>
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_bonus_scale" type="number" step="0.01"
-                    label="斜率系数" hint="斜率 × 系数 = 趋势加分" persistent-hint
-                    :disabled="!form.use_trend_bonus"></v-text-field>
+                    label="斜率系数" hint="斜率 × 系数 = 加减分" persistent-hint
+                    :disabled="!form.use_trend_bonus && !form.use_trend_penalty"></v-text-field>
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_r2_threshold" type="number" step="0.05"
-                    label="R² 阈值" hint="拟合优度门槛，低于此值不加分" persistent-hint
-                    :disabled="!form.use_trend_bonus"></v-text-field>
+                    label="R² 阈值" hint="拟合优度门槛" persistent-hint
+                    :disabled="!form.use_trend_bonus && !form.use_trend_penalty"></v-text-field>
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.trend_max_bonus" type="number" step="0.01"
-                    label="最大加分" hint="趋势加分上限" persistent-hint
-                    :disabled="!form.use_trend_bonus"></v-text-field>
+                    label="最大加减分" hint="上限值，加分扣分共用" persistent-hint
+                    :disabled="!form.use_trend_bonus && !form.use_trend_penalty"></v-text-field>
                 </v-col>
               </v-row>
 
@@ -556,11 +560,13 @@ const compareFields: CompareField[] = [
   { key: 'sell_rank_n', label: '卖出排名阈值', group: '多股票配置', type: 'number' },
   { key: 'hold_score_threshold', label: '持仓评分保护阈值', group: '多股票配置', type: 'number' },
   { key: 'use_momentum_boost', label: '动量加权', group: '排名优化', type: 'boolean' },
+  { key: 'use_momentum_penalty', label: '动量扣分', group: '排名优化', type: 'boolean' },
   { key: 'momentum_window', label: '动量窗口', group: '排名优化', type: 'number' },
   { key: 'max_momentum_bonus', label: '最大动量加成', group: '排名优化', type: 'number' },
   { key: 'ranking_smooth_window', label: '平滑窗口', group: '排名优化', type: 'number' },
   { key: 'ranking_smooth_alpha', label: '平滑系数', group: '排名优化', type: 'number' },
   { key: 'use_trend_bonus', label: '趋势加分', group: '排名优化', type: 'boolean' },
+  { key: 'use_trend_penalty', label: '趋势扣分', group: '排名优化', type: 'boolean' },
   { key: 'trend_bonus_window', label: '趋势窗口', group: '排名优化', type: 'number' },
   { key: 'trend_bonus_scale', label: '趋势斜率系数', group: '排名优化', type: 'number' },
   { key: 'trend_r2_threshold', label: 'R²阈值', group: '排名优化', type: 'number' },
@@ -617,6 +623,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       explosion_volume_ratio: item.explosion_volume_ratio ?? 3.0,
       explosion_window: item.explosion_window ?? 5,
       use_trend_bonus: item.use_trend_bonus ?? false,
+      use_momentum_penalty: item.use_momentum_penalty ?? false,
+      use_trend_penalty: item.use_trend_penalty ?? false,
       trend_bonus_window: item.trend_bonus_window ?? 15,
       trend_bonus_scale: item.trend_bonus_scale ?? 0.03,
       trend_r2_threshold: item.trend_r2_threshold ?? 0.30,
@@ -661,6 +669,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       explosion_volume_ratio: 3.0,
       explosion_window: 5,
       use_trend_bonus: false,
+      use_momentum_penalty: false,
+      use_trend_penalty: false,
       trend_bonus_window: 15,
       trend_bonus_scale: 0.03,
       trend_r2_threshold: 0.30,
@@ -712,6 +722,8 @@ const saveStrategy = async () => {
       trend_bonus_scale: form.value.type === 'multi' ? form.value.trend_bonus_scale : undefined,
       trend_r2_threshold: form.value.type === 'multi' ? form.value.trend_r2_threshold : undefined,
       trend_max_bonus: form.value.type === 'multi' ? form.value.trend_max_bonus : undefined,
+      use_momentum_penalty: form.value.type === 'multi' ? form.value.use_momentum_penalty : undefined,
+      use_trend_penalty: form.value.type === 'multi' ? form.value.use_trend_penalty : undefined,
       use_volatility_penalty: form.value.type === 'multi' ? form.value.use_volatility_penalty : undefined,
       vol_penalty_window: form.value.type === 'multi' ? form.value.vol_penalty_window : undefined,
       vol_range_tolerance: form.value.type === 'multi' ? form.value.vol_range_tolerance : undefined,
@@ -753,7 +765,15 @@ const saveStrategy = async () => {
       use_trend_bonus: form.value.type === 'multi' ? form.value.use_trend_bonus : undefined,
       trend_bonus_window: form.value.type === 'multi' ? form.value.trend_bonus_window : undefined,
       trend_bonus_scale: form.value.type === 'multi' ? form.value.trend_bonus_scale : undefined,
+      trend_r2_threshold: form.value.type === 'multi' ? form.value.trend_r2_threshold : undefined,
       trend_max_bonus: form.value.type === 'multi' ? form.value.trend_max_bonus : undefined,
+      use_momentum_penalty: form.value.type === 'multi' ? form.value.use_momentum_penalty : undefined,
+      use_trend_penalty: form.value.type === 'multi' ? form.value.use_trend_penalty : undefined,
+      use_volatility_penalty: form.value.type === 'multi' ? form.value.use_volatility_penalty : undefined,
+      vol_penalty_window: form.value.type === 'multi' ? form.value.vol_penalty_window : undefined,
+      vol_range_tolerance: form.value.type === 'multi' ? form.value.vol_range_tolerance : undefined,
+      vol_penalty_scale: form.value.type === 'multi' ? form.value.vol_penalty_scale : undefined,
+      vol_max_penalty: form.value.type === 'multi' ? form.value.vol_max_penalty : undefined,
       use_full_position_sell: form.value.type === 'multi' ? form.value.use_full_position_sell : undefined,
       full_position_threshold: form.value.type === 'multi' ? form.value.full_position_threshold : undefined,
       full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,

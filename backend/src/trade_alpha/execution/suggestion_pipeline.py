@@ -230,7 +230,7 @@ class SuggestionPipeline:
 
         for r in pred_results.values():
             r["raw_score"] = r["score"]
-            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) - r.get("vol_penalty", 0) + r.get("momentum_bonus", 0)
+            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) - r.get("trend_penalty", 0) - r.get("vol_penalty", 0) + r.get("momentum_bonus", 0) - r.get("momentum_penalty", 0)
 
         smooth_scores(pred_results, self.strategy_config, self._score_buffer)
 
@@ -436,6 +436,8 @@ class SuggestionPipeline:
                             "trend_bonus": float(getattr(s, "trend_bonus", 0.0)),
                             "vol_penalty": float(getattr(s, "vol_penalty", 0.0)),
                             "momentum_bonus": float(pred.get("momentum_bonus", 0.0)),
+                            "momentum_penalty": float(pred.get("momentum_penalty", 0.0)),
+                            "trend_penalty": float(pred.get("trend_penalty", 0.0)),
                             "order_price": float(close_prices.get(s.ts_code, 0.0)),
                             "order_shares": int(next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0)),
                             "is_excluded": bool(s.is_excluded),
@@ -459,6 +461,8 @@ class SuggestionPipeline:
                             trend_bonus=pred.get("trend_bonus", 0.0),
                             vol_penalty=pred.get("vol_penalty", 0.0),
                             momentum_bonus=pred.get("momentum_bonus", 0.0),
+                            momentum_penalty=pred.get("momentum_penalty", 0.0),
+                            trend_penalty=pred.get("trend_penalty", 0.0),
                             is_excluded=pred.get("is_excluded", False),
                             excluded_reason=pred.get("excluded_reason", None),
                             reason=order.reason or "live_suggestion",

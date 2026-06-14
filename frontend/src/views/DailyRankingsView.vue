@@ -41,9 +41,9 @@
         <div class="font-weight-medium">{{ item.composite_score.toFixed(4) }}</div>
         <div class="text-caption text-medium-emphasis" style="white-space: nowrap;">
           ={{ item.raw_score.toFixed(4) }}
-          <span v-if="item.trend_bonus" class="text-green-darken-1">+{{ item.trend_bonus.toFixed(4) }}</span>
+          <span v-if="item.trend_bonus || item.trend_penalty" :class="trendNet(item) >= 0 ? 'text-green-darken-1' : 'text-red-darken-1'">{{ trendNet(item) >= 0 ? '+' : '' }}{{ trendNet(item).toFixed(4) }}</span>
           <span v-if="item.vol_penalty" class="text-red-darken-1">-{{ item.vol_penalty.toFixed(4) }}</span>
-          <span v-if="item.momentum_bonus" class="text-green-darken-1">+{{ item.momentum_bonus.toFixed(4) }}</span>
+          <span v-if="item.momentum_bonus || item.momentum_penalty" :class="momentumNet(item) >= 0 ? 'text-green-darken-1' : 'text-red-darken-1'">{{ momentumNet(item) >= 0 ? '+' : '' }}{{ momentumNet(item).toFixed(4) }}</span>
         </div>
       </template>
       <template v-slot:item.order_price="{ item }">
@@ -108,6 +108,10 @@ const itemsLength = ref(0)
 const page = ref(1)
 const pageSize = 100
 const loading = ref(false)
+
+const trendNet = (item: any) => (item.trend_bonus || 0) - (item.trend_penalty || 0)
+const momentumNet = (item: any) => (item.momentum_bonus || 0) - (item.momentum_penalty || 0)
+
 const selectedDate = ref('')
 
 const klineDialog = ref(false)

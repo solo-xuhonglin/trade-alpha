@@ -17,6 +17,7 @@ export interface Strategy {
   use_momentum_boost?: boolean
   momentum_window?: number
   max_momentum_bonus?: number
+  use_momentum_penalty?: boolean
   use_explosion_filter?: boolean
   explosion_price_threshold?: number
   explosion_volume_ratio?: number
@@ -36,6 +37,7 @@ export interface Strategy {
   trend_r2_threshold?: number
   trend_max_bonus?: number
   use_volatility_penalty?: boolean
+  use_trend_penalty?: boolean
   vol_penalty_window?: number
   vol_range_tolerance?: number
   vol_penalty_scale?: number

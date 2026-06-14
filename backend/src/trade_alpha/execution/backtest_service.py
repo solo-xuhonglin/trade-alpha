@@ -402,6 +402,8 @@ async def get_stock_predictions(result_id: PydanticObjectId, ts_code: str) -> di
                 "ranking_score": pred.get("ranking_score"),
                 "rank": pred.get("rank"),
                 "momentum_bonus": pred.get("momentum_bonus"),
+                "momentum_penalty": pred.get("momentum_penalty"),
+                "trend_penalty": pred.get("trend_penalty"),
                 "trend_bonus": pred.get("trend_bonus"),
                 "vol_penalty": pred.get("vol_penalty"),
                 "is_excluded": pred.get("is_excluded", False),

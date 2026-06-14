@@ -355,14 +355,16 @@ const renderChart = () => {
             leftCol += `<br>原始分: ${fmtScore(d.raw_score)}`
           }
           const bonusParts: string[] = []
-          if (d.trend_bonus != null && d.trend_bonus !== 0) {
-            bonusParts.push(`趋势加分: ${fmtBonus(d.trend_bonus)}`)
+          const trendNet = (d.trend_bonus || 0) - (d.trend_penalty || 0)
+          if (trendNet !== 0) {
+            bonusParts.push(`趋势: ${trendNet > 0 ? '+' : ''}${fmtBonus(trendNet)}`)
           }
           if (d.vol_penalty != null && d.vol_penalty !== 0) {
             bonusParts.push(`波动扣分: -${Math.abs(d.vol_penalty).toFixed(4)}`)
           }
-          if (d.momentum_bonus != null && d.momentum_bonus !== 0) {
-            bonusParts.push(`动量加成: ${fmtBonus(d.momentum_bonus)}`)
+          const momentumNet = (d.momentum_bonus || 0) - (d.momentum_penalty || 0)
+          if (momentumNet !== 0) {
+            bonusParts.push(`动量: ${momentumNet > 0 ? '+' : ''}${fmtBonus(momentumNet)}`)
           }
           if (bonusParts.length > 0) {
             leftCol += `<br>${bonusParts.join('<br>')}`

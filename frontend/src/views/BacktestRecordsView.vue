@@ -573,6 +573,28 @@
             </v-row>
             <v-row class="py-0">
               <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">动量扣分：</span>
+                <v-icon :color="backtestStrategyConfig?.use_momentum_penalty ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_momentum_penalty ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_momentum_penalty" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.momentum_window ?? '-' }} 最大扣分{{ ((backtestStrategyConfig?.max_momentum_bonus ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="12">
+                <span class="text-body-2 text-medium-emphasis">趋势扣分：</span>
+                <v-icon :color="backtestStrategyConfig?.use_trend_penalty ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_trend_penalty ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+                <span v-if="backtestStrategyConfig?.use_trend_penalty" class="text-body-2">
+                  &nbsp;窗口{{ backtestStrategyConfig?.trend_bonus_window ?? '-' }} 斜率{{ backtestStrategyConfig?.trend_bonus_scale ?? '0.03' }} R²阈值{{ ((backtestStrategyConfig?.trend_r2_threshold ?? 0) * 100).toFixed(0) }}% 上限{{ ((backtestStrategyConfig?.trend_max_bonus ?? 0) * 100).toFixed(0) }}%
+                </span>
+              </v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">波动扣分：</span>
                 <v-icon :color="backtestStrategyConfig?.use_volatility_penalty ? 'success' : 'disabled'" size="small">
                   {{ backtestStrategyConfig?.use_volatility_penalty ? 'mdi-check-circle' : 'mdi-close-circle' }}
@@ -912,11 +934,13 @@ const strategyCompareFields: CompareField[] = [
   { key: 'sell_rank_n', label: '卖出排名阈值', group: '多股票配置', type: 'number' },
   { key: 'hold_score_threshold', label: '持仓评分保护阈值', group: '多股票配置', type: 'number' },
   { key: 'use_momentum_boost', label: '动量加权', group: '排名优化', type: 'boolean' },
+  { key: 'use_momentum_penalty', label: '动量扣分', group: '排名优化', type: 'boolean' },
   { key: 'momentum_window', label: '动量窗口', group: '排名优化', type: 'number' },
   { key: 'max_momentum_bonus', label: '最大动量加成', group: '排名优化', type: 'number' },
   { key: 'ranking_smooth_window', label: '平滑窗口', group: '排名优化', type: 'number' },
   { key: 'ranking_smooth_alpha', label: '平滑系数', group: '排名优化', type: 'number' },
   { key: 'use_trend_bonus', label: '趋势加分', group: '排名优化', type: 'boolean' },
+  { key: 'use_trend_penalty', label: '趋势扣分', group: '排名优化', type: 'boolean' },
   { key: 'trend_bonus_window', label: '趋势窗口', group: '排名优化', type: 'number' },
   { key: 'trend_bonus_scale', label: '趋势斜率系数', group: '排名优化', type: 'number' },
   { key: 'trend_r2_threshold', label: 'R²阈值', group: '排名优化', type: 'number' },
