@@ -508,6 +508,31 @@ class BacktestPipeline:
             prev_total_value=self.prev_total_value, predictions=pred_results,
             baseline_value=baseline_value,
         )
+
+        rank_scores = [
+            p.get("ranking_score", 0) for p in pred_results.values()
+            if isinstance(p, dict) and p.get("ranking_score") is not None
+        ]
+        if rank_scores:
+            rank_scores_sorted = sorted(rank_scores)
+            n = len(rank_scores_sorted)
+            ranking_median = float(rank_scores_sorted[n // 2])
+            high_th = self.strategy_config.market_high_score_threshold
+            low_th = self.strategy_config.market_low_score_threshold
+            ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
+            ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
+            trend_th = self.strategy_config.market_trend_threshold
+            ranking_regime = "trending" if ranking_median > trend_th else "sideways"
+
+            await snapshot.update({
+                "$set": {
+                    "ranking_median": ranking_median,
+                    "ranking_high_pct": ranking_high_pct,
+                    "ranking_low_pct": ranking_low_pct,
+                    "ranking_regime": ranking_regime,
+                }
+            })
+
         self.prev_total_value = snapshot.total_value
         return snapshot.total_value, snapshot.day_return
 
