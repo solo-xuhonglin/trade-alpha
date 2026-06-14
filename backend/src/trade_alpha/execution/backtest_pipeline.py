@@ -511,17 +511,7 @@ class BacktestPipeline:
         )
 
         if self._last_market_data:
-            ranking_median = self._last_market_data["ranking_median"]
-            ranking_high_pct = self._last_market_data["ranking_high_pct"]
-            ranking_low_pct = self._last_market_data["ranking_low_pct"]
-            await snapshot.update({
-                "$set": {
-                    "ranking_median": ranking_median,
-                    "ranking_high_pct": ranking_high_pct,
-                    "ranking_low_pct": ranking_low_pct,
-                    "ranking_regime": self.strategy.market_regime,
-                }
-            })
+            await snapshot.update({"$set": self._last_market_data})
 
         self.prev_total_value = snapshot.total_value
         return snapshot.total_value, snapshot.day_return
@@ -554,6 +544,7 @@ class BacktestPipeline:
             "ranking_median": ranking_median,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
+            "ranking_regime": regime,
         }
         return regime
 
