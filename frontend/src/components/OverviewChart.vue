@@ -72,6 +72,13 @@ const renderChart = () => {
     legend: {
       data: ['策略累计收益率', '基准累计收益率', '排序分中位数', '>高分线比例', '<低分线比例'],
       top: 0,
+      selected: {
+        '策略累计收益率': true,
+        '基准累计收益率': true,
+        '排序分中位数': true,
+        '>高分线比例': false,
+        '<低分线比例': false,
+      },
     },
     grid: { left: '12%', right: '18%', bottom: '12%', top: '12%' },
     xAxis: {
