@@ -303,6 +303,16 @@
             <div>
               <v-row>
                 <v-col cols="12">
+                  <v-switch v-model="form.use_market_aware_trading" hide-details density="compact"
+                    color="primary" label="市场状态指导交易"
+                    hint="下跌趋势不新买入，横盘期间最小持仓天数翻倍" persistent-hint />
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-3"></v-divider>
+
+              <v-row>
+                <v-col cols="12">
                   <div class="text-body-2 mb-2">
                     <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
                     市场状态判断
@@ -721,6 +731,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       market_trend_threshold: item.market_trend_threshold ?? 0.05,
       market_high_score_threshold: item.market_high_score_threshold ?? 0.30,
       market_low_score_threshold: item.market_low_score_threshold ?? -0.30,
+      use_market_aware_trading: item.use_market_aware_trading ?? false,
     }
   } else {
     editingId.value = null
@@ -775,6 +786,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       market_trend_threshold: 0.05,
       market_high_score_threshold: 0.30,
       market_low_score_threshold: -0.30,
+      use_market_aware_trading: false,
     }
   }
   dialog.value = true
@@ -832,6 +844,7 @@ const saveStrategy = async () => {
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
       market_low_score_threshold: form.value.market_low_score_threshold,
+      use_market_aware_trading: form.value.use_market_aware_trading,
     })
   } else {
     await strategyConfigApi.create({
@@ -885,6 +898,7 @@ const saveStrategy = async () => {
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
       market_low_score_threshold: form.value.market_low_score_threshold,
+      use_market_aware_trading: form.value.use_market_aware_trading,
     })
   }
   dialog.value = false

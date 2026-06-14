@@ -53,6 +53,7 @@ export interface Strategy {
   market_trend_threshold?: number
   market_high_score_threshold?: number
   market_low_score_threshold?: number
+  use_market_aware_trading?: boolean
   created_at: string
   updated_at?: string
 }
