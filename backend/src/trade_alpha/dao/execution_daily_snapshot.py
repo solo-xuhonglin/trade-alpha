@@ -19,6 +19,10 @@ class ExecutionDailySnapshot(Document):
     mode: str = Field(default="backtest")
     baseline_value: float = 0.0
     baseline_hold_days: int = 0
+    ranking_median: float = 0.0
+    ranking_high_pct: float = 0.0
+    ranking_low_pct: float = 0.0
+    ranking_regime: str = ""
     predictions: Dict[str, Dict] = Field(default_factory=dict)
 
     class Settings:
