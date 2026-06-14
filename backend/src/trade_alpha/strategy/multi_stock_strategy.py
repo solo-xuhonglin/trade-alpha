@@ -86,6 +86,11 @@ class MultiStockStrategy(PositionManager):
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
         full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
+        # Apply market-aware score attenuation (soft constraint based on ranking_median)
+        score_scalar = self._market_score_scalar()
+        for s in scored_stocks:
+            s.score *= score_scalar
+
         # Score filter for normal buy / sell decisions
         scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
@@ -141,10 +146,9 @@ class MultiStockStrategy(PositionManager):
         suggestion_count = 0
         hold_ts_codes = set(portfolio.positions.keys())
         purchased_ts_codes: set = set()
-        can_buy = not (self.use_market_aware_trading and self.market_regime == "trending_down")
 
         # Phase 1: Rank-up priority buy (scan full pool, not just top_stocks)
-        if can_buy and self.use_rank_up_priority and self.rank_up_count > 0:
+        if self.use_rank_up_priority and self.rank_up_count > 0:
             rank_up_candidates = [
                 s for s in full_candidates
                 if s.ts_code not in hold_ts_codes
@@ -200,7 +204,7 @@ class MultiStockStrategy(PositionManager):
 
         # Phase 2: Normal fill
         remaining_slots = self.max_positions - len(portfolio.positions) - suggestion_count
-        if can_buy and remaining_slots > 0:
+        if remaining_slots > 0:
             for stock in top_stocks:
                 if stock.ts_code in hold_ts_codes:
                     continue
@@ -250,6 +254,20 @@ class MultiStockStrategy(PositionManager):
 
         return orders
 
+    def _market_score_scalar(self) -> float:
+        """Score multiplier based on ranking_median (soft market constraint).
+
+        When median is positive/strong: no attenuation (1.0).
+        When median is weak/negative: attenuate linearly down to 0.30.
+        This replaces the old hard can_buy=False toggle.
+        """
+        if not self.use_market_aware_trading or self.ranking_median is None:
+            return 1.0
+        if self.ranking_median >= 0:
+            return 1.0
+        scalar = max(0.30, 1.0 + self.ranking_median * 5)
+        return scalar
+
     def _check_sell(
         self,
         position: PositionEmbed,
@@ -265,20 +283,14 @@ class MultiStockStrategy(PositionManager):
         """
         current_score = score_map.get(position.ts_code, 0.0)
 
-        effective_min_hold = self.min_hold_days
-        if self.use_market_aware_trading and self.market_regime == "sideways":
-            effective_min_hold = self.min_hold_days * 2
-
-        logger.debug(f"_check_sell ts_code={position.ts_code} hold_days={position.hold_days} min_hold_days={self.min_hold_days} effective_min_hold={effective_min_hold} current_score={current_score:.3f} sell_threshold={self.sell_threshold:.3f}")
-
-        if position.hold_days < effective_min_hold:
+        if position.hold_days < self.min_hold_days:
             if close_prices and position.ts_code in close_prices:
                 current_price = close_prices[position.ts_code]
                 cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
                 if current_price < cost_basis * (1 + self.stop_loss_pct):
                     logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
                     return True, SELL_REASON_STOP_LOSS
-            logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < effective_min_hold, skip sell")
+            logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
             return False, ""
 
         if current_score < self.sell_threshold:

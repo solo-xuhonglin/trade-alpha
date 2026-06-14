@@ -540,11 +540,15 @@ class BacktestPipeline:
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
 
+        # Compute score_scalar for market-aware score attenuation
+        score_scalar = max(0.30, min(1.0, 1.0 + ranking_median * 5)) if ranking_median < 0 else 1.0
+
         self._last_market_data = {
             "ranking_median": ranking_median,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
             "ranking_regime": regime,
+            "score_scalar": score_scalar,
         }
         return regime
 
@@ -618,6 +622,9 @@ class BacktestPipeline:
 
             market_regime = self._compute_market_regime(pred_results)
             self.strategy.market_regime = market_regime
+            self.strategy.ranking_median = (
+                self._last_market_data.get("ranking_median") if self._last_market_data else None
+            )
 
             day_val, day_ret = await self._save_snapshot(date, backtest_id, close_prices, pred_results)
             daily_values.append(day_val)

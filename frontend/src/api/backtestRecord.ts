@@ -114,6 +114,7 @@ export interface DailySnapshot {
   ranking_high_pct: number
   ranking_low_pct: number
   ranking_regime: string
+  score_scalar?: number
 }
 
 export interface PnlDetailItem {

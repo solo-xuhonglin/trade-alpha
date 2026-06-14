@@ -38,6 +38,7 @@ class PositionManager:
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
         self.market_regime = ""
+        self.ranking_median: Optional[float] = None
         self.use_market_aware_trading = use_market_aware_trading
 
     async def make_decisions(

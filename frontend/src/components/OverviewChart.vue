@@ -14,6 +14,7 @@ export interface OverviewChartItem {
   ranking_high_pct: number
   ranking_low_pct: number
   ranking_regime: string
+  score_scalar?: number
 }
 
 const props = withDefaults(defineProps<{
@@ -54,6 +55,7 @@ const renderChart = () => {
   const rankingMedians = props.data.map(d => d.ranking_median)
   const highPcts = props.data.map(d => +d.ranking_high_pct.toFixed(1))
   const lowPcts = props.data.map(d => +d.ranking_low_pct.toFixed(1))
+  const scoreScalars = props.data.map(d => d.score_scalar ?? 1.0)
 
   chartInstance.setOption({
     tooltip: {
@@ -67,7 +69,7 @@ const renderChart = () => {
         params.forEach((p: any) => {
           if (p.value == null) return
           let val = p.value
-          if (p.seriesName === '排序分中位数') val = val.toFixed(4)
+          if (p.seriesName === '排序分中位数' || p.seriesName === '分数衰减系数') val = val.toFixed(4)
           else if (p.seriesName === '策略累计收益率' || p.seriesName === '基准累计收益率') val = val + '%'
           else val = val + '%'
           html += `<br>${p.marker} ${p.seriesName}: ${val}`
@@ -76,7 +78,7 @@ const renderChart = () => {
       },
     },
     legend: {
-      data: ['策略累计收益率', '基准累计收益率', '排序分中位数', '>高分线比例', '<低分线比例'],
+      data: ['策略累计收益率', '基准累计收益率', '排序分中位数', '>高分线比例', '<低分线比例', '分数衰减系数'],
       top: 0,
       selected: {
         '策略累计收益率': true,
@@ -84,6 +86,7 @@ const renderChart = () => {
         '排序分中位数': true,
         '>高分线比例': false,
         '<低分线比例': false,
+        '分数衰减系数': false,
       },
     },
     grid: { left: '12%', right: '18%', bottom: '12%', top: '12%' },
@@ -174,6 +177,15 @@ const renderChart = () => {
         lineStyle: { width: 1, color: '#9e9e9e', type: 'dashed' },
         symbol: 'none',
         silent: true,
+      },
+      {
+        name: '分数衰减系数',
+        type: 'line',
+        data: scoreScalars,
+        yAxisId: 'ranking',
+        smooth: true,
+        lineStyle: { width: 1.5, color: '#FF6F61' },
+        symbol: 'none',
       },
     ],
   })
