@@ -278,7 +278,7 @@ class MultiStockStrategy(PositionManager):
                 if current_price < cost_basis * (1 + self.stop_loss_pct):
                     logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
                     return True, SELL_REASON_STOP_LOSS
-            logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
+            logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < effective_min_hold, skip sell")
             return False, ""
 
         if current_score < self.sell_threshold:
