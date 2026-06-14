@@ -62,7 +62,7 @@
 
       <v-tabs v-model="tab" align-tabs="start" class="px-4">
         <v-tab value="basic">基本设置</v-tab>
-        <v-tab v-if="showParamsTab" value="params">参数配置</v-tab>
+        <v-tab value="params">参数配置</v-tab>
       </v-tabs>
 
       <v-divider />
@@ -204,9 +204,7 @@ const tab = ref(0)
 const strategyOptions = ref<{ title: string; value: string }[]>([])
 const trainingOptions = ref<{ title: string; value: string }[]>([])
 const portfolioOptions = ref<{ title: string; value: string }[]>([])
-const showParamsTab = computed(() =>
-  ['auto_suggest', 'stock_data_init'].includes(editItem.value?.task_key ?? '')
-)
+
 
 const snackbar = ref({ show: false, message: '', color: 'info' })
 

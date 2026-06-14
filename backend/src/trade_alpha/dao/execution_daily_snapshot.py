@@ -22,7 +22,7 @@ class ExecutionDailySnapshot(Document):
     ranking_median: float = 0.0
     ranking_high_pct: float = 0.0
     ranking_low_pct: float = 0.0
-    ranking_regime: str = ""             # 市场模式: "trending_up" / "trending_down" / "sideways" / ""
+    ranking_regime: str = ""             # market regime: "trending_up" / "trending_down" / "sideways" / ""
     predictions: Dict[str, Dict] = Field(default_factory=dict)
 
     class Settings:

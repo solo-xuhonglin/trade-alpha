@@ -212,7 +212,6 @@ watch(() => props.data, async () => {
 
 onUnmounted(() => {
   resizeObserver?.disconnect()
-  window.removeEventListener('resize', handleResize)
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null

@@ -181,7 +181,7 @@ const formatMarketValue = (value: number | undefined): string => {
 }
 
 const loadingList = ref(false)
-const loadingUpdate = ref(false)
+
 const loadingDownload = ref(false)
 const loadingDelete = ref(false)
 const loadingClear = ref(false)

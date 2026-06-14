@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 from beanie import PydanticObjectId
 import numpy as np
 from trade_alpha.dao.position import PositionEmbed
@@ -37,7 +37,7 @@ class PositionManager:
         self.min_hold_days = min_hold_days
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
-        self.market_regime = ""
+        self.market_regime: Literal["trending_up", "trending_down", "sideways", ""] = ""
         self.ranking_median: Optional[float] = None
         self.use_market_aware_trading = use_market_aware_trading
 

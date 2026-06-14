@@ -20,7 +20,9 @@ from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import (
     smooth_scores,
     apply_momentum_boost,
+    apply_momentum_penalty,
     apply_trend_bonus,
+    apply_trend_penalty,
     apply_volatility_penalty,
     filter_explosions,
 )
@@ -218,16 +220,19 @@ class SuggestionPipeline:
                     for r in records if r.close is not None
                 ]
             apply_trend_bonus(pred_results, self.strategy_config, close_prices_hist)
+            apply_trend_penalty(pred_results, self.strategy_config, close_prices_hist)
             apply_volatility_penalty(pred_results, self.strategy_config, ohlc_data)
         else:
             for r in pred_results.values():
                 r["trend_bonus"] = 0.0
+                r["trend_penalty"] = 0.0
                 r["price_slope"] = 0.0
                 r["price_r_squared"] = 0.0
                 r["vol_penalty"] = 0.0
                 r["price_avg_range"] = 0.0
 
         apply_momentum_boost(pred_results, self.strategy_config, close_prices_hist if lookback > 0 else None)
+        apply_momentum_penalty(pred_results, self.strategy_config, close_prices_hist if lookback > 0 else None)
         await filter_explosions(pred_results, self.strategy_config, date, self.data_loader, vol_prices)
 
         for r in pred_results.values():

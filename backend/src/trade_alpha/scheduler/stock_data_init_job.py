@@ -102,7 +102,18 @@ async def check_active_stocks_sufficient(stock_count: Optional[int] = None) -> b
     return active_count >= stock_count
 
 
-async def run_stock_data_init_job(cfg=None, **kwargs):
+def _parse_int_param(cfg, key: str) -> Optional[int]:
+    """Parse an integer parameter from cfg.params, returning None on failure."""
+    if not cfg or not cfg.params:
+        return None
+    try:
+        val = cfg.params.get(key, 0)
+        return int(val) if val else None
+    except (TypeError, ValueError):
+        return None
+
+
+async def run_stock_data_init_job(cfg=None):
     """Execute one data init job. Process up to 300 stocks per run with concurrency.
 
     Reads stock_count and data_years from cfg.params. Falls back to load_config()
@@ -110,18 +121,8 @@ async def run_stock_data_init_job(cfg=None, **kwargs):
     """
     logger.info("Starting stock data init job")
 
-    # Extract params from config
-    stock_count = None
-    data_years = None
-    if cfg and cfg.params:
-        try:
-            stock_count = int(cfg.params.get("stock_count", 0))
-        except (TypeError, ValueError):
-            pass
-        try:
-            data_years = int(cfg.params.get("data_years", 0))
-        except (TypeError, ValueError):
-            pass
+    stock_count = _parse_int_param(cfg, "stock_count")
+    data_years = _parse_int_param(cfg, "data_years")
 
     await ensure_stock_list()
     if await check_active_stocks_sufficient(stock_count=stock_count):

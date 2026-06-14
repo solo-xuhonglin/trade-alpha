@@ -13,6 +13,7 @@ from trade_alpha.data.service import (
     delete_stock_daily_by_ts_code,
 )
 from trade_alpha.dao import StockList
+from trade_alpha.dao.mongodb import get_database
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.scheduler.stock_data_init_job import update_single_stock_data_count
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
@@ -171,7 +172,6 @@ async def delete_data_endpoint(ts_code: str):
 @router.delete("/stocks/clear")
 async def clear_stocks_endpoint():
     """Clear all stock list and daily data. Use with caution."""
-    from trade_alpha.dao.mongodb import get_database
     db = await get_database()
     stock_result = await db.stock_list.delete_many({})
     daily_result = await db.stock_daily.delete_many({})

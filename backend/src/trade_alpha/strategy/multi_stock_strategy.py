@@ -159,26 +159,13 @@ class MultiStockStrategy(PositionManager):
                 key=lambda s: s.rank_improvement, reverse=True
             )
             for stock in rank_up_candidates[:self.rank_up_count]:
-                if stock.ts_code in hold_ts_codes:
-                    continue
                 if suggestion_mode:
                     if len(portfolio.positions) + suggestion_count >= self.max_positions:
                         break
                     suggestion_count += 1
                     purchased_ts_codes.add(stock.ts_code)
-                    orders.append(PendingOrder(
-                        ts_code=stock.ts_code,
-                        stock_name=stock.stock_name,
-                        order_price=stock.close,
-                        order_shares=0,
-                        score=stock.score,
-                        up_prob_3d=stock.up_prob_3d,
-                        up_prob_5d=stock.up_prob_5d,
-                        up_prob_10d=stock.up_prob_10d,
-                        up_prob_20d=stock.up_prob_20d,
-                        trade_date=trade_date,
-                        settle_date=self._next_trade_date(trade_date),
-                        reason=REASON_PRIORITY_RANK_UP,
+                    orders.append(self._build_order(
+                        stock, 0, REASON_PRIORITY_RANK_UP, trade_date,
                     ))
                     continue
                 success, shares, _fee = portfolio.reserve_funds(
@@ -187,19 +174,8 @@ class MultiStockStrategy(PositionManager):
                 if not success:
                     continue
                 purchased_ts_codes.add(stock.ts_code)
-                orders.append(PendingOrder(
-                    ts_code=stock.ts_code,
-                    stock_name=stock.stock_name,
-                    order_price=stock.close,
-                    order_shares=shares,
-                    score=stock.score,
-                    up_prob_3d=stock.up_prob_3d,
-                    up_prob_5d=stock.up_prob_5d,
-                    up_prob_10d=stock.up_prob_10d,
-                    up_prob_20d=stock.up_prob_20d,
-                    trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
-                    reason=REASON_PRIORITY_RANK_UP,
+                orders.append(self._build_order(
+                    stock, shares, REASON_PRIORITY_RANK_UP, trade_date,
                 ))
 
         # Phase 2: Normal fill
@@ -215,19 +191,8 @@ class MultiStockStrategy(PositionManager):
                     if suggestion_count >= self.max_positions:
                         break
                     suggestion_count += 1
-                    orders.append(PendingOrder(
-                        ts_code=stock.ts_code,
-                        stock_name=stock.stock_name,
-                        order_price=stock.close,
-                        order_shares=0,
-                        score=stock.score,
-                        up_prob_3d=stock.up_prob_3d,
-                        up_prob_5d=stock.up_prob_5d,
-                        up_prob_10d=stock.up_prob_10d,
-                        up_prob_20d=stock.up_prob_20d,
-                        trade_date=trade_date,
-                        settle_date=self._next_trade_date(trade_date),
-                        reason=REASON_NORMAL_BUY,
+                    orders.append(self._build_order(
+                        stock, 0, REASON_NORMAL_BUY, trade_date,
                     ))
                     continue
 
@@ -237,22 +202,34 @@ class MultiStockStrategy(PositionManager):
                 if not success:
                     continue
 
-                orders.append(PendingOrder(
-                    ts_code=stock.ts_code,
-                    stock_name=stock.stock_name,
-                    order_price=stock.close,
-                    order_shares=shares,
-                    score=stock.score,
-                    up_prob_3d=stock.up_prob_3d,
-                    up_prob_5d=stock.up_prob_5d,
-                    up_prob_10d=stock.up_prob_10d,
-                    up_prob_20d=stock.up_prob_20d,
-                    trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
-                    reason=REASON_NORMAL_BUY,
+                orders.append(self._build_order(
+                    stock, shares, REASON_NORMAL_BUY, trade_date,
                 ))
 
         return orders
+
+    def _build_order(
+        self,
+        stock: ScoredStock,
+        order_shares: int,
+        reason: str,
+        trade_date: str,
+    ) -> PendingOrder:
+        """Build a PendingOrder from a ScoredStock."""
+        return PendingOrder(
+            ts_code=stock.ts_code,
+            stock_name=stock.stock_name,
+            order_price=stock.close,
+            order_shares=order_shares,
+            score=stock.score,
+            up_prob_3d=stock.up_prob_3d,
+            up_prob_5d=stock.up_prob_5d,
+            up_prob_10d=stock.up_prob_10d,
+            up_prob_20d=stock.up_prob_20d,
+            trade_date=trade_date,
+            settle_date=self._next_trade_date(trade_date),
+            reason=reason,
+        )
 
     def _market_score_scalar(self) -> float:
         """Score multiplier based on ranking_median (soft market constraint).

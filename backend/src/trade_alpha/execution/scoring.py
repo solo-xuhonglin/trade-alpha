@@ -90,11 +90,9 @@ def apply_momentum_boost(
     Only applied when strategy config has use_momentum_boost=True.
     """
     if not strategy_config or not strategy_config.use_momentum_boost:
-        if not strategy_config or not strategy_config.use_momentum_penalty:
-            for r in pred_results.values():
-                r["momentum_bonus"] = 0.0
-                r["momentum_penalty"] = 0.0
-            return
+        for r in pred_results.values():
+            r["momentum_bonus"] = 0.0
+        return
 
     window = strategy_config.momentum_window
     max_bonus = strategy_config.max_momentum_bonus
@@ -104,18 +102,36 @@ def apply_momentum_boost(
         if len(prices) >= window + 1:
             recent = prices[-(window + 1):]
             up_count = sum(1 for i in range(1, len(recent)) if recent[i] > recent[i - 1])
-            ratio = up_count / window
-            if strategy_config.use_momentum_boost:
-                r["momentum_bonus"] = ratio * max_bonus
-            else:
-                r["momentum_bonus"] = 0.0
-            if strategy_config.use_momentum_penalty:
-                down_ratio = 1 - ratio
-                r["momentum_penalty"] = down_ratio * max_bonus
-            else:
-                r["momentum_penalty"] = 0.0
+            r["momentum_bonus"] = (up_count / window) * max_bonus
         else:
             r["momentum_bonus"] = 0.0
+
+
+def apply_momentum_penalty(
+    pred_results: Dict[str, Dict],
+    strategy_config: StrategyConfig,
+    close_prices_hist: Optional[Dict[str, List[float]]] = None,
+) -> None:
+    """Apply momentum penalty based on close price down-day ratio.
+
+    Penalizes stocks with many down days. penalty = down_ratio * max_momentum_bonus.
+    Only applied when strategy config has use_momentum_penalty=True.
+    """
+    if not strategy_config or not strategy_config.use_momentum_penalty:
+        for r in pred_results.values():
+            r["momentum_penalty"] = 0.0
+        return
+
+    window = strategy_config.momentum_window
+    max_bonus = strategy_config.max_momentum_bonus
+
+    for ts_code, r in pred_results.items():
+        prices = close_prices_hist.get(ts_code, []) if close_prices_hist else []
+        if len(prices) >= window + 1:
+            recent = prices[-(window + 1):]
+            down_count = sum(1 for i in range(1, len(recent)) if recent[i] <= recent[i - 1])
+            r["momentum_penalty"] = (down_count / window) * max_bonus
+        else:
             r["momentum_penalty"] = 0.0
 
 
@@ -130,13 +146,12 @@ def apply_trend_bonus(
     Only applied when strategy config has use_trend_bonus=True.
     """
     if not strategy_config or not strategy_config.use_trend_bonus:
-        if not strategy_config or not strategy_config.use_trend_penalty:
-            for r in pred_results.values():
-                r["trend_bonus"] = 0.0
-                r["trend_penalty"] = 0.0
-                r["price_slope"] = 0.0
-                r["price_r_squared"] = 0.0
-            return
+        for r in pred_results.values():
+            r["trend_bonus"] = 0.0
+            r["trend_penalty"] = 0.0
+            r["price_slope"] = 0.0
+            r["price_r_squared"] = 0.0
+        return
 
     window = strategy_config.trend_bonus_window
     scale = strategy_config.trend_bonus_scale
@@ -156,24 +171,49 @@ def apply_trend_bonus(
         slope = _calc_linear_slope(buf)
         r_squared = _calc_r_squared(buf)
 
-        if strategy_config.use_trend_bonus:
-            if slope > 0 and r_squared >= r2_threshold:
-                r["trend_bonus"] = max(0.0, min(max_bonus, slope * r_squared * scale))
-            else:
-                r["trend_bonus"] = 0.0
+        if slope > 0 and r_squared >= r2_threshold:
+            r["trend_bonus"] = max(0.0, min(max_bonus, slope * r_squared * scale))
         else:
             r["trend_bonus"] = 0.0
 
-        if strategy_config.use_trend_penalty:
-            if slope < 0 and r_squared >= r2_threshold:
-                r["trend_penalty"] = max(0.0, min(max_bonus, abs(slope) * r_squared * scale))
-            else:
-                r["trend_penalty"] = 0.0
-        else:
-            r["trend_penalty"] = 0.0
-
         r["price_slope"] = slope
         r["price_r_squared"] = r_squared
+
+
+def apply_trend_penalty(
+    pred_results: Dict[str, Dict],
+    strategy_config: StrategyConfig,
+    close_prices: Dict[str, List[float]],
+) -> None:
+    """Apply trend penalty based on price R-squared-weighted linear regression slope.
+
+    Penalizes stocks with steady downward price trends (high R-squared).
+    Only applied when strategy config has use_trend_penalty=True.
+    """
+    if not strategy_config or not strategy_config.use_trend_penalty:
+        for r in pred_results.values():
+            r["trend_penalty"] = 0.0
+        return
+
+    window = strategy_config.trend_bonus_window
+    scale = strategy_config.trend_bonus_scale
+    r2_threshold = strategy_config.trend_r2_threshold
+    max_bonus = strategy_config.trend_max_bonus
+
+    for ts_code, r in pred_results.items():
+        prices = close_prices.get(ts_code, [])
+        if len(prices) < 3:
+            r["trend_penalty"] = 0.0
+            continue
+
+        buf = prices[-(window + 1):] if len(prices) > window else prices
+        slope = _calc_linear_slope(buf)
+        r_squared = _calc_r_squared(buf)
+
+        if slope < 0 and r_squared >= r2_threshold:
+            r["trend_penalty"] = max(0.0, min(max_bonus, abs(slope) * r_squared * scale))
+        else:
+            r["trend_penalty"] = 0.0
 
 
 def apply_volatility_penalty(
