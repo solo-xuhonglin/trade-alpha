@@ -87,6 +87,9 @@ class StrategyCreateRequest(BaseModel):
     rank_up_count: Optional[int] = 3
     rank_up_min_score: Optional[float] = 0.1
     rank_up_min_improvement_pct: Optional[float] = 0.20
+    market_trend_threshold: Optional[float] = None
+    market_high_score_threshold: Optional[float] = None
+    market_low_score_threshold: Optional[float] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -136,6 +139,9 @@ class StrategyUpdateRequest(BaseModel):
     rank_up_count: Optional[int] = None
     rank_up_min_score: Optional[float] = None
     rank_up_min_improvement_pct: Optional[float] = None
+    market_trend_threshold: Optional[float] = None
+    market_high_score_threshold: Optional[float] = None
+    market_low_score_threshold: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

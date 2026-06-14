@@ -57,6 +57,9 @@ async def create_strategy(
     rank_up_count: Optional[int] = None,
     rank_up_min_score: Optional[float] = None,
     rank_up_min_improvement_pct: Optional[float] = None,
+    market_trend_threshold: Optional[float] = None,
+    market_high_score_threshold: Optional[float] = None,
+    market_low_score_threshold: Optional[float] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -142,6 +145,9 @@ async def update_strategy(
     rank_up_count: Optional[int] = None,
     rank_up_min_score: Optional[float] = None,
     rank_up_min_improvement_pct: Optional[float] = None,
+    market_trend_threshold: Optional[float] = None,
+    market_high_score_threshold: Optional[float] = None,
+    market_low_score_threshold: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -244,6 +250,12 @@ async def update_strategy(
         strategy.rank_up_min_score = rank_up_min_score
     if rank_up_min_improvement_pct is not None:
         strategy.rank_up_min_improvement_pct = rank_up_min_improvement_pct
+    if market_trend_threshold is not None:
+        strategy.market_trend_threshold = market_trend_threshold
+    if market_high_score_threshold is not None:
+        strategy.market_high_score_threshold = market_high_score_threshold
+    if market_low_score_threshold is not None:
+        strategy.market_low_score_threshold = market_low_score_threshold
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

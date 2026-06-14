@@ -65,6 +65,9 @@ def _strategy_to_dict(s) -> dict:
         "rank_up_count": s.rank_up_count,
         "rank_up_min_score": s.rank_up_min_score,
         "rank_up_min_improvement_pct": s.rank_up_min_improvement_pct,
+        "market_trend_threshold": s.market_trend_threshold,
+        "market_high_score_threshold": s.market_high_score_threshold,
+        "market_low_score_threshold": s.market_low_score_threshold,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -146,6 +149,9 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             rank_up_count=request.rank_up_count,
             rank_up_min_score=request.rank_up_min_score,
             rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
+            market_trend_threshold=request.market_trend_threshold,
+            market_high_score_threshold=request.market_high_score_threshold,
+            market_low_score_threshold=request.market_low_score_threshold,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -209,6 +215,9 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             rank_up_count=request.rank_up_count,
             rank_up_min_score=request.rank_up_min_score,
             rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
+            market_trend_threshold=request.market_trend_threshold,
+            market_high_score_threshold=request.market_high_score_threshold,
+            market_low_score_threshold=request.market_low_score_threshold,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
