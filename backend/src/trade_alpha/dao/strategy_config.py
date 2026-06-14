@@ -59,6 +59,7 @@ class StrategyConfig(Document):
     market_trend_threshold: float = 0.05
     market_high_score_threshold: float = 0.30
     market_low_score_threshold: float = -0.30
+    use_market_aware_trading: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
