@@ -80,8 +80,12 @@ class MultiStockStrategy(PositionManager):
 
         score_map = {s.ts_code: s.score for s in scored_stocks}
 
-        scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
+        # Exclude filter applies to all phases
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
+        full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
+
+        # Score filter for normal buy / sell decisions
+        scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         if len(sorted_stocks) <= 5:
@@ -139,7 +143,7 @@ class MultiStockStrategy(PositionManager):
         # Phase 1: Rank-up priority buy (scan full pool, not just top_stocks)
         if self.use_rank_up_priority and self.rank_up_count > 0:
             rank_up_candidates = [
-                s for s in sorted_stocks
+                s for s in full_candidates
                 if s.ts_code not in hold_ts_codes
                 and s.rank_improvement >= self.rank_up_min_improvement_pct
                 and s.score > self.rank_up_min_score
