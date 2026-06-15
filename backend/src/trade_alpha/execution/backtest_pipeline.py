@@ -80,19 +80,6 @@ class BacktestPipeline:
         )
         self.score_manager = ScoreManager(strategy_config, model_config)
 
-    @staticmethod
-    def _append_pending_order(pending_orders: List[PendingOrder], order: PendingOrder) -> None:
-        """Append a pending order, skipping if a sell order for the same stock already exists.
-
-        Buy orders are always appended.  Sell orders that duplicate an existing
-        sell for the same ts_code are silently dropped.
-        """
-        if order.order_shares < 0:
-            for o in pending_orders:
-                if o.ts_code == order.ts_code and o.order_shares < 0:
-                    return
-        pending_orders.append(order)
-
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
         result = ExecutionResult(
@@ -233,19 +220,6 @@ class BacktestPipeline:
 
         return len(filled_trades), total_fees
 
-    async def _make_orders(
-        self,
-        scored_stocks: List[ScoredStock],
-        close_prices: Dict[str, float],
-        date: str,
-    ) -> List[PendingOrder]:
-        return await self.strategy.make_decisions(
-            scored_stocks=scored_stocks,
-            portfolio=self.portfolio,
-            trade_date=date,
-            close_prices=close_prices,
-        )
-
     async def _save_snapshot(
         self,
         date: str,
@@ -280,12 +254,12 @@ class BacktestPipeline:
 
         baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
 
-        daily_values, daily_returns, total_trades = await self._run_daily_loop(
+        daily_values, daily_returns, total_trades, total_fees = await self._run_daily_loop(
             start_date, end_date, result.id, name_map, task_id, baseline_tracker,
         )
 
         result = await self._finalize_result(
-            result, daily_values, daily_returns, total_trades, baseline_tracker,
+            result, daily_values, daily_returns, total_trades, total_fees, baseline_tracker,
         )
         return result
 
@@ -297,6 +271,7 @@ class BacktestPipeline:
         daily_values: List[float] = []
         daily_returns: List[float] = []
         total_trades = 0
+        total_fees = 0.0
         year_months = get_year_months(start_date, end_date)
         total_months = len(year_months)
         last_idx = 0
@@ -317,10 +292,11 @@ class BacktestPipeline:
 
             baseline_tracker.track(close_prices)
 
-            trades_add, _ = await self._settle_orders(
+            trades_add, fees_add = await self._settle_orders(
                 pending_orders, date, backtest_id, name_map, day_data,
             )
             total_trades += trades_add
+            total_fees += fees_add
 
             vol_prices = day_data.get("vol", {})
             stock_map = await self.score_manager.predict_and_score(
@@ -366,10 +342,10 @@ class BacktestPipeline:
 
             date = _next_date(date)
 
-        return daily_values, daily_returns, total_trades
+        return daily_values, daily_returns, total_trades, total_fees
 
     async def _finalize_result(
-        self, result, daily_values, daily_returns, total_trades, baseline_tracker,
+        self, result, daily_values, daily_returns, total_trades, total_fees, baseline_tracker,
     ):
         final_value = daily_values[-1] if daily_values else self.portfolio.cash
         total_return = (final_value - self.account_config.initial_capital) / self.account_config.initial_capital
@@ -419,7 +395,7 @@ class BacktestPipeline:
         result.max_drawdown = round(max_drawdown, 4)
         result.win_rate = round(win_rate, 4)
         result.total_trades = total_trades
-        result.total_fees = 0.0
+        result.total_fees = round(total_fees, 2)
         result.ts_codes = self.ts_codes
         result.status = "completed"
         await result.save()
