@@ -18,12 +18,9 @@ class ScoredStock:
     up_prob_20d: float = 0.0
     is_excluded: bool = False
     trend_bonus: float = 0.0
-    vol_penalty: float = 0.0
     momentum_penalty: float = 0.0
     trend_penalty: float = 0.0
     price_slope: float = 0.0
-    price_r_squared: float = 0.0
-    price_avg_range: float = 0.0
     rank: int = 0
     rank_improvement: float = 0.0
 

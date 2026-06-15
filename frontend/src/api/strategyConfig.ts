@@ -27,10 +27,6 @@ export interface Strategy {
   full_position_days?: number
   full_position_score_window?: number
   full_position_sell_count?: number
-  use_acceleration_filter?: boolean
-  acceleration_window?: number
-  acceleration_cum_return?: number
-  acceleration_up_ratio?: number
   use_rank_up_priority?: boolean
   rank_up_window?: number
   rank_up_count?: number
@@ -42,12 +38,7 @@ export interface Strategy {
   trend_bonus_scale?: number
   trend_r2_threshold?: number
   trend_max_bonus?: number
-  use_volatility_penalty?: boolean
   use_trend_penalty?: boolean
-  vol_penalty_window?: number
-  vol_range_tolerance?: number
-  vol_penalty_scale?: number
-  vol_max_penalty?: number
   ranking_smooth_alpha?: number
   ranking_median_smooth_window?: number
   ranking_median_smooth_alpha?: number

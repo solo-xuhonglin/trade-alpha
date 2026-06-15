@@ -1,0 +1,14 @@
+refactor: extract _build_order, split scoring penalty functions, fix resize leak
+
+- Extract _build_order() in MultiStockStrategy to eliminate ~80 lines
+  of duplicated PendingOrder construction across 4 branches
+- Remove redundant hold_ts_codes check in Phase 1 (already filtered)
+- Split apply_momentum_boost/apply_trend_bonus penalty logic into
+  independent apply_momentum_penalty/apply_trend_penalty functions
+- Fix OverviewChart resize listener leak (remove window event, keep
+  ResizeObserver only)
+- Move get_database import to top level in data.py
+- Use Literal type for market_regime field
+- Remove dead code: showParamsTab computed, loadingUpdate ref
+- Replace duplicate try/except with _parse_int_param helper
+- Fix Chinese comment to English

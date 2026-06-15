@@ -271,26 +271,6 @@
 
               <v-divider class="mb-3"></v-divider>
 
-              <div class="text-subtitle-2 font-weight-medium mb-2">加速排除</div>
-              <v-data-table v-if="accelerationExcluded.length > 0" :headers="accelHeaders" :items="accelerationExcluded"
-                density="compact" hide-default-footer items-per-page="-1" class="mb-4"
-                @click:row="(_, { item }) => item._detail = !item._detail" style="cursor: pointer;">
-                <template v-slot:item.excluded_dates="{ item }">
-                  <div v-if="item._detail">
-                    <div v-for="d in item.excluded_dates" :key="d.date" class="text-caption">
-                      {{ d.date }} 累计涨 {{ (d.accel_cum_return * 100).toFixed(1) }}% 上涨占比 {{ (d.accel_up_ratio * 100).toFixed(0) }}%
-                      → 5d <span :style="{color: retColor(d.actual_return_5d)}">{{ d.actual_return_5d != null ? (d.actual_return_5d * 100).toFixed(1) + '%' : '-' }}</span>
-                      10d <span :style="{color: retColor(d.actual_return_10d)}">{{ d.actual_return_10d != null ? (d.actual_return_10d * 100).toFixed(1) + '%' : '-' }}</span>
-                      20d <span :style="{color: retColor(d.actual_return_20d)}">{{ d.actual_return_20d != null ? (d.actual_return_20d * 100).toFixed(1) + '%' : '-' }}</span>
-                    </div>
-                  </div>
-                  <span v-else class="text-caption text-medium-emphasis">点击展开 ({{ item.excluded_count }} 次)</span>
-                </template>
-              </v-data-table>
-              <div v-else class="text-caption text-medium-emphasis mb-4">无记录</div>
-
-              <v-divider class="mb-3"></v-divider>
-
               <div class="text-subtitle-2 font-weight-medium mb-2">满仓强制卖出</div>
               <v-data-table v-if="forcedSellStocks.length > 0" :headers="forcedSellHeaders" :items="forcedSellStocks"
                 density="compact" hide-default-footer items-per-page="-1"
@@ -604,17 +584,6 @@
             </v-row>
             <v-row class="py-0">
               <v-col cols="12">
-                <span class="text-body-2 text-medium-emphasis">波动扣分：</span>
-                <v-icon :color="backtestStrategyConfig?.use_volatility_penalty ? 'success' : 'disabled'" size="small">
-                  {{ backtestStrategyConfig?.use_volatility_penalty ? 'mdi-check-circle' : 'mdi-close-circle' }}
-                </v-icon>
-                <span v-if="backtestStrategyConfig?.use_volatility_penalty" class="text-body-2">
-                  &nbsp;窗口{{ backtestStrategyConfig?.vol_penalty_window ?? '-' }} 容忍{{ ((backtestStrategyConfig?.vol_range_tolerance ?? 0) * 100).toFixed(1) }}% 系数{{ backtestStrategyConfig?.vol_penalty_scale ?? '0.005' }} 上限{{ ((backtestStrategyConfig?.vol_max_penalty ?? 0) * 100).toFixed(0) }}%
-                </span>
-              </v-col>
-            </v-row>
-            <v-row class="py-0">
-              <v-col cols="12">
                 <span class="text-body-2 text-medium-emphasis">排名平滑：</span>
                 <span class="text-body-2">
                   窗口{{ backtestStrategyConfig?.ranking_smooth_window ?? '3' }}
@@ -644,17 +613,6 @@
                 </v-icon>
                 <span v-if="backtestStrategyConfig?.use_full_position_sell" class="text-body-2">
                   &nbsp;阈值{{ ((backtestStrategyConfig?.full_position_threshold ?? 0) * 100).toFixed(0) }}% 连续{{ backtestStrategyConfig?.full_position_days ?? '-' }}天 每次卖出{{ backtestStrategyConfig?.full_position_sell_count ?? '1' }}只
-                </span>
-              </v-col>
-            </v-row>
-            <v-row class="py-0">
-              <v-col cols="12">
-                <span class="text-body-2 text-medium-emphasis">加速过滤：</span>
-                <v-icon :color="backtestStrategyConfig?.use_acceleration_filter ? 'success' : 'disabled'" size="small">
-                  {{ backtestStrategyConfig?.use_acceleration_filter ? 'mdi-check-circle' : 'mdi-close-circle' }}
-                </v-icon>
-                <span v-if="backtestStrategyConfig?.use_acceleration_filter" class="text-body-2">
-                  &nbsp;窗口{{ backtestStrategyConfig?.acceleration_window ?? '-' }} 累计涨幅{{ ((backtestStrategyConfig?.acceleration_cum_return ?? 0) * 100).toFixed(0) }}% 上涨占比{{ ((backtestStrategyConfig?.acceleration_up_ratio ?? 0) * 100).toFixed(0) }}%
                 </span>
               </v-col>
             </v-row>
@@ -987,11 +945,6 @@ const strategyCompareFields: CompareField[] = [
   { key: 'trend_bonus_scale', label: '趋势斜率系数', group: '排名优化', type: 'number' },
   { key: 'trend_r2_threshold', label: 'R²阈值', group: '排名优化', type: 'number' },
   { key: 'trend_max_bonus', label: '最大趋势加分', group: '排名优化', type: 'number' },
-  { key: 'use_volatility_penalty', label: '波动扣分', group: '排名优化', type: 'boolean' },
-  { key: 'vol_penalty_window', label: '波动窗口', group: '排名优化', type: 'number' },
-  { key: 'vol_range_tolerance', label: '振幅容忍度', group: '排名优化', type: 'number' },
-  { key: 'vol_penalty_scale', label: '扣分系数', group: '排名优化', type: 'number' },
-  { key: 'vol_max_penalty', label: '最大扣分', group: '排名优化', type: 'number' },
   { key: 'use_explosion_filter', label: '暴涨排除', group: '交易优化', type: 'boolean' },
   { key: 'explosion_price_threshold', label: '涨幅阈值', group: '交易优化', type: 'number' },
   { key: 'explosion_volume_ratio', label: '量比阈值', group: '交易优化', type: 'number' },
@@ -1001,10 +954,6 @@ const strategyCompareFields: CompareField[] = [
   { key: 'full_position_days', label: '持续天数', group: '交易优化', type: 'number' },
   { key: 'full_position_score_window', label: '评分窗口', group: '交易优化', type: 'number' },
   { key: 'full_position_sell_count', label: '每次卖出数量', group: '交易优化', type: 'number' },
-  { key: 'use_acceleration_filter', label: '加速排除', group: '交易优化', type: 'boolean' },
-  { key: 'acceleration_window', label: '检测窗口', group: '交易优化', type: 'number' },
-  { key: 'acceleration_cum_return', label: '累计涨幅阈值', group: '交易优化', type: 'number' },
-  { key: 'acceleration_up_ratio', label: '上涨天数占比', group: '交易优化', type: 'number' },
   { key: 'use_rank_up_priority', label: '排名上涨优先', group: '交易优化', type: 'boolean' },
   { key: 'rank_up_window', label: '排名窗口', group: '交易优化', type: 'number' },
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
@@ -1096,15 +1045,8 @@ const backtestModelConfig = ref<Record<string, any> | null>(null)
 const backtestStrategyConfig = ref<Partial<Strategy> | null>(null)
 const backtestAccountConfig = ref<Backtest['account_snapshot'] | null>(null)
 const excludedStocks = ref<any[]>([])
-const accelerationExcluded = ref<any[]>([])
 const forcedSellStocks = ref<any[]>([])
 const tradingLoading = ref(false)
-
-const accelHeaders = [
-  { title: '股票', key: 'stock_name' },
-  { title: '排除次数', key: 'excluded_count', align: 'center' as const },
-  { title: '排除明细（点击展开）', key: 'excluded_dates' },
-]
 
 const forcedSellHeaders = [
   { title: '股票', key: 'stock_name' },
@@ -1265,17 +1207,14 @@ const deleteBacktest = async () => {
 const loadTradingData = async (resultId: string) => {
   tradingLoading.value = true
   try {
-    const [excludedRes, accelRes, forcedRes] = await Promise.all([
+    const [excludedRes, forcedRes] = await Promise.all([
       backtestRecordApi.getExcludedStocks(resultId),
-      backtestRecordApi.getAccelerationExcluded(resultId),
       backtestRecordApi.getForcedSellStocks(resultId),
     ])
     excludedStocks.value = excludedRes.data.items.map((s: any) => ({ ...s, _detail: false }))
-    accelerationExcluded.value = accelRes.data.items.map((s: any) => ({ ...s, _detail: false }))
     forcedSellStocks.value = forcedRes.data.items.map((s: any) => ({ ...s, _detail: false }))
   } catch {
     excludedStocks.value = []
-    accelerationExcluded.value = []
     forcedSellStocks.value = []
   } finally {
     tradingLoading.value = false

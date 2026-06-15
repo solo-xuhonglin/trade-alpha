@@ -405,7 +405,6 @@ async def get_stock_predictions(result_id: PydanticObjectId, ts_code: str) -> di
                 "momentum_penalty": pred.get("momentum_penalty"),
                 "trend_penalty": pred.get("trend_penalty"),
                 "trend_bonus": pred.get("trend_bonus"),
-                "vol_penalty": pred.get("vol_penalty"),
                 "is_excluded": pred.get("is_excluded", False),
             }
             for h in horizons:
@@ -521,38 +520,6 @@ async def get_excluded_stocks(result_id: PydanticObjectId) -> dict:
                     "date": snap.date,
                     "price_surge_pct": round(pred.get("price_surge_pct", 0), 4),
                     "volume_ratio": round(pred.get("volume_ratio", 0), 2),
-                })
-
-    if not excluded_map:
-        return {"items": []}
-
-    ts_codes = list(excluded_map.keys())
-    name_map = await get_stock_names(ts_codes)
-    items = [{"ts_code": ts, "stock_name": name_map.get(ts, ts), "excluded_count": len(dates), "excluded_dates": dates}
-             for ts, dates in excluded_map.items()]
-
-    await _enrich_future_returns(items, "excluded_dates")
-    items.sort(key=lambda x: x["excluded_count"], reverse=True)
-    return {"items": items}
-
-
-# ---------------------------------------------------------------------------
-# get_acceleration_excluded
-# ---------------------------------------------------------------------------
-
-async def get_acceleration_excluded(result_id: PydanticObjectId) -> dict:
-    snapshots = await ExecutionDailySnapshot.find(
-        ExecutionDailySnapshot.backtest_id == result_id,
-    ).sort(ExecutionDailySnapshot.date).to_list()
-
-    excluded_map: Dict[str, list] = {}
-    for snap in snapshots:
-        for ts, pred in snap.predictions.items():
-            if pred.get("is_acceleration_excluded"):
-                excluded_map.setdefault(ts, []).append({
-                    "date": snap.date,
-                    "accel_cum_return": round(pred.get("accel_cum_return", 0), 4),
-                    "accel_up_ratio": round(pred.get("accel_up_ratio", 0), 2),
                 })
 
     if not excluded_map:

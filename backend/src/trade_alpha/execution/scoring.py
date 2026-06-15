@@ -264,54 +264,6 @@ def apply_trend_penalty(
             r["trend_penalty"] = 0.0
 
 
-def apply_volatility_penalty(
-    pred_results: Dict[str, Dict],
-    strategy_config: StrategyConfig,
-    ohlc_data: Dict[str, List[Dict]],
-) -> None:
-    """Apply volatility penalty based on daily range ratio (OHLC).
-
-    Penalizes stocks with large intraday fluctuations (high avg daily range).
-    Only applied when strategy config has use_volatility_penalty=True.
-    """
-    if not strategy_config or not strategy_config.use_volatility_penalty:
-        for r in pred_results.values():
-            r["vol_penalty"] = 0.0
-            r["price_avg_range"] = 0.0
-        return
-
-    window = strategy_config.vol_penalty_window
-    tolerance = strategy_config.vol_range_tolerance
-    scale = strategy_config.vol_penalty_scale
-    max_penalty = strategy_config.vol_max_penalty
-
-    for ts_code, r in pred_results.items():
-        records = ohlc_data.get(ts_code, [])
-        if len(records) < 3:
-            r["vol_penalty"] = 0.0
-            r["price_avg_range"] = 0.0
-            continue
-
-        buf = records[-(window + 1):] if len(records) > window else records
-        daily_ranges = [
-            (d["high"] - d["low"]) / d["close"]
-            for d in buf if d["close"] > 0
-        ]
-        if not daily_ranges:
-            r["vol_penalty"] = 0.0
-            r["price_avg_range"] = 0.0
-            continue
-
-        avg_range = sum(daily_ranges) / len(daily_ranges)
-        if avg_range > tolerance:
-            vol_penalty = max(0.0, min(max_penalty, (avg_range - tolerance) * scale))
-        else:
-            vol_penalty = 0.0
-
-        r["vol_penalty"] = vol_penalty
-        r["price_avg_range"] = avg_range
-
-
 async def filter_explosions(
     pred_results: Dict[str, Dict],
     strategy_config: StrategyConfig,
@@ -434,9 +386,7 @@ class ScoreManager:
         # Compute lookback window from strategy config
         lookback = max(
             getattr(self._strategy_config, 'trend_bonus_window', 0) if self._strategy_config and self._strategy_config.use_trend_bonus else 0,
-            getattr(self._strategy_config, 'vol_penalty_window', 0) if self._strategy_config and self._strategy_config.use_volatility_penalty else 0,
             getattr(self._strategy_config, 'momentum_window', 0) if self._strategy_config and self._strategy_config.use_momentum_boost else 0,
-            getattr(self._strategy_config, 'acceleration_window', 0) if self._strategy_config and self._strategy_config.use_acceleration_filter else 0,
         )
 
         close_prices_hist: Optional[Dict[str, List[float]]] = None
@@ -454,7 +404,6 @@ class ScoreManager:
                 ]
             apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
             apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
-            apply_volatility_penalty(pred_results, self._strategy_config, ohlc_data)
         else:
             for r in pred_results.values():
                 r["trend_bonus"] = 0.0
@@ -467,7 +416,6 @@ class ScoreManager:
         apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
         apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
         await filter_explosions(pred_results, self._strategy_config, date, data_loader, vol_prices)
-        self._apply_acceleration_filter(pred_results, close_prices_hist if lookback > 0 else None)
 
         # Compute composite_score
         for r in pred_results.values():
@@ -476,7 +424,6 @@ class ScoreManager:
                 r["score"]
                 + r.get("trend_bonus", 0)
                 - r.get("trend_penalty", 0)
-                - r.get("vol_penalty", 0)
                 + r.get("momentum_bonus", 0)
                 - r.get("momentum_penalty", 0)
             )
@@ -494,10 +441,7 @@ class ScoreManager:
                 ranking_score=r.get("ranking_score", r["score"]),
                 is_excluded=r.get("is_excluded", False),
                 trend_bonus=r.get("trend_bonus", 0.0),
-                vol_penalty=r.get("vol_penalty", 0.0),
                 price_slope=r.get("price_slope", 0.0),
-                price_r_squared=r.get("price_r_squared", 0.0),
-                price_avg_range=r.get("price_avg_range", 0.0),
             )
             for h in horizons:
                 key = f"up_prob_{h}d"
@@ -597,33 +541,6 @@ class ScoreManager:
         for rank, stock in enumerate(scored_sorted, start=1):
             pred_results[stock.ts_code]["rank"] = rank
             stock.rank = rank
-
-    def _apply_acceleration_filter(
-        self,
-        pred_results: Dict[str, Dict],
-        close_prices_hist: Optional[Dict[str, List[float]]] = None,
-    ) -> None:
-        """Exclude stocks whose price is accelerating (cum return + up-day ratio)."""
-        if not self._strategy_config or not getattr(self._strategy_config, "use_acceleration_filter", False):
-            return
-        window = getattr(self._strategy_config, "acceleration_window", 5)
-        cum_return_threshold = getattr(self._strategy_config, "acceleration_cum_return", 0.15)
-        up_ratio_threshold = getattr(self._strategy_config, "acceleration_up_ratio", 0.80)
-
-        for ts_code, r in pred_results.items():
-            prices = close_prices_hist.get(ts_code, []) if close_prices_hist else []
-            if len(prices) < window + 1:
-                continue
-            recent = prices[-(window + 1):]
-            cum_return = (recent[-1] - recent[0]) / recent[0] if recent[0] > 0 else 0
-            up_days = sum(1 for i in range(1, len(recent)) if recent[i] > recent[i - 1])
-            up_ratio = up_days / (len(recent) - 1)
-            if cum_return > cum_return_threshold and up_ratio > up_ratio_threshold:
-                r["is_acceleration_excluded"] = True
-                r["is_excluded"] = True
-                r["excluded_reason"] = "acceleration"
-                r["accel_cum_return"] = round(cum_return, 4)
-                r["accel_up_ratio"] = round(up_ratio, 4)
 
     def _record_rank_history(self, date: str, scored: List[ScoredStock]) -> None:
         """Record today's scored stocks keyed by ts_code."""

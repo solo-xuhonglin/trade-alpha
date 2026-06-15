@@ -201,9 +201,7 @@ class SuggestionPipeline:
         # 2. Calculate warmup parameters
         lookback = max(
             getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
-            getattr(self.strategy_config, 'vol_penalty_window', 0) if self.strategy_config and self.strategy_config.use_volatility_penalty else 0,
             getattr(self.strategy_config, 'momentum_window', 0) if self.strategy_config and self.strategy_config.use_momentum_boost else 0,
-            getattr(self.strategy_config, 'acceleration_window', 0) if self.strategy_config and self.strategy_config.use_acceleration_filter else 0,
             getattr(self.strategy_config, 'ranking_smooth_window', 0) if self.strategy_config else 0,
         )
         warmup_days = max(int(lookback * 1.5), 10)
@@ -348,7 +346,6 @@ class SuggestionPipeline:
                             "up_prob_5d": float(getattr(s, "up_prob_5d", 0.0)),
                             "up_prob_10d": float(getattr(s, "up_prob_10d", 0.0)),
                             "trend_bonus": float(getattr(s, "trend_bonus", 0.0)),
-                            "vol_penalty": float(getattr(s, "vol_penalty", 0.0)),
                             "momentum_bonus": float(pred.get("momentum_bonus", 0.0)),
                             "momentum_penalty": float(pred.get("momentum_penalty", 0.0)),
                             "trend_penalty": float(pred.get("trend_penalty", 0.0)),
@@ -373,7 +370,6 @@ class SuggestionPipeline:
                             ranking_score=next((s.ranking_score for s in scored if s.ts_code == order.ts_code), 0.0),
                             rank=pred.get("rank", 0),
                             trend_bonus=pred.get("trend_bonus", 0.0),
-                            vol_penalty=pred.get("vol_penalty", 0.0),
                             momentum_bonus=pred.get("momentum_bonus", 0.0),
                             momentum_penalty=pred.get("momentum_penalty", 0.0),
                             trend_penalty=pred.get("trend_penalty", 0.0),

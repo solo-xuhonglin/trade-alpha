@@ -251,38 +251,6 @@
               <v-divider class="my-4"></v-divider>
 
               <div class="d-flex align-center mb-2">
-                <v-switch v-model="form.use_volatility_penalty" hide-details density="compact" color="primary"
-                  class="mr-2" label="波动扣分"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="warning">日内振幅过大扣分</v-chip>
-              </div>
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.vol_penalty_window" type="number"
-                    label="窗口天数" hint="日内振幅计算的天数" persistent-hint
-                    :disabled="!form.use_volatility_penalty"></v-text-field>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.vol_range_tolerance" type="number" step="0.005"
-                    label="振幅容忍度" hint="低于此振幅不扣分" persistent-hint
-                    :disabled="!form.use_volatility_penalty"></v-text-field>
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.vol_penalty_scale" type="number" step="0.001"
-                    label="扣分系数" hint="超出容忍度 × 系数 = 扣分" persistent-hint
-                    :disabled="!form.use_volatility_penalty"></v-text-field>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.vol_max_penalty" type="number" step="0.01"
-                    label="最大扣分" hint="波动扣分上限" persistent-hint
-                    :disabled="!form.use_volatility_penalty"></v-text-field>
-                </v-col>
-              </v-row>
-
-              <v-divider class="my-4"></v-divider>
-
-              <div class="d-flex align-center mb-2">
                 <span class="text-body-2 font-weight-medium">排名平滑</span>
                 <v-chip size="x-small" variant="outlined" color="info" class="ml-2">综合分EWMA平滑后用于排名</v-chip>
               </div>
@@ -403,31 +371,6 @@
                   <v-text-field v-model.number="form.full_position_sell_count" type="number"
                     label="每次卖出数量" hint="每次触发卖几只" persistent-hint
                     :disabled="!form.use_full_position_sell"></v-text-field>
-                </v-col>
-              </v-row>
-
-              <v-divider class="my-4"></v-divider>
-
-              <div class="d-flex align-center mb-2">
-                <v-switch v-model="form.use_acceleration_filter" hide-details density="compact" color="primary"
-                  class="mr-2" label="加速排除"></v-switch>
-                <v-chip size="x-small" variant="outlined" color="warning">历史N天越涨越快时不买入</v-chip>
-              </div>
-              <v-row>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.acceleration_window" type="number"
-                    label="检测窗口" hint="计算的天数" persistent-hint
-                    :disabled="!form.use_acceleration_filter"></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.acceleration_cum_return" type="number" step="0.05"
-                    label="累计涨幅阈值" hint="窗口总涨幅超此值" persistent-hint
-                    :disabled="!form.use_acceleration_filter"></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model.number="form.acceleration_up_ratio" type="number" step="0.05"
-                    label="上涨天数占比" hint="上涨天数/总天数超过此值" persistent-hint
-                    :disabled="!form.use_acceleration_filter"></v-text-field>
                 </v-col>
               </v-row>
 
@@ -602,20 +545,11 @@ const form = ref({
   trend_bonus_scale: 0.03,
   trend_r2_threshold: 0.30,
   trend_max_bonus: 0.1,
-  use_volatility_penalty: false,
-  vol_penalty_window: 10,
-  vol_range_tolerance: 0.035,
-  vol_penalty_scale: 0.005,
-  vol_max_penalty: 0.1,
   use_full_position_sell: false,
   full_position_threshold: 0.90,
   full_position_days: 5,
   full_position_score_window: 8,
   full_position_sell_count: 1,
-  use_acceleration_filter: false,
-  acceleration_window: 5,
-  acceleration_cum_return: 0.25,
-  acceleration_up_ratio: 0.80,
   ranking_smooth_window: 5,
   ranking_smooth_alpha: 0.3,
   ranking_median_smooth_window: 5,
@@ -658,11 +592,6 @@ const compareFields: CompareField[] = [
   { key: 'trend_bonus_scale', label: '趋势斜率系数', group: '排名优化', type: 'number' },
   { key: 'trend_r2_threshold', label: 'R²阈值', group: '排名优化', type: 'number' },
   { key: 'trend_max_bonus', label: '最大趋势加分', group: '排名优化', type: 'number' },
-  { key: 'use_volatility_penalty', label: '波动扣分', group: '排名优化', type: 'boolean' },
-  { key: 'vol_penalty_window', label: '波动窗口', group: '排名优化', type: 'number' },
-  { key: 'vol_range_tolerance', label: '振幅容忍度', group: '排名优化', type: 'number' },
-  { key: 'vol_penalty_scale', label: '扣分系数', group: '排名优化', type: 'number' },
-  { key: 'vol_max_penalty', label: '最大扣分', group: '排名优化', type: 'number' },
   { key: 'use_explosion_filter', label: '暴涨排除', group: '交易优化', type: 'boolean' },
   { key: 'explosion_price_threshold', label: '涨幅阈值', group: '交易优化', type: 'number' },
   { key: 'explosion_volume_ratio', label: '量比阈值', group: '交易优化', type: 'number' },
@@ -672,10 +601,6 @@ const compareFields: CompareField[] = [
   { key: 'full_position_days', label: '持续天数', group: '交易优化', type: 'number' },
   { key: 'full_position_score_window', label: '评分窗口', group: '交易优化', type: 'number' },
   { key: 'full_position_sell_count', label: '每次卖出数量', group: '交易优化', type: 'number' },
-  { key: 'use_acceleration_filter', label: '加速排除', group: '交易优化', type: 'boolean' },
-  { key: 'acceleration_window', label: '检测窗口', group: '交易优化', type: 'number' },
-  { key: 'acceleration_cum_return', label: '累计涨幅阈值', group: '交易优化', type: 'number' },
-  { key: 'acceleration_up_ratio', label: '上涨天数占比', group: '交易优化', type: 'number' },
   { key: 'use_rank_up_priority', label: '排名上涨优先', group: '交易优化', type: 'boolean' },
   { key: 'rank_up_window', label: '排名窗口', group: '交易优化', type: 'number' },
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
@@ -783,20 +708,11 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       trend_bonus_scale: 0.03,
       trend_r2_threshold: 0.30,
       trend_max_bonus: 0.1,
-      use_volatility_penalty: false,
-      vol_penalty_window: 10,
-      vol_range_tolerance: 0.035,
-      vol_penalty_scale: 0.005,
-      vol_max_penalty: 0.1,
       use_full_position_sell: false,
       full_position_threshold: 0.90,
       full_position_days: 5,
       full_position_score_window: 8,
       full_position_sell_count: 1,
-      use_acceleration_filter: false,
-      acceleration_window: 5,
-      acceleration_cum_return: 0.25,
-      acceleration_up_ratio: 0.80,
       use_rank_up_priority: false,
       rank_up_window: 5,
       rank_up_count: 3,
@@ -843,20 +759,11 @@ const saveStrategy = async () => {
       trend_max_bonus: form.value.type === 'multi' ? form.value.trend_max_bonus : undefined,
       use_momentum_penalty: form.value.type === 'multi' ? form.value.use_momentum_penalty : undefined,
       use_trend_penalty: form.value.type === 'multi' ? form.value.use_trend_penalty : undefined,
-      use_volatility_penalty: form.value.type === 'multi' ? form.value.use_volatility_penalty : undefined,
-      vol_penalty_window: form.value.type === 'multi' ? form.value.vol_penalty_window : undefined,
-      vol_range_tolerance: form.value.type === 'multi' ? form.value.vol_range_tolerance : undefined,
-      vol_penalty_scale: form.value.type === 'multi' ? form.value.vol_penalty_scale : undefined,
-      vol_max_penalty: form.value.type === 'multi' ? form.value.vol_max_penalty : undefined,
       use_full_position_sell: form.value.type === 'multi' ? form.value.use_full_position_sell : undefined,
       full_position_threshold: form.value.type === 'multi' ? form.value.full_position_threshold : undefined,
       full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,
       full_position_score_window: form.value.type === 'multi' ? form.value.full_position_score_window : undefined,
       full_position_sell_count: form.value.type === 'multi' ? form.value.full_position_sell_count : undefined,
-      use_acceleration_filter: form.value.type === 'multi' ? form.value.use_acceleration_filter : undefined,
-      acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
-      acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
-      acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
       use_rank_up_priority: form.value.type === 'multi' ? form.value.use_rank_up_priority : undefined,
       rank_up_window: form.value.type === 'multi' ? form.value.rank_up_window : undefined,
       rank_up_count: form.value.type === 'multi' ? form.value.rank_up_count : undefined,
@@ -899,20 +806,11 @@ const saveStrategy = async () => {
       trend_max_bonus: form.value.type === 'multi' ? form.value.trend_max_bonus : undefined,
       use_momentum_penalty: form.value.type === 'multi' ? form.value.use_momentum_penalty : undefined,
       use_trend_penalty: form.value.type === 'multi' ? form.value.use_trend_penalty : undefined,
-      use_volatility_penalty: form.value.type === 'multi' ? form.value.use_volatility_penalty : undefined,
-      vol_penalty_window: form.value.type === 'multi' ? form.value.vol_penalty_window : undefined,
-      vol_range_tolerance: form.value.type === 'multi' ? form.value.vol_range_tolerance : undefined,
-      vol_penalty_scale: form.value.type === 'multi' ? form.value.vol_penalty_scale : undefined,
-      vol_max_penalty: form.value.type === 'multi' ? form.value.vol_max_penalty : undefined,
       use_full_position_sell: form.value.type === 'multi' ? form.value.use_full_position_sell : undefined,
       full_position_threshold: form.value.type === 'multi' ? form.value.full_position_threshold : undefined,
       full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,
       full_position_score_window: form.value.type === 'multi' ? form.value.full_position_score_window : undefined,
       full_position_sell_count: form.value.type === 'multi' ? form.value.full_position_sell_count : undefined,
-      use_acceleration_filter: form.value.type === 'multi' ? form.value.use_acceleration_filter : undefined,
-      acceleration_window: form.value.type === 'multi' ? form.value.acceleration_window : undefined,
-      acceleration_cum_return: form.value.type === 'multi' ? form.value.acceleration_cum_return : undefined,
-      acceleration_up_ratio: form.value.type === 'multi' ? form.value.acceleration_up_ratio : undefined,
       use_rank_up_priority: form.value.type === 'multi' ? form.value.use_rank_up_priority : undefined,
       rank_up_window: form.value.type === 'multi' ? form.value.rank_up_window : undefined,
       rank_up_count: form.value.type === 'multi' ? form.value.rank_up_count : undefined,

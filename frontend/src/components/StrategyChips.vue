@@ -50,18 +50,6 @@
     </v-tooltip>
     <v-tooltip location="top" max-width="300">
       <template v-slot:activator="{ props }">
-        <v-chip size="x-small" variant="tonal" color="warning" class="mr-1 mb-1" v-bind="props"
-          :prepend-icon="strategy.use_volatility_penalty ? 'mdi-check' : 'mdi-close'">
-          波动扣分
-        </v-chip>
-      </template>
-      <span v-if="strategy.use_volatility_penalty">
-        窗口{{ strategy.vol_penalty_window ?? '-' }} 容忍{{ ((strategy.vol_range_tolerance ?? 0) * 100).toFixed(1) }}% 上限{{ ((strategy.vol_max_penalty ?? 0) * 100).toFixed(0) }}%
-      </span>
-      <span v-else>未启用</span>
-    </v-tooltip>
-    <v-tooltip location="top" max-width="300">
-      <template v-slot:activator="{ props }">
         <v-chip size="x-small" variant="tonal" color="primary" class="mr-1 mb-1" v-bind="props">
           排名平滑
         </v-chip>
@@ -89,18 +77,6 @@
       </template>
       <span v-if="strategy.use_full_position_sell">
         阈值{{ ((strategy.full_position_threshold ?? 0) * 100).toFixed(0) }}% 持续{{ strategy.full_position_days ?? '-' }}天
-      </span>
-      <span v-else>未启用</span>
-    </v-tooltip>
-    <v-tooltip location="top" max-width="300">
-      <template v-slot:activator="{ props }">
-        <v-chip size="x-small" variant="tonal" color="primary" class="mr-1 mb-1" v-bind="props"
-          :prepend-icon="strategy.use_acceleration_filter ? 'mdi-check' : 'mdi-close'">
-          加速过滤
-        </v-chip>
-      </template>
-      <span v-if="strategy.use_acceleration_filter">
-        窗口{{ strategy.acceleration_window ?? '-' }} 涨幅{{ ((strategy.acceleration_cum_return ?? 0) * 100).toFixed(0) }}%
       </span>
       <span v-else>未启用</span>
     </v-tooltip>

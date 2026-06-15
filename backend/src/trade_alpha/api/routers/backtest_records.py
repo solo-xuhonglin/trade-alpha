@@ -14,7 +14,6 @@ from trade_alpha.execution.backtest_service import (
     get_prediction_stocks,
     get_stock_predictions,
     get_excluded_stocks,
-    get_acceleration_excluded,
     get_forced_sell_stocks,
     list_all_trades,
     get_daily_snapshots,
@@ -96,13 +95,6 @@ async def excluded_stocks(result_id: str):
     """Get explosion filter statistics for a backtest result."""
     obj_id = _parse_id(result_id)
     return await get_excluded_stocks(result_id=obj_id)
-
-
-@router.get("/{result_id}/acceleration-excluded")
-async def acceleration_excluded(result_id: str):
-    """Get acceleration filter statistics for a backtest result."""
-    obj_id = _parse_id(result_id)
-    return await get_acceleration_excluded(result_id=obj_id)
 
 
 @router.get("/{result_id}/forced-sell-stocks")
