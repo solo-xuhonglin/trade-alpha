@@ -24,6 +24,10 @@ class ScoredStock(BaseModel):
     up_prob_5d: float = 0.0
     up_prob_10d: float = 0.0
     up_prob_20d: float = 0.0
+    down_prob_3d: float = 0.0
+    down_prob_5d: float = 0.0
+    down_prob_10d: float = 0.0
+    down_prob_20d: float = 0.0
 
     # --- 趋势/动量调整 ---
     trend_bonus: float = 0.0

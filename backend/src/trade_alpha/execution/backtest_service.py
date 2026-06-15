@@ -409,7 +409,7 @@ async def get_stock_predictions(result_id: PydanticObjectId, ts_code: str) -> di
             }
             for h in horizons:
                 item[f"up_prob_{h}d"] = getattr(pred, f"up_prob_{h}d", None)
-                item[f"down_prob_{h}d"] = None
+                item[f"down_prob_{h}d"] = getattr(pred, f"down_prob_{h}d", None)
             items.append(item)
             dates.append(snap.date)
 

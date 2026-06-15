@@ -454,6 +454,8 @@ class ScoreManager:
             for h in horizons:
                 key = f"up_prob_{h}d"
                 kwargs[key] = r[key]
+                key = f"down_prob_{h}d"
+                kwargs[key] = r[key]
             stock_map[ts_code] = ScoredStock(**kwargs)
 
         # Record ranks
