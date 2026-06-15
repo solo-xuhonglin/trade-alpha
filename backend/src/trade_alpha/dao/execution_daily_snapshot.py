@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from pydantic import Field
 from beanie import Document, PydanticObjectId
 from trade_alpha.dao.position import PositionEmbed
+from trade_alpha.schemas import ScoredStock
 
 
 class ExecutionDailySnapshot(Document):
@@ -22,9 +23,9 @@ class ExecutionDailySnapshot(Document):
     ranking_median: float = 0.0
     ranking_high_pct: float = 0.0
     ranking_low_pct: float = 0.0
-    ranking_regime: str = ""             # market regime: "trending_up" / "trending_down" / "sideways" / ""
-    score_scalar: float = 1.0           # score attenuation factor from market-aware trading
-    predictions: Dict[str, Dict] = Field(default_factory=dict)
+    ranking_regime: str = ""
+    score_scalar: float = 1.0
+    predictions: Dict[str, ScoredStock] = Field(default_factory=dict)
 
     class Settings:
         name = "execution_daily_snapshots"

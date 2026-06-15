@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from beanie import PydanticObjectId
 import numpy as np
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
-from trade_alpha.schemas import ScoredStock, PendingOrder
+from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed, BaselineTracker
 from trade_alpha.logging import get_logger
 
 logger = get_logger("strategy.base")
@@ -27,7 +27,6 @@ class PositionManager:
         buy_threshold: float = 0.1,
         sell_threshold: float = -0.1,
         min_hold_days: int = 3,
-        use_market_aware_trading: bool = False,
     ):
         self.max_positions = max_positions
         self.max_position_pct = max_position_pct
@@ -37,18 +36,16 @@ class PositionManager:
         self.min_hold_days = min_hold_days
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
-        self.market_regime: Literal["trending_up", "trending_down", "sideways", ""] = ""
-        self.ranking_median: Optional[float] = None
-        self.ranking_median_smoothed: Optional[float] = None
-        self.use_market_aware_trading = use_market_aware_trading
 
     async def make_decisions(
         self,
         scored_stocks: List[ScoredStock],
-        current_positions: Dict[str, PositionEmbed],
-        cash: float,
         trade_date: str,
+        portfolio: "PortfolioManager",
         close_prices: Optional[Dict[str, float]] = None,
+        market_data: Optional[MarketDataEmbed] = None,
+        score_manager: Optional["ScoreManager"] = None,
+        suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make buy/sell decisions (to be implemented by subclasses)."""
         raise NotImplementedError("Subclasses must implement make_decisions")
@@ -194,18 +191,6 @@ class PositionManager:
         if prev_total_value is not None and prev_total_value > 0:
             day_return = (total_value - prev_total_value) / prev_total_value
 
-        def _convert_to_native(obj):
-            """Convert numpy types to Python native types."""
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            if isinstance(obj, (np.integer, np.floating)):
-                return obj.item()
-            if isinstance(obj, dict):
-                return {k: _convert_to_native(v) for k, v in obj.items()}
-            if isinstance(obj, (list, tuple)):
-                return [_convert_to_native(item) for item in obj]
-            return obj
-
         snapshot = ExecutionDailySnapshot(
             backtest_id=backtest_id,
             date=date,
@@ -214,7 +199,7 @@ class PositionManager:
             total_market_value=total_market_value,
             total_value=total_value,
             day_return=day_return,
-            predictions=_convert_to_native(predictions) if predictions else {},
+            predictions=predictions or {},
             baseline_value=baseline_value or 0.0,
         )
         await snapshot.insert()

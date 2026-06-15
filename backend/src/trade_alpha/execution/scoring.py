@@ -369,8 +369,11 @@ class ScoreManager:
         name_map: Dict[str, str],
         start_date: str,
         vol_prices: Optional[Dict[str, float]] = None,
-    ) -> Tuple[List[ScoredStock], Dict[str, Dict]]:
-        """Full scoring pipeline: predict -> enhance -> compose -> smooth -> rank."""
+    ) -> Dict[str, ScoredStock]:
+        """Full scoring pipeline: predict -> enhance -> compose -> smooth -> rank.
+
+        Returns a dict of ts_code -> ScoredStock.
+        """
         horizons = self._model_config.classification_horizons
         target_names = [f"label_{h}d" for h in horizons]
         pred_results_raw = await predictor.predict_batch(
@@ -381,7 +384,7 @@ class ScoreManager:
             close_price = close_prices.get(ts_code, 0)
             pred_results[ts_code] = compute_scores(probs, close_price, horizons)
         if not pred_results:
-            return [], {}
+            return {}
 
         # Compute lookback window from strategy config
         lookback = max(
@@ -395,13 +398,8 @@ class ScoreManager:
                 date, list(pred_results.keys()), lookback + 5
             )
             close_prices_hist = {}
-            ohlc_data: Dict[str, List[Dict]] = {}
             for ts_code, records in history_data.items():
                 close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
-                ohlc_data[ts_code] = [
-                    {"open": r.open, "high": r.high, "low": r.low, "close": r.close}
-                    for r in records if r.close is not None
-                ]
             apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
             apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
         else:
@@ -430,52 +428,63 @@ class ScoreManager:
 
         smooth_scores(pred_results, self._strategy_config, self._score_buffer)
 
-        # Build ScoredStock objects
-        scored = []
+        # Build ScoredStock objects with ALL fields from pred_results
+        stock_map: Dict[str, ScoredStock] = {}
         for ts_code, r in pred_results.items():
-            kwargs = dict(
+            kwargs: Dict = dict(
                 ts_code=ts_code,
                 stock_name=name_map.get(ts_code, ts_code),
                 close=r["close"],
+                raw_score=r.get("raw_score", 0.0),
                 score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
-                is_excluded=r.get("is_excluded", False),
                 trend_bonus=r.get("trend_bonus", 0.0),
+                trend_penalty=r.get("trend_penalty", 0.0),
+                momentum_bonus=r.get("momentum_bonus", 0.0),
+                momentum_penalty=r.get("momentum_penalty", 0.0),
                 price_slope=r.get("price_slope", 0.0),
+                price_r_squared=r.get("price_r_squared", 0.0),
+                price_avg_range=r.get("price_avg_range", 0.0),
+                vol_penalty=r.get("vol_penalty", 0.0),
+                volume_ratio=r.get("volume_ratio", 0.0),
+                is_excluded=r.get("is_excluded", False),
+                is_explosion_excluded=r.get("is_explosion_excluded", False),
+                price_surge_pct=r.get("price_surge_pct", 0.0),
             )
             for h in horizons:
                 key = f"up_prob_{h}d"
                 kwargs[key] = r[key]
-            scored.append(ScoredStock(**kwargs))
+            stock_map[ts_code] = ScoredStock(**kwargs)
 
-        self._record_ranks(scored, pred_results)
-        self._record_rank_history(date, scored)
+        # Record ranks
+        scored_list = list(stock_map.values())
+        self._record_ranks(scored_list, pred_results)
+        self._record_rank_history(date, scored_list)
 
-        # Compute rank_improvement
+        # Write rank and rank_improvement back
         window = getattr(self._strategy_config, 'rank_up_window', 5)
-        for stock in scored:
+        for stock in scored_list:
             improvement = self._compute_rank_improvement(
                 stock.ts_code, stock.rank, window
             )
             stock.rank_improvement = improvement if improvement is not None else 0.0
-            pred_results[stock.ts_code]["rank_improvement"] = stock.rank_improvement
 
         if date == start_date:
-            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
-            if scored:
-                top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
+            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored_list)} with score > 0")
+            if scored_list:
+                top5 = sorted(scored_list, key=lambda s: s.score, reverse=True)[:5]
                 logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
 
-        return scored, pred_results
+        return stock_map
 
-    def compute_market_regime(self, pred_results: Dict[str, Dict]) -> str:
+    def compute_market_regime(self, stock_map: Dict[str, ScoredStock]) -> str:
         """Compute market regime from ranking_scores, update internal state.
 
         Uses smooth_ewma for consistent smoothing with per-stock scores.
         """
         rank_scores = [
-            p.get("ranking_score", 0) for p in pred_results.values()
-            if isinstance(p, dict) and p.get("ranking_score") is not None
+            s.ranking_score for s in stock_map.values()
+            if s.ranking_score is not None
         ]
         if not rank_scores:
             self._last_market_data = None

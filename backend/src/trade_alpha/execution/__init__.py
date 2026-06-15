@@ -1,4 +1,4 @@
-from .schemas import ScoredStock, PendingOrder
+from trade_alpha.schemas import ScoredStock, PendingOrder
 from .data_loader import DataLoader
 
 __all__ = [

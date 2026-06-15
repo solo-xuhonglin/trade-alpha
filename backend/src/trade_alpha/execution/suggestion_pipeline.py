@@ -21,7 +21,7 @@ from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
-from trade_alpha.schemas import ScoredStock
+from trade_alpha.schemas import ScoredStock, MarketDataEmbed
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.suggestion_pipeline")
@@ -75,8 +75,6 @@ class SuggestionPipeline:
             min_order_value=5000.0,
         )
 
-        self._daily_forced_sells: List[Dict] = []
-
     async def _ensure_predictor(self) -> None:
         if self.predictor is None:
             training = await get_training_by_id(self.training_id)
@@ -99,74 +97,6 @@ class SuggestionPipeline:
             "close": dict(zip(day_df["ts_code"], day_df["close"])),
             "vol": dict(zip(day_df["ts_code"], day_df["vol"])),
         }
-
-    def _apply_full_position_sell(
-        self,
-        pred_results: Dict[str, Dict],
-        close_prices: Dict[str, float],
-        date: str,
-        name_map: Dict[str, str],
-    ) -> None:
-        """Sell worst-scored stocks when portfolio is over-positioned for N days."""
-        if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
-            return
-        threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
-        # Scale threshold by market-aware scalar to reduce position size more
-        # aggressively in weak markets (existing positions aren't affected by
-        # reserve_funds max_position_scalar, so we need active selling).
-        score_scalar = self.strategy._market_score_scalar()
-        threshold *= score_scalar
-        days_required = getattr(self.strategy_config, "full_position_days", 3)
-        score_window = getattr(self.strategy_config, "full_position_score_window", 5)
-        sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
-
-        total_value = self.portfolio.get_total_value(close_prices)
-        if total_value <= 0:
-            return
-        cash = self.portfolio.cash
-        market_value = total_value - cash
-        invested_pct = market_value / total_value
-        if invested_pct < threshold:
-            self._full_position_consecutive_days = 0
-            return
-        self._full_position_consecutive_days = getattr(self, "_full_position_consecutive_days", 0) + 1
-        if self._full_position_consecutive_days < days_required:
-            return
-
-        if not self.portfolio.positions:
-            return
-
-        from trade_alpha.schemas import PendingOrder
-        scored_holds: List[tuple] = []
-        for ts_code in self.portfolio.positions:
-            pred = pred_results.get(ts_code, {})
-            score = pred.get("composite_score") or pred.get("score", 0)
-            buffer = self.score_manager.get_score_buffer(ts_code)
-            if len(buffer) >= score_window:
-                avg_score = sum(buffer[-score_window:]) / score_window
-            elif buffer:
-                avg_score = sum(buffer) / len(buffer)
-            else:
-                avg_score = score
-            scored_holds.append((avg_score, ts_code))
-
-        scored_holds.sort(key=lambda x: x[0])
-        for i in range(min(sell_count, len(scored_holds))):
-            _, ts_code = scored_holds[i]
-            pos = self.portfolio.positions.get(ts_code)
-            if not pos:
-                continue
-            order = PendingOrder(
-                ts_code=ts_code,
-                stock_name=name_map.get(ts_code, ts_code),
-                order_price=close_prices.get(ts_code, 0),
-                order_shares=-pos.shares,
-                score=0.0,
-                trade_date=date,
-                settle_date=_next_date(date),
-                reason="full_position_sell",
-            )
-            self._daily_forced_sells.append({"ts_code": ts_code, "reason": "full_position"})
 
     async def run(
         self,
@@ -254,7 +184,7 @@ class SuggestionPipeline:
                 close_prices = day_data["close"]
                 vol_prices = day_data.get("vol", {})
 
-                scored, pred_results = await self.score_manager.predict_and_score(
+                stock_map = await self.score_manager.predict_and_score(
                     predictor=self.predictor,
                     data_loader=self.data_loader,
                     date=date,
@@ -263,7 +193,7 @@ class SuggestionPipeline:
                     start_date=date,
                     vol_prices=vol_prices,
                 )
-                if not scored:
+                if not stock_map:
                     date = _next_date(date)
                     continue
 
@@ -308,16 +238,17 @@ class SuggestionPipeline:
                             f"正在处理 {date} ({processed}/{total_targets})",
                         )
 
-                    # Apply full_position_sell
-                    self._daily_forced_sells = []
-                    self._apply_full_position_sell(pred_results, close_prices, date, name_map)
+                    market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
+                        if self.score_manager.last_market_data else None
 
                     # Generate buy/sell suggestions
                     pending_orders = await self.strategy.make_decisions(
-                        scored_stocks=scored,
-                        portfolio=self.portfolio,
+                        scored_stocks=list(stock_map.values()),
                         trade_date=date,
+                        portfolio=self.portfolio,
                         close_prices=close_prices,
+                        market_data=market_data,
+                        score_manager=self.score_manager,
                         suggestion_mode=True,
                     )
 
@@ -332,26 +263,25 @@ class SuggestionPipeline:
 
                     # Bulk insert scored stocks to LiveDailyStockScore
                     score_docs = []
-                    for s in scored:
-                        pred = pred_results.get(s.ts_code, {})
+                    for s in stock_map.values():
                         score_docs.append({
                             "ts_code": s.ts_code,
                             "stock_name": s.stock_name,
                             "trade_date": date,
-                            "rank": int(pred.get("rank", 0)),
-                            "composite_score": float(s.score),
-                            "raw_score": float(pred.get("raw_score", 0.0)),
-                            "ranking_score": float(s.ranking_score),
-                            "up_prob_3d": float(getattr(s, "up_prob_3d", 0.0)),
-                            "up_prob_5d": float(getattr(s, "up_prob_5d", 0.0)),
-                            "up_prob_10d": float(getattr(s, "up_prob_10d", 0.0)),
-                            "trend_bonus": float(getattr(s, "trend_bonus", 0.0)),
-                            "momentum_bonus": float(pred.get("momentum_bonus", 0.0)),
-                            "momentum_penalty": float(pred.get("momentum_penalty", 0.0)),
-                            "trend_penalty": float(pred.get("trend_penalty", 0.0)),
+                            "rank": s.rank,
+                            "composite_score": s.score,
+                            "raw_score": s.raw_score,
+                            "ranking_score": s.ranking_score,
+                            "up_prob_3d": s.up_prob_3d,
+                            "up_prob_5d": s.up_prob_5d,
+                            "up_prob_10d": s.up_prob_10d,
+                            "trend_bonus": s.trend_bonus,
+                            "momentum_bonus": s.momentum_bonus,
+                            "momentum_penalty": s.momentum_penalty,
+                            "trend_penalty": s.trend_penalty,
                             "order_price": float(close_prices.get(s.ts_code, 0.0)),
                             "order_shares": int(next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0)),
-                            "is_excluded": bool(s.is_excluded),
+                            "is_excluded": s.is_excluded,
                             "updated_at": datetime.utcnow(),
                         })
                     if score_docs:
@@ -360,26 +290,26 @@ class SuggestionPipeline:
                     # Save to LiveOrderSuggestion
                     suggestions = []
                     for order in pending_orders:
-                        pred = pred_results.get(order.ts_code, {})
+                        stock = stock_map.get(order.ts_code)
                         kwargs = dict(
                             ts_code=order.ts_code,
                             stock_name=name_map.get(order.ts_code, order.ts_code),
                             trade_date=date,
-                            raw_score=pred.get("raw_score", order.score),
-                            composite_score=pred.get("composite_score", order.score),
-                            ranking_score=next((s.ranking_score for s in scored if s.ts_code == order.ts_code), 0.0),
-                            rank=pred.get("rank", 0),
-                            trend_bonus=pred.get("trend_bonus", 0.0),
-                            momentum_bonus=pred.get("momentum_bonus", 0.0),
-                            momentum_penalty=pred.get("momentum_penalty", 0.0),
-                            trend_penalty=pred.get("trend_penalty", 0.0),
-                            is_excluded=pred.get("is_excluded", False),
-                            excluded_reason=pred.get("excluded_reason", None),
+                            raw_score=stock.raw_score if stock else order.score,
+                            composite_score=stock.score if stock else order.score,
+                            ranking_score=stock.ranking_score if stock else 0.0,
+                            rank=stock.rank if stock else 0,
+                            trend_bonus=stock.trend_bonus if stock else 0.0,
+                            momentum_bonus=stock.momentum_bonus if stock else 0.0,
+                            momentum_penalty=stock.momentum_penalty if stock else 0.0,
+                            trend_penalty=stock.trend_penalty if stock else 0.0,
+                            is_excluded=stock.is_excluded if stock else False,
+                            excluded_reason=None,
                             reason=order.reason or "live_suggestion",
                         )
                         for h in self.model_config.classification_horizons:
                             key = f"up_prob_{h}d"
-                            kwargs[key] = pred.get(key, getattr(order, key, 0.0))
+                            kwargs[key] = getattr(stock, key, 0.0) if stock else getattr(order, key, 0.0)
                         suggestions.append(LiveOrderSuggestion(**kwargs))
 
                     if suggestions:

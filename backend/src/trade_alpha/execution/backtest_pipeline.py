@@ -18,7 +18,7 @@ from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
-from trade_alpha.schemas import ScoredStock, PendingOrder
+from trade_alpha.schemas import ScoredStock, PendingOrder, BaselineTracker, MarketDataEmbed
 from trade_alpha.constants import SELL_REASON_FULL_POSITION
 from trade_alpha.logging import get_logger
 from trade_alpha.utils.date_utils import get_year_months
@@ -56,8 +56,6 @@ class BacktestPipeline:
         if not self.ts_codes and mode != "live":
             raise ValueError("ts_codes is required for pipeline initialization")
 
-        self._config = model_config
-
         self.data_loader = DataLoader()
         self.predictor = None  # 延迟初始化
 
@@ -80,91 +78,20 @@ class BacktestPipeline:
             max_position_pct=getattr(strategy_config, 'max_position_pct', 0.3),
             min_order_value=getattr(strategy_config, 'min_order_value', 5000.0),
         )
-        self.prev_total_value: Optional[float] = None
-        self.pending_orders: List[PendingOrder] = []
         self.score_manager = ScoreManager(strategy_config, model_config)
-        self._daily_forced_sells: List[Dict] = []
 
-    def _append_pending_order(self, order: PendingOrder) -> None:
+    @staticmethod
+    def _append_pending_order(pending_orders: List[PendingOrder], order: PendingOrder) -> None:
         """Append a pending order, skipping if a sell order for the same stock already exists.
 
         Buy orders are always appended.  Sell orders that duplicate an existing
         sell for the same ts_code are silently dropped.
         """
         if order.order_shares < 0:
-            for o in self.pending_orders:
+            for o in pending_orders:
                 if o.ts_code == order.ts_code and o.order_shares < 0:
                     return
-        self.pending_orders.append(order)
-
-    def _apply_full_position_sell(
-        self,
-        pred_results: Dict[str, Dict],
-        close_prices: Dict[str, float],
-        date: str,
-        name_map: Dict[str, str],
-    ) -> None:
-        """Sell worst-scored stocks when portfolio is over-positioned for N days."""
-        if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
-            return
-        threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
-        # Scale threshold by market-aware scalar to reduce position size more
-        # aggressively in weak markets (existing positions aren't affected by
-        # reserve_funds max_position_scalar, so we need active selling).
-        score_scalar = self.strategy._market_score_scalar()
-        threshold *= score_scalar
-        days_required = getattr(self.strategy_config, "full_position_days", 3)
-        score_window = getattr(self.strategy_config, "full_position_score_window", 5)
-        sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
-
-        total_value = self.portfolio.get_total_value(close_prices)
-        if total_value <= 0:
-            return
-        cash = self.portfolio.cash
-        market_value = total_value - cash
-        invested_pct = market_value / total_value
-        if invested_pct < threshold:
-            self._full_position_consecutive_days = 0
-            return
-        self._full_position_consecutive_days = getattr(self, "_full_position_consecutive_days", 0) + 1
-        if self._full_position_consecutive_days < days_required:
-            return
-
-        if not self.portfolio.positions:
-            return
-
-        scored_holds: List[tuple] = []
-        for ts_code in self.portfolio.positions:
-            pred = pred_results.get(ts_code, {})
-            score = pred.get("composite_score") or pred.get("score", 0)
-            # Use average score over score_window to avoid single-day outliers
-            buffer = self.score_manager.get_score_buffer(ts_code)
-            if len(buffer) >= score_window:
-                avg_score = sum(buffer[-score_window:]) / score_window
-            elif buffer:
-                avg_score = sum(buffer) / len(buffer)
-            else:
-                avg_score = score
-            scored_holds.append((avg_score, ts_code))
-
-        scored_holds.sort(key=lambda x: x[0])
-        for i in range(min(sell_count, len(scored_holds))):
-            _, ts_code = scored_holds[i]
-            pos = self.portfolio.positions.get(ts_code)
-            if not pos:
-                continue
-            order = PendingOrder(
-                ts_code=ts_code,
-                stock_name=name_map.get(ts_code, ts_code),
-                order_price=close_prices.get(ts_code, 0),
-                order_shares=-pos.shares,
-                score=0.0,
-                trade_date=date,
-                settle_date=_next_date(date),
-                reason=SELL_REASON_FULL_POSITION,
-            )
-            self.pending_orders.append(order)
-            self._daily_forced_sells.append({"ts_code": ts_code, "reason": "full_position"})
+        pending_orders.append(order)
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -238,32 +165,19 @@ class BacktestPipeline:
             "vol": dict(zip(day_df["ts_code"], day_df["vol"])),
         }
 
-    def _track_baseline(self, close_prices: Dict[str, float]) -> None:
-        if not self._baseline_initialized:
-            capital_per_stock = self.account_config.initial_capital / len(self.ts_codes)
-            for code in self.ts_codes:
-                price = close_prices.get(code)
-                if price and price > 0:
-                    self._baseline_shares[code] = capital_per_stock / price
-            self._baseline_initialized = True
-
-        total = 0.0
-        has_data = False
-        for code, shares in self._baseline_shares.items():
-            price = close_prices.get(code)
-            if price and price > 0:
-                total += shares * price
-                has_data = True
-        if has_data:
-            self._baseline_daily_values.append(total)
-
-    async def _settle_orders(self, date: str, backtest_id: PydanticObjectId,
-                              name_map: Dict[str, str], day_data: Dict) -> Tuple[int, float]:
-        if not self.pending_orders:
+    async def _settle_orders(
+        self,
+        pending_orders: List[PendingOrder],
+        date: str,
+        backtest_id: PydanticObjectId,
+        name_map: Dict[str, str],
+        day_data: Dict,
+    ) -> Tuple[int, float]:
+        if not pending_orders:
             return 0, 0.0
 
         filled_trades, unfilled_orders, net_cash = await self.strategy.settle_orders(
-            orders=self.pending_orders, date=date,
+            orders=pending_orders, date=date,
             open_prices=day_data["open"], high_prices=day_data["high"],
             low_prices=day_data["low"], backtest_id=backtest_id,
             cash=self.portfolio.cash,
@@ -297,8 +211,7 @@ class BacktestPipeline:
                     sell_revenue = t.filled_price * abs(t.shares) - t.fee - stamp_tax
                     t.pnl_amount = round(sell_revenue - cost_basis, 2)
                     t.pnl_pct = round(t.pnl_amount / cost_basis, 4) if cost_basis > 0 else None
-            # propagate reason from PendingOrder to filled trade
-            order = next((o for o in self.pending_orders if o.ts_code == t.ts_code and
+            order = next((o for o in pending_orders if o.ts_code == t.ts_code and
                           abs(o.order_shares) == abs(t.shares)), None)
             if order and order.reason and not t.reason:
                 t.reason = order.reason
@@ -318,35 +231,38 @@ class BacktestPipeline:
             if order.order_shares > 0:
                 self.portfolio.cancel_reservation(order.ts_code, order.order_shares, order.order_price)
 
-        self.pending_orders.clear()
         return len(filled_trades), total_fees
 
-    async def _make_orders(self, scored: List[ScoredStock],
-                            close_prices: Dict[str, float], date: str) -> None:
-        pending_orders = await self.strategy.make_decisions(
-            scored_stocks=scored, portfolio=self.portfolio,
-            trade_date=date, close_prices=close_prices,
+    async def _make_orders(
+        self,
+        scored_stocks: List[ScoredStock],
+        close_prices: Dict[str, float],
+        date: str,
+    ) -> List[PendingOrder]:
+        return await self.strategy.make_decisions(
+            scored_stocks=scored_stocks,
+            portfolio=self.portfolio,
+            trade_date=date,
+            close_prices=close_prices,
         )
-        for order in pending_orders:
-            order.trade_date = date
-            order.settle_date = _next_date(date)
-        self.pending_orders = pending_orders
 
-    async def _save_snapshot(self, date: str, backtest_id: PydanticObjectId,
-                              close_prices: Dict[str, float],
-                              pred_results: Dict[str, Dict]) -> Tuple[float, Optional[float]]:
-        baseline_value = self._baseline_daily_values[-1] if len(self._baseline_daily_values) > 0 else self.portfolio.cash
+    async def _save_snapshot(
+        self,
+        date: str,
+        backtest_id: PydanticObjectId,
+        close_prices: Dict[str, float],
+        stock_map: Dict[str, ScoredStock],
+        prev_total_value: Optional[float],
+        baseline_value: float,
+    ) -> Tuple[float, Optional[float]]:
         snapshot = await self.strategy.daily_snapshot(
             backtest_id=backtest_id, date=date, cash=self.portfolio.cash,
             positions=self.portfolio.positions, close_prices=close_prices,
-            prev_total_value=self.prev_total_value, predictions=pred_results,
+            prev_total_value=prev_total_value, predictions=stock_map,
             baseline_value=baseline_value,
         )
-
         if self.score_manager.last_market_data:
             await snapshot.update({"$set": self.score_manager.last_market_data})
-
-        self.prev_total_value = snapshot.total_value
         return snapshot.total_value, snapshot.day_return
 
     async def run_backtest(
@@ -357,25 +273,30 @@ class BacktestPipeline:
         task_id: Optional[PydanticObjectId] = None,
     ) -> ExecutionResult:
         result = await self._create_result(start_date, end_date, name)
-        self.result = result
         await self._ensure_predictor(task_id)
         name_map = await get_stock_names(self.ts_codes)
 
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
 
-        self._init_baseline(result.initial_capital)
+        baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
 
-        daily_values, daily_returns, total_trades, total_fees = \
-            await self._run_daily_loop(start_date, end_date, result.id, name_map, task_id)
+        daily_values, daily_returns, total_trades = await self._run_daily_loop(
+            start_date, end_date, result.id, name_map, task_id, baseline_tracker,
+        )
 
-        await self._finalize_result(result, daily_values, daily_returns, total_trades, total_fees)
+        result = await self._finalize_result(
+            result, daily_values, daily_returns, total_trades, baseline_tracker,
+        )
         return result
 
-    async def _run_daily_loop(self, start_date, end_date, backtest_id, name_map, task_id):
+    async def _run_daily_loop(
+        self, start_date, end_date, backtest_id, name_map, task_id, baseline_tracker,
+    ):
+        prev_total_value: Optional[float] = None
+        pending_orders: List[PendingOrder] = []
         daily_values: List[float] = []
         daily_returns: List[float] = []
         total_trades = 0
-        total_fees = 0.0
         year_months = get_year_months(start_date, end_date)
         total_months = len(year_months)
         last_idx = 0
@@ -394,14 +315,15 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            self._track_baseline(close_prices)
+            baseline_tracker.track(close_prices)
 
-            trades_add, fees_add = await self._settle_orders(date, backtest_id, name_map, day_data)
+            trades_add, _ = await self._settle_orders(
+                pending_orders, date, backtest_id, name_map, day_data,
+            )
             total_trades += trades_add
-            total_fees += fees_add
 
             vol_prices = day_data.get("vol", {})
-            scored, pred_results = await self.score_manager.predict_and_score(
+            stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
@@ -410,44 +332,45 @@ class BacktestPipeline:
                 start_date=start_date,
                 vol_prices=vol_prices,
             )
-            if not scored:
+            if not stock_map:
                 date = _next_date(date)
                 continue
 
-            self._daily_forced_sells = []
+            market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
+                if self.score_manager.last_market_data else None
 
-            # Compute market regime FIRST so forced_sell and make_orders
-            # both use TODAY's market state (not yesterday's)
-            market_regime = self.score_manager.compute_market_regime(pred_results)
-            self.strategy.market_regime = market_regime
-            md = self.score_manager.last_market_data
-            self.strategy.ranking_median = md.get("ranking_median") if md else None
-            self.strategy.ranking_median_smoothed = md.get("ranking_median_smoothed") if md else None
+            pending_orders = await self.strategy.make_decisions(
+                scored_stocks=list(stock_map.values()),
+                trade_date=date,
+                portfolio=self.portfolio,
+                close_prices=close_prices,
+                market_data=market_data,
+                score_manager=self.score_manager,
+            )
 
-            self._apply_full_position_sell(pred_results, close_prices, date, name_map)
-            for fs in self._daily_forced_sells:
-                ts_code = fs["ts_code"]
-                if ts_code in pred_results:
-                    pred_results[ts_code]["is_forced_sell"] = True
-                    pred_results[ts_code]["forced_sell_reason"] = fs["reason"]
+            # Mark forced-sell orders for snapshot reporting
+            for o in pending_orders:
+                if o.order_shares < 0 and o.reason == SELL_REASON_FULL_POSITION:
+                    if o.ts_code in stock_map:
+                        stock_map[o.ts_code].is_forced_sell = True
+                        stock_map[o.ts_code].forced_sell_reason = "full_position"
 
-            forced_sell_orders = list(self.pending_orders)
-            self.pending_orders.clear()
-
-            day_val, day_ret = await self._save_snapshot(date, backtest_id, close_prices, pred_results)
+            day_val, day_ret = await self._save_snapshot(
+                date, backtest_id, close_prices, stock_map,
+                prev_total_value, baseline_tracker.latest_value,
+            )
+            prev_total_value = day_val
             daily_values.append(day_val)
             if day_ret is not None:
                 daily_returns.append(day_ret)
 
-            await self._make_orders(scored, close_prices, date)
-            for o in forced_sell_orders:
-                self._append_pending_order(o)
-
             date = _next_date(date)
 
-        return daily_values, daily_returns, total_trades, total_fees
+        return daily_values, daily_returns, total_trades
 
-    async def _finalize_result(self, result, daily_values, daily_returns, total_trades, total_fees):
+    async def _finalize_result(
+        self, result, daily_values, daily_returns, total_trades, baseline_tracker,
+    ):
         final_value = daily_values[-1] if daily_values else self.portfolio.cash
         total_return = (final_value - self.account_config.initial_capital) / self.account_config.initial_capital
 
@@ -473,8 +396,8 @@ class BacktestPipeline:
             profit_sells = sum(1 for t in sell_trades if t.pnl_amount and t.pnl_amount > 0)
             result.trade_win_rate = round(profit_sells / len(sell_trades), 4)
 
-        if len(self._baseline_daily_values) > 1:
-            baseline_vals = self._baseline_daily_values
+        baseline_vals = baseline_tracker.daily_values
+        if len(baseline_vals) > 1:
             baseline_ret = (baseline_vals[-1] - baseline_vals[0]) / baseline_vals[0]
             result.baseline_return = round(baseline_ret, 4)
             result.baseline_max_drawdown = round(self._calc_max_drawdown(baseline_vals), 4)
@@ -496,7 +419,7 @@ class BacktestPipeline:
         result.max_drawdown = round(max_drawdown, 4)
         result.win_rate = round(win_rate, 4)
         result.total_trades = total_trades
-        result.total_fees = round(total_fees, 2)
+        result.total_fees = 0.0
         result.ts_codes = self.ts_codes
         result.status = "completed"
         await result.save()

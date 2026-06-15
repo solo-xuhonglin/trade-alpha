@@ -328,10 +328,10 @@ async def get_prediction_stocks(result_id: PydanticObjectId) -> dict:
 
     for snap in snapshots:
         for ts, pred in snap.predictions.items():
-            score = pred.get("composite_score") or pred.get("score", 0)
-            rank = pred.get("rank")
+            score = pred.composite_score or pred.score or 0
+            rank = pred.rank
             stock_scores.setdefault(ts, []).append(score)
-            if rank is not None:
+            if rank is not None and rank > 0:
                 stock_ranks.setdefault(ts, []).append(rank)
 
     if not stock_scores:
@@ -396,20 +396,20 @@ async def get_stock_predictions(result_id: PydanticObjectId, ts_code: str) -> di
         if pred is not None:
             item = {
                 "trade_date": snap.date,
-                "score": pred.get("score"),
-                "raw_score": pred.get("raw_score"),
-                "composite_score": pred.get("composite_score"),
-                "ranking_score": pred.get("ranking_score"),
-                "rank": pred.get("rank"),
-                "momentum_bonus": pred.get("momentum_bonus"),
-                "momentum_penalty": pred.get("momentum_penalty"),
-                "trend_penalty": pred.get("trend_penalty"),
-                "trend_bonus": pred.get("trend_bonus"),
-                "is_excluded": pred.get("is_excluded", False),
+                "score": pred.score,
+                "raw_score": pred.raw_score,
+                "composite_score": pred.score,
+                "ranking_score": pred.ranking_score,
+                "rank": pred.rank,
+                "momentum_bonus": pred.momentum_bonus,
+                "momentum_penalty": pred.momentum_penalty,
+                "trend_penalty": pred.trend_penalty,
+                "trend_bonus": pred.trend_bonus,
+                "is_excluded": pred.is_excluded,
             }
             for h in horizons:
-                item[f"up_prob_{h}d"] = pred.get(f"up_prob_{h}d")
-                item[f"down_prob_{h}d"] = pred.get(f"down_prob_{h}d")
+                item[f"up_prob_{h}d"] = getattr(pred, f"up_prob_{h}d", None)
+                item[f"down_prob_{h}d"] = None
             items.append(item)
             dates.append(snap.date)
 
@@ -515,11 +515,11 @@ async def get_excluded_stocks(result_id: PydanticObjectId) -> dict:
     excluded_map: Dict[str, list] = {}
     for snap in snapshots:
         for ts, pred in snap.predictions.items():
-            if pred.get("is_explosion_excluded"):
+            if pred.is_explosion_excluded:
                 excluded_map.setdefault(ts, []).append({
                     "date": snap.date,
-                    "price_surge_pct": round(pred.get("price_surge_pct", 0), 4),
-                    "volume_ratio": round(pred.get("volume_ratio", 0), 2),
+                    "price_surge_pct": round(pred.price_surge_pct, 4),
+                    "volume_ratio": round(pred.volume_ratio, 2),
                 })
 
     if not excluded_map:
@@ -547,10 +547,10 @@ async def get_forced_sell_stocks(result_id: PydanticObjectId) -> dict:
     forced_map: Dict[str, list] = {}
     for snap in snapshots:
         for ts, pred in snap.predictions.items():
-            if pred.get("is_forced_sell"):
+            if pred.is_forced_sell:
                 forced_map.setdefault(ts, []).append({
                     "date": snap.date,
-                    "reason": pred.get("forced_sell_reason", "unknown"),
+                    "reason": pred.forced_sell_reason or "unknown",
                 })
 
     if not forced_map:
@@ -703,7 +703,7 @@ async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[st
 
         close_prices = {}
         for ts, pred in snap.predictions.items():
-            cp = pred.get("close") or 0
+            cp = pred.close or 0
             if cp:
                 close_prices[ts] = cp
 

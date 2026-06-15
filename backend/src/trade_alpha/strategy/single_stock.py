@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.portfolio import PortfolioManager
-from trade_alpha.schemas import ScoredStock, PendingOrder
+from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.logging import get_logger
 
@@ -40,9 +40,12 @@ class SingleStockStrategy(PositionManager):
     async def make_decisions(
         self,
         scored_stocks: List[ScoredStock],
-        portfolio: PortfolioManager,
         trade_date: str,
+        portfolio: PortfolioManager,
         close_prices: Optional[Dict[str, float]] = None,
+        market_data: Optional[MarketDataEmbed] = None,
+        score_manager: Optional["ScoreManager"] = None,
+        suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make decisions based on prediction probabilities.
 

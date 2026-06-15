@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 from trade_alpha.constants import (
     REASON_NORMAL_BUY,
     REASON_PRIORITY_RANK_UP,
+    SELL_REASON_FULL_POSITION,
     SELL_REASON_HOLD_SCORE_LOW,
     SELL_REASON_MAX_HOLD_DAYS,
     SELL_REASON_SCORE_BELOW,
@@ -13,7 +14,7 @@ from trade_alpha.constants import (
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.portfolio import PortfolioManager
-from trade_alpha.schemas import ScoredStock, PendingOrder
+from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.logging import get_logger
 
@@ -49,9 +50,10 @@ class MultiStockStrategy(PositionManager):
             min_hold_days=min_hold_days,
             buy_threshold=buy_threshold,
             sell_threshold=sell_threshold,
-            use_market_aware_trading=use_market_aware_trading,
         )
         self.ts_codes = ts_codes or []
+        self.strategy_config = strategy_config
+        self.use_market_aware_trading = use_market_aware_trading
         self.sell_rank_n = sell_rank_n
         self.hold_score_threshold = hold_score_threshold
         self.use_rank_up_priority = strategy_config.use_rank_up_priority if strategy_config else False
@@ -63,9 +65,11 @@ class MultiStockStrategy(PositionManager):
     async def make_decisions(
         self,
         scored_stocks: List[ScoredStock],
-        portfolio: PortfolioManager,
         trade_date: str,
+        portfolio: PortfolioManager,
         close_prices: Optional[Dict[str, float]] = None,
+        market_data: Optional[MarketDataEmbed] = None,
+        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make decisions based on ranking.
@@ -87,7 +91,7 @@ class MultiStockStrategy(PositionManager):
         full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         # Market-aware position size scalar (affects max_position_pct, not scores)
-        score_scalar = self._market_score_scalar()
+        score_scalar = self._market_score_scalar(market_data)
 
         # Score filter for normal buy / sell decisions
         scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
@@ -135,6 +139,13 @@ class MultiStockStrategy(PositionManager):
                 ))
 
         sell_ts_codes = {order.ts_code for order in orders}
+
+        # Full-position sell (moved from pipeline)
+        forced_orders = self._apply_full_position_sell(
+            scored_stocks, portfolio, close_prices, trade_date,
+            market_data, score_manager,
+        )
+        orders.extend(forced_orders)
 
         # In suggestion mode, limit buy suggestions following the same
         # position count check as reserve_funds in backtest flow.
@@ -231,7 +242,7 @@ class MultiStockStrategy(PositionManager):
             reason=reason,
         )
 
-    def _market_score_scalar(self) -> float:
+    def _market_score_scalar(self, market_data: Optional[MarketDataEmbed] = None) -> float:
         """Position size scalar based on smoothed ranking_median.
 
         Returns a multiplier for max_position_pct:
@@ -242,14 +253,84 @@ class MultiStockStrategy(PositionManager):
         The scalar is passed to PortfolioManager.reserve_funds()
         as max_position_scalar.
         """
-        if not self.use_market_aware_trading or self.ranking_median_smoothed is None:
+        if not self.use_market_aware_trading:
             return 1.0
-        if self.ranking_median_smoothed >= 0:
+        if market_data is None:
             return 1.0
-        if self.ranking_median is not None and self.ranking_median > self.ranking_median_smoothed:
+        if not market_data.ranking_regime or market_data.ranking_median_smoothed >= 0:
             return 1.0
-        scalar = max(0.30, 1.0 + self.ranking_median_smoothed * 5)
-        return scalar
+        if market_data.ranking_median > market_data.ranking_median_smoothed:
+            return 1.0
+        return max(0.30, 1.0 + market_data.ranking_median_smoothed * 5)
+
+    def _apply_full_position_sell(
+        self,
+        scored_stocks: List[ScoredStock],
+        portfolio: PortfolioManager,
+        close_prices: Dict[str, float],
+        trade_date: str,
+        market_data: Optional[MarketDataEmbed] = None,
+        score_manager: Optional["ScoreManager"] = None,
+    ) -> List[PendingOrder]:
+        """Sell worst-scored stocks when portfolio is over-positioned for N days."""
+        forced_orders: List[PendingOrder] = []
+        if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
+            return forced_orders
+        threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
+        score_scalar = self._market_score_scalar(market_data)
+        threshold *= score_scalar
+        days_required = getattr(self.strategy_config, "full_position_days", 3)
+        score_window = getattr(self.strategy_config, "full_position_score_window", 5)
+        sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
+
+        total_value = portfolio.get_total_value(close_prices)
+        if total_value <= 0:
+            return forced_orders
+        cash = portfolio.cash
+        market_value = total_value - cash
+        invested_pct = market_value / total_value
+        if invested_pct < threshold:
+            self._full_position_consecutive_days = 0
+            return forced_orders
+        self._full_position_consecutive_days = getattr(self, "_full_position_consecutive_days", 0) + 1
+        if self._full_position_consecutive_days < days_required:
+            return forced_orders
+
+        if not portfolio.positions:
+            return forced_orders
+
+        # Build stock_name lookup from scored_stocks
+        stock_name_map = {s.ts_code: s.stock_name for s in scored_stocks}
+
+        scored_holds: List[tuple] = []
+        for ts_code in portfolio.positions:
+            buffer = score_manager.get_score_buffer(ts_code) if score_manager is not None else []
+            if len(buffer) >= score_window:
+                avg_score = sum(buffer[-score_window:]) / score_window
+            elif buffer:
+                avg_score = sum(buffer) / len(buffer)
+            else:
+                avg_score = 0.0
+            scored_holds.append((avg_score, ts_code))
+
+        scored_holds.sort(key=lambda x: x[0])
+        for i in range(min(sell_count, len(scored_holds))):
+            _, ts_code = scored_holds[i]
+            pos = portfolio.positions.get(ts_code)
+            if not pos:
+                continue
+            forced_orders.append(PendingOrder(
+                ts_code=ts_code,
+                stock_name=stock_name_map.get(ts_code, ts_code),
+                order_price=close_prices.get(ts_code, 0),
+                order_shares=-pos.shares,
+                score=0.0,
+                trade_date=trade_date,
+                settle_date=self._next_trade_date(trade_date),
+                reason=SELL_REASON_FULL_POSITION,
+            ))
+
+        return forced_orders
 
     def _check_sell(
         self,
