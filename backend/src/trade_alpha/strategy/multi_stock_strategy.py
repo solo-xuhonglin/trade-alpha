@@ -56,13 +56,14 @@ class MultiStockStrategy(PositionManager):
         self.use_market_aware_trading = use_market_aware_trading
         self.sell_rank_n = sell_rank_n
         self.hold_score_threshold = hold_score_threshold
+        self._full_position_consecutive_days = 0
         self.use_rank_up_priority = strategy_config.use_rank_up_priority if strategy_config else False
         self.rank_up_window = strategy_config.rank_up_window if strategy_config else 5
         self.rank_up_count = strategy_config.rank_up_count if strategy_config else 3
         self.rank_up_min_score = strategy_config.rank_up_min_score if strategy_config else 0.1
         self.rank_up_min_improvement_pct = strategy_config.rank_up_min_improvement_pct if strategy_config else 0.20
 
-    async def make_decisions(
+    async def make_orders(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
@@ -98,9 +99,9 @@ class MultiStockStrategy(PositionManager):
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         if len(sorted_stocks) <= 5:
-            logger.info(f"make_decisions trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
+            logger.info(f"make_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
         elif len(sorted_stocks) % 10 == 0:
-            logger.info(f"make_decisions trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
+            logger.info(f"make_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
 
         top_stocks = sorted_stocks[:self.max_positions]
         top_ts_codes = {s.ts_code for s in top_stocks}
@@ -114,14 +115,14 @@ class MultiStockStrategy(PositionManager):
         for pos in portfolio.positions.values():
             pos.hold_days += 1
 
-        logger.info(f"make_decisions trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
+        logger.info(f"make_orders trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
         for ts_code, pos in portfolio.positions.items():
             should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices)
             if should_sell:
                 in_score = ts_code in score_map
                 in_sell_rank = ts_code in sell_rank_ts_codes
                 cur_score = score_map.get(ts_code, 0.0)
-                logger.info(f"make_decisions SELL ts_code={ts_code} hold_days={pos.hold_days} in_score_map={in_score} current_score={cur_score:.3f} in_sell_rank={in_sell_rank} reason={sell_reason}")
+                logger.info(f"make_orders SELL ts_code={ts_code} hold_days={pos.hold_days} in_score_map={in_score} current_score={cur_score:.3f} in_sell_rank={in_sell_rank} reason={sell_reason}")
                 sell_price = close_prices.get(ts_code, pos.buy_price)
                 orders.append(PendingOrder(
                     ts_code=pos.ts_code,
@@ -243,25 +244,16 @@ class MultiStockStrategy(PositionManager):
         )
 
     def _market_score_scalar(self, market_data: Optional[MarketDataEmbed] = None) -> float:
-        """Position size scalar based on smoothed ranking_median.
+        """Position size scalar based on market conditions.
 
-        Returns a multiplier for max_position_pct:
-          - smoothed >= 0          → 1.0 (market strong, no cap)
-          - smoothed < 0 but raw > smoothed → 1.0 (recovering, no cap)
-          - smoothed < 0 and worsening → max(0.30, 1.0 + smoothed * 5)
-
-        The scalar is passed to PortfolioManager.reserve_funds()
-        as max_position_scalar.
+        Delegates to ScoreManager.compute_market_regime which acts as the
+        single source of truth for score_scalar computation.
         """
         if not self.use_market_aware_trading:
             return 1.0
         if market_data is None:
             return 1.0
-        if not market_data.ranking_regime or market_data.ranking_median_smoothed >= 0:
-            return 1.0
-        if market_data.ranking_median > market_data.ranking_median_smoothed:
-            return 1.0
-        return max(0.30, 1.0 + market_data.ranking_median_smoothed * 5)
+        return market_data.score_scalar
 
     def _apply_full_position_sell(
         self,
@@ -292,7 +284,7 @@ class MultiStockStrategy(PositionManager):
         if invested_pct < threshold:
             self._full_position_consecutive_days = 0
             return forced_orders
-        self._full_position_consecutive_days = getattr(self, "_full_position_consecutive_days", 0) + 1
+        self._full_position_consecutive_days += 1
         if self._full_position_consecutive_days < days_required:
             return forced_orders
 

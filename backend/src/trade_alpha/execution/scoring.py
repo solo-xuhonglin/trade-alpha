@@ -408,8 +408,6 @@ class ScoreManager:
                 r["trend_penalty"] = 0.0
                 r["price_slope"] = 0.0
                 r["price_r_squared"] = 0.0
-                r["vol_penalty"] = 0.0
-                r["price_avg_range"] = 0.0
 
         apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
         apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
@@ -444,8 +442,6 @@ class ScoreManager:
                 momentum_penalty=r.get("momentum_penalty", 0.0),
                 price_slope=r.get("price_slope", 0.0),
                 price_r_squared=r.get("price_r_squared", 0.0),
-                price_avg_range=r.get("price_avg_range", 0.0),
-                vol_penalty=r.get("vol_penalty", 0.0),
                 volume_ratio=r.get("volume_ratio", 0.0),
                 is_excluded=r.get("is_excluded", False),
                 is_explosion_excluded=r.get("is_explosion_excluded", False),

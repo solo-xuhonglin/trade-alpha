@@ -37,7 +37,7 @@ class PositionManager:
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
 
-    async def make_decisions(
+    async def make_orders(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
@@ -48,7 +48,7 @@ class PositionManager:
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make buy/sell decisions (to be implemented by subclasses)."""
-        raise NotImplementedError("Subclasses must implement make_decisions")
+        raise NotImplementedError("Subclasses must implement make_orders")
 
     @staticmethod
     def calc_buy_fee(cost: float, fee_rate: float, min_fee: float) -> float:
@@ -158,7 +158,7 @@ class PositionManager:
         positions: Dict[str, PositionEmbed],
         close_prices: Dict[str, float],
         prev_total_value: Optional[float] = None,
-        predictions: Optional[Dict[str, Dict]] = None,
+        predictions: Optional[Dict[str, ScoredStock]] = None,
         baseline_value: Optional[float] = None,
     ) -> ExecutionDailySnapshot:
         """Create and save daily portfolio snapshot."""

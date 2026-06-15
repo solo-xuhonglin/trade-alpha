@@ -349,14 +349,14 @@ trade-alpha/
 #### multi_stock_strategy.py - 多股票策略 (MultiStockStrategy)
 
 - 多股票组合策略，基于评分排名选股
-- `make_decisions()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds` 获取可买股数
+- `make_orders()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds` 获取可买股数
 - 支持最大持仓数限制、单只股票最大仓位限制、止损、最大持仓天数和最低持有天数（最低持有期内仅止损可触发卖出）
 - 支持两阶段买入（`use_rank_up_priority`）：第一阶段优先买入排名持续上涨的股票（基于 `ScoredStockHistory` 的历史排名计算 `rank_improvement`），第二阶段用剩余资金按综合评分买入其余股票
 
 #### single_stock.py - 单股票策略 (SingleStockStrategy)
 
 - 单股票策略，基于预测概率和评分
-- `make_decisions()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds`
+- `make_orders()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds`
 - 支持止损和最大持仓天数
 
 ### 9. 执行模块 (execution)

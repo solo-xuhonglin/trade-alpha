@@ -328,7 +328,7 @@ async def get_prediction_stocks(result_id: PydanticObjectId) -> dict:
 
     for snap in snapshots:
         for ts, pred in snap.predictions.items():
-            score = pred.composite_score or pred.score or 0
+            score = pred.score or 0
             rank = pred.rank
             stock_scores.setdefault(ts, []).append(score)
             if rank is not None and rank > 0:

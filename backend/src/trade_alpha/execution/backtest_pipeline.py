@@ -312,10 +312,12 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
 
+            self.score_manager.compute_market_regime(stock_map)
+
             market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
                 if self.score_manager.last_market_data else None
 
-            pending_orders = await self.strategy.make_decisions(
+            pending_orders = await self.strategy.make_orders(
                 scored_stocks=list(stock_map.values()),
                 trade_date=date,
                 portfolio=self.portfolio,

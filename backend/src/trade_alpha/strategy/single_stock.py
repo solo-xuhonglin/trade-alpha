@@ -37,7 +37,7 @@ class SingleStockStrategy(PositionManager):
         )
         self.target_ts_code = target_ts_code
 
-    async def make_decisions(
+    async def make_orders(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,

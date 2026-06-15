@@ -38,10 +38,8 @@ class ScoredStock(BaseModel):
     # --- 技术指标 ---
     price_slope: float = 0.0
     price_r_squared: float = 0.0
-    price_avg_range: float = 0.0
 
     # --- 成交量 ---
-    vol_penalty: float = 0.0
     volume_ratio: float = 0.0
 
     # --- 排除标记 ---

@@ -322,7 +322,7 @@ score = score_3d × 0.4 + score_5d × 0.6
           基于滑动窗口历史排名计算 rank_improvement，衡量每只股票排名的改善程度
       vii. 记录排名：_record_ranks()
           按最终分从高到低排序
-   f. Strategy.make_decisions() → PendingOrder
+   f. Strategy.make_orders() → PendingOrder
    g. Strategy.settle_orders() → ExecutionTrade + 更新现金/持仓
    h. Strategy.daily_snapshot() → ExecutionDailySnapshot（含 predictions）
 4. 计算最终指标 → 更新 ExecutionResult(status="completed")

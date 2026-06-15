@@ -197,6 +197,8 @@ class SuggestionPipeline:
                     date = _next_date(date)
                     continue
 
+                self.score_manager.compute_market_regime(stock_map)
+
                 # Only save if this date is a target date
                 if date in target_set:
                     # Load positions: use injected portfolio or singleton from DB
@@ -242,7 +244,7 @@ class SuggestionPipeline:
                         if self.score_manager.last_market_data else None
 
                     # Generate buy/sell suggestions
-                    pending_orders = await self.strategy.make_decisions(
+                    pending_orders = await self.strategy.make_orders(
                         scored_stocks=list(stock_map.values()),
                         trade_date=date,
                         portfolio=self.portfolio,
