@@ -17,22 +17,12 @@ from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.portfolio import PortfolioManager
-from trade_alpha.execution.scoring import (
-    smooth_scores,
-    apply_momentum_boost,
-    apply_momentum_penalty,
-    apply_trend_bonus,
-    apply_trend_penalty,
-    apply_volatility_penalty,
-    filter_explosions,
-)
+from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.models.factory import create_classifier, create_predictor
-from trade_alpha.models.base import compute_scores
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.schemas import ScoredStock
 from trade_alpha.logging import get_logger
-from trade_alpha.execution.rank_tracker import ScoredStockHistoryHelper
 
 logger = get_logger("execution.suggestion_pipeline")
 
@@ -68,7 +58,7 @@ class SuggestionPipeline:
 
         self.data_loader = DataLoader()
         self.predictor = None
-        self._stock_helper = ScoredStockHistoryHelper.from_config(self.strategy_config)
+        self.score_manager = ScoreManager(strategy_config, model_config)
 
         # Strategy for decision making
         self.strategy = MultiStockStrategy(
@@ -85,7 +75,6 @@ class SuggestionPipeline:
             min_order_value=5000.0,
         )
 
-        self._score_buffer: Dict[str, List[float]] = {}
         self._daily_forced_sells: List[Dict] = []
 
     async def _ensure_predictor(self) -> None:
@@ -152,7 +141,7 @@ class SuggestionPipeline:
         for ts_code in self.portfolio.positions:
             pred = pred_results.get(ts_code, {})
             score = pred.get("composite_score") or pred.get("score", 0)
-            buffer = self._score_buffer.get(ts_code, [])
+            buffer = self.score_manager.get_score_buffer(ts_code)
             if len(buffer) >= score_window:
                 avg_score = sum(buffer[-score_window:]) / score_window
             elif buffer:
@@ -178,108 +167,6 @@ class SuggestionPipeline:
                 reason="full_position_sell",
             )
             self._daily_forced_sells.append({"ts_code": ts_code, "reason": "full_position"})
-
-    def _record_ranks(self, scored: List[ScoredStock], pred_results: Dict[str, Dict]) -> None:
-        scored_sorted = sorted(scored, key=lambda s: s.ranking_score, reverse=True)
-        for rank, stock in enumerate(scored_sorted, start=1):
-            pred_results[stock.ts_code]["rank"] = rank
-            stock.rank = rank
-
-    async def _predict(
-        self,
-        date: str,
-        close_prices: Dict[str, float],
-        name_map: Dict[str, str],
-        start_date: str,
-        vol_prices: Optional[Dict[str, float]] = None,
-    ) -> Tuple[List[ScoredStock], Dict[str, Dict]]:
-        """Run prediction and scoring for a single date."""
-        horizons = self.model_config.classification_horizons
-        target_names = [f"label_{h}d" for h in horizons]
-        pred_results_raw = await self.predictor.predict_batch(
-            list(close_prices.keys()), target_names, date
-        )
-        pred_results = {}
-        for ts_code, probs in pred_results_raw.items():
-            close_price = close_prices.get(ts_code, 0)
-            pred_results[ts_code] = compute_scores(probs, close_price, horizons)
-        if not pred_results:
-            return [], {}
-
-        lookback = max(
-            getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
-            getattr(self.strategy_config, 'vol_penalty_window', 0) if self.strategy_config and self.strategy_config.use_volatility_penalty else 0,
-            getattr(self.strategy_config, 'momentum_window', 0) if self.strategy_config and self.strategy_config.use_momentum_boost else 0,
-            getattr(self.strategy_config, 'acceleration_window', 0) if self.strategy_config and self.strategy_config.use_acceleration_filter else 0,
-        )
-        if lookback > 0:
-            history_data = await self.data_loader.peek_history_data(
-                date, list(pred_results.keys()), lookback + 5
-            )
-            close_prices_hist: Dict[str, List[float]] = {}
-            ohlc_data: Dict[str, List[Dict]] = {}
-            for ts_code, records in history_data.items():
-                close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
-                ohlc_data[ts_code] = [
-                    {"open": r.open, "high": r.high, "low": r.low, "close": r.close}
-                    for r in records if r.close is not None
-                ]
-            apply_trend_bonus(pred_results, self.strategy_config, close_prices_hist)
-            apply_trend_penalty(pred_results, self.strategy_config, close_prices_hist)
-            apply_volatility_penalty(pred_results, self.strategy_config, ohlc_data)
-        else:
-            for r in pred_results.values():
-                r["trend_bonus"] = 0.0
-                r["trend_penalty"] = 0.0
-                r["price_slope"] = 0.0
-                r["price_r_squared"] = 0.0
-                r["vol_penalty"] = 0.0
-                r["price_avg_range"] = 0.0
-
-        apply_momentum_boost(pred_results, self.strategy_config, close_prices_hist if lookback > 0 else None)
-        apply_momentum_penalty(pred_results, self.strategy_config, close_prices_hist if lookback > 0 else None)
-        await filter_explosions(pred_results, self.strategy_config, date, self.data_loader, vol_prices)
-
-        for r in pred_results.values():
-            r["raw_score"] = r["score"]
-            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) - r.get("trend_penalty", 0) - r.get("vol_penalty", 0) + r.get("momentum_bonus", 0) - r.get("momentum_penalty", 0)
-
-        smooth_scores(pred_results, self.strategy_config, self._score_buffer)
-
-        scored = []
-        for ts_code, r in pred_results.items():
-            kwargs = dict(
-                ts_code=ts_code,
-                stock_name=name_map.get(ts_code, ts_code),
-                close=r["close"],
-                score=r.get("composite_score", r["score"]),
-                ranking_score=r.get("ranking_score", r["score"]),
-                is_excluded=r.get("is_excluded", False),
-                trend_bonus=r.get("trend_bonus", 0.0),
-                vol_penalty=r.get("vol_penalty", 0.0),
-                price_slope=r.get("price_slope", 0.0),
-                price_r_squared=r.get("price_r_squared", 0.0),
-                price_avg_range=r.get("price_avg_range", 0.0),
-            )
-            for h in horizons:
-                key = f"up_prob_{h}d"
-                kwargs[key] = r[key]
-            scored.append(ScoredStock(**kwargs))
-        self._record_ranks(scored, pred_results)
-        self._stock_helper.record_day(date, scored)
-        window = getattr(self.strategy_config, 'rank_up_window', 5)
-        for stock in scored:
-            improvement = self._stock_helper.compute_rank_improvement(
-                stock.ts_code, stock.rank, window
-            )
-            stock.rank_improvement = improvement if improvement is not None else 0.0
-            pred_results[stock.ts_code]["rank_improvement"] = stock.rank_improvement
-        if date == start_date:
-            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
-            if scored:
-                top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
-                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
-        return scored, pred_results
 
     async def run(
         self,
@@ -347,7 +234,6 @@ class SuggestionPipeline:
             logger.info(f"SuggestionPipeline.run: universe={len(ts_codes)} stocks")
 
             # Initialize pipeline state
-            self._score_buffer: Dict[str, List[float]] = {}
             total_orders = 0
 
             # 6. Single sequential loop
@@ -370,7 +256,15 @@ class SuggestionPipeline:
                 close_prices = day_data["close"]
                 vol_prices = day_data.get("vol", {})
 
-                scored, pred_results = await self._predict(date, close_prices, name_map, date, vol_prices)
+                scored, pred_results = await self.score_manager.predict_and_score(
+                    predictor=self.predictor,
+                    data_loader=self.data_loader,
+                    date=date,
+                    close_prices=close_prices,
+                    name_map=name_map,
+                    start_date=date,
+                    vol_prices=vol_prices,
+                )
                 if not scored:
                     date = _next_date(date)
                     continue

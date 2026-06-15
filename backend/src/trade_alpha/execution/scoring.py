@@ -1,13 +1,16 @@
-"""Shared scoring utility functions for backtest and suggestion pipelines.
+"""Shared scoring utility functions and ScoreManager for backtest and suggestion pipelines.
 
-These functions are extracted from ExecutionPipeline so that both
-BacktestPipeline and SuggestionPipeline can reuse the same scoring logic.
+Pure functions handle individual scoring steps; ScoreManager orchestrates the
+full scoring lifecycle and owns cross-day state.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.dao.strategy_config import StrategyConfig
+from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.execution.data_loader import DataLoader
+from trade_alpha.models.base import compute_scores
+from trade_alpha.schemas import ScoredStock
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.scoring")
@@ -352,3 +355,267 @@ async def filter_explosions(
     if excluded_count > 0:
         logger.warning(f"filter_explosions {trade_date}: {excluded_count}/{len(pred_results)} excluded, "
                        f"threshold={threshold}, vol_ratio_threshold={volume_ratio_threshold}")
+
+
+class ScoreManager:
+    """Stateful score lifecycle manager.
+
+    Owns cross-day state (score buffer, smoothed median, rank history)
+    and orchestrates the full scoring pipeline from raw predictions
+    to ranked ScoredStock objects and market regime.
+    """
+
+    def __init__(
+        self,
+        strategy_config: StrategyConfig,
+        model_config: ModelConfig,
+    ):
+        self._strategy_config = strategy_config
+        self._model_config = model_config
+        self._score_buffer: Dict[str, List[float]] = {}
+        self._rank_history: Dict[str, List[ScoredStock]] = {}
+        window = getattr(strategy_config, 'rank_up_window', 5) if strategy_config else 5
+        self._rank_history_max: int = window * 5
+        self._prev_ranking_median_smoothed: Optional[float] = None
+        self._last_market_data: Optional[dict] = None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def predict_and_score(
+        self,
+        predictor,
+        data_loader: DataLoader,
+        date: str,
+        close_prices: Dict[str, float],
+        name_map: Dict[str, str],
+        start_date: str,
+        vol_prices: Optional[Dict[str, float]] = None,
+    ) -> Tuple[List[ScoredStock], Dict[str, Dict]]:
+        """Full scoring pipeline: predict -> enhance -> compose -> smooth -> rank."""
+        horizons = self._model_config.classification_horizons
+        target_names = [f"label_{h}d" for h in horizons]
+        pred_results_raw = await predictor.predict_batch(
+            list(close_prices.keys()), target_names, date
+        )
+        pred_results = {}
+        for ts_code, probs in pred_results_raw.items():
+            close_price = close_prices.get(ts_code, 0)
+            pred_results[ts_code] = compute_scores(probs, close_price, horizons)
+        if not pred_results:
+            return [], {}
+
+        # Compute lookback window from strategy config
+        lookback = max(
+            getattr(self._strategy_config, 'trend_bonus_window', 0) if self._strategy_config and self._strategy_config.use_trend_bonus else 0,
+            getattr(self._strategy_config, 'vol_penalty_window', 0) if self._strategy_config and self._strategy_config.use_volatility_penalty else 0,
+            getattr(self._strategy_config, 'momentum_window', 0) if self._strategy_config and self._strategy_config.use_momentum_boost else 0,
+            getattr(self._strategy_config, 'acceleration_window', 0) if self._strategy_config and self._strategy_config.use_acceleration_filter else 0,
+        )
+
+        close_prices_hist: Optional[Dict[str, List[float]]] = None
+        if lookback > 0:
+            history_data = await data_loader.peek_history_data(
+                date, list(pred_results.keys()), lookback + 5
+            )
+            close_prices_hist = {}
+            ohlc_data: Dict[str, List[Dict]] = {}
+            for ts_code, records in history_data.items():
+                close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
+                ohlc_data[ts_code] = [
+                    {"open": r.open, "high": r.high, "low": r.low, "close": r.close}
+                    for r in records if r.close is not None
+                ]
+            apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
+            apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
+            apply_volatility_penalty(pred_results, self._strategy_config, ohlc_data)
+        else:
+            for r in pred_results.values():
+                r["trend_bonus"] = 0.0
+                r["trend_penalty"] = 0.0
+                r["price_slope"] = 0.0
+                r["price_r_squared"] = 0.0
+                r["vol_penalty"] = 0.0
+                r["price_avg_range"] = 0.0
+
+        apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
+        apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
+        await filter_explosions(pred_results, self._strategy_config, date, data_loader, vol_prices)
+        self._apply_acceleration_filter(pred_results, close_prices_hist if lookback > 0 else None)
+
+        # Compute composite_score
+        for r in pred_results.values():
+            r["raw_score"] = r["score"]
+            r["composite_score"] = (
+                r["score"]
+                + r.get("trend_bonus", 0)
+                - r.get("trend_penalty", 0)
+                - r.get("vol_penalty", 0)
+                + r.get("momentum_bonus", 0)
+                - r.get("momentum_penalty", 0)
+            )
+
+        smooth_scores(pred_results, self._strategy_config, self._score_buffer)
+
+        # Build ScoredStock objects
+        scored = []
+        for ts_code, r in pred_results.items():
+            kwargs = dict(
+                ts_code=ts_code,
+                stock_name=name_map.get(ts_code, ts_code),
+                close=r["close"],
+                score=r.get("composite_score", r["score"]),
+                ranking_score=r.get("ranking_score", r["score"]),
+                is_excluded=r.get("is_excluded", False),
+                trend_bonus=r.get("trend_bonus", 0.0),
+                vol_penalty=r.get("vol_penalty", 0.0),
+                price_slope=r.get("price_slope", 0.0),
+                price_r_squared=r.get("price_r_squared", 0.0),
+                price_avg_range=r.get("price_avg_range", 0.0),
+            )
+            for h in horizons:
+                key = f"up_prob_{h}d"
+                kwargs[key] = r[key]
+            scored.append(ScoredStock(**kwargs))
+
+        self._record_ranks(scored, pred_results)
+        self._record_rank_history(date, scored)
+
+        # Compute rank_improvement
+        window = getattr(self._strategy_config, 'rank_up_window', 5)
+        for stock in scored:
+            improvement = self._compute_rank_improvement(
+                stock.ts_code, stock.rank, window
+            )
+            stock.rank_improvement = improvement if improvement is not None else 0.0
+            pred_results[stock.ts_code]["rank_improvement"] = stock.rank_improvement
+
+        if date == start_date:
+            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
+            if scored:
+                top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
+                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
+
+        return scored, pred_results
+
+    def compute_market_regime(self, pred_results: Dict[str, Dict]) -> str:
+        """Compute market regime from ranking_scores, update internal state."""
+        rank_scores = [
+            p.get("ranking_score", 0) for p in pred_results.values()
+            if isinstance(p, dict) and p.get("ranking_score") is not None
+        ]
+        if not rank_scores:
+            self._last_market_data = None
+            return ""
+        rank_scores_sorted = sorted(rank_scores)
+        n = len(rank_scores_sorted)
+        ranking_median = float(rank_scores_sorted[n // 2])
+        trend_th = self._strategy_config.market_trend_threshold
+        if ranking_median > trend_th:
+            regime = "trending_up"
+        elif ranking_median < -trend_th:
+            regime = "trending_down"
+        else:
+            regime = "sideways"
+
+        high_th = self._strategy_config.market_high_score_threshold
+        low_th = self._strategy_config.market_low_score_threshold
+        ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
+        ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
+
+        # Compute smoothed ranking_median via EWMA
+        alpha = getattr(self._strategy_config, "ranking_median_smooth_alpha", 0.3)
+        ranking_median_smoothed = smooth_median(
+            ranking_median, self._prev_ranking_median_smoothed, alpha
+        )
+        self._prev_ranking_median_smoothed = ranking_median_smoothed
+
+        # Compute score_scalar matching _market_score_scalar() logic
+        if ranking_median_smoothed >= 0:
+            score_scalar = 1.0
+        elif ranking_median > ranking_median_smoothed:
+            score_scalar = 1.0
+        else:
+            score_scalar = max(0.30, 1.0 + ranking_median_smoothed * 5)
+
+        self._last_market_data = {
+            "ranking_median": ranking_median,
+            "ranking_median_smoothed": ranking_median_smoothed,
+            "ranking_high_pct": ranking_high_pct,
+            "ranking_low_pct": ranking_low_pct,
+            "ranking_regime": regime,
+            "score_scalar": score_scalar,
+        }
+        return regime
+
+    def get_score_buffer(self, ts_code: str) -> List[float]:
+        """Return score buffer for a stock."""
+        return self._score_buffer.get(ts_code, [])
+
+    @property
+    def last_market_data(self) -> Optional[dict]:
+        """Latest market data dict."""
+        return self._last_market_data
+
+    # ------------------------------------------------------------------
+    # Private methods (moved from pipelines)
+    # ------------------------------------------------------------------
+
+    def _record_ranks(self, scored: List[ScoredStock], pred_results: Dict[str, Dict]) -> None:
+        """Sort scored stocks by ranking_score and write rank back into pred_results."""
+        scored_sorted = sorted(scored, key=lambda s: s.ranking_score, reverse=True)
+        for rank, stock in enumerate(scored_sorted, start=1):
+            pred_results[stock.ts_code]["rank"] = rank
+            stock.rank = rank
+
+    def _apply_acceleration_filter(
+        self,
+        pred_results: Dict[str, Dict],
+        close_prices_hist: Optional[Dict[str, List[float]]] = None,
+    ) -> None:
+        """Exclude stocks whose price is accelerating (cum return + up-day ratio)."""
+        if not self._strategy_config or not getattr(self._strategy_config, "use_acceleration_filter", False):
+            return
+        window = getattr(self._strategy_config, "acceleration_window", 5)
+        cum_return_threshold = getattr(self._strategy_config, "acceleration_cum_return", 0.15)
+        up_ratio_threshold = getattr(self._strategy_config, "acceleration_up_ratio", 0.80)
+
+        for ts_code, r in pred_results.items():
+            prices = close_prices_hist.get(ts_code, []) if close_prices_hist else []
+            if len(prices) < window + 1:
+                continue
+            recent = prices[-(window + 1):]
+            cum_return = (recent[-1] - recent[0]) / recent[0] if recent[0] > 0 else 0
+            up_days = sum(1 for i in range(1, len(recent)) if recent[i] > recent[i - 1])
+            up_ratio = up_days / (len(recent) - 1)
+            if cum_return > cum_return_threshold and up_ratio > up_ratio_threshold:
+                r["is_acceleration_excluded"] = True
+                r["is_excluded"] = True
+                r["excluded_reason"] = "acceleration"
+                r["accel_cum_return"] = round(cum_return, 4)
+                r["accel_up_ratio"] = round(up_ratio, 4)
+
+    def _record_rank_history(self, date: str, scored: List[ScoredStock]) -> None:
+        """Record today's scored stocks keyed by ts_code."""
+        for s in scored:
+            buf = self._rank_history.setdefault(s.ts_code, [])
+            buf.append(s)
+            if len(buf) > self._rank_history_max:
+                buf.pop(0)
+
+    def _compute_rank_improvement(
+        self, ts_code: str, current_rank: int, window: int
+    ) -> Optional[float]:
+        """Compute rank improvement as (avg_past_rank - current_rank) / max(1, avg_past_rank)."""
+        records = self._rank_history.get(ts_code, [])
+        if len(records) < 2:
+            return None
+        past = records[-(window + 1):-1] if len(records) > window + 1 else records[:-1]
+        if not past:
+            return None
+        past_ranks = [s.rank for s in past if s.rank > 0]
+        if not past_ranks:
+            return None
+        avg_past = sum(past_ranks) / len(past_ranks)
+        return (avg_past - current_rank) / max(1.0, avg_past)

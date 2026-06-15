@@ -8,7 +8,7 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
-from trade_alpha.execution.scoring import smooth_median
+from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.task.service import TaskService
@@ -16,23 +16,12 @@ from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
-from trade_alpha.models.base import compute_scores
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder
 from trade_alpha.constants import SELL_REASON_FULL_POSITION
 from trade_alpha.logging import get_logger
 from trade_alpha.utils.date_utils import get_year_months
-from trade_alpha.execution.scoring import (
-    smooth_scores,
-    apply_momentum_boost,
-    apply_momentum_penalty,
-    apply_trend_bonus,
-    apply_trend_penalty,
-    apply_volatility_penalty,
-    filter_explosions,
-)
-from trade_alpha.execution.rank_tracker import ScoredStockHistoryHelper
 
 logger = get_logger("execution.backtest_pipeline")
 
@@ -44,44 +33,6 @@ def _next_date(date_str: str) -> str:
     while dt.weekday() >= 5:
         dt += timedelta(days=1)
     return dt.strftime("%Y%m%d")
-
-
-def _calc_linear_slope(values: List[float]) -> float:
-    """Calculate linear regression slope for a list of values."""
-    n = len(values)
-    if n < 2:
-        return 0.0
-    x = list(range(n))
-    sum_x = sum(x)
-    sum_y = sum(values)
-    sum_xy = sum(xi * yi for xi, yi in zip(x, values))
-    sum_xx = sum(xi * xi for xi in x)
-    denom = n * sum_xx - sum_x * sum_x
-    if denom == 0:
-        return 0.0
-    return (n * sum_xy - sum_x * sum_y) / denom
-
-
-def _calc_r_squared(values: List[float]) -> float:
-    """Calculate R-squared (goodness of fit) for linear regression of a list of values."""
-    n = len(values)
-    if n < 3:
-        return 0.0
-    x = list(range(n))
-    sum_x = sum(x)
-    sum_y = sum(values)
-    sum_xy = sum(xi * yi for xi, yi in zip(x, values))
-    sum_xx = sum(xi * xi for xi in x)
-    denom = n * sum_xx - sum_x * sum_x
-    if denom == 0:
-        return 0.0
-    slope = (n * sum_xy - sum_x * sum_y) / denom
-    intercept = (sum_y - slope * sum_x) / n
-    ss_res = sum((values[i] - (slope * x[i] + intercept)) ** 2 for i in range(n))
-    ss_tot = sum((v - sum_y / n) ** 2 for v in values)
-    if ss_tot == 0:
-        return 0.0
-    return max(0.0, 1.0 - ss_res / ss_tot)
 
 
 class BacktestPipeline:
@@ -131,11 +82,8 @@ class BacktestPipeline:
         )
         self.prev_total_value: Optional[float] = None
         self.pending_orders: List[PendingOrder] = []
-        self._score_buffer: Dict[str, List[float]] = {}
+        self.score_manager = ScoreManager(strategy_config, model_config)
         self._daily_forced_sells: List[Dict] = []
-        self._stock_helper = ScoredStockHistoryHelper.from_config(self.strategy_config)
-        self._last_market_data: Optional[dict] = None
-        self._prev_ranking_median_smoothed: Optional[float] = None
 
     def _append_pending_order(self, order: PendingOrder) -> None:
         """Append a pending order, skipping if a sell order for the same stock already exists.
@@ -190,7 +138,7 @@ class BacktestPipeline:
             pred = pred_results.get(ts_code, {})
             score = pred.get("composite_score") or pred.get("score", 0)
             # Use average score over score_window to avoid single-day outliers
-            buffer = self._score_buffer.get(ts_code, [])
+            buffer = self.score_manager.get_score_buffer(ts_code)
             if len(buffer) >= score_window:
                 avg_score = sum(buffer[-score_window:]) / score_window
             elif buffer:
@@ -217,43 +165,6 @@ class BacktestPipeline:
             )
             self.pending_orders.append(order)
             self._daily_forced_sells.append({"ts_code": ts_code, "reason": "full_position"})
-
-    def _record_ranks(self, scored: List[ScoredStock], pred_results: Dict[str, Dict]) -> None:
-        """Sort scored stocks by score and write rank back into pred_results.
-
-        Rank is persisted via daily_snapshot for later analysis.
-        """
-        scored_sorted = sorted(scored, key=lambda s: s.ranking_score, reverse=True)
-        for rank, stock in enumerate(scored_sorted, start=1):
-            pred_results[stock.ts_code]["rank"] = rank
-            stock.rank = rank
-
-    def _apply_acceleration_filter(
-        self,
-        pred_results: Dict[str, Dict],
-        close_prices_hist: Optional[Dict[str, List[float]]] = None,
-    ) -> None:
-        """Exclude stocks whose price is accelerating (cum return + up-day ratio)."""
-        if not self.strategy_config or not getattr(self.strategy_config, "use_acceleration_filter", False):
-            return
-        window = getattr(self.strategy_config, "acceleration_window", 5)
-        cum_return_threshold = getattr(self.strategy_config, "acceleration_cum_return", 0.15)
-        up_ratio_threshold = getattr(self.strategy_config, "acceleration_up_ratio", 0.80)
-
-        for ts_code, r in pred_results.items():
-            prices = close_prices_hist.get(ts_code, []) if close_prices_hist else []
-            if len(prices) < window + 1:
-                continue
-            recent = prices[-(window + 1):]
-            cum_return = (recent[-1] - recent[0]) / recent[0] if recent[0] > 0 else 0
-            up_days = sum(1 for i in range(1, len(recent)) if recent[i] > recent[i - 1])
-            up_ratio = up_days / (len(recent) - 1)
-            if cum_return > cum_return_threshold and up_ratio > up_ratio_threshold:
-                r["is_acceleration_excluded"] = True
-                r["is_excluded"] = True
-                r["excluded_reason"] = "acceleration"
-                r["accel_cum_return"] = round(cum_return, 4)
-                r["accel_up_ratio"] = round(up_ratio, 4)
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -410,96 +321,6 @@ class BacktestPipeline:
         self.pending_orders.clear()
         return len(filled_trades), total_fees
 
-    async def _predict(self, date: str, close_prices: Dict[str, float],
-                        name_map: Dict[str, str], start_date: str,
-                        vol_prices: Optional[Dict[str, float]] = None):
-        target_names = [f"label_{h}d" for h in self._config.classification_horizons]
-        pred_results_raw = await self.predictor.predict_batch(self.ts_codes, target_names, date)
-        pred_results = {}
-        for ts_code, probs in pred_results_raw.items():
-            close_price = close_prices.get(ts_code, 0)
-            pred_results[ts_code] = compute_scores(probs, close_price, self._config.classification_horizons)
-        if not pred_results:
-            return [], {}
-
-        lookback = max(
-            getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
-            getattr(self.strategy_config, 'vol_penalty_window', 0) if self.strategy_config and self.strategy_config.use_volatility_penalty else 0,
-            getattr(self.strategy_config, 'momentum_window', 0) if self.strategy_config and self.strategy_config.use_momentum_boost else 0,
-            getattr(self.strategy_config, 'acceleration_window', 0) if self.strategy_config and self.strategy_config.use_acceleration_filter else 0,
-        )
-        if lookback > 0:
-            history_data = await self.data_loader.peek_history_data(
-                date, list(pred_results.keys()), lookback + 5
-            )
-            close_prices_hist: Dict[str, List[float]] = {}
-            ohlc_data: Dict[str, List[Dict]] = {}
-            for ts_code, records in history_data.items():
-                close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
-                ohlc_data[ts_code] = [
-                    {"open": r.open, "high": r.high, "low": r.low, "close": r.close}
-                    for r in records if r.close is not None
-                ]
-            apply_trend_bonus(pred_results, self.strategy_config, close_prices_hist)
-            apply_trend_penalty(pred_results, self.strategy_config, close_prices_hist)
-            apply_volatility_penalty(pred_results, self.strategy_config, ohlc_data)
-        else:
-            for r in pred_results.values():
-                r["trend_bonus"] = 0.0
-                r["trend_penalty"] = 0.0
-                r["price_slope"] = 0.0
-                r["price_r_squared"] = 0.0
-                r["vol_penalty"] = 0.0
-                r["price_avg_range"] = 0.0
-
-        apply_momentum_boost(pred_results, self.strategy_config, close_prices_hist if lookback > 0 else None)
-        apply_momentum_penalty(pred_results, self.strategy_config, close_prices_hist if lookback > 0 else None)
-        await filter_explosions(pred_results, self.strategy_config, date, self.data_loader, vol_prices)
-        self._apply_acceleration_filter(pred_results, close_prices_hist if lookback > 0 else None)
-
-        for r in pred_results.values():
-            r["raw_score"] = r["score"]
-            r["composite_score"] = r["score"] + r.get("trend_bonus", 0) - r.get("trend_penalty", 0) - r.get("vol_penalty", 0) + r.get("momentum_bonus", 0) - r.get("momentum_penalty", 0)
-
-        smooth_scores(pred_results, self.strategy_config, self._score_buffer)
-
-        horizons = self._config.classification_horizons
-        scored = []
-        for ts_code, r in pred_results.items():
-            kwargs = dict(
-                ts_code=ts_code,
-                stock_name=name_map.get(ts_code, ts_code),
-                close=r["close"],
-                score=r.get("composite_score", r["score"]),
-                ranking_score=r.get("ranking_score", r["score"]),
-                is_excluded=r.get("is_excluded", False),
-                trend_bonus=r.get("trend_bonus", 0.0),
-                vol_penalty=r.get("vol_penalty", 0.0),
-                price_slope=r.get("price_slope", 0.0),
-                price_r_squared=r.get("price_r_squared", 0.0),
-                price_avg_range=r.get("price_avg_range", 0.0),
-            )
-            # Dynamically populate up_prob fields for all configured horizons
-            for h in horizons:
-                key = f"up_prob_{h}d"
-                kwargs[key] = r[key]
-            scored.append(ScoredStock(**kwargs))
-        self._record_ranks(scored, pred_results)
-        self._stock_helper.record_day(date, scored)
-        window = getattr(self.strategy_config, 'rank_up_window', 5)
-        for stock in scored:
-            improvement = self._stock_helper.compute_rank_improvement(
-                stock.ts_code, stock.rank, window
-            )
-            stock.rank_improvement = improvement if improvement is not None else 0.0
-            pred_results[stock.ts_code]["rank_improvement"] = stock.rank_improvement
-        if date == start_date:
-            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored)} with score > 0")
-            if scored:
-                top5 = sorted(scored, key=lambda s: s.score, reverse=True)[:5]
-                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
-        return scored, pred_results
-
     async def _make_orders(self, scored: List[ScoredStock],
                             close_prices: Dict[str, float], date: str) -> None:
         pending_orders = await self.strategy.make_decisions(
@@ -522,60 +343,11 @@ class BacktestPipeline:
             baseline_value=baseline_value,
         )
 
-        if self._last_market_data:
-            await snapshot.update({"$set": self._last_market_data})
+        if self.score_manager.last_market_data:
+            await snapshot.update({"$set": self.score_manager.last_market_data})
 
         self.prev_total_value = snapshot.total_value
         return snapshot.total_value, snapshot.day_return
-
-    def _compute_market_regime(self, pred_results: Dict[str, Dict]) -> str:
-        rank_scores = [
-            p.get("ranking_score", 0) for p in pred_results.values()
-            if isinstance(p, dict) and p.get("ranking_score") is not None
-        ]
-        if not rank_scores:
-            self._last_market_data = None
-            return ""
-        rank_scores_sorted = sorted(rank_scores)
-        n = len(rank_scores_sorted)
-        ranking_median = float(rank_scores_sorted[n // 2])
-        trend_th = self.strategy_config.market_trend_threshold
-        if ranking_median > trend_th:
-            regime = "trending_up"
-        elif ranking_median < -trend_th:
-            regime = "trending_down"
-        else:
-            regime = "sideways"
-
-        high_th = self.strategy_config.market_high_score_threshold
-        low_th = self.strategy_config.market_low_score_threshold
-        ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
-        ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
-
-        # Compute smoothed ranking_median via EWMA
-        alpha = getattr(self.strategy_config, "ranking_median_smooth_alpha", 0.3)
-        ranking_median_smoothed = smooth_median(
-            ranking_median, self._prev_ranking_median_smoothed, alpha
-        )
-        self._prev_ranking_median_smoothed = ranking_median_smoothed
-
-        # Compute score_scalar matching _market_score_scalar() logic
-        if ranking_median_smoothed >= 0:
-            score_scalar = 1.0
-        elif ranking_median > ranking_median_smoothed:
-            score_scalar = 1.0
-        else:
-            score_scalar = max(0.30, 1.0 + ranking_median_smoothed * 5)
-
-        self._last_market_data = {
-            "ranking_median": ranking_median,
-            "ranking_median_smoothed": ranking_median_smoothed,
-            "ranking_high_pct": ranking_high_pct,
-            "ranking_low_pct": ranking_low_pct,
-            "ranking_regime": regime,
-            "score_scalar": score_scalar,
-        }
-        return regime
 
     async def run_backtest(
         self,
@@ -629,7 +401,15 @@ class BacktestPipeline:
             total_fees += fees_add
 
             vol_prices = day_data.get("vol", {})
-            scored, pred_results = await self._predict(date, close_prices, name_map, start_date, vol_prices)
+            scored, pred_results = await self.score_manager.predict_and_score(
+                predictor=self.predictor,
+                data_loader=self.data_loader,
+                date=date,
+                close_prices=close_prices,
+                name_map=name_map,
+                start_date=start_date,
+                vol_prices=vol_prices,
+            )
             if not scored:
                 date = _next_date(date)
                 continue
@@ -638,14 +418,11 @@ class BacktestPipeline:
 
             # Compute market regime FIRST so forced_sell and make_orders
             # both use TODAY's market state (not yesterday's)
-            market_regime = self._compute_market_regime(pred_results)
+            market_regime = self.score_manager.compute_market_regime(pred_results)
             self.strategy.market_regime = market_regime
-            self.strategy.ranking_median = (
-                self._last_market_data.get("ranking_median") if self._last_market_data else None
-            )
-            self.strategy.ranking_median_smoothed = (
-                self._last_market_data.get("ranking_median_smoothed") if self._last_market_data else None
-            )
+            md = self.score_manager.last_market_data
+            self.strategy.ranking_median = md.get("ranking_median") if md else None
+            self.strategy.ranking_median_smoothed = md.get("ranking_median_smoothed") if md else None
 
             self._apply_full_position_sell(pred_results, close_prices, date, name_map)
             for fs in self._daily_forced_sells:
