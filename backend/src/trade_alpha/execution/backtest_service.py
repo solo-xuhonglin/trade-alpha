@@ -692,6 +692,7 @@ async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
                 "ranking_high_pct": s.ranking_high_pct,
                 "ranking_low_pct": s.ranking_low_pct,
                 "ranking_regime": s.ranking_regime,
+                "score_scalar": s.score_scalar,
             }
             for s in snapshots
         ]

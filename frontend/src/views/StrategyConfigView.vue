@@ -322,15 +322,19 @@
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.ranking_median_smooth_alpha" type="number" step="0.05" min="0.05" max="0.95"
+                    label="分数中位数平滑系数" hint="EMA 平滑系数，越高对日间波动越敏感（默认 0.3）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_trend_threshold" type="number" step="0.01"
                     label="趋势阈值" hint="排序分中位数高于此值 -> 趋势市（默认 0.05）" persistent-hint />
                 </v-col>
+              </v-row>
+              <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_high_score_threshold" type="number" step="0.01"
                     label="高分线" hint="排序分高于此值 -> 算高分股（默认 0.30）" persistent-hint />
                 </v-col>
-              </v-row>
-              <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_low_score_threshold" type="number" step="0.01"
                     label="低分线" hint="排序分低于此值 -> 算低分股（默认 -0.30）" persistent-hint />
@@ -668,6 +672,7 @@ const compareFields: CompareField[] = [
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
   { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
+  { key: 'ranking_median_smooth_alpha', label: '分数中位数平滑系数', group: '市场分析', type: 'number' },
   { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
   { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
   { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
@@ -732,6 +737,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rank_up_min_improvement_pct: item.rank_up_min_improvement_pct ?? 0.20,
       ranking_smooth_window: item.ranking_smooth_window ?? 8,
       ranking_smooth_alpha: item.ranking_smooth_alpha ?? 0.3,
+      ranking_median_smooth_alpha: item.ranking_median_smooth_alpha ?? 0.3,
       market_trend_threshold: item.market_trend_threshold ?? 0.05,
       market_high_score_threshold: item.market_high_score_threshold ?? 0.30,
       market_low_score_threshold: item.market_low_score_threshold ?? -0.30,
@@ -787,6 +793,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rank_up_min_improvement_pct: 0.20,
       ranking_smooth_window: 8,
       ranking_smooth_alpha: 0.3,
+      ranking_median_smooth_alpha: 0.3,
       market_trend_threshold: 0.05,
       market_high_score_threshold: 0.30,
       market_low_score_threshold: -0.30,
@@ -845,6 +852,7 @@ const saveStrategy = async () => {
       rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
+      ranking_median_smooth_alpha: form.value.ranking_median_smooth_alpha,
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
       market_low_score_threshold: form.value.market_low_score_threshold,
@@ -899,6 +907,7 @@ const saveStrategy = async () => {
       rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
+      ranking_median_smooth_alpha: form.value.ranking_median_smooth_alpha,
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
       market_low_score_threshold: form.value.market_low_score_threshold,

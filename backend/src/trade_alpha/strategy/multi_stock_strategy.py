@@ -86,10 +86,8 @@ class MultiStockStrategy(PositionManager):
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
         full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
-        # Apply market-aware score attenuation (soft constraint based on ranking_median)
+        # Market-aware position size scalar (affects max_position_pct, not scores)
         score_scalar = self._market_score_scalar()
-        for s in scored_stocks:
-            s.score *= score_scalar
 
         # Score filter for normal buy / sell decisions
         scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
@@ -170,6 +168,7 @@ class MultiStockStrategy(PositionManager):
                     continue
                 success, shares, _fee = portfolio.reserve_funds(
                     stock.ts_code, stock.close, close_prices,
+                    max_position_scalar=score_scalar,
                 )
                 if not success:
                     continue
@@ -198,6 +197,7 @@ class MultiStockStrategy(PositionManager):
 
                 success, shares, _fee = portfolio.reserve_funds(
                     stock.ts_code, stock.close, close_prices,
+                    max_position_scalar=score_scalar,
                 )
                 if not success:
                     continue
@@ -232,17 +232,23 @@ class MultiStockStrategy(PositionManager):
         )
 
     def _market_score_scalar(self) -> float:
-        """Score multiplier based on ranking_median (soft market constraint).
+        """Position size scalar based on smoothed ranking_median.
 
-        When median is positive/strong: no attenuation (1.0).
-        When median is weak/negative: attenuate linearly down to 0.30.
-        This replaces the old hard can_buy=False toggle.
+        Returns a multiplier for max_position_pct:
+          - smoothed >= 0          → 1.0 (market strong, no cap)
+          - smoothed < 0 but raw > smoothed → 1.0 (recovering, no cap)
+          - smoothed < 0 and worsening → max(0.30, 1.0 + smoothed * 5)
+
+        The scalar is passed to PortfolioManager.reserve_funds()
+        as max_position_scalar.
         """
-        if not self.use_market_aware_trading or self.ranking_median is None:
+        if not self.use_market_aware_trading or self.ranking_median_smoothed is None:
             return 1.0
-        if self.ranking_median >= 0:
+        if self.ranking_median_smoothed >= 0:
             return 1.0
-        scalar = max(0.30, 1.0 + self.ranking_median * 5)
+        if self.ranking_median is not None and self.ranking_median > self.ranking_median_smoothed:
+            return 1.0
+        scalar = max(0.30, 1.0 + self.ranking_median_smoothed * 5)
         return scalar
 
     def _check_sell(

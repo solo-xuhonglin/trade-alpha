@@ -41,6 +41,7 @@
 | 67 | test_67_daily_rankings_avg.py | TestDailyRankingsAvg | 验证日均排名和变化字段 |
 | 68 | test_68_scheduled_task_api.py | TestScheduledTaskService | 验证定时任务配置管理 API |
 | 71 | test_71_suggestion.py | TestSuggestion | 验证建议生成管线和查询服务 |
+| 99 | test_99_cleanup_integration_data.py | TestCleanupIntegrationData | 清理集成测试数据（按名称） |
 
 ## 依赖关系
 
@@ -184,6 +185,7 @@ Layer 7: 建议管线
 | TestDailyRankingsAvg | 共享 test_backtest_lstm | **不清理** | - |
 | TestScheduledTaskService | test_*_temp | 自动清理 | - |
 | TestSuggestion | 共享 test_backtest_lstm | **不清理** | - |
+| TestCleanupIntegrationData | 按名称清理测试数据 | **清理** test_backtest_lstm, test_training, test_lstm_training, test_model_config, test_lstm_config | - |
 
 ## 统一指标接口
 
@@ -264,3 +266,4 @@ pytest tests/trade_alpha/integration/test_61_backtest_lstm.py -v
 - 新增 Training 测试放在 51-59
 - 新增 Backtest 测试放在 60-69
 - 新增模型类型测试（如 Transformer）可参考 LSTM 测试结构，使用 55-59 编号
+- 集成测试数据清理放在 99（最后执行）

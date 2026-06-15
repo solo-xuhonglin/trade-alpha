@@ -73,12 +73,17 @@ class PortfolioManager:
     # ------------------------------------------------------------------
 
     def reserve_funds(self, ts_code: str, price: float,
-                      close_prices: Dict[str, float]) -> Tuple[bool, int, float]:
+                      close_prices: Dict[str, float],
+                      max_position_scalar: float = 1.0) -> Tuple[bool, int, float]:
         """Reserve cash for a buy order.
 
         close_prices is used to calculate total portfolio value
         (cash + positions market value) so that max_position_pct is
         enforced against real market value, not just cash.
+
+        max_position_scalar: scale max_position_pct by this factor
+          (e.g. 0.5 halves per-stock position cap). Used by market-aware
+          trading to reduce exposure during weak market regimes.
 
         Internal logic:
           1. Already held -> compute remaining capacity under max_position_pct
@@ -94,6 +99,8 @@ class PortfolioManager:
             logger.warning("reserve_funds", f"Invalid price={price} for {ts_code}, skipping")
             return False, 0, 0
 
+        effective_max_pct = self._max_position_pct * max(max_position_scalar, 0.0)
+
         total_value = self._cash_available + self._cash_reserved
         for tsc, pos in self.positions.items():
             px = close_prices.get(tsc, 0)
@@ -102,7 +109,7 @@ class PortfolioManager:
 
         if ts_code in self.positions:
             pos_value = self.positions[ts_code].shares * price
-            max_allowed = total_value * self._max_position_pct
+            max_allowed = total_value * effective_max_pct
             remaining = max_allowed - pos_value
             if remaining <= self._min_order_value:
                 return False, 0, 0
@@ -110,7 +117,7 @@ class PortfolioManager:
         else:
             if len(self.positions) + len(self._pending_buys) >= self._max_positions:
                 return False, 0, 0
-            max_cost = total_value * self._max_position_pct
+            max_cost = total_value * effective_max_pct
 
         shares, fee = self._calc_shares(max_cost, price)
         if shares < 100:

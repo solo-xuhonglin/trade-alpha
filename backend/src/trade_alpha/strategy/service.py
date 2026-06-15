@@ -58,6 +58,7 @@ async def create_strategy(
     rank_up_min_score: Optional[float] = None,
     rank_up_min_improvement_pct: Optional[float] = None,
     market_trend_threshold: Optional[float] = None,
+    ranking_median_smooth_alpha: Optional[float] = None,
     market_high_score_threshold: Optional[float] = None,
     market_low_score_threshold: Optional[float] = None,
     use_market_aware_trading: Optional[bool] = None,
@@ -147,6 +148,7 @@ async def update_strategy(
     rank_up_min_score: Optional[float] = None,
     rank_up_min_improvement_pct: Optional[float] = None,
     market_trend_threshold: Optional[float] = None,
+    ranking_median_smooth_alpha: Optional[float] = None,
     market_high_score_threshold: Optional[float] = None,
     market_low_score_threshold: Optional[float] = None,
     use_market_aware_trading: Optional[bool] = None,
@@ -254,6 +256,8 @@ async def update_strategy(
         strategy.rank_up_min_improvement_pct = rank_up_min_improvement_pct
     if market_trend_threshold is not None:
         strategy.market_trend_threshold = market_trend_threshold
+    if ranking_median_smooth_alpha is not None:
+        strategy.ranking_median_smooth_alpha = ranking_median_smooth_alpha
     if market_high_score_threshold is not None:
         strategy.market_high_score_threshold = market_high_score_threshold
     if market_low_score_threshold is not None:

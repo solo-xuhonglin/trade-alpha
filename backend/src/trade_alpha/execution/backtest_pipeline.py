@@ -8,6 +8,7 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
+from trade_alpha.execution.scoring import smooth_median
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.task.service import TaskService
@@ -134,6 +135,7 @@ class BacktestPipeline:
         self._daily_forced_sells: List[Dict] = []
         self._stock_helper = ScoredStockHistoryHelper.from_config(self.strategy_config)
         self._last_market_data: Optional[dict] = None
+        self._prev_ranking_median_smoothed: Optional[float] = None
 
     def _append_pending_order(self, order: PendingOrder) -> None:
         """Append a pending order, skipping if a sell order for the same stock already exists.
@@ -158,6 +160,11 @@ class BacktestPipeline:
         if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
             return
         threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
+        # Scale threshold by market-aware scalar to reduce position size more
+        # aggressively in weak markets (existing positions aren't affected by
+        # reserve_funds max_position_scalar, so we need active selling).
+        score_scalar = self.strategy._market_score_scalar()
+        threshold *= score_scalar
         days_required = getattr(self.strategy_config, "full_position_days", 3)
         score_window = getattr(self.strategy_config, "full_position_score_window", 5)
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
@@ -545,11 +552,24 @@ class BacktestPipeline:
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
 
-        # Compute score_scalar for market-aware score attenuation
-        score_scalar = max(0.30, min(1.0, 1.0 + ranking_median * 5)) if ranking_median < 0 else 1.0
+        # Compute smoothed ranking_median via EWMA
+        alpha = getattr(self.strategy_config, "ranking_median_smooth_alpha", 0.3)
+        ranking_median_smoothed = smooth_median(
+            ranking_median, self._prev_ranking_median_smoothed, alpha
+        )
+        self._prev_ranking_median_smoothed = ranking_median_smoothed
+
+        # Compute score_scalar matching _market_score_scalar() logic
+        if ranking_median_smoothed >= 0:
+            score_scalar = 1.0
+        elif ranking_median > ranking_median_smoothed:
+            score_scalar = 1.0
+        else:
+            score_scalar = max(0.30, 1.0 + ranking_median_smoothed * 5)
 
         self._last_market_data = {
             "ranking_median": ranking_median,
+            "ranking_median_smoothed": ranking_median_smoothed,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
             "ranking_regime": regime,
@@ -615,6 +635,18 @@ class BacktestPipeline:
                 continue
 
             self._daily_forced_sells = []
+
+            # Compute market regime FIRST so forced_sell and make_orders
+            # both use TODAY's market state (not yesterday's)
+            market_regime = self._compute_market_regime(pred_results)
+            self.strategy.market_regime = market_regime
+            self.strategy.ranking_median = (
+                self._last_market_data.get("ranking_median") if self._last_market_data else None
+            )
+            self.strategy.ranking_median_smoothed = (
+                self._last_market_data.get("ranking_median_smoothed") if self._last_market_data else None
+            )
+
             self._apply_full_position_sell(pred_results, close_prices, date, name_map)
             for fs in self._daily_forced_sells:
                 ts_code = fs["ts_code"]
@@ -624,12 +656,6 @@ class BacktestPipeline:
 
             forced_sell_orders = list(self.pending_orders)
             self.pending_orders.clear()
-
-            market_regime = self._compute_market_regime(pred_results)
-            self.strategy.market_regime = market_regime
-            self.strategy.ranking_median = (
-                self._last_market_data.get("ranking_median") if self._last_market_data else None
-            )
 
             day_val, day_ret = await self._save_snapshot(date, backtest_id, close_prices, pred_results)
             daily_values.append(day_val)

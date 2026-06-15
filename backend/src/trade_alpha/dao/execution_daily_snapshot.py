@@ -23,6 +23,7 @@ class ExecutionDailySnapshot(Document):
     ranking_high_pct: float = 0.0
     ranking_low_pct: float = 0.0
     ranking_regime: str = ""             # market regime: "trending_up" / "trending_down" / "sideways" / ""
+    score_scalar: float = 1.0           # score attenuation factor from market-aware trading
     predictions: Dict[str, Dict] = Field(default_factory=dict)
 
     class Settings:

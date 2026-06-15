@@ -13,6 +13,9 @@ from trade_alpha.strategy.service import (
     update_strategy,
     delete_strategy,
 )
+from trade_alpha.logging import get_logger
+
+logger = get_logger("strategy_config_api")
 
 
 def _strategy_to_dict(s) -> dict:
@@ -66,6 +69,7 @@ def _strategy_to_dict(s) -> dict:
         "rank_up_min_score": s.rank_up_min_score,
         "rank_up_min_improvement_pct": s.rank_up_min_improvement_pct,
         "market_trend_threshold": s.market_trend_threshold,
+        "ranking_median_smooth_alpha": s.ranking_median_smooth_alpha,
         "market_high_score_threshold": s.market_high_score_threshold,
         "market_low_score_threshold": s.market_low_score_threshold,
         "use_market_aware_trading": s.use_market_aware_trading,
@@ -151,6 +155,7 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             rank_up_min_score=request.rank_up_min_score,
             rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
             market_trend_threshold=request.market_trend_threshold,
+            ranking_median_smooth_alpha=request.ranking_median_smooth_alpha,
             market_high_score_threshold=request.market_high_score_threshold,
             market_low_score_threshold=request.market_low_score_threshold,
             use_market_aware_trading=request.use_market_aware_trading,
@@ -218,6 +223,7 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             rank_up_min_score=request.rank_up_min_score,
             rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
             market_trend_threshold=request.market_trend_threshold,
+            ranking_median_smooth_alpha=request.ranking_median_smooth_alpha,
             market_high_score_threshold=request.market_high_score_threshold,
             market_low_score_threshold=request.market_low_score_threshold,
             use_market_aware_trading=request.use_market_aware_trading,
@@ -225,8 +231,10 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
         return _strategy_to_dict(s)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=404, detail="Strategy not found")
+    except Exception as e:
+        import traceback
+        logger.error(f"Update strategy failed: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
 
 
 @router.delete("/{strategy_id}")

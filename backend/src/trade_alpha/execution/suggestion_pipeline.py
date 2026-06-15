@@ -122,6 +122,11 @@ class SuggestionPipeline:
         if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
             return
         threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
+        # Scale threshold by market-aware scalar to reduce position size more
+        # aggressively in weak markets (existing positions aren't affected by
+        # reserve_funds max_position_scalar, so we need active selling).
+        score_scalar = self.strategy._market_score_scalar()
+        threshold *= score_scalar
         days_required = getattr(self.strategy_config, "full_position_days", 3)
         score_window = getattr(self.strategy_config, "full_position_score_window", 5)
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)

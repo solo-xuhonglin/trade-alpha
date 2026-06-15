@@ -77,6 +77,26 @@ def smooth_scores(
             r["ranking_score"] = smoothed
 
 
+def smooth_median(
+    raw_median: float,
+    prev_smoothed: Optional[float],
+    alpha: float = 0.3,
+) -> float:
+    """EWMA smooth a single ranking_median value.
+
+    Args:
+        raw_median: Today's raw median of all ranking_scores.
+        prev_smoothed: Yesterday's smoothed value (None on first call).
+        alpha: EWMA factor (0.0~1.0, higher = more responsive).
+
+    Returns:
+        Smoothed median for today.
+    """
+    if prev_smoothed is None:
+        return raw_median
+    return alpha * raw_median + (1.0 - alpha) * prev_smoothed
+
+
 def apply_momentum_boost(
     pred_results: Dict[str, Dict],
     strategy_config: StrategyConfig,
