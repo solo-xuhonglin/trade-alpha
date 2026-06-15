@@ -16,7 +16,7 @@ class ScoredStock(BaseModel):
 
     # --- 评分 ---
     raw_score: float = 0.0
-    score: float = 0.0
+    composite_score: float = 0.0
     ranking_score: float = 0.0
 
     # --- 预测概率 ---
@@ -62,7 +62,7 @@ class PendingOrder(BaseModel):
     stock_name: str
     order_price: float
     order_shares: int
-    score: float
+    entry_score: float
     trade_date: str
     settle_date: str
     reason: str = ""
@@ -79,6 +79,7 @@ class PendingBuy(BaseModel):
     order_shares: int
     order_price: float
     estimated_fee: float
+    entry_score: float = 0.0
 
     @property
     def reserved_cash(self) -> float:

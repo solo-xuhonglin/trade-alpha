@@ -55,7 +55,7 @@ class SingleStockStrategy(PositionManager):
         if not target_stock:
             return []
 
-        logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, up_prob_10d={target_stock.up_prob_10d:.3f}, up_prob_20d={target_stock.up_prob_20d:.3f}, score={target_stock.score:.3f}")
+        logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, up_prob_10d={target_stock.up_prob_10d:.3f}, up_prob_20d={target_stock.up_prob_20d:.3f}, composite_score={target_stock.composite_score:.3f}")
 
         orders: List[PendingOrder] = []
         close_prices = close_prices or {}
@@ -70,7 +70,7 @@ class SingleStockStrategy(PositionManager):
                     stock_name=current_position.stock_name,
                     order_price=sell_price,
                     order_shares=-current_position.shares,
-                    score=current_position.entry_score,
+                    entry_score=current_position.entry_score,
                     up_prob_3d=current_position.entry_3d_prob,
                     up_prob_5d=current_position.entry_5d_prob,
                     up_prob_10d=current_position.entry_10d_prob,
@@ -80,7 +80,7 @@ class SingleStockStrategy(PositionManager):
                 ))
                 return orders
 
-        if not current_position and target_stock.score > self.buy_threshold:
+        if not current_position and target_stock.composite_score > self.buy_threshold:
             logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
             success, shares, _fee = portfolio.reserve_funds(
                 self.target_ts_code, target_stock.close, close_prices,
@@ -91,7 +91,7 @@ class SingleStockStrategy(PositionManager):
                     stock_name=target_stock.stock_name,
                     order_price=target_stock.close,
                     order_shares=shares,
-                    score=target_stock.score,
+                    entry_score=target_stock.composite_score,
                     up_prob_3d=target_stock.up_prob_3d,
                     up_prob_5d=target_stock.up_prob_5d,
                     up_prob_10d=target_stock.up_prob_10d,
@@ -103,8 +103,8 @@ class SingleStockStrategy(PositionManager):
         return orders
 
     def _should_buy(self, scored_stock: ScoredStock) -> bool:
-        """Determine if we should buy based on score and threshold."""
-        return scored_stock.score > self.buy_threshold
+        """Determine if we should buy based on composite_score and threshold."""
+        return scored_stock.composite_score > self.buy_threshold
 
     def _should_sell(
         self,
@@ -113,7 +113,7 @@ class SingleStockStrategy(PositionManager):
         close_prices: Optional[Dict[str, float]] = None,
     ) -> bool:
         """Determine if we should sell."""
-        if scored_stock.score < self.sell_threshold:
+        if scored_stock.composite_score < self.sell_threshold:
             return True
         if position.hold_days >= self.max_hold_days:
             return True

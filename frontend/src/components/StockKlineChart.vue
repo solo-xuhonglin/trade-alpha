@@ -13,7 +13,6 @@ export interface KlineChartItem {
   low: number
   close: number
   composite_score?: number
-  score?: number
   raw_score?: number
   ranking_score?: number
   rank?: number
@@ -59,7 +58,7 @@ const renderChart = () => {
 
   const dates = props.data.map(d => d.trade_date)
   const klineData = props.data.map(d => [d.open, d.close, d.low, d.high])
-  const scores = props.data.map(d => d.composite_score ?? d.score)
+  const scores = props.data.map(d => d.composite_score)
   const rawScores = props.data.map(d => d.raw_score)
   const ranks = props.data.map(d => d.rank)
   const maxRank = Math.max(...ranks.filter(r => r != null), 0)
@@ -318,8 +317,8 @@ const renderChart = () => {
           if (bonusParts.length > 0) {
             leftCol += `<br>${bonusParts.join('<br>')}`
           }
-          if (isVisible('复合评分') && (d.composite_score != null || d.score != null)) {
-            leftCol += `<br>综合分: ${fmtScore(d.composite_score ?? d.score)}`
+          if (isVisible('复合评分') && d.composite_score != null) {
+            leftCol += `<br>综合分: ${fmtScore(d.composite_score)}`
           }
           if (isVisible('排名分') && d.ranking_score != null) {
             leftCol += `<br>排名分: ${fmtScore(d.ranking_score)}`

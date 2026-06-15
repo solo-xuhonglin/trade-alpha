@@ -85,7 +85,7 @@ class MultiStockStrategy(PositionManager):
         if self.ts_codes:
             scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
 
-        score_map = {s.ts_code: s.score for s in scored_stocks}
+        score_map = {s.ts_code: s.composite_score for s in scored_stocks}
 
         # Exclude filter applies to all phases
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
@@ -95,7 +95,7 @@ class MultiStockStrategy(PositionManager):
         score_scalar = self._market_score_scalar(market_data)
 
         # Score filter for normal buy / sell decisions
-        scored_stocks = [s for s in scored_stocks if s.score > self.buy_threshold]
+        scored_stocks = [s for s in scored_stocks if s.composite_score > self.buy_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         if len(sorted_stocks) <= 5:
@@ -129,7 +129,7 @@ class MultiStockStrategy(PositionManager):
                     stock_name=pos.stock_name,
                     order_price=sell_price,
                     order_shares=-pos.shares,
-                    score=pos.entry_score,
+                    entry_score=pos.entry_score,
                     up_prob_3d=pos.entry_3d_prob,
                     up_prob_5d=pos.entry_5d_prob,
                     up_prob_10d=pos.entry_10d_prob,
@@ -163,7 +163,7 @@ class MultiStockStrategy(PositionManager):
                 s for s in full_candidates
                 if s.ts_code not in hold_ts_codes
                 and s.rank_improvement >= self.rank_up_min_improvement_pct
-                and s.score > self.rank_up_min_score
+                and s.composite_score > self.rank_up_min_score
             ]
             rank_up_candidates.sort(
                 key=lambda s: s.rank_improvement, reverse=True
@@ -233,7 +233,7 @@ class MultiStockStrategy(PositionManager):
             stock_name=stock.stock_name,
             order_price=stock.close,
             order_shares=order_shares,
-            score=stock.score,
+            entry_score=stock.composite_score,
             up_prob_3d=stock.up_prob_3d,
             up_prob_5d=stock.up_prob_5d,
             up_prob_10d=stock.up_prob_10d,
@@ -316,7 +316,7 @@ class MultiStockStrategy(PositionManager):
                 stock_name=stock_name_map.get(ts_code, ts_code),
                 order_price=close_prices.get(ts_code, 0),
                 order_shares=-pos.shares,
-                score=0.0,
+                entry_score=0.0,
                 trade_date=trade_date,
                 settle_date=self._next_trade_date(trade_date),
                 reason=SELL_REASON_FULL_POSITION,

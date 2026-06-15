@@ -174,7 +174,7 @@ class BacktestPipeline:
                 action="buy" if order.order_shares > 0 else "sell",
                 filled_price=0.0, order_price=order.order_price, shares=0, fee=0.0, cash_after=0.0,
                 status="cancelled", reason="cancelled",
-                entry_score=order.score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
+                entry_score=order.entry_score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
                 up_prob_10d=order.up_prob_10d,
                 up_prob_20d=order.up_prob_20d,
             ) for order in unfilled_orders

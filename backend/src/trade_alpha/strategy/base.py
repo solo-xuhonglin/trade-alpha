@@ -141,7 +141,7 @@ class PositionManager:
                 cash_after=cash_after,
                 status="filled",
                 reason=order.reason or f"rank_{action}",
-                entry_score=order.score,
+                entry_score=order.entry_score,
                 up_prob_3d=order.up_prob_3d,
                 up_prob_5d=order.up_prob_5d,
                 up_prob_10d=order.up_prob_10d,

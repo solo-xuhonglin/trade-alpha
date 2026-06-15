@@ -437,7 +437,7 @@ class ScoreManager:
                 stock_name=name_map.get(ts_code, ts_code),
                 close=r["close"],
                 raw_score=r.get("raw_score", 0.0),
-                score=r.get("composite_score", r["score"]),
+                composite_score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
                 trend_bonus=r.get("trend_bonus", 0.0),
                 trend_penalty=r.get("trend_penalty", 0.0),
@@ -473,8 +473,8 @@ class ScoreManager:
         if date == start_date:
             logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored_list)} with score > 0")
             if scored_list:
-                top5 = sorted(scored_list, key=lambda s: s.score, reverse=True)[:5]
-                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.score:.3f})" for s in top5]))
+                top5 = sorted(scored_list, key=lambda s: s.composite_score, reverse=True)[:5]
+                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.composite_score:.3f})" for s in top5]))
 
         return stock_map
 

@@ -167,7 +167,7 @@ const accuracyMap = computed(() => {
 
 const avgCompositeScore = computed(() => {
   if (predictionItems.value.length === 0) return '--'
-  const scores = predictionItems.value.map(p => p.composite_score ?? p.score).filter(s => s != null)
+  const scores = predictionItems.value.map(p => p.composite_score).filter(s => s != null)
   if (scores.length === 0) return '--'
   return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(4)
 })
