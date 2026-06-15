@@ -54,6 +54,34 @@ def _calc_r_squared(values: List[float]) -> float:
     return max(0.0, 1.0 - ss_res / ss_tot)
 
 
+def smooth_ewma(
+    buffer: List[float],
+    window: int,
+    alpha: Optional[float] = None,
+) -> float:
+    """Apply EWMA smoothing to a buffer of values.
+
+    Unified smoothing function used for both per-stock scores and market median.
+
+    Args:
+        buffer: List of historical values (newest at end).
+        window: Minimum buffer size before smoothing starts.
+        alpha: EWMA factor (0~1). If None, auto-computed as 2/(window+1).
+
+    Returns:
+        Smoothed value. If buffer < window, returns last raw value (no smoothing).
+    """
+    if not buffer:
+        return 0.0
+    if len(buffer) < window:
+        return buffer[-1]
+    effective_alpha = alpha if alpha and alpha > 0 else (2.0 / (window + 1) if window > 1 else 0.5)
+    smoothed = buffer[0]
+    for v in buffer[1:]:
+        smoothed = effective_alpha * v + (1 - effective_alpha) * smoothed
+    return smoothed
+
+
 def smooth_scores(
     pred_results: Dict[str, Dict],
     strategy_config: StrategyConfig,
@@ -61,43 +89,16 @@ def smooth_scores(
 ) -> None:
     """Apply EWMA smoothing to composite_score, write to ranking_score.
 
-    Maintains a cross-day buffer per stock. When buffer has < window values,
-    uses composite_score directly (no smoothing yet).
+    Uses smooth_ewma for consistent smoothing logic.
     """
-    window = getattr(strategy_config, 'ranking_smooth_window', 3)
+    window = getattr(strategy_config, 'ranking_smooth_window', 5)
     raw_alpha = getattr(strategy_config, 'ranking_smooth_alpha', 0.0)
-    alpha = raw_alpha if raw_alpha > 0 else (2.0 / (window + 1) if window > 1 else 0.5)
+    alpha = raw_alpha if raw_alpha > 0 else None
     for ts_code, r in pred_results.items():
         composite = r.get("composite_score", r["score"])
         buffer = score_buffer.setdefault(ts_code, [])
         buffer.append(composite)
-        if len(buffer) < window:
-            r["ranking_score"] = composite
-        else:
-            smoothed = buffer[0]
-            for v in buffer[1:]:
-                smoothed = alpha * v + (1 - alpha) * smoothed
-            r["ranking_score"] = smoothed
-
-
-def smooth_median(
-    raw_median: float,
-    prev_smoothed: Optional[float],
-    alpha: float = 0.3,
-) -> float:
-    """EWMA smooth a single ranking_median value.
-
-    Args:
-        raw_median: Today's raw median of all ranking_scores.
-        prev_smoothed: Yesterday's smoothed value (None on first call).
-        alpha: EWMA factor (0.0~1.0, higher = more responsive).
-
-    Returns:
-        Smoothed median for today.
-    """
-    if prev_smoothed is None:
-        return raw_median
-    return alpha * raw_median + (1.0 - alpha) * prev_smoothed
+        r["ranking_score"] = smooth_ewma(buffer, window, alpha)
 
 
 def apply_momentum_boost(
@@ -502,10 +503,7 @@ class ScoreManager:
     def compute_market_regime(self, pred_results: Dict[str, Dict]) -> str:
         """Compute market regime from ranking_scores, update internal state.
 
-        Uses EWMA smoothing with buffer, consistent with smooth_scores logic:
-        - First `window` days: no smoothing, use raw median
-        - After `window` days: EWMA smoothing on buffer
-        - Regime classification uses smoothed median
+        Uses smooth_ewma for consistent smoothing with per-stock scores.
         """
         rank_scores = [
             p.get("ranking_score", 0) for p in pred_results.values()
@@ -523,23 +521,16 @@ class ScoreManager:
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
 
-        # EWMA smoothing with buffer (same pattern as smooth_scores)
-        window = getattr(self._strategy_config, "ranking_median_smooth_window", 3)
+        # EWMA smoothing using unified smooth_ewma function
+        window = getattr(self._strategy_config, "ranking_median_smooth_window", 5)
         raw_alpha = getattr(self._strategy_config, "ranking_median_smooth_alpha", 0.0)
-        alpha = raw_alpha if raw_alpha > 0 else (2.0 / (window + 1) if window > 1 else 0.5)
+        alpha = raw_alpha if raw_alpha > 0 else None
         self._ranking_median_buffer.append(ranking_median)
         if len(self._ranking_median_buffer) > window * 2:
             self._ranking_median_buffer = self._ranking_median_buffer[-window * 2:]
+        ranking_median_smoothed = smooth_ewma(self._ranking_median_buffer, window, alpha)
 
-        if len(self._ranking_median_buffer) < window:
-            ranking_median_smoothed = ranking_median
-        else:
-            smoothed = self._ranking_median_buffer[0]
-            for v in self._ranking_median_buffer[1:]:
-                smoothed = alpha * v + (1 - alpha) * smoothed
-            ranking_median_smoothed = smoothed
-
-        # Classify regime using smoothed median (not raw)
+        # Classify regime using smoothed median
         trend_th = self._strategy_config.market_trend_threshold
         if ranking_median_smoothed > trend_th:
             regime = "trending_up"
