@@ -14,7 +14,6 @@ from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
-from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
@@ -158,7 +157,6 @@ class SuggestionPipeline:
             # 5. Get stock universe
             top_stocks = await self.data_loader.get_top_stocks(date=first_target, limit=universe_limit)
             ts_codes = [s["ts_code"] for s in top_stocks]
-            name_map = {s["ts_code"]: s.get("name", "") for s in top_stocks}
             logger.info(f"SuggestionPipeline.run: universe={len(ts_codes)} stocks")
 
             # Initialize pipeline state
@@ -189,7 +187,6 @@ class SuggestionPipeline:
                     data_loader=self.data_loader,
                     date=date,
                     close_prices=close_prices,
-                    name_map=name_map,
                     start_date=date,
                     vol_prices=vol_prices,
                 )
@@ -295,7 +292,7 @@ class SuggestionPipeline:
                         stock = stock_map.get(order.ts_code)
                         kwargs = dict(
                             ts_code=order.ts_code,
-                            stock_name=name_map.get(order.ts_code, order.ts_code),
+                            stock_name=stock.stock_name if stock else order.ts_code,
                             trade_date=date,
                             raw_score=stock.raw_score if stock else order.score,
                             composite_score=stock.score if stock else order.score,

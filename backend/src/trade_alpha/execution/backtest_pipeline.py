@@ -10,7 +10,7 @@ from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
 from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.dao.execution_trade import ExecutionTrade
-from trade_alpha.dao.stock_name_cache import get_stock_names
+from trade_alpha.dao.stock_name_cache import get_stock_name
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.execution.portfolio import PortfolioManager
@@ -120,11 +120,6 @@ class BacktestPipeline:
             classifier = create_classifier(self.model_config, training.model_path)
             self.predictor = create_predictor(self.model_config, classifier, data_loader=self.data_loader)
 
-    def _init_baseline(self, initial_capital: float) -> None:
-        self._baseline_daily_values = [initial_capital]
-        self._baseline_shares: Dict[str, float] = {}
-        self._baseline_initialized = False
-
     @staticmethod
     def _skip_non_trading_day(date: str) -> bool:
         return datetime.strptime(date, "%Y%m%d").weekday() >= 5
@@ -157,7 +152,6 @@ class BacktestPipeline:
         pending_orders: List[PendingOrder],
         date: str,
         backtest_id: PydanticObjectId,
-        name_map: Dict[str, str],
         day_data: Dict,
     ) -> Tuple[int, float]:
         if not pending_orders:
@@ -207,8 +201,9 @@ class BacktestPipeline:
 
         for t in filled_trades:
             if t.action == "buy":
+                stock_name = await get_stock_name(t.ts_code)
                 self.portfolio.settle_buy(
-                    t.ts_code, name_map.get(t.ts_code, ""),
+                    t.ts_code, stock_name,
                     t.shares, t.order_price, t.filled_price,
                 )
             elif t.action == "sell":
@@ -248,14 +243,13 @@ class BacktestPipeline:
     ) -> ExecutionResult:
         result = await self._create_result(start_date, end_date, name)
         await self._ensure_predictor(task_id)
-        name_map = await get_stock_names(self.ts_codes)
 
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
 
         baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
 
         daily_values, daily_returns, total_trades, total_fees = await self._run_daily_loop(
-            start_date, end_date, result.id, name_map, task_id, baseline_tracker,
+            start_date, end_date, result.id, task_id, baseline_tracker,
         )
 
         result = await self._finalize_result(
@@ -264,7 +258,7 @@ class BacktestPipeline:
         return result
 
     async def _run_daily_loop(
-        self, start_date, end_date, backtest_id, name_map, task_id, baseline_tracker,
+        self, start_date, end_date, backtest_id, task_id, baseline_tracker,
     ):
         prev_total_value: Optional[float] = None
         pending_orders: List[PendingOrder] = []
@@ -293,7 +287,7 @@ class BacktestPipeline:
             baseline_tracker.track(close_prices)
 
             trades_add, fees_add = await self._settle_orders(
-                pending_orders, date, backtest_id, name_map, day_data,
+                pending_orders, date, backtest_id, day_data,
             )
             total_trades += trades_add
             total_fees += fees_add
@@ -304,7 +298,6 @@ class BacktestPipeline:
                 data_loader=self.data_loader,
                 date=date,
                 close_prices=close_prices,
-                name_map=name_map,
                 start_date=start_date,
                 vol_prices=vol_prices,
             )

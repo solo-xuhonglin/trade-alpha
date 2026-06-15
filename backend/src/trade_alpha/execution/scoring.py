@@ -4,10 +4,11 @@ Pure functions handle individual scoring steps; ScoreManager orchestrates the
 full scoring lifecycle and owns cross-day state.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
+from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.base import compute_scores
 from trade_alpha.schemas import ScoredStock
@@ -366,7 +367,6 @@ class ScoreManager:
         data_loader: DataLoader,
         date: str,
         close_prices: Dict[str, float],
-        name_map: Dict[str, str],
         start_date: str,
         vol_prices: Optional[Dict[str, float]] = None,
     ) -> Dict[str, ScoredStock]:
@@ -385,6 +385,9 @@ class ScoreManager:
             pred_results[ts_code] = compute_scores(probs, close_price, horizons)
         if not pred_results:
             return {}
+
+        # Look up stock names from global cache
+        name_map = await get_stock_names(list(pred_results.keys()))
 
         # Compute lookback window from strategy config
         lookback = max(
