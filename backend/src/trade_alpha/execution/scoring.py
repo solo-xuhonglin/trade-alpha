@@ -101,6 +101,30 @@ def smooth_scores(
         r["ranking_score"] = smooth_ewma(buffer, window, alpha)
 
 
+def smooth_ranking_median(
+    buffer: List[float],
+    strategy_config: StrategyConfig,
+) -> float:
+    """Apply EWMA smoothing to ranking_median buffer.
+
+    Uses smooth_ewma for consistent smoothing with per-stock scores.
+    Manages buffer growth to prevent unbounded memory.
+
+    Args:
+        buffer: Historical ranking_median values (newest at end).
+        strategy_config: Strategy config with smoothing parameters.
+
+    Returns:
+        Smoothed ranking_median value.
+    """
+    window = getattr(strategy_config, "ranking_median_smooth_window", 5)
+    raw_alpha = getattr(strategy_config, "ranking_median_smooth_alpha", 0.0)
+    alpha = raw_alpha if raw_alpha > 0 else None
+    if len(buffer) > window * 2:
+        buffer[:] = buffer[-window * 2:]
+    return smooth_ewma(buffer, window, alpha)
+
+
 def apply_momentum_boost(
     pred_results: Dict[str, Dict],
     strategy_config: StrategyConfig,
@@ -521,14 +545,11 @@ class ScoreManager:
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
 
-        # EWMA smoothing using unified smooth_ewma function
-        window = getattr(self._strategy_config, "ranking_median_smooth_window", 5)
-        raw_alpha = getattr(self._strategy_config, "ranking_median_smooth_alpha", 0.0)
-        alpha = raw_alpha if raw_alpha > 0 else None
+        # EWMA smoothing using unified smooth_ranking_median
         self._ranking_median_buffer.append(ranking_median)
-        if len(self._ranking_median_buffer) > window * 2:
-            self._ranking_median_buffer = self._ranking_median_buffer[-window * 2:]
-        ranking_median_smoothed = smooth_ewma(self._ranking_median_buffer, window, alpha)
+        ranking_median_smoothed = smooth_ranking_median(
+            self._ranking_median_buffer, self._strategy_config
+        )
 
         # Classify regime using smoothed median
         trend_th = self._strategy_config.market_trend_threshold
