@@ -322,19 +322,25 @@
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.ranking_median_smooth_alpha" type="number" step="0.05" min="0.05" max="0.95"
-                    label="分数中位数平滑系数" hint="EMA 平滑系数，越高对日间波动越敏感（默认 0.3）" persistent-hint />
+                  <v-text-field v-model.number="form.ranking_median_smooth_window" type="number" min="1"
+                    label="中位数平滑窗口" hint="EWMA 窗口天数，前 N 天不平滑（默认 3）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.market_trend_threshold" type="number" step="0.01"
-                    label="趋势阈值" hint="排序分中位数高于此值 -> 趋势市（默认 0.05）" persistent-hint />
+                  <v-text-field v-model.number="form.ranking_median_smooth_alpha" type="number" step="0.05" min="0.05" max="0.95"
+                    label="中位数平滑系数" hint="EMA 平滑系数，为空则用 2/(window+1)" persistent-hint />
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.market_trend_threshold" type="number" step="0.01"
+                    label="趋势阈值" hint="排序分中位数高于此值 -> 趋势市（默认 0.05）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_high_score_threshold" type="number" step="0.01"
                     label="高分线" hint="排序分高于此值 -> 算高分股（默认 0.30）" persistent-hint />
                 </v-col>
+              </v-row>
+              <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_low_score_threshold" type="number" step="0.01"
                     label="低分线" hint="排序分低于此值 -> 算低分股（默认 -0.30）" persistent-hint />
@@ -612,6 +618,8 @@ const form = ref({
   acceleration_up_ratio: 0.80,
   ranking_smooth_window: 8,
   ranking_smooth_alpha: 0.3,
+  ranking_median_smooth_window: 3,
+  ranking_median_smooth_alpha: 0.3,
 })
 
 const headers = [
@@ -642,6 +650,8 @@ const compareFields: CompareField[] = [
   { key: 'max_momentum_bonus', label: '最大动量加成', group: '排名优化', type: 'number' },
   { key: 'ranking_smooth_window', label: '平滑窗口', group: '排名优化', type: 'number' },
   { key: 'ranking_smooth_alpha', label: '平滑系数', group: '排名优化', type: 'number' },
+  { key: 'ranking_median_smooth_window', label: '中位数平滑窗口', group: '市场状态', type: 'number' },
+  { key: 'ranking_median_smooth_alpha', label: '中位数平滑系数', group: '市场状态', type: 'number' },
   { key: 'use_trend_bonus', label: '趋势加分', group: '排名优化', type: 'boolean' },
   { key: 'use_trend_penalty', label: '趋势扣分', group: '排名优化', type: 'boolean' },
   { key: 'trend_bonus_window', label: '趋势窗口', group: '排名优化', type: 'number' },
@@ -737,6 +747,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rank_up_min_improvement_pct: item.rank_up_min_improvement_pct ?? 0.20,
       ranking_smooth_window: item.ranking_smooth_window ?? 8,
       ranking_smooth_alpha: item.ranking_smooth_alpha ?? 0.3,
+      ranking_median_smooth_window: item.ranking_median_smooth_window ?? 3,
       ranking_median_smooth_alpha: item.ranking_median_smooth_alpha ?? 0.3,
       market_trend_threshold: item.market_trend_threshold ?? 0.05,
       market_high_score_threshold: item.market_high_score_threshold ?? 0.30,
@@ -793,6 +804,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rank_up_min_improvement_pct: 0.20,
       ranking_smooth_window: 8,
       ranking_smooth_alpha: 0.3,
+      ranking_median_smooth_window: 3,
       ranking_median_smooth_alpha: 0.3,
       market_trend_threshold: 0.05,
       market_high_score_threshold: 0.30,
@@ -852,6 +864,7 @@ const saveStrategy = async () => {
       rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
+      ranking_median_smooth_window: form.value.ranking_median_smooth_window,
       ranking_median_smooth_alpha: form.value.ranking_median_smooth_alpha,
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
@@ -907,6 +920,7 @@ const saveStrategy = async () => {
       rank_up_min_improvement_pct: form.value.type === 'multi' ? form.value.rank_up_min_improvement_pct : undefined,
       ranking_smooth_window: form.value.type === 'multi' ? form.value.ranking_smooth_window : undefined,
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
+      ranking_median_smooth_window: form.value.ranking_median_smooth_window,
       ranking_median_smooth_alpha: form.value.ranking_median_smooth_alpha,
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,

@@ -376,7 +376,7 @@ class ScoreManager:
         self._rank_history: Dict[str, List[ScoredStock]] = {}
         window = getattr(strategy_config, 'rank_up_window', 5) if strategy_config else 5
         self._rank_history_max: int = window * 5
-        self._prev_ranking_median_smoothed: Optional[float] = None
+        self._ranking_median_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
 
     # ------------------------------------------------------------------
@@ -500,7 +500,13 @@ class ScoreManager:
         return scored, pred_results
 
     def compute_market_regime(self, pred_results: Dict[str, Dict]) -> str:
-        """Compute market regime from ranking_scores, update internal state."""
+        """Compute market regime from ranking_scores, update internal state.
+
+        Uses EWMA smoothing with buffer, consistent with smooth_scores logic:
+        - First `window` days: no smoothing, use raw median
+        - After `window` days: EWMA smoothing on buffer
+        - Regime classification uses smoothed median
+        """
         rank_scores = [
             p.get("ranking_score", 0) for p in pred_results.values()
             if isinstance(p, dict) and p.get("ranking_score") is not None
@@ -511,25 +517,36 @@ class ScoreManager:
         rank_scores_sorted = sorted(rank_scores)
         n = len(rank_scores_sorted)
         ranking_median = float(rank_scores_sorted[n // 2])
-        trend_th = self._strategy_config.market_trend_threshold
-        if ranking_median > trend_th:
-            regime = "trending_up"
-        elif ranking_median < -trend_th:
-            regime = "trending_down"
-        else:
-            regime = "sideways"
 
         high_th = self._strategy_config.market_high_score_threshold
         low_th = self._strategy_config.market_low_score_threshold
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
 
-        # Compute smoothed ranking_median via EWMA
-        alpha = getattr(self._strategy_config, "ranking_median_smooth_alpha", 0.3)
-        ranking_median_smoothed = smooth_median(
-            ranking_median, self._prev_ranking_median_smoothed, alpha
-        )
-        self._prev_ranking_median_smoothed = ranking_median_smoothed
+        # EWMA smoothing with buffer (same pattern as smooth_scores)
+        window = getattr(self._strategy_config, "ranking_median_smooth_window", 3)
+        raw_alpha = getattr(self._strategy_config, "ranking_median_smooth_alpha", 0.0)
+        alpha = raw_alpha if raw_alpha > 0 else (2.0 / (window + 1) if window > 1 else 0.5)
+        self._ranking_median_buffer.append(ranking_median)
+        if len(self._ranking_median_buffer) > window * 2:
+            self._ranking_median_buffer = self._ranking_median_buffer[-window * 2:]
+
+        if len(self._ranking_median_buffer) < window:
+            ranking_median_smoothed = ranking_median
+        else:
+            smoothed = self._ranking_median_buffer[0]
+            for v in self._ranking_median_buffer[1:]:
+                smoothed = alpha * v + (1 - alpha) * smoothed
+            ranking_median_smoothed = smoothed
+
+        # Classify regime using smoothed median (not raw)
+        trend_th = self._strategy_config.market_trend_threshold
+        if ranking_median_smoothed > trend_th:
+            regime = "trending_up"
+        elif ranking_median_smoothed < -trend_th:
+            regime = "trending_down"
+        else:
+            regime = "sideways"
 
         # Compute score_scalar matching _market_score_scalar() logic
         if ranking_median_smoothed >= 0:

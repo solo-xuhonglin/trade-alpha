@@ -49,8 +49,9 @@ export interface Strategy {
   vol_penalty_scale?: number
   vol_max_penalty?: number
   ranking_smooth_alpha?: number
-  market_trend_threshold?: number
+  ranking_median_smooth_window?: number
   ranking_median_smooth_alpha?: number
+  market_trend_threshold?: number
   market_high_score_threshold?: number
   market_low_score_threshold?: number
   use_market_aware_trading?: boolean
