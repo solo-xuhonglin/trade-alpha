@@ -119,7 +119,7 @@ class MultiStockStrategy(PositionManager):
 
         logger.info(f"make_orders trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
         for ts_code, pos in portfolio.positions.items():
-            should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices)
+            should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data)
             if should_sell:
                 in_score = ts_code in score_map
                 in_sell_rank = ts_code in sell_rank_ts_codes
@@ -252,6 +252,18 @@ class MultiStockStrategy(PositionManager):
             return 1.0, 1.0
         return (market_data.position_multiplier, market_data.buy_threshold_multiplier)
 
+    def _stop_loss_mult(self, market_data: Optional[MarketDataEmbed] = None) -> float:
+        """Widen stop-loss during crash/decline to avoid selling at bottoms."""
+        if not getattr(self.strategy_config, "use_phase_strategy", True):
+            return 1.0
+        if market_data is None:
+            return 1.0
+        if market_data.market_phase in ("crash",):
+            return 2.0
+        if market_data.market_phase in ("decline",):
+            return 1.5
+        return 1.0
+
     def _apply_full_position_sell(
         self,
         scored_stocks: List[ScoredStock],
@@ -328,6 +340,7 @@ class MultiStockStrategy(PositionManager):
         sell_rank_ts_codes: set,
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
+        market_data: Optional[MarketDataEmbed] = None,
     ) -> Tuple[bool, str]:
         """Check whether a position should be sold.
 
@@ -335,12 +348,13 @@ class MultiStockStrategy(PositionManager):
             Tuple of (should_sell: bool, reason: str).
         """
         current_score = score_map.get(position.ts_code, 0.0)
+        effective_stop_loss = self.stop_loss_pct * self._stop_loss_mult(market_data)
 
         if position.hold_days < self.min_hold_days:
             if close_prices and position.ts_code in close_prices:
                 current_price = close_prices[position.ts_code]
                 cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
-                if current_price < cost_basis * (1 + self.stop_loss_pct):
+                if current_price < cost_basis * (1 + effective_stop_loss):
                     logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
                     return True, SELL_REASON_STOP_LOSS
             logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
@@ -355,7 +369,7 @@ class MultiStockStrategy(PositionManager):
         if close_prices and position.ts_code in close_prices:
             current_price = close_prices[position.ts_code]
             cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
-            if current_price < cost_basis * (1 + self.stop_loss_pct):
+            if current_price < cost_basis * (1 + effective_stop_loss):
                 return True, SELL_REASON_STOP_LOSS
 
         if position.ts_code not in sell_rank_ts_codes:
