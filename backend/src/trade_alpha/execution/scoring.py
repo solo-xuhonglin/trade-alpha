@@ -476,36 +476,13 @@ class ScoreManager:
         # Look up stock names from global cache
         name_map = await get_stock_names(list(pred_results.keys()))
 
-        # Compute lookback window from strategy config.
-        # Always include sell_rank_n for strategy-level PnL computation.
-        sell_rank_n = getattr(self._strategy_config, 'sell_rank_n', 15) if self._strategy_config else 15
-        lookback = sell_rank_n
-        if self._strategy_config:
-            if self._strategy_config.use_trend_bonus:
-                lookback = max(lookback, self._strategy_config.trend_bonus_window)
-            if self._strategy_config.use_momentum_boost:
-                lookback = max(lookback, self._strategy_config.momentum_window)
+        # Load historical close prices for trend/momentum/strategy PnL
+        close_prices_hist = await self._load_close_prices_hist(
+            pred_results, date, data_loader,
+        )
 
-        close_prices_hist: Optional[Dict[str, List[float]]] = None
-        if lookback > 0:
-            history_data = await data_loader.peek_history_data(
-                date, list(pred_results.keys()), lookback + 5
-            )
-            close_prices_hist = {}
-            for ts_code, records in history_data.items():
-                close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
-            self._last_close_prices_hist = close_prices_hist
-            apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
-            apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
-        else:
-            for r in pred_results.values():
-                r["trend_bonus"] = 0.0
-                r["trend_penalty"] = 0.0
-                r["price_slope"] = 0.0
-                r["price_r_squared"] = 0.0
-
-        apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
-        apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist if lookback > 0 else None)
+        apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist)
+        apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist)
         await filter_explosions(pred_results, self._strategy_config, date, data_loader, vol_prices)
 
         # Compute composite_score
@@ -640,6 +617,38 @@ class ScoreManager:
             "market_phase": phase_name,
         }
         return regime
+
+    async def _load_close_prices_hist(
+        self,
+        pred_results: Dict[str, Dict],
+        date: str,
+        data_loader: DataLoader,
+    ) -> Dict[str, List[float]]:
+        """Load historical close prices for trend/momentum/strategy PnL.
+
+        Computes lookback from config (sell_rank_n as baseline + trend/momentum windows).
+        Stores result on self for strategy-level access to window PnL.
+        Applies trend_bonus/penalty inline.
+        """
+        sell_rank_n = getattr(self._strategy_config, 'sell_rank_n', 15) if self._strategy_config else 15
+        lookback = sell_rank_n
+        if self._strategy_config:
+            if self._strategy_config.use_trend_bonus:
+                lookback = max(lookback, self._strategy_config.trend_bonus_window)
+            if self._strategy_config.use_momentum_boost:
+                lookback = max(lookback, self._strategy_config.momentum_window)
+
+        history_data = await data_loader.peek_history_data(
+            date, list(pred_results.keys()), lookback + 5,
+        )
+        close_prices_hist: Dict[str, List[float]] = {}
+        for ts_code, records in history_data.items():
+            close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
+        self._last_close_prices_hist = close_prices_hist
+
+        apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
+        apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
+        return close_prices_hist
 
     def get_score_buffer(self, ts_code: str) -> List[float]:
         """Return score buffer for a stock."""
