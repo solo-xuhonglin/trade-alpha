@@ -335,14 +335,6 @@ class MultiStockStrategy(PositionManager):
                 if cost_basis > 0:
                     pnl_pct = (close_prices[ts_code] - cost_basis) / cost_basis * 100
 
-            price_hist = (score_manager.last_close_prices_hist or {}).get(ts_code, []) if score_manager else []
-            if pnl_pct > 20 and len(price_hist) >= 2:
-                recent_len = max(len(price_hist) // 3, 2)
-                recent_pnl = (price_hist[-1] - price_hist[-recent_len]) / price_hist[-recent_len] * 100
-                if recent_pnl >= -2.0:
-                    logger.info(f"full_position FORCE_SELL PROTECT ts_code={ts_code} pnl={pnl_pct:+.1f}% recent_pnl={recent_pnl:+.1f}%")
-                    continue
-
             pnl_clipped = max(min(pnl_pct, 50.0), -50.0) / 100.0
             sell_priority = avg_score + pnl_clipped * 0.5
             scored_holds.append((sell_priority, avg_score, pnl_pct, ts_code))
