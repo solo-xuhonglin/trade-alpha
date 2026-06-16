@@ -249,7 +249,7 @@ class BacktestPipeline:
     @staticmethod
     def _find_warmup_start(start_date: str, warmup_days: int) -> str:
         dt = datetime.strptime(start_date, "%Y%m%d")
-        dt -= timedelta(days=warmup_days * 3)
+        dt -= timedelta(days=warmup_days)
         return dt.strftime("%Y%m%d")
 
     async def _run_warmup(

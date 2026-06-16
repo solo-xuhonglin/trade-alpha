@@ -50,12 +50,12 @@ def _compute_warmup_days(strategy_config) -> int:
 
 ### Warmup Start Date
 
-直接用日历推，乘以 3 倍保证够覆盖周末和假期：
+直接用日历天往前推（已 +10 buffer，周末会自然跳过）：
 
 ```python
 def _calc_warmup_start(start_date: str, warmup_days: int) -> str:
     dt = datetime.strptime(start_date, "%Y%m%d")
-    dt -= timedelta(days=warmup_days * 3)
+    dt -= timedelta(days=warmup_days)
     return dt.strftime("%Y%m%d")
 ```
 

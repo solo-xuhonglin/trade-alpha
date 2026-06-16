@@ -66,7 +66,7 @@ class TestFindWarmupStart:
 
     def test_calculates_calendar_days(self):
         result = BacktestPipeline._find_warmup_start("20250101", 10)
-        assert result == "20241202"
+        assert result == "20241222"
 
     def test_with_zero_warmup(self):
         result = BacktestPipeline._find_warmup_start("20250101", 0)
