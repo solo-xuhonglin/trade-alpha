@@ -234,6 +234,24 @@ class BacktestPipeline:
             await snapshot.update({"$set": self.score_manager.last_market_data})
         return snapshot.total_value, snapshot.day_return
 
+    @staticmethod
+    def _compute_warmup_days(strategy_config: Optional[StrategyConfig]) -> int:
+        if strategy_config is None:
+            return 0
+        windows = [
+            getattr(strategy_config, 'ranking_smooth_window', 5),
+            getattr(strategy_config, 'market_smooth_window', 5),
+            getattr(strategy_config, 'retention_days', 5),
+            getattr(strategy_config, 'correlation_window', 5),
+        ]
+        return max(windows) + 10
+
+    @staticmethod
+    def _find_warmup_start(start_date: str, warmup_days: int) -> str:
+        dt = datetime.strptime(start_date, "%Y%m%d")
+        dt -= timedelta(days=warmup_days * 3)
+        return dt.strftime("%Y%m%d")
+
     async def run_backtest(
         self,
         start_date: str,
