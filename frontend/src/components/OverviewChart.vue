@@ -150,6 +150,7 @@ const renderChart = () => {
         yAxisId: 'returns',
         smooth: true,
         lineStyle: { width: 2, color: '#ff9800' },
+        itemStyle: { color: '#ff9800' },
         symbol: 'none',
       },
       {
@@ -159,6 +160,7 @@ const renderChart = () => {
         yAxisId: 'returns',
         smooth: true,
         lineStyle: { width: 2, color: '#9c27b0', type: 'dashed' },
+        itemStyle: { color: '#9c27b0' },
         symbol: 'none',
       },
       {
@@ -168,6 +170,7 @@ const renderChart = () => {
         yAxisId: 'ranking',
         smooth: true,
         lineStyle: { width: 1.5, color: '#2196F3' },
+        itemStyle: { color: '#2196F3' },
         symbol: 'none',
       },
       {
@@ -177,6 +180,7 @@ const renderChart = () => {
         yAxisId: 'pct',
         smooth: true,
         lineStyle: { width: 1, color: '#4caf50' },
+        itemStyle: { color: '#4caf50' },
         symbol: 'none',
       },
       {
@@ -186,6 +190,7 @@ const renderChart = () => {
         yAxisId: 'pct',
         smooth: true,
         lineStyle: { width: 1, color: '#f44336' },
+        itemStyle: { color: '#f44336' },
         symbol: 'none',
       },
       {
@@ -194,6 +199,7 @@ const renderChart = () => {
         data: Array(dates.length).fill(props.trendThreshold),
         yAxisId: 'ranking',
         lineStyle: { width: 1, color: '#9e9e9e', type: 'dashed' },
+        itemStyle: { color: '#9e9e9e' },
         symbol: 'none',
         silent: true,
       },
@@ -204,6 +210,7 @@ const renderChart = () => {
         yAxisId: 'scalar',
         smooth: true,
         lineStyle: { width: 1.5, color: '#FF6F61' },
+        itemStyle: { color: '#FF6F61' },
         symbol: 'none',
       },
       {
