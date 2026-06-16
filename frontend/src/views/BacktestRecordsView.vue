@@ -960,7 +960,8 @@ const strategyCompareFields: CompareField[] = [
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
   { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
-  { key: 'ranking_median_smooth_alpha', label: '分数中位数平滑系数', group: '市场分析', type: 'number' },
+  { key: 'market_smooth_alpha', label: '市场平滑系数', group: '市场分析', type: 'number' },
+  { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
   { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
   { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
   { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
@@ -1362,6 +1363,8 @@ const loadMarketData = async () => {
       ranking_low_pct: s.ranking_low_pct,
       ranking_regime: s.ranking_regime,
       score_scalar: s.score_scalar,
+      top_n_retention_rate_smoothed: s.top_n_retention_rate_smoothed ?? 0,
+      score_return_corr_smoothed: s.score_return_corr_smoothed ?? 0,
     }))
     marketTrendThreshold.value = (selectedResult.value as any).strategy_snapshot?.market_trend_threshold ?? 0.05
   } catch (e) {

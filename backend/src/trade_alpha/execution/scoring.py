@@ -4,6 +4,8 @@ Pure functions handle individual scoring steps; ScoreManager orchestrates the
 full scoring lifecycle and owns cross-day state.
 """
 
+import math
+
 from typing import Dict, List, Optional
 
 from trade_alpha.dao.strategy_config import StrategyConfig
@@ -102,28 +104,42 @@ def smooth_scores(
         r["ranking_score"] = smooth_ewma(buffer, window, alpha)
 
 
-def smooth_ranking_median(
+def smooth_market_indicator(
     buffer: List[float],
     strategy_config: StrategyConfig,
 ) -> float:
-    """Apply EWMA smoothing to ranking_median buffer.
+    """Apply EWMA smoothing to any market indicator buffer.
 
-    Uses smooth_ewma for consistent smoothing with per-stock scores.
-    Manages buffer growth to prevent unbounded memory.
+    Generic replacement for smooth_ranking_median. Reads market_smooth_window
+    and market_smooth_alpha from strategy_config.
 
     Args:
-        buffer: Historical ranking_median values (newest at end).
+        buffer: Historical values (newest at end).
         strategy_config: Strategy config with smoothing parameters.
 
     Returns:
-        Smoothed ranking_median value.
+        Smoothed value. If buffer < window, returns last raw value.
     """
-    window = getattr(strategy_config, "ranking_median_smooth_window", 5)
-    raw_alpha = getattr(strategy_config, "ranking_median_smooth_alpha", 0.0)
+    window = getattr(strategy_config, "market_smooth_window", 5)
+    raw_alpha = getattr(strategy_config, "market_smooth_alpha", 0.0)
     alpha = raw_alpha if raw_alpha > 0 else None
     if len(buffer) > window * 2:
         buffer[:] = buffer[-window * 2:]
     return smooth_ewma(buffer, window, alpha)
+
+
+def _pearson_corr(x: List[float], y: List[float]) -> float:
+    """Pearson linear correlation coefficient between two lists."""
+    n = len(x)
+    sum_x = sum(x)
+    sum_y = sum(y)
+    sum_xy = sum(xi * yi for xi, yi in zip(x, y))
+    sum_xx = sum(xi * xi for xi in x)
+    sum_yy = sum(yi * yi for yi in y)
+    denom = math.sqrt((n * sum_xx - sum_x * sum_x) * (n * sum_yy - sum_y * sum_y))
+    if denom == 0:
+        return 0.0
+    return (n * sum_xy - sum_x * sum_y) / denom
 
 
 def apply_momentum_boost(
@@ -355,6 +371,8 @@ class ScoreManager:
         window = getattr(strategy_config, 'rank_up_window', 5) if strategy_config else 5
         self._rank_history_max: int = window * 5
         self._ranking_median_buffer: List[float] = []
+        self._retention_rate_buffer: List[float] = []
+        self._correlation_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
 
     # ------------------------------------------------------------------
@@ -499,9 +517,9 @@ class ScoreManager:
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > high_th) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < low_th) / n * 100
 
-        # EWMA smoothing using unified smooth_ranking_median
+        # EWMA smoothing using unified smooth_market_indicator
         self._ranking_median_buffer.append(ranking_median)
-        ranking_median_smoothed = smooth_ranking_median(
+        ranking_median_smoothed = smooth_market_indicator(
             self._ranking_median_buffer, self._strategy_config
         )
 
@@ -522,9 +540,27 @@ class ScoreManager:
         else:
             score_scalar = max(0.30, 1.0 + ranking_median_smoothed * 5)
 
+        # Retention rate
+        raw_retention = self._compute_top_n_retention(stock_map)
+        self._retention_rate_buffer.append(raw_retention)
+        retention_smoothed = smooth_market_indicator(
+            self._retention_rate_buffer, self._strategy_config
+        )
+
+        # Score-return correlation
+        raw_corr = self._compute_score_return_correlation(stock_map)
+        self._correlation_buffer.append(raw_corr)
+        corr_smoothed = smooth_market_indicator(
+            self._correlation_buffer, self._strategy_config
+        )
+
         self._last_market_data = {
             "ranking_median": ranking_median,
             "ranking_median_smoothed": ranking_median_smoothed,
+            "top_n_retention_rate": raw_retention,
+            "top_n_retention_rate_smoothed": retention_smoothed,
+            "score_return_corr": raw_corr,
+            "score_return_corr_smoothed": corr_smoothed,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
             "ranking_regime": regime,
@@ -575,3 +611,66 @@ class ScoreManager:
             return None
         avg_past = sum(past_ranks) / len(past_ranks)
         return (avg_past - current_rank) / max(1.0, avg_past)
+
+    def _compute_top_n_retention(
+        self, stock_map: Dict[str, ScoredStock]
+    ) -> float:
+        """Compute raw top-N stock retention rate using _rank_history.
+
+        Returns fraction of yesterday's top-N stocks still in top-N today.
+        Returns 0.0 if insufficient history or n <= 0.
+        """
+        n = getattr(self._strategy_config, "top_n_retention", 20)
+        if n <= 0:
+            return 0.0
+
+        yesterday_top_n = set()
+        for ts_code in stock_map:
+            records = self._rank_history.get(ts_code, [])
+            if len(records) >= 2 and 0 < records[-2].rank <= n:
+                yesterday_top_n.add(ts_code)
+
+        if not yesterday_top_n:
+            return 0.0
+
+        today_top_n = {
+            ts_code for ts_code, stock in stock_map.items()
+            if 0 < stock.rank <= n
+        }
+
+        return len(yesterday_top_n & today_top_n) / len(yesterday_top_n)
+
+    def _compute_score_return_correlation(
+        self, stock_map: Dict[str, ScoredStock]
+    ) -> float:
+        """Compute Pearson correlation between T-1 composite_score and T-1 pct_chg.
+
+        Excludes stocks marked is_excluded on T-1 to reduce noise.
+        Requires at least 3 data points per stock (T-2 close, T-1 close, T-1 score).
+        """
+        scores = []
+        returns = []
+
+        for ts_code in stock_map:
+            records = self._rank_history.get(ts_code, [])
+            if len(records) < 3:
+                continue
+
+            y_stock = records[-2]  # T-1
+            if y_stock.is_excluded:
+                continue
+
+            t2_stock = records[-3]  # T-2
+            close_t1 = y_stock.close
+            close_t2 = t2_stock.close
+            if close_t2 <= 0:
+                continue
+
+            pct_chg_t1 = (close_t1 - close_t2) / close_t2
+            scores.append(y_stock.composite_score)
+            returns.append(pct_chg_t1)
+
+        if len(scores) < 3:
+            return 0.0
+
+        return _pearson_corr(scores, returns)

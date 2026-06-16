@@ -40,8 +40,9 @@ export interface Strategy {
   trend_max_bonus?: number
   use_trend_penalty?: boolean
   ranking_smooth_alpha?: number
-  ranking_median_smooth_window?: number
-  ranking_median_smooth_alpha?: number
+  market_smooth_window?: number
+  market_smooth_alpha?: number
+  top_n_retention?: number
   market_trend_threshold?: number
   market_high_score_threshold?: number
   market_low_score_threshold?: number

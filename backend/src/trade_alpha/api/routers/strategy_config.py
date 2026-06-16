@@ -60,7 +60,9 @@ def _strategy_to_dict(s) -> dict:
         "rank_up_min_score": s.rank_up_min_score,
         "rank_up_min_improvement_pct": s.rank_up_min_improvement_pct,
         "market_trend_threshold": s.market_trend_threshold,
-        "ranking_median_smooth_alpha": s.ranking_median_smooth_alpha,
+        "market_smooth_alpha": s.market_smooth_alpha,
+        "market_smooth_window": s.market_smooth_window,
+        "top_n_retention": s.top_n_retention,
         "market_high_score_threshold": s.market_high_score_threshold,
         "market_low_score_threshold": s.market_low_score_threshold,
         "use_market_aware_trading": s.use_market_aware_trading,
@@ -137,7 +139,9 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             rank_up_min_score=request.rank_up_min_score,
             rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
             market_trend_threshold=request.market_trend_threshold,
-            ranking_median_smooth_alpha=request.ranking_median_smooth_alpha,
+            market_smooth_alpha=request.market_smooth_alpha,
+            market_smooth_window=request.market_smooth_window,
+            top_n_retention=request.top_n_retention,
             market_high_score_threshold=request.market_high_score_threshold,
             market_low_score_threshold=request.market_low_score_threshold,
             use_market_aware_trading=request.use_market_aware_trading,
@@ -154,7 +158,7 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
         obj_id = PydanticObjectId(strategy_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid strategy ID")
-    
+
     try:
         s = await update_strategy(
             strategy_id=obj_id,
@@ -196,7 +200,9 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             rank_up_min_score=request.rank_up_min_score,
             rank_up_min_improvement_pct=request.rank_up_min_improvement_pct,
             market_trend_threshold=request.market_trend_threshold,
-            ranking_median_smooth_alpha=request.ranking_median_smooth_alpha,
+            market_smooth_alpha=request.market_smooth_alpha,
+            market_smooth_window=request.market_smooth_window,
+            top_n_retention=request.top_n_retention,
             market_high_score_threshold=request.market_high_score_threshold,
             market_low_score_threshold=request.market_low_score_threshold,
             use_market_aware_trading=request.use_market_aware_trading,

@@ -25,6 +25,10 @@ class ExecutionDailySnapshot(Document):
     ranking_low_pct: float = 0.0
     ranking_regime: str = ""
     score_scalar: float = 1.0
+    top_n_retention_rate: float = 0.0
+    top_n_retention_rate_smoothed: float = 0.0
+    score_return_corr: float = 0.0
+    score_return_corr_smoothed: float = 0.0
     predictions: Dict[str, ScoredStock] = Field(default_factory=dict)
 
     class Settings:

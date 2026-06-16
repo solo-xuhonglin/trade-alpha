@@ -15,6 +15,8 @@ export interface OverviewChartItem {
   ranking_low_pct: number
   ranking_regime: string
   score_scalar?: number
+  top_n_retention_rate_smoothed: number
+  score_return_corr_smoothed: number
 }
 
 const props = withDefaults(defineProps<{
@@ -56,6 +58,8 @@ const renderChart = () => {
   const highPcts = props.data.map(d => +d.ranking_high_pct.toFixed(1))
   const lowPcts = props.data.map(d => +d.ranking_low_pct.toFixed(1))
   const scoreScalars = props.data.map(d => d.score_scalar ?? 1.0)
+  const retentionSmoothed = props.data.map(d => d.top_n_retention_rate_smoothed)
+  const corrSmoothed = props.data.map(d => d.score_return_corr_smoothed)
 
   chartInstance.setOption({
     tooltip: {
@@ -69,7 +73,9 @@ const renderChart = () => {
         params.forEach((p: any) => {
           if (p.value == null) return
           let val = p.value
-          if (p.seriesName === '排序分中位数' || p.seriesName === '分数衰减系数') val = val.toFixed(4)
+          if (p.seriesName === '排序分中位数' || p.seriesName === '分数衰减系数'
+              || p.seriesName === '留存率' || p.seriesName === '评分收益关联度')
+            val = val.toFixed(4)
           else if (p.seriesName === '策略累计收益率' || p.seriesName === '基准累计收益率') val = val + '%'
           else val = val + '%'
           html += `<br>${p.marker} ${p.seriesName}: ${val}`
@@ -78,7 +84,8 @@ const renderChart = () => {
       },
     },
     legend: {
-      data: ['策略累计收益率', '基准累计收益率', '排序分中位数', '>高分线比例', '<低分线比例', '分数衰减系数'],
+      data: ['策略累计收益率', '基准累计收益率', '排序分中位数', '>高分线比例', '<低分线比例',
+             '分数衰减系数', '留存率', '评分收益关联度'],
       top: 0,
       selected: {
         '策略累计收益率': true,
@@ -87,9 +94,11 @@ const renderChart = () => {
         '>高分线比例': false,
         '<低分线比例': false,
         '分数衰减系数': false,
+        '留存率': true,
+        '评分收益关联度': true,
       },
     },
-    grid: { left: '12%', right: '18%', bottom: '12%', top: '12%' },
+    grid: { left: '12%', right: '24%', bottom: '12%', top: '12%' },
     xAxis: {
       type: 'category',
       data: dates,
@@ -121,6 +130,16 @@ const renderChart = () => {
         name: '占比(%)',
         position: 'right',
         axisLabel: { formatter: '{value}%' },
+      },
+      {
+        id: 'scalar',
+        type: 'value',
+        min: 0,
+        max: 1,
+        name: '衰减系数',
+        position: 'right',
+        offset: 60,
+        axisLabel: { formatter: (v: number) => v.toFixed(2) },
       },
     ],
     series: [
@@ -182,9 +201,27 @@ const renderChart = () => {
         name: '分数衰减系数',
         type: 'line',
         data: scoreScalars,
-        yAxisId: 'ranking',
+        yAxisId: 'scalar',
         smooth: true,
         lineStyle: { width: 1.5, color: '#FF6F61' },
+        symbol: 'none',
+      },
+      {
+        name: '留存率',
+        type: 'line',
+        data: retentionSmoothed,
+        yAxisId: 'scalar',
+        smooth: true,
+        lineStyle: { width: 1.5, color: '#00bcd4' },
+        symbol: 'none',
+      },
+      {
+        name: '评分收益关联度',
+        type: 'line',
+        data: corrSmoothed,
+        yAxisId: 'scalar',
+        smooth: true,
+        lineStyle: { width: 1.5, color: '#ff5722' },
         symbol: 'none',
       },
     ],

@@ -68,7 +68,9 @@ class StrategySnapshotEmbed(BaseModel):
     rank_up_min_improvement_pct: float = 0.20
     ranking_smooth_window: int = 8
     ranking_smooth_alpha: float = 0.3
-    ranking_median_smooth_alpha: float = 0.3
+    market_smooth_window: int = 5
+    market_smooth_alpha: float = 0.3
+    top_n_retention: int = 20
     market_trend_threshold: float = 0.05
     market_high_score_threshold: float = 0.30
     market_low_score_threshold: float = -0.30

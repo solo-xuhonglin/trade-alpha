@@ -114,6 +114,8 @@ export interface DailySnapshot {
   ranking_low_pct: number
   ranking_regime: string
   score_scalar?: number
+  top_n_retention_rate_smoothed: number
+  score_return_corr_smoothed: number
 }
 
 export interface PnlDetailItem {
