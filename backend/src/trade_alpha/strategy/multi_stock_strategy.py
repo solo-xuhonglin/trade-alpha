@@ -312,7 +312,19 @@ class MultiStockStrategy(PositionManager):
                 avg_score = sum(buffer) / len(buffer)
             else:
                 avg_score = 0.0
-            scored_holds.append((avg_score, ts_code))
+
+            # PnL protection: positions with high unrealized gain are
+            # less likely to be sold, even if their recent score dips.
+            # A stock at +20%+ gain gets max boost (+0.20 to sell priority);
+            # the boost scales linearly from 0% to 20% gain.
+            pnl_pct = 0.0
+            pos = portfolio.positions.get(ts_code)
+            if pos and close_prices and ts_code in close_prices:
+                cost_basis = (pos.buy_price * pos.shares + pos.fee) / pos.shares
+                if cost_basis > 0:
+                    pnl_pct = (close_prices[ts_code] - cost_basis) / cost_basis
+            pnl_boost = max(0.0, min(pnl_pct / 0.20, 1.0)) * 0.20
+            scored_holds.append((avg_score + pnl_boost, ts_code))
 
         scored_holds.sort(key=lambda x: x[0])
         for i in range(min(sell_count, len(scored_holds))):
