@@ -9,7 +9,7 @@
       </v-card-title>
       <v-card-text class="overflow-y-auto" style="max-height: 80vh;">
         <v-row style="min-height: 520px;">
-          <v-col cols="12" md="3" style="min-width: 200px; max-width: 250px;">
+          <v-col cols="12" md="2" style="min-width: 200px; max-width: 220px;">
             <v-card variant="tonal" class="pa-3">
               <v-select
                 :items="stockItems"
@@ -76,7 +76,7 @@
             </v-card>
           </v-col>
 
-          <v-col cols="12" md="9" class="d-flex flex-column">
+          <v-col cols="12" md="10" class="d-flex flex-column">
             <div v-if="loadingChart" class="d-flex justify-center align-center flex-grow-1">
               <v-progress-circular indeterminate></v-progress-circular>
             </div>

@@ -21,7 +21,6 @@ from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, BaselineTracker, MarketDataEmbed
 from trade_alpha.constants import SELL_REASON_FULL_POSITION
 from trade_alpha.logging import get_logger
-from trade_alpha.utils.date_utils import get_year_months
 
 logger = get_logger("execution.backtest_pipeline")
 
@@ -126,13 +125,17 @@ class BacktestPipeline:
 
     @staticmethod
     async def _update_progress(task_id: Optional[PydanticObjectId], date: str,
-                                year_months: list, total_months: int, last_idx: int) -> int:
-        current_ym = (int(date[:4]), int(date[4:6]) if len(date) >= 6 else 1)
-        for idx, (y, m) in enumerate(year_months):
-            if y == current_ym[0] and m == current_ym[1] and idx >= last_idx:
-                await TaskService.update_progress(task_id, 40 + idx / total_months * 50, f"正在回测 {y}年{m}月...")
-                return idx + 1
-        return last_idx
+                                day_count: int, total_days_est: int) -> None:
+        """Update backtest progress per trading day.
+
+        Progress percentage is derived from day_count / estimated total
+        trading days, mapped to the 40 %-90 % range of overall backtest.
+        """
+        progress = 40 + (day_count / total_days_est) * 50
+        await TaskService.update_progress(
+            task_id, min(progress, 90),
+            f"正在回测 {date[:4]}年{date[4:6]}月{date[6:8]}日...",
+        )
 
     @staticmethod
     async def _load_day_data(date: str, ts_codes: List[str], data_loader: DataLoader):
@@ -295,7 +298,7 @@ class BacktestPipeline:
             await TaskService.update_progress(
                 task_id,
                 5 + day_count / warmup_days * 10,
-                f"正在预热 {date}...",
+                f"正在预热 {date[:4]}年{date[4:6]}月{date[6:8]}日...",
             )
             date = _next_date(date)
 
@@ -341,9 +344,10 @@ class BacktestPipeline:
         daily_returns: List[float] = []
         total_trades = 0
         total_fees = 0.0
-        year_months = get_year_months(start_date, end_date)
-        total_months = len(year_months)
-        last_idx = 0
+        # Estimate total trading days (~5/7 of calendar days)
+        cal_days = (datetime.strptime(end_date, "%Y%m%d") - datetime.strptime(start_date, "%Y%m%d")).days
+        total_days_est = max(1, int(cal_days * 5 / 7))
+        day_count = 0
 
         await TaskService.update_progress(task_id, 40, "正在执行回测...")
         date = start_date
@@ -352,7 +356,8 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
 
-            last_idx = await self._update_progress(task_id, date, year_months, total_months, last_idx)
+            day_count += 1
+            await self._update_progress(task_id, date, day_count, total_days_est)
             day_data = await self._load_day_data(date, self.ts_codes, self.data_loader)
             if not day_data:
                 date = _next_date(date)

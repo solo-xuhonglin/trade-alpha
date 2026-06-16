@@ -234,7 +234,7 @@ class SuggestionPipeline:
                         await TaskService.update_progress(
                             task_id,
                             (processed / total_targets) * 100,
-                            f"正在处理 {date} ({processed}/{total_targets})",
+                            f"正在处理 {date[:4]}年{date[4:6]}月{date[6:8]}日 ({processed}/{total_targets})",
                         )
 
                     market_data = MarketDataEmbed(**self.score_manager.last_market_data) \

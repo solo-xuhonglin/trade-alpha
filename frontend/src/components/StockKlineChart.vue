@@ -77,97 +77,12 @@ const renderChart = () => {
         borderColor0: '#26a69a',
       },
     },
-    {
-      name: '复合评分',
-      type: 'line',
-      data: scores,
-      yAxisId: 'score',
-      smooth: true,
-      lineStyle: { width: 2 },
-      symbol: 'none',
-    },
   ]
 
-  const legendData = ['K线', '复合评分']
-  const legendSelected: Record<string, boolean> = { 'K线': true, '复合评分': true }
+  const legendData = ['K线']
+  const legendSelected: Record<string, boolean> = { 'K线': true }
 
-  if (rawScores.length > 0 && rawScores.some((v, i) => v != null && v !== scores[i])) {
-    series.push({
-      name: '原始评分',
-      type: 'line',
-      data: rawScores,
-      yAxisId: 'score',
-      smooth: true,
-      lineStyle: { width: 1.5, type: 'dashed', color: '#9e9e9e' },
-      symbol: 'none',
-    })
-    legendData.push('原始评分')
-    legendSelected['原始评分'] = true
-  }
-
-  if (rankingScores.some(v => v != null)) {
-    series.push({
-      name: '排名分',
-      type: 'line',
-      data: rankingScores,
-      yAxisId: 'score',
-      smooth: true,
-      lineStyle: { width: 1.5, color: '#2196F3' },
-      symbol: 'none',
-    })
-    legendData.push('排名分')
-    legendSelected['排名分'] = true
-  }
-
-  const lineStyles = [
-    { type: 'dashed', color: '#ef5350' },
-    { type: 'dashed', color: '#26a69a' },
-    { type: 'dotted', color: '#ff7043' },
-    { type: 'dotted', color: '#66bb6a' },
-  ]
-
-  props.horizons.forEach((h, idx) => {
-    const style = lineStyles[idx % lineStyles.length]
-    const upData = props.data.map(d => d[`up_prob_${h}d`])
-    const downData = props.data.map(d => d[`down_prob_${h}d`])
-
-    series.push({
-      name: `涨(${h}d)`,
-      type: 'line',
-      data: upData,
-      yAxisId: 'score',
-      smooth: true,
-      lineStyle: { width: 1.5, type: style.type, color: style.color },
-      symbol: 'none',
-    })
-    series.push({
-      name: `跌(${h}d)`,
-      type: 'line',
-      data: downData,
-      yAxisId: 'score',
-      smooth: true,
-      lineStyle: { width: 1.5, type: style.type, color: style.color },
-      symbol: 'none',
-    })
-    legendData.push(`涨(${h}d)`, `跌(${h}d)`)
-    legendSelected[`涨(${h}d)`] = false
-    legendSelected[`跌(${h}d)`] = false
-  })
-
-  if (maxRank > 0) {
-    series.push({
-      name: '排名',
-      type: 'line',
-      data: ranks,
-      yAxisId: 'rank',
-      smooth: true,
-      lineStyle: { width: 1.5, color: '#7c4dff' },
-      symbol: 'none',
-    })
-    legendData.push('排名')
-    legendSelected['排名'] = true
-  }
-
+  // Trade signals (buy/sell)
   if (props.buyPoints.length > 0) {
     series.push({
       name: '买入',
@@ -210,6 +125,99 @@ const renderChart = () => {
     legendData.push('卖出')
     legendSelected['卖出'] = true
   }
+
+  // Score lines
+  series.push({
+    name: '复合评分',
+    type: 'line',
+    data: scores,
+    yAxisId: 'score',
+    smooth: true,
+    lineStyle: { width: 2 },
+    symbol: 'none',
+  })
+  legendData.push('复合评分')
+  legendSelected['复合评分'] = true
+
+  if (rankingScores.some(v => v != null)) {
+    series.push({
+      name: '排名分',
+      type: 'line',
+      data: rankingScores,
+      yAxisId: 'score',
+      smooth: true,
+      lineStyle: { width: 1.5, color: '#2196F3' },
+      symbol: 'none',
+    })
+    legendData.push('排名分')
+    legendSelected['排名分'] = true
+  }
+
+  if (maxRank > 0) {
+    series.push({
+      name: '排名',
+      type: 'line',
+      data: ranks,
+      yAxisId: 'rank',
+      smooth: true,
+      lineStyle: { width: 1.5, color: '#7c4dff' },
+      symbol: 'none',
+    })
+    legendData.push('排名')
+    legendSelected['排名'] = true
+  }
+
+  if (rawScores.length > 0 && rawScores.some((v, i) => v != null && v !== scores[i])) {
+    series.push({
+      name: '原始评分',
+      type: 'line',
+      data: rawScores,
+      yAxisId: 'score',
+      smooth: true,
+      lineStyle: { width: 1.5, type: 'dashed', color: '#9e9e9e' },
+      symbol: 'none',
+    })
+    legendData.push('原始评分')
+    legendSelected['原始评分'] = true
+  }
+
+  // Probability lines (horizons)
+  const lineStyles = [
+    { type: 'dashed', color: '#ef5350' },
+    { type: 'dashed', color: '#26a69a' },
+    { type: 'dotted', color: '#ff7043' },
+    { type: 'dotted', color: '#66bb6a' },
+  ]
+
+  props.horizons.forEach((h, idx) => {
+    const style = lineStyles[idx % lineStyles.length]
+    const upData = props.data.map(d => d[`up_prob_${h}d`])
+    const downData = props.data.map(d => d[`down_prob_${h}d`])
+
+    series.push({
+      name: `涨(${h}d)`,
+      type: 'line',
+      data: upData,
+      yAxisId: 'score',
+      smooth: true,
+      lineStyle: { width: 2.5, type: style.type, color: style.color },
+      symbol: 'none',
+    })
+    series.push({
+      name: `跌(${h}d)`,
+      type: 'line',
+      data: downData,
+      yAxisId: 'score',
+      smooth: true,
+      lineStyle: { width: 2.5, type: style.type, color: style.color },
+      symbol: 'none',
+    })
+    legendData.push(`涨(${h}d)`, `跌(${h}d)`)
+    legendSelected[`涨(${h}d)`] = false
+    legendSelected[`跌(${h}d)`] = false
+  })
+
+  // Cancelled trades
   if (props.buyCancelledPoints.length > 0) {
     series.push({
       name: '买入（未成交）',
@@ -342,11 +350,13 @@ const renderChart = () => {
     },
     legend: {
       data: legendData,
-      top: 0,
+      orient: 'vertical',
+      right: 10,
+      top: 'middle',
       selected: legendSelected,
     },
     grid: {
-      left: '15%', right: '15%', bottom: '18%', top: '15%',
+      left: '15%', right: '16%', bottom: '18%', top: '8%',
     },
     xAxis: {
       type: 'category',
