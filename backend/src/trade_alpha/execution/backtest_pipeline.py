@@ -252,6 +252,47 @@ class BacktestPipeline:
         dt -= timedelta(days=warmup_days * 3)
         return dt.strftime("%Y%m%d")
 
+    async def _run_warmup(
+        self,
+        warmup_start: str,
+        actual_start: str,
+        warmup_days: int,
+        task_id: Optional[PydanticObjectId],
+    ) -> None:
+        date = warmup_start
+        day_count = 0
+        while date < actual_start:
+            if self._skip_non_trading_day(date):
+                date = _next_date(date)
+                continue
+
+            day_data = await self._load_day_data(date, self.ts_codes, self.data_loader)
+            if not day_data:
+                date = _next_date(date)
+                continue
+            close_prices = day_data["close"]
+
+            stock_map = await self.score_manager.predict_and_score(
+                predictor=self.predictor,
+                data_loader=self.data_loader,
+                date=date,
+                close_prices=close_prices,
+                start_date=date,
+                vol_prices=day_data.get("vol", {}),
+            )
+            if not stock_map:
+                date = _next_date(date)
+                continue
+
+            self.score_manager.compute_market_regime(stock_map)
+            day_count += 1
+            await TaskService.update_progress(
+                task_id,
+                5 + day_count / warmup_days * 10,
+                f"正在预热 {date}...",
+            )
+            date = _next_date(date)
+
     async def run_backtest(
         self,
         start_date: str,
