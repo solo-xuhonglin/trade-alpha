@@ -120,10 +120,10 @@ class MultiStockStrategy(PositionManager):
 
         logger.info(f"make_orders trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
         for ts_code, pos in portfolio.positions.items():
-            score_buffer = score_manager.get_score_buffer(ts_code) if score_manager else None
+            price_hist_list = (score_manager.last_close_prices_hist or {}).get(ts_code, []) if score_manager else []
             should_sell, sell_reason = self._check_sell(
                 pos, top_ts_codes, sell_rank_ts_codes, score_map,
-                close_prices, market_data, score_buffer=score_buffer,
+                close_prices, market_data, price_hist=price_hist_list,
             )
             if should_sell:
                 in_score = ts_code in score_map
@@ -375,7 +375,7 @@ class MultiStockStrategy(PositionManager):
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_buffer: Optional[List[float]] = None,
+        price_hist: Optional[List[float]] = None,
     ) -> Tuple[bool, str]:
         """Check whether a position should be sold.
 
@@ -411,19 +411,18 @@ class MultiStockStrategy(PositionManager):
             if current_score < self.hold_score_threshold:
                 return True, SELL_REASON_HOLD_SCORE_LOW
 
-        # Early sell: score peak drawdown
-        # If composite_score has dropped significantly from its recent peak,
-        # sell before it needs to cross below the absolute threshold.
-        if score_buffer and len(score_buffer) >= 2:
-            score_peak = max(score_buffer)
-            drawdown = (score_peak - current_score) / max(abs(score_peak), 0.001)
+        # Early sell: price peak drawdown
+        if price_hist and len(price_hist) >= 3:
+            peak_price = max(price_hist)
+            current_price = price_hist[-1]
+            drawdown = (peak_price - current_price) / max(peak_price, 0.001)
 
-            drawdown_threshold = 0.35
+            drawdown_threshold = 0.15
             if market_data:
                 if market_data.market_phase in ("crash",):
                     return False, ""
                 if market_data.market_phase in ("decline",):
-                    drawdown_threshold = 0.50
+                    drawdown_threshold = 0.25
 
             if drawdown > drawdown_threshold:
                 return True, SELL_REASON_SCORE_DECLINE
