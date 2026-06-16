@@ -298,12 +298,6 @@
                     label="市场平滑系数" hint="EMA 平滑系数，为空则用 2/(window+1)" persistent-hint />
                 </v-col>
               </v-row>
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.top_n_retention" type="number" min="1"
-                    label="留存率N值" hint="排名前 N 的股票计算留存率（默认 20）" persistent-hint />
-                </v-col>
-              </v-row>
 
               <v-divider class="my-3"></v-divider>
 
@@ -311,7 +305,7 @@
                 <v-col cols="12">
                   <div class="text-body-2 mb-2">
                     <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
-                    市场状态判断
+                    分数中位数
                     <v-chip size="x-small" variant="outlined" color="info">基于全市场排序分(ranking_score)中位数</v-chip>
                   </div>
                 </v-col>
@@ -330,6 +324,46 @@
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_low_score_threshold" type="number" step="0.01"
                     label="低分线" hint="排序分低于此值 -> 算低分股（默认 -0.30）" persistent-hint />
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-3"></v-divider>
+
+              <v-row>
+                <v-col cols="12">
+                  <div class="text-body-2 mb-2">
+                    <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
+                    留存率
+                    <v-chip size="x-small" variant="outlined" color="info">排名前N的股票经过N日后的留存比例</v-chip>
+                  </div>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.top_n_retention" type="number" min="1"
+                    label="留存率N值" hint="排名前 N 的股票计算留存率（默认 20）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.retention_days" type="number" min="1"
+                    label="留存天数" hint="D 天前的 top N 到今天还有多少留存（默认 5）" persistent-hint />
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-3"></v-divider>
+
+              <v-row>
+                <v-col cols="12">
+                  <div class="text-body-2 mb-2">
+                    <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
+                    评分收益关联度
+                    <v-chip size="x-small" variant="outlined" color="info">N日内平均评分与平均收益率的截面相关</v-chip>
+                  </div>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.correlation_window" type="number" min="2"
+                    label="关联度窗口" hint="N 日内平均 composite_score 与平均 pct_chg 做截面相关（默认 5）" persistent-hint />
                 </v-col>
               </v-row>
             </div>
@@ -629,6 +663,8 @@ const compareFields: CompareField[] = [
   { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
   { key: 'market_smooth_alpha', label: '市场平滑系数', group: '市场分析', type: 'number' },
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
+  { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
+  { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
   { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
   { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
   { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
@@ -696,6 +732,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       market_smooth_window: item.market_smooth_window ?? 5,
       market_smooth_alpha: item.market_smooth_alpha ?? 0.3,
       top_n_retention: item.top_n_retention ?? 20,
+      retention_days: item.retention_days ?? 5,
+      correlation_window: item.correlation_window ?? 5,
       market_trend_threshold: item.market_trend_threshold ?? 0.05,
       market_high_score_threshold: item.market_high_score_threshold ?? 0.30,
       market_low_score_threshold: item.market_low_score_threshold ?? -0.30,
@@ -745,6 +783,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       market_smooth_window: 5,
       market_smooth_alpha: 0.3,
       top_n_retention: 20,
+      retention_days: 5,
+      correlation_window: 5,
       market_trend_threshold: 0.05,
       market_high_score_threshold: 0.30,
       market_low_score_threshold: -0.30,
@@ -797,6 +837,8 @@ const saveStrategy = async () => {
       market_smooth_window: form.value.market_smooth_window,
       market_smooth_alpha: form.value.market_smooth_alpha,
       top_n_retention: form.value.top_n_retention,
+      retention_days: form.value.retention_days,
+      correlation_window: form.value.correlation_window,
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
       market_low_score_threshold: form.value.market_low_score_threshold,
@@ -845,6 +887,8 @@ const saveStrategy = async () => {
       market_smooth_window: form.value.market_smooth_window,
       market_smooth_alpha: form.value.market_smooth_alpha,
       top_n_retention: form.value.top_n_retention,
+      retention_days: form.value.retention_days,
+      correlation_window: form.value.correlation_window,
       market_trend_threshold: form.value.market_trend_threshold,
       market_high_score_threshold: form.value.market_high_score_threshold,
       market_low_score_threshold: form.value.market_low_score_threshold,

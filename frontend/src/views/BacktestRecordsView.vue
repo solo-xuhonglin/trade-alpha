@@ -962,6 +962,8 @@ const strategyCompareFields: CompareField[] = [
   { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
   { key: 'market_smooth_alpha', label: '市场平滑系数', group: '市场分析', type: 'number' },
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
+  { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
+  { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
   { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
   { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
   { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },

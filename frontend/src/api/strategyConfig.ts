@@ -43,6 +43,8 @@ export interface Strategy {
   market_smooth_window?: number
   market_smooth_alpha?: number
   top_n_retention?: number
+  retention_days?: number
+  correlation_window?: number
   market_trend_threshold?: number
   market_high_score_threshold?: number
   market_low_score_threshold?: number

@@ -10,8 +10,10 @@ from trade_alpha.execution.scoring import (
     smooth_market_indicator,
     _calc_linear_slope,
     _calc_r_squared,
+    ScoreManager,
 )
 from trade_alpha.schemas import ScoredStock
+from trade_alpha.dao.strategy_config import StrategyConfig
 
 
 class TestPearsonCorr:
@@ -95,3 +97,81 @@ class TestCalcRSquared:
 
     def test_short(self):
         assert _calc_r_squared([1.0]) == 0.0
+
+
+class TestScoreManagerRetention:
+    """Tests for ScoreManager._compute_top_n_retention with window param."""
+
+    def _make_stock(self, ts_code: str, rank: int, close: float = 10.0,
+                    composite_score: float = 0.0, is_excluded: bool = False) -> ScoredStock:
+        return ScoredStock(
+            ts_code=ts_code,
+            stock_name=ts_code,
+            rank=rank,
+            close=close,
+            composite_score=composite_score,
+            is_excluded=is_excluded,
+        )
+
+    def test_insufficient_history_returns_zero(self):
+        config = StrategyConfig(name="test", type="multi")
+        manager = ScoreManager(config, None)
+        stock_map = {"A": self._make_stock("A", rank=1)}
+        assert manager._compute_top_n_retention(stock_map) == 0.0
+
+    def test_retention_days_one(self):
+        config = StrategyConfig(name="test", type="multi", top_n_retention=2, retention_days=1)
+        manager = ScoreManager(config, None)
+        # Day 1
+        for s in [self._make_stock("A", rank=1), self._make_stock("B", rank=2),
+                  self._make_stock("C", rank=3)]:
+            manager._rank_history.setdefault(s.ts_code, []).append(s)
+        # Day 2: A stays, C replaces B in top2
+        day2 = {"A": self._make_stock("A", rank=1), "C": self._make_stock("C", rank=2),
+                "B": self._make_stock("B", rank=3)}
+        for s in day2.values():
+            manager._rank_history.setdefault(s.ts_code, []).append(s)
+        # D=1: D-ago top2 = {A,B}, today top2 = {A,C}, retained={A}, 1/2=0.5
+        result = manager._compute_top_n_retention(day2)
+        assert abs(result - 0.5) < 0.001
+
+    def test_retention_days_two(self):
+        config = StrategyConfig(name="test", type="multi", top_n_retention=2, retention_days=2)
+        manager = ScoreManager(config, None)
+        # Day 1: top2 = {A,B}
+        for s in [self._make_stock("A", rank=1), self._make_stock("B", rank=2),
+                  self._make_stock("C", rank=3)]:
+            manager._rank_history.setdefault(s.ts_code, []).append(s)
+        # Day 2: top2 = {A,C}
+        for s in [self._make_stock("A", rank=1), self._make_stock("C", rank=2),
+                  self._make_stock("B", rank=3)]:
+            manager._rank_history.setdefault(s.ts_code, []).append(s)
+        # Day 3 (today): top2 = {B,A}
+        day3 = {"A": self._make_stock("A", rank=2), "B": self._make_stock("B", rank=1),
+                "C": self._make_stock("C", rank=3)}
+        for s in day3.values():
+            manager._rank_history.setdefault(s.ts_code, []).append(s)
+        # D=2: Day1 top2 = {A,B}, today top2 = {B,A}, retained={A,B}, 2/2=1.0
+        result = manager._compute_top_n_retention(day3)
+        assert abs(result - 1.0) < 0.001
+
+
+class TestScoreManagerCorrelation:
+    """Tests for ScoreManager._compute_score_return_correlation with window param."""
+
+    def _make_stock(self, ts_code: str, rank: int = 1, close: float = 10.0,
+                    composite_score: float = 0.0, is_excluded: bool = False) -> ScoredStock:
+        return ScoredStock(
+            ts_code=ts_code,
+            stock_name=ts_code,
+            rank=rank,
+            close=close,
+            composite_score=composite_score,
+            is_excluded=is_excluded,
+        )
+
+    def test_insufficient_history_returns_zero(self):
+        config = StrategyConfig(name="test", type="multi", correlation_window=5)
+        manager = ScoreManager(config, None)
+        stock_map = {"A": self._make_stock("A")}
+        assert manager._compute_score_return_correlation(stock_map) == 0.0

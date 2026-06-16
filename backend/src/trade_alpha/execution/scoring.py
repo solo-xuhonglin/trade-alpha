@@ -617,20 +617,21 @@ class ScoreManager:
     ) -> float:
         """Compute raw top-N stock retention rate using _rank_history.
 
-        Returns fraction of yesterday's top-N stocks still in top-N today.
+        Compares D days ago top N vs today top N.
         Returns 0.0 if insufficient history or n <= 0.
         """
         n = getattr(self._strategy_config, "top_n_retention", 20)
+        d = getattr(self._strategy_config, "retention_days", 5)
         if n <= 0:
             return 0.0
 
-        yesterday_top_n = set()
+        d_ago_top_n = set()
         for ts_code in stock_map:
             records = self._rank_history.get(ts_code, [])
-            if len(records) >= 2 and 0 < records[-2].rank <= n:
-                yesterday_top_n.add(ts_code)
+            if len(records) > d and 0 < records[-1-d].rank <= n:
+                d_ago_top_n.add(ts_code)
 
-        if not yesterday_top_n:
+        if not d_ago_top_n:
             return 0.0
 
         today_top_n = {
@@ -638,37 +639,46 @@ class ScoreManager:
             if 0 < stock.rank <= n
         }
 
-        return len(yesterday_top_n & today_top_n) / len(yesterday_top_n)
+        return len(d_ago_top_n & today_top_n) / len(d_ago_top_n)
 
     def _compute_score_return_correlation(
         self, stock_map: Dict[str, ScoredStock]
     ) -> float:
-        """Compute Pearson correlation between T-1 composite_score and T-1 pct_chg.
+        """Compute Pearson correlation between N-day avg composite_score and N-day avg pct_chg.
 
-        Excludes stocks marked is_excluded on T-1 to reduce noise.
-        Requires at least 3 data points per stock (T-2 close, T-1 close, T-1 score).
+        Uses correlation_window from strategy_config. Excludes stocks that had
+        any is_excluded day in the window. Requires at least 3 stocks with data.
         """
+        window = getattr(self._strategy_config, "correlation_window", 5)
         scores = []
         returns = []
 
         for ts_code in stock_map:
             records = self._rank_history.get(ts_code, [])
-            if len(records) < 3:
+            if len(records) < window + 1:
                 continue
 
-            y_stock = records[-2]  # T-1
-            if y_stock.is_excluded:
+            recent = records[-(window+1):]
+            if any(s.is_excluded for s in recent[:-1]):
                 continue
 
-            t2_stock = records[-3]  # T-2
-            close_t1 = y_stock.close
-            close_t2 = t2_stock.close
-            if close_t2 <= 0:
-                continue
+            # Average composite_score over past window days
+            avg_score = sum(s.composite_score for s in recent[:-1]) / window
 
-            pct_chg_t1 = (close_t1 - close_t2) / close_t2
-            scores.append(y_stock.composite_score)
-            returns.append(pct_chg_t1)
+            # Average pct_chg over past window days
+            pct_chgs = []
+            for j in range(window):
+                r1 = recent[-2-j]  # T-1-j
+                r2 = recent[-3-j]  # T-2-j
+                if r2.close <= 0:
+                    break
+                pct_chgs.append((r1.close - r2.close) / r2.close)
+            if len(pct_chgs) < window:
+                continue
+            avg_pct_chg = sum(pct_chgs) / window
+
+            scores.append(avg_score)
+            returns.append(avg_pct_chg)
 
         if len(scores) < 3:
             return 0.0

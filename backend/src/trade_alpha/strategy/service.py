@@ -61,6 +61,8 @@ async def create_strategy(
     market_smooth_alpha: Optional[float] = None,
     market_smooth_window: Optional[int] = None,
     top_n_retention: Optional[int] = None,
+    retention_days: Optional[int] = None,
+    correlation_window: Optional[int] = None,
     market_high_score_threshold: Optional[float] = None,
     market_low_score_threshold: Optional[float] = None,
     use_market_aware_trading: Optional[bool] = None,
@@ -153,6 +155,8 @@ async def update_strategy(
     market_smooth_alpha: Optional[float] = None,
     market_smooth_window: Optional[int] = None,
     top_n_retention: Optional[int] = None,
+    retention_days: Optional[int] = None,
+    correlation_window: Optional[int] = None,
     market_high_score_threshold: Optional[float] = None,
     market_low_score_threshold: Optional[float] = None,
     use_market_aware_trading: Optional[bool] = None,
@@ -266,6 +270,10 @@ async def update_strategy(
         strategy.market_smooth_window = market_smooth_window
     if top_n_retention is not None:
         strategy.top_n_retention = top_n_retention
+    if retention_days is not None:
+        strategy.retention_days = retention_days
+    if correlation_window is not None:
+        strategy.correlation_window = correlation_window
     if market_high_score_threshold is not None:
         strategy.market_high_score_threshold = market_high_score_threshold
     if market_low_score_threshold is not None:
