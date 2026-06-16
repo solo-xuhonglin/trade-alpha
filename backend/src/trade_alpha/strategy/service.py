@@ -57,15 +57,14 @@ async def create_strategy(
     rank_up_count: Optional[int] = None,
     rank_up_min_score: Optional[float] = None,
     rank_up_min_improvement_pct: Optional[float] = None,
-    market_trend_threshold: Optional[float] = None,
     market_smooth_alpha: Optional[float] = None,
     market_smooth_window: Optional[int] = None,
     top_n_retention: Optional[int] = None,
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
-    market_high_score_threshold: Optional[float] = None,
-    market_low_score_threshold: Optional[float] = None,
-    use_market_aware_trading: Optional[bool] = None,
+    use_phase_strategy: Optional[bool] = None,
+    phase_crash_threshold: Optional[float] = None,
+    phase_recovery_threshold: Optional[float] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -151,15 +150,14 @@ async def update_strategy(
     rank_up_count: Optional[int] = None,
     rank_up_min_score: Optional[float] = None,
     rank_up_min_improvement_pct: Optional[float] = None,
-    market_trend_threshold: Optional[float] = None,
     market_smooth_alpha: Optional[float] = None,
     market_smooth_window: Optional[int] = None,
     top_n_retention: Optional[int] = None,
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
-    market_high_score_threshold: Optional[float] = None,
-    market_low_score_threshold: Optional[float] = None,
-    use_market_aware_trading: Optional[bool] = None,
+    use_phase_strategy: Optional[bool] = None,
+    phase_crash_threshold: Optional[float] = None,
+    phase_recovery_threshold: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -262,8 +260,6 @@ async def update_strategy(
         strategy.rank_up_min_score = rank_up_min_score
     if rank_up_min_improvement_pct is not None:
         strategy.rank_up_min_improvement_pct = rank_up_min_improvement_pct
-    if market_trend_threshold is not None:
-        strategy.market_trend_threshold = market_trend_threshold
     if market_smooth_alpha is not None:
         strategy.market_smooth_alpha = market_smooth_alpha
     if market_smooth_window is not None:
@@ -274,12 +270,12 @@ async def update_strategy(
         strategy.retention_days = retention_days
     if correlation_window is not None:
         strategy.correlation_window = correlation_window
-    if market_high_score_threshold is not None:
-        strategy.market_high_score_threshold = market_high_score_threshold
-    if market_low_score_threshold is not None:
-        strategy.market_low_score_threshold = market_low_score_threshold
-    if use_market_aware_trading is not None:
-        strategy.use_market_aware_trading = use_market_aware_trading
+    if use_phase_strategy is not None:
+        strategy.use_phase_strategy = use_phase_strategy
+    if phase_crash_threshold is not None:
+        strategy.phase_crash_threshold = phase_crash_threshold
+    if phase_recovery_threshold is not None:
+        strategy.phase_recovery_threshold = phase_recovery_threshold
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

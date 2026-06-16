@@ -73,10 +73,9 @@ class StrategySnapshotEmbed(BaseModel):
     top_n_retention: int = 20
     retention_days: int = 5
     correlation_window: int = 5
-    market_trend_threshold: float = 0.05
-    market_high_score_threshold: float = 0.30
-    market_low_score_threshold: float = -0.30
-    use_market_aware_trading: bool = False
+    use_phase_strategy: bool = True
+    phase_crash_threshold: float = -0.06
+    phase_recovery_threshold: float = -0.03
 
 
 class ModelSnapshotEmbed(BaseModel):

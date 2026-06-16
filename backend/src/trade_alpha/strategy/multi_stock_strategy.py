@@ -39,7 +39,7 @@ class MultiStockStrategy(PositionManager):
         max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
         sell_rank_n = strategy_config.sell_rank_n if strategy_config else 15
         hold_score_threshold = strategy_config.hold_score_threshold if strategy_config else 0.05
-        use_market_aware_trading = strategy_config.use_market_aware_trading if strategy_config else False
+        use_phase_strategy = strategy_config.use_phase_strategy if strategy_config else True
 
         super().__init__(
             max_positions=max_positions,
@@ -53,7 +53,7 @@ class MultiStockStrategy(PositionManager):
         )
         self.ts_codes = ts_codes or []
         self.strategy_config = strategy_config
-        self.use_market_aware_trading = use_market_aware_trading
+        self.use_phase_strategy = use_phase_strategy
         self.sell_rank_n = sell_rank_n
         self.hold_score_threshold = hold_score_threshold
         self._full_position_consecutive_days = 0
@@ -91,11 +91,13 @@ class MultiStockStrategy(PositionManager):
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
         full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
-        # Market-aware position size scalar (affects max_position_pct, not scores)
-        score_scalar = self._market_score_scalar(market_data)
+        # Market-aware multipliers (position count + buy threshold)
+        pos_mult, buy_mult = self._market_multipliers(market_data)
+        effective_threshold = self.buy_threshold * buy_mult
+        effective_max_pos = max(1, int(self.max_positions * pos_mult))
 
         # Score filter for normal buy / sell decisions
-        scored_stocks = [s for s in scored_stocks if s.composite_score > self.buy_threshold]
+        scored_stocks = [s for s in scored_stocks if s.composite_score > effective_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         if len(sorted_stocks) <= 5:
@@ -103,7 +105,7 @@ class MultiStockStrategy(PositionManager):
         elif len(sorted_stocks) % 10 == 0:
             logger.info(f"make_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
 
-        top_stocks = sorted_stocks[:self.max_positions]
+        top_stocks = sorted_stocks[:effective_max_pos]
         top_ts_codes = {s.ts_code for s in top_stocks}
 
         sell_rank_stocks = sorted_stocks[:self.sell_rank_n]
@@ -163,7 +165,7 @@ class MultiStockStrategy(PositionManager):
                 s for s in full_candidates
                 if s.ts_code not in hold_ts_codes
                 and s.rank_improvement >= self.rank_up_min_improvement_pct
-                and s.composite_score > self.rank_up_min_score
+                and s.composite_score > self.rank_up_min_score * buy_mult
             ]
             rank_up_candidates.sort(
                 key=lambda s: s.rank_improvement, reverse=True
@@ -180,7 +182,7 @@ class MultiStockStrategy(PositionManager):
                     continue
                 success, shares, _fee = portfolio.reserve_funds(
                     stock.ts_code, stock.close, close_prices,
-                    max_position_scalar=score_scalar,
+                    max_position_scalar=pos_mult,
                 )
                 if not success:
                     continue
@@ -209,7 +211,7 @@ class MultiStockStrategy(PositionManager):
 
                 success, shares, _fee = portfolio.reserve_funds(
                     stock.ts_code, stock.close, close_prices,
-                    max_position_scalar=score_scalar,
+                    max_position_scalar=pos_mult,
                 )
                 if not success:
                     continue
@@ -243,17 +245,12 @@ class MultiStockStrategy(PositionManager):
             reason=reason,
         )
 
-    def _market_score_scalar(self, market_data: Optional[MarketDataEmbed] = None) -> float:
-        """Position size scalar based on market conditions.
-
-        Delegates to ScoreManager.compute_market_regime which acts as the
-        single source of truth for score_scalar computation.
-        """
-        if not self.use_market_aware_trading:
-            return 1.0
+    def _market_multipliers(self, market_data: Optional[MarketDataEmbed] = None) -> Tuple[float, float]:
+        if not getattr(self.strategy_config, "use_phase_strategy", True):
+            return 1.0, 1.0
         if market_data is None:
-            return 1.0
-        return market_data.score_scalar
+            return 1.0, 1.0
+        return (market_data.position_multiplier, market_data.buy_threshold_multiplier)
 
     def _apply_full_position_sell(
         self,
@@ -269,8 +266,8 @@ class MultiStockStrategy(PositionManager):
         if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
             return forced_orders
         threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
-        score_scalar = self._market_score_scalar(market_data)
-        threshold *= score_scalar
+        pos_mult, _ = self._market_multipliers(market_data)
+        threshold *= pos_mult
         days_required = getattr(self.strategy_config, "full_position_days", 3)
         score_window = getattr(self.strategy_config, "full_position_score_window", 5)
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)

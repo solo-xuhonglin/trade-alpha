@@ -271,9 +271,9 @@
             <div>
               <v-row>
                 <v-col cols="12">
-                  <v-switch v-model="form.use_market_aware_trading" hide-details density="compact"
-                    color="primary" label="市场状态指导交易"
-                    hint="下跌趋势不新买入，横盘期间最小持仓天数翻倍" persistent-hint />
+                  <v-switch v-model="form.use_phase_strategy" hide-details density="compact"
+                    color="primary" label="启用市场阶段策略"
+                    hint="急跌时自动空仓，企稳时低阈值建仓" persistent-hint />
                 </v-col>
               </v-row>
 
@@ -305,25 +305,19 @@
                 <v-col cols="12">
                   <div class="text-body-2 mb-2">
                     <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
-                    分数中位数
-                    <v-chip size="x-small" variant="outlined" color="info">基于全市场排序分(ranking_score)中位数</v-chip>
+                    市场阶段阈值
+                    <v-chip size="x-small" variant="outlined" color="info">基于每日重平衡基线(5日变化率) + 低分占比变化</v-chip>
                   </div>
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.market_trend_threshold" type="number" step="0.01"
-                    label="趋势阈值" hint="排序分中位数高于此值 -> 趋势市（默认 0.05）" persistent-hint />
+                  <v-text-field v-model.number="form.phase_crash_threshold" type="number" step="0.01"
+                    label="急跌阈值" hint="基线5日变化低于此值 -> 急跌空仓（默认 -0.06）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.market_high_score_threshold" type="number" step="0.01"
-                    label="高分线" hint="排序分高于此值 -> 算高分股（默认 0.30）" persistent-hint />
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.market_low_score_threshold" type="number" step="0.01"
-                    label="低分线" hint="排序分低于此值 -> 算低分股（默认 -0.30）" persistent-hint />
+                  <v-text-field v-model.number="form.phase_recovery_threshold" type="number" step="0.01"
+                    label="企稳阈值" hint="基线5日变化高于此值且恐慌消退 -> 低阈值建仓（默认 -0.03）" persistent-hint />
                 </v-col>
               </v-row>
 
@@ -660,14 +654,13 @@ const compareFields: CompareField[] = [
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
-  { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
+  { key: 'use_phase_strategy', label: '启用市场阶段策略', group: '市场分析', type: 'boolean' },
+  { key: 'phase_crash_threshold', label: '急跌阈值', group: '市场分析', type: 'number' },
+  { key: 'phase_recovery_threshold', label: '企稳阈值', group: '市场分析', type: 'number' },
   { key: 'market_smooth_alpha', label: '市场平滑系数', group: '市场分析', type: 'number' },
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
   { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
-  { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
-  { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
-  { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
 ]
 
 const loadStrategies = async () => {
@@ -734,10 +727,9 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       top_n_retention: item.top_n_retention ?? 20,
       retention_days: item.retention_days ?? 5,
       correlation_window: item.correlation_window ?? 5,
-      market_trend_threshold: item.market_trend_threshold ?? 0.05,
-      market_high_score_threshold: item.market_high_score_threshold ?? 0.30,
-      market_low_score_threshold: item.market_low_score_threshold ?? -0.30,
-      use_market_aware_trading: item.use_market_aware_trading ?? false,
+      use_phase_strategy: item.use_phase_strategy ?? true,
+      phase_crash_threshold: item.phase_crash_threshold ?? -0.06,
+      phase_recovery_threshold: item.phase_recovery_threshold ?? -0.03,
     }
   } else {
     editingId.value = null
@@ -785,10 +777,9 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       top_n_retention: 20,
       retention_days: 5,
       correlation_window: 5,
-      market_trend_threshold: 0.05,
-      market_high_score_threshold: 0.30,
-      market_low_score_threshold: -0.30,
-      use_market_aware_trading: false,
+      use_phase_strategy: true,
+      phase_crash_threshold: -0.06,
+      phase_recovery_threshold: -0.03,
     }
   }
   dialog.value = true
@@ -839,10 +830,9 @@ const saveStrategy = async () => {
       top_n_retention: form.value.top_n_retention,
       retention_days: form.value.retention_days,
       correlation_window: form.value.correlation_window,
-      market_trend_threshold: form.value.market_trend_threshold,
-      market_high_score_threshold: form.value.market_high_score_threshold,
-      market_low_score_threshold: form.value.market_low_score_threshold,
-      use_market_aware_trading: form.value.use_market_aware_trading,
+      use_phase_strategy: form.value.use_phase_strategy,
+      phase_crash_threshold: form.value.phase_crash_threshold,
+      phase_recovery_threshold: form.value.phase_recovery_threshold,
     })
   } else {
     await strategyConfigApi.create({
@@ -889,10 +879,9 @@ const saveStrategy = async () => {
       top_n_retention: form.value.top_n_retention,
       retention_days: form.value.retention_days,
       correlation_window: form.value.correlation_window,
-      market_trend_threshold: form.value.market_trend_threshold,
-      market_high_score_threshold: form.value.market_high_score_threshold,
-      market_low_score_threshold: form.value.market_low_score_threshold,
-      use_market_aware_trading: form.value.use_market_aware_trading,
+      use_phase_strategy: form.value.use_phase_strategy,
+      phase_crash_threshold: form.value.phase_crash_threshold,
+      phase_recovery_threshold: form.value.phase_recovery_threshold,
     })
   }
   dialog.value = false

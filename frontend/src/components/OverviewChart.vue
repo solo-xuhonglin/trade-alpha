@@ -15,6 +15,8 @@ export interface OverviewChartItem {
   ranking_low_pct: number
   ranking_regime: string
   score_scalar?: number
+  position_multiplier?: number
+  position_pct?: number
   top_n_retention_rate_smoothed: number
   score_return_corr_smoothed: number
 }
@@ -57,9 +59,10 @@ const renderChart = () => {
   const rankingMedians = props.data.map(d => d.ranking_median)
   const highPcts = props.data.map(d => +d.ranking_high_pct.toFixed(1))
   const lowPcts = props.data.map(d => +d.ranking_low_pct.toFixed(1))
-  const scoreScalars = props.data.map(d => d.score_scalar ?? 1.0)
+  const scoreScalars = props.data.map(d => d.position_multiplier ?? d.score_scalar ?? 1.0)
   const retentionSmoothed = props.data.map(d => d.top_n_retention_rate_smoothed)
   const corrSmoothed = props.data.map(d => d.score_return_corr_smoothed)
+  const positionPcts = props.data.map(d => d.position_pct ?? 0)
 
   chartInstance.setOption({
     tooltip: {
@@ -73,10 +76,11 @@ const renderChart = () => {
         params.forEach((p: any) => {
           if (p.value == null) return
           let val = p.value
-          if (p.seriesName === '排序分中位数' || p.seriesName === '分数衰减系数'
+          if (p.seriesName === '排序分中位数' || p.seriesName === '仓位系数'
               || p.seriesName === '留存率' || p.seriesName === '评分收益关联度')
             val = val.toFixed(4)
           else if (p.seriesName === '策略累计收益率' || p.seriesName === '基准累计收益率') val = val + '%'
+          else if (p.seriesName === '仓位占比') val = val.toFixed(1) + '%'
           else val = val + '%'
           html += `<br>${p.marker} ${p.seriesName}: ${val}`
         })
@@ -85,7 +89,7 @@ const renderChart = () => {
     },
     legend: {
       data: ['策略累计收益率', '基准累计收益率', '排序分中位数', '>高分线比例', '<低分线比例',
-             '分数衰减系数', '留存率', '评分收益关联度'],
+             '仓位占比', '仓位系数', '留存率', '评分收益关联度'],
       top: 0,
       selected: {
         '策略累计收益率': true,
@@ -93,9 +97,10 @@ const renderChart = () => {
         '排序分中位数': true,
         '>高分线比例': false,
         '<低分线比例': false,
-        '分数衰减系数': false,
-        '留存率': true,
-        '评分收益关联度': true,
+        '仓位占比': true,
+        '仓位系数': false,
+        '留存率': false,
+        '评分收益关联度': false,
       },
     },
     grid: { left: '12%', right: '24%', bottom: '12%', top: '12%' },
@@ -136,7 +141,7 @@ const renderChart = () => {
         type: 'value',
         min: 0,
         max: 1,
-        name: '衰减系数',
+        name: '仓位系数',
         position: 'right',
         offset: 60,
         axisLabel: { formatter: (v: number) => v.toFixed(2) },
@@ -194,7 +199,18 @@ const renderChart = () => {
         symbol: 'none',
       },
       {
-        name: '趋势阈值',
+        name: '仓位占比',
+        type: 'line',
+        data: positionPcts,
+        yAxisId: 'pct',
+        smooth: true,
+        areaStyle: { color: 'rgba(76, 175, 80, 0.15)' },
+        lineStyle: { width: 1.5, color: '#4CAF50' },
+        itemStyle: { color: '#4CAF50' },
+        symbol: 'none',
+      },
+      {
+        name: '急跌阈值',
         type: 'line',
         data: Array(dates.length).fill(props.trendThreshold),
         yAxisId: 'ranking',
@@ -204,7 +220,7 @@ const renderChart = () => {
         silent: true,
       },
       {
-        name: '分数衰减系数',
+        name: '仓位系数',
         type: 'line',
         data: scoreScalars,
         yAxisId: 'scalar',

@@ -231,7 +231,13 @@ class BacktestPipeline:
             baseline_value=baseline_value,
         )
         if self.score_manager.last_market_data:
-            await snapshot.update({"$set": self.score_manager.last_market_data})
+            updates = dict(self.score_manager.last_market_data)
+            tv = snapshot.total_value
+            if tv > 0:
+                updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
+            else:
+                updates["position_pct"] = 0.0
+            await snapshot.update({"$set": updates})
         return snapshot.total_value, snapshot.day_return
 
     @staticmethod

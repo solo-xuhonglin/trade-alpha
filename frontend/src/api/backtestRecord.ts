@@ -113,7 +113,11 @@ export interface DailySnapshot {
   ranking_high_pct: number
   ranking_low_pct: number
   ranking_regime: string
-  score_scalar?: number
+  position_multiplier?: number
+  buy_threshold_multiplier?: number
+  market_phase?: string
+  daily_rebalanced_cum?: number
+  position_pct?: number
   top_n_retention_rate_smoothed: number
   score_return_corr_smoothed: number
 }

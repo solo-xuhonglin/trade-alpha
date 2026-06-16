@@ -100,6 +100,7 @@ class PortfolioManager:
             return False, 0, 0
 
         effective_max_pct = self._max_position_pct * max(max_position_scalar, 0.0)
+        effective_max_pos = max(1, int(self._max_positions * max(max_position_scalar, 0.0)))
 
         total_value = self._cash_available + self._cash_reserved
         for tsc, pos in self.positions.items():
@@ -115,7 +116,7 @@ class PortfolioManager:
                 return False, 0, 0
             max_cost = remaining
         else:
-            if len(self.positions) + len(self._pending_buys) >= self._max_positions:
+            if len(self.positions) + len(self._pending_buys) >= effective_max_pos:
                 return False, 0, 0
             max_cost = total_value * effective_max_pct
 

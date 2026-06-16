@@ -632,21 +632,18 @@
             <div class="text-subtitle-2 font-weight-medium mb-1">市场分析</div>
             <v-row class="py-0">
               <v-col cols="12">
-                <span class="text-body-2 text-medium-emphasis">市场状态指导交易：</span>
-                <v-icon :color="backtestStrategyConfig?.use_market_aware_trading ? 'success' : 'disabled'" size="small">
-                  {{ backtestStrategyConfig?.use_market_aware_trading ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                <span class="text-body-2 text-medium-emphasis">启用市场阶段策略：</span>
+                <v-icon :color="backtestStrategyConfig?.use_phase_strategy ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.use_phase_strategy ? 'mdi-check-circle' : 'mdi-close-circle' }}
                 </v-icon>
-                <span v-if="backtestStrategyConfig?.use_market_aware_trading" class="text-body-2">
-                  &nbsp;下跌不买入 / 横盘持仓翻倍
+                <span v-if="backtestStrategyConfig?.use_phase_strategy" class="text-body-2">
+                  &nbsp;急跌空仓 / 企稳低阈值建仓
                 </span>
               </v-col>
             </v-row>
             <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">趋势阈值：</span>{{ backtestStrategyConfig?.market_trend_threshold ?? '0.05' }}</v-col>
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">高分线：</span>{{ backtestStrategyConfig?.market_high_score_threshold ?? '0.30' }}</v-col>
-            </v-row>
-            <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">低分线：</span>{{ backtestStrategyConfig?.market_low_score_threshold ?? '-0.30' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">急跌阈值：</span>{{ backtestStrategyConfig?.phase_crash_threshold ?? '-0.06' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">企稳阈值：</span>{{ backtestStrategyConfig?.phase_recovery_threshold ?? '-0.03' }}</v-col>
             </v-row>
           </v-window-item>
 
@@ -959,14 +956,13 @@ const strategyCompareFields: CompareField[] = [
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
-  { key: 'use_market_aware_trading', label: '市场状态指导交易', group: '市场分析', type: 'boolean' },
   { key: 'market_smooth_alpha', label: '市场平滑系数', group: '市场分析', type: 'number' },
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
   { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
-  { key: 'market_trend_threshold', label: '趋势阈值', group: '市场分析', type: 'number' },
-  { key: 'market_high_score_threshold', label: '高分线', group: '市场分析', type: 'number' },
-  { key: 'market_low_score_threshold', label: '低分线', group: '市场分析', type: 'number' },
+  { key: 'use_phase_strategy', label: '启用市场阶段策略', group: '市场分析', type: 'boolean' },
+  { key: 'phase_crash_threshold', label: '急跌阈值', group: '市场分析', type: 'number' },
+  { key: 'phase_recovery_threshold', label: '企稳阈值', group: '市场分析', type: 'number' },
 ]
 
 const modelCompareFields: CompareField[] = [
@@ -1364,11 +1360,15 @@ const loadMarketData = async () => {
       ranking_high_pct: s.ranking_high_pct,
       ranking_low_pct: s.ranking_low_pct,
       ranking_regime: s.ranking_regime,
-      score_scalar: s.score_scalar,
+      position_multiplier: s.position_multiplier,
+      buy_threshold_multiplier: s.buy_threshold_multiplier,
+      market_phase: s.market_phase,
+      daily_rebalanced_cum: s.daily_rebalanced_cum,
+      position_pct: s.position_pct ?? 50,
       top_n_retention_rate_smoothed: s.top_n_retention_rate_smoothed ?? 0,
       score_return_corr_smoothed: s.score_return_corr_smoothed ?? 0,
     }))
-    marketTrendThreshold.value = (selectedResult.value as any).strategy_snapshot?.market_trend_threshold ?? 0.05
+    marketTrendThreshold.value = (selectedResult.value as any).strategy_snapshot?.phase_crash_threshold ?? -0.06
   } catch (e) {
     marketChartData.value = []
   }
