@@ -320,7 +320,7 @@ class MultiStockStrategy(PositionManager):
         stock_name_map = {s.ts_code: s.stock_name for s in scored_stocks}
 
         scored_holds: List[tuple] = []
-        for ts_code in portfolio.positions:
+        for ts_code, pos in portfolio.positions.items():
             buffer = score_manager.get_score_buffer(ts_code) if score_manager is not None else []
             if len(buffer) >= score_window:
                 avg_score = sum(buffer[-score_window:]) / score_window
@@ -329,37 +329,34 @@ class MultiStockStrategy(PositionManager):
             else:
                 avg_score = 0.0
 
-            cost_basis = 0.0
             pnl_pct = 0.0
-            pos = portfolio.positions.get(ts_code)
-            if pos and close_prices and ts_code in close_prices:
+            if close_prices and ts_code in close_prices:
                 cost_basis = (pos.buy_price * pos.shares + pos.fee) / pos.shares
                 if cost_basis > 0:
                     pnl_pct = (close_prices[ts_code] - cost_basis) / cost_basis * 100
 
-            # Protect: skip stocks with >20% gain whose recent price is not
-            # in a clear downtrend (last 1/3 window decline < 2%).
             price_hist = (score_manager.last_close_prices_hist or {}).get(ts_code, []) if score_manager else []
-            is_protected = False
             if pnl_pct > 20 and len(price_hist) >= 2:
                 recent_len = max(len(price_hist) // 3, 2)
                 recent_pnl = (price_hist[-1] - price_hist[-recent_len]) / price_hist[-recent_len] * 100
                 if recent_pnl >= -2.0:
-                    is_protected = True
-            if is_protected:
-                continue
+                    logger.info(f"full_position FORCE_SELL PROTECT ts_code={ts_code} pnl={pnl_pct:+.1f}% recent_pnl={recent_pnl:+.1f}%")
+                    continue
 
-            # Equal-weight sort: avg_score + normalized pnl contribution
             pnl_clipped = max(min(pnl_pct, 50.0), -50.0) / 100.0
             sell_priority = avg_score + pnl_clipped * 0.5
-            scored_holds.append((sell_priority, ts_code))
+            scored_holds.append((sell_priority, avg_score, pnl_pct, ts_code))
+            logger.debug(f"full_position FORCE_SELL CANDIDATE ts_code={ts_code} avg_score={avg_score:.3f} pnl={pnl_pct:+.1f}% priority={sell_priority:.3f}")
+
+        logger.info(f"full_position FORCE_SELL trade_date={trade_date} candidates={len(scored_holds)} sell_count={sell_count}")
 
         scored_holds.sort(key=lambda x: x[0])
         for i in range(min(sell_count, len(scored_holds))):
-            _, ts_code = scored_holds[i]
+            priority, avg_score, pnl_pct, ts_code = scored_holds[i]
             pos = portfolio.positions.get(ts_code)
             if not pos:
                 continue
+            logger.info(f"full_position FORCE_SELL SELL ts_code={ts_code} priority={priority:.3f} avg_score={avg_score:.3f} pnl={pnl_pct:+.1f}%")
             forced_orders.append(PendingOrder(
                 ts_code=ts_code,
                 stock_name=stock_name_map.get(ts_code, ts_code),
