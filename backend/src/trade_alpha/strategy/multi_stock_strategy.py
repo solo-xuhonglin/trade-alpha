@@ -411,15 +411,21 @@ class MultiStockStrategy(PositionManager):
             if current_score < self.hold_score_threshold:
                 return True, SELL_REASON_HOLD_SCORE_LOW
 
-        # Early sell: composite_score consecutive decline
-        if current_score > self.sell_threshold and score_buffer and len(score_buffer) >= 3:
-            if score_buffer[-1] < score_buffer[-2] < score_buffer[-3]:
-                if close_prices and position.ts_code in close_prices:
-                    pnl_pct = (close_prices[position.ts_code] - position.buy_price) / position.buy_price
-                    if pnl_pct > 0.05:
-                        logger.info(f"_check_sell ts_code={position.ts_code} score_decline for 3 consecutive days, "
-                                    f"score={score_buffer[-3]:.3f}>{score_buffer[-2]:.3f}>{score_buffer[-1]:.3f} "
-                                    f"pnl={pnl_pct*100:+.1f}%")
-                        return True, SELL_REASON_SCORE_DECLINE
+        # Early sell: score peak drawdown
+        # If composite_score has dropped significantly from its recent peak,
+        # sell before it needs to cross below the absolute threshold.
+        if score_buffer and len(score_buffer) >= 2:
+            score_peak = max(score_buffer)
+            drawdown = (score_peak - current_score) / max(abs(score_peak), 0.001)
+
+            drawdown_threshold = 0.35
+            if market_data:
+                if market_data.market_phase in ("crash",):
+                    return False, ""
+                if market_data.market_phase in ("decline",):
+                    drawdown_threshold = 0.50
+
+            if drawdown > drawdown_threshold:
+                return True, SELL_REASON_SCORE_DECLINE
 
         return False, ""
