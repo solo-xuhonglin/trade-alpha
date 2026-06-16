@@ -212,7 +212,7 @@ const renderChart = () => {
         data: retentionSmoothed,
         yAxisId: 'scalar',
         smooth: true,
-        lineStyle: { width: 1.5, color: '#00bcd4' },
+        lineStyle: { width: 1.5, color: '#2196F3' },
         symbol: 'none',
       },
       {
@@ -221,7 +221,7 @@ const renderChart = () => {
         data: corrSmoothed,
         yAxisId: 'scalar',
         smooth: true,
-        lineStyle: { width: 1.5, color: '#ff5722' },
+        lineStyle: { width: 1.5, color: '#FF6F61' },
         symbol: 'none',
       },
     ],
