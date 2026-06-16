@@ -329,17 +329,30 @@ class MultiStockStrategy(PositionManager):
             else:
                 avg_score = 0.0
 
-            # Rolling window PnL: return over the last sell_rank_n days,
-            # matching the same lookback as the score-based sell ranking.
-            # A stock up 20%+ in the window gets max boost (+0.20);
-            # the boost scales linearly from 0% to 20% window return.
+            cost_basis = 0.0
+            pnl_pct = 0.0
+            pos = portfolio.positions.get(ts_code)
+            if pos and close_prices and ts_code in close_prices:
+                cost_basis = (pos.buy_price * pos.shares + pos.fee) / pos.shares
+                if cost_basis > 0:
+                    pnl_pct = (close_prices[ts_code] - cost_basis) / cost_basis * 100
+
+            # Protect: skip stocks with >20% gain whose recent price is not
+            # in a clear downtrend (last 1/3 window decline < 2%).
             price_hist = (score_manager.last_close_prices_hist or {}).get(ts_code, []) if score_manager else []
-            if len(price_hist) >= 2:
-                window_pnl = (price_hist[-1] - price_hist[0]) / price_hist[0]
-            else:
-                window_pnl = 0.0
-            pnl_boost = max(0.0, min(window_pnl / 0.20, 1.0)) * 0.20
-            scored_holds.append((avg_score + pnl_boost, ts_code))
+            is_protected = False
+            if pnl_pct > 20 and len(price_hist) >= 2:
+                recent_len = max(len(price_hist) // 3, 2)
+                recent_pnl = (price_hist[-1] - price_hist[-recent_len]) / price_hist[-recent_len] * 100
+                if recent_pnl >= -2.0:
+                    is_protected = True
+            if is_protected:
+                continue
+
+            # Equal-weight sort: avg_score + normalized pnl contribution
+            pnl_clipped = max(min(pnl_pct, 50.0), -50.0) / 100.0
+            sell_priority = avg_score + pnl_clipped * 0.5
+            scored_holds.append((sell_priority, ts_code))
 
         scored_holds.sort(key=lambda x: x[0])
         for i in range(min(sell_count, len(scored_holds))):
