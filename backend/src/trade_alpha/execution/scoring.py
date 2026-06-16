@@ -377,6 +377,7 @@ class ScoreManager:
         self._prev_close_prices: Optional[Dict[str, float]] = None
         self._low_pct_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
+        self._last_close_prices_hist: Optional[Dict[str, List[float]]] = None
 
     # ------------------------------------------------------------------
     # Phase-based multipliers (replaces score_scalar)
@@ -475,11 +476,15 @@ class ScoreManager:
         # Look up stock names from global cache
         name_map = await get_stock_names(list(pred_results.keys()))
 
-        # Compute lookback window from strategy config
-        lookback = max(
-            getattr(self._strategy_config, 'trend_bonus_window', 0) if self._strategy_config and self._strategy_config.use_trend_bonus else 0,
-            getattr(self._strategy_config, 'momentum_window', 0) if self._strategy_config and self._strategy_config.use_momentum_boost else 0,
-        )
+        # Compute lookback window from strategy config.
+        # Always include sell_rank_n for strategy-level PnL computation.
+        sell_rank_n = getattr(self._strategy_config, 'sell_rank_n', 15) if self._strategy_config else 15
+        lookback = sell_rank_n
+        if self._strategy_config:
+            if self._strategy_config.use_trend_bonus:
+                lookback = max(lookback, self._strategy_config.trend_bonus_window)
+            if self._strategy_config.use_momentum_boost:
+                lookback = max(lookback, self._strategy_config.momentum_window)
 
         close_prices_hist: Optional[Dict[str, List[float]]] = None
         if lookback > 0:
@@ -489,6 +494,7 @@ class ScoreManager:
             close_prices_hist = {}
             for ts_code, records in history_data.items():
                 close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
+            self._last_close_prices_hist = close_prices_hist
             apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
             apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
         else:
@@ -643,6 +649,11 @@ class ScoreManager:
     def last_market_data(self) -> Optional[dict]:
         """Latest market data dict."""
         return self._last_market_data
+
+    @property
+    def last_close_prices_hist(self) -> Optional[Dict[str, List[float]]]:
+        """Historical close prices for the window used in score computation."""
+        return self._last_close_prices_hist
 
     # ------------------------------------------------------------------
     # Private methods (moved from pipelines)
