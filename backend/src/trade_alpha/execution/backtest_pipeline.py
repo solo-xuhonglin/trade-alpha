@@ -303,6 +303,16 @@ class BacktestPipeline:
         result = await self._create_result(start_date, end_date, name)
         await self._ensure_predictor(task_id)
 
+        # Warmup phase: fill ScoreManager buffers without trading
+        warmup_days = self._compute_warmup_days(self.strategy_config)
+        if warmup_days > 0:
+            warmup_start = self._find_warmup_start(start_date, warmup_days)
+            logger.info(
+                f"Warmup {warmup_days} trading days: {warmup_start}+ "
+                f"(before {start_date})"
+            )
+            await self._run_warmup(warmup_start, start_date, warmup_days, task_id)
+
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
 
         baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
