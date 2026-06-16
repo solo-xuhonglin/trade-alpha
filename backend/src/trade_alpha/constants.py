@@ -47,6 +47,7 @@ SELL_REASON_STOP_LOSS: str = "stop_loss"
 SELL_REASON_SCORE_BELOW: str = "score_below_sell"
 SELL_REASON_MAX_HOLD_DAYS: str = "max_hold_days"
 SELL_REASON_HOLD_SCORE_LOW: str = "hold_score_low"
+SELL_REASON_SCORE_DECLINE: str = "score_trend_decline"
 SELL_REASON_FULL_POSITION: str = "full_position_forced_sell"
 
 # Buy reason constants

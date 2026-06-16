@@ -9,6 +9,7 @@ from trade_alpha.constants import (
     SELL_REASON_HOLD_SCORE_LOW,
     SELL_REASON_MAX_HOLD_DAYS,
     SELL_REASON_SCORE_BELOW,
+    SELL_REASON_SCORE_DECLINE,
     SELL_REASON_STOP_LOSS,
 )
 from trade_alpha.dao.strategy_config import StrategyConfig
@@ -119,7 +120,11 @@ class MultiStockStrategy(PositionManager):
 
         logger.info(f"make_orders trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
         for ts_code, pos in portfolio.positions.items():
-            should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data)
+            score_buffer = score_manager.get_score_buffer(ts_code) if score_manager else None
+            should_sell, sell_reason = self._check_sell(
+                pos, top_ts_codes, sell_rank_ts_codes, score_map,
+                close_prices, market_data, score_buffer=score_buffer,
+            )
             if should_sell:
                 in_score = ts_code in score_map
                 in_sell_rank = ts_code in sell_rank_ts_codes
@@ -370,6 +375,7 @@ class MultiStockStrategy(PositionManager):
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
+        score_buffer: Optional[List[float]] = None,
     ) -> Tuple[bool, str]:
         """Check whether a position should be sold.
 
@@ -404,5 +410,16 @@ class MultiStockStrategy(PositionManager):
         if position.ts_code not in sell_rank_ts_codes:
             if current_score < self.hold_score_threshold:
                 return True, SELL_REASON_HOLD_SCORE_LOW
+
+        # Early sell: composite_score consecutive decline
+        if current_score > self.sell_threshold and score_buffer and len(score_buffer) >= 3:
+            if score_buffer[-1] < score_buffer[-2] < score_buffer[-3]:
+                if close_prices and position.ts_code in close_prices:
+                    pnl_pct = (close_prices[position.ts_code] - position.buy_price) / position.buy_price
+                    if pnl_pct > 0.05:
+                        logger.info(f"_check_sell ts_code={position.ts_code} score_decline for 3 consecutive days, "
+                                    f"score={score_buffer[-3]:.3f}>{score_buffer[-2]:.3f}>{score_buffer[-1]:.3f} "
+                                    f"pnl={pnl_pct*100:+.1f}%")
+                        return True, SELL_REASON_SCORE_DECLINE
 
         return False, ""
