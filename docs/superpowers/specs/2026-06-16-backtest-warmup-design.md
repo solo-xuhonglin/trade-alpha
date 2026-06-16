@@ -50,45 +50,16 @@ def _compute_warmup_days(strategy_config) -> int:
 
 ### Warmup Start Date
 
-```python
-async def _find_warmup_start(
-    ts_codes: List[str],
-    start_date: str,
-    warmup_days: int,
-    data_loader: DataLoader,
-) -> str:
-    # 从 StockDaily 集合查询 start_date 之前的交易日
-    # 扩大搜索范围（×2）以跳过周末和节假日
-    dates = await data_loader.find_trade_dates_before(
-        end_date=start_date,
-        limit=warmup_days * 2,
-        ts_codes=ts_codes,
-    )
-    # 取第 warmup_days 个交易日（从后往前数）
-    if len(dates) >= warmup_days:
-        return dates[-warmup_days]
-    return dates[0]  # 数据不足时尽量往前
-```
-
-## Data Changes
-
-### DataLoader 新增方法
+直接用日历推，乘以 3 倍保证够覆盖周末和假期：
 
 ```python
-async def find_trade_dates_before(
-    self,
-    end_date: str,
-    limit: int,
-    ts_codes: Optional[List[str]] = None,
-) -> List[str]:
-    """Find distinct trade dates before end_date from StockDaily.
-    
-    Returns sorted ascending list of up to `limit` trading days.
-    If ts_codes is provided, only considers dates where those stocks exist.
-    """
-    # Query StockDaily collection for distinct trade_dates <= end_date
-    # Sort descending, limit, then reverse
+def _calc_warmup_start(start_date: str, warmup_days: int) -> str:
+    dt = datetime.strptime(start_date, "%Y%m%d")
+    dt -= timedelta(days=warmup_days * 3)
+    return dt.strftime("%Y%m%d")
 ```
+
+Warmup 循环里的 `_skip_non_trading_day` 会自然跳过非交易日，`_load_day_data` 没有数据也会跳过，所以最终实际处理的交易日 >= warmup_days。
 
 ## Pipeline Changes (backtest_pipeline.py)
 
@@ -107,29 +78,20 @@ class BacktestPipeline:
         ]
         return max(windows) + 10
 
-    async def _find_warmup_start(
+    def _find_warmup_start(
         self,
         start_date: str,
         warmup_days: int,
     ) -> str:
-        dates = await self.data_loader.find_trade_dates_before(
-            end_date=start_date,
-            limit=warmup_days * 2,
-            ts_codes=self.ts_codes,
-        )
-        if len(dates) >= warmup_days:
-            return dates[-warmup_days]
-        return dates[0] if dates else start_date
+        dt = datetime.strptime(start_date, "%Y%m%d")
+        dt -= timedelta(days=warmup_days * 3)
+        return dt.strftime("%Y%m%d")
 
-    async def _run_warmup(self, warmup_start: str, actual_start: str) -> None:
-        """Run warmup phase: fill ScoreManager buffers without trading.
-        
-        This method iterates trading days from warmup_start to actual_start,
-        running predict_and_score() and compute_market_regime() to populate
-        EWMA buffers and rank history. No orders are placed, no snapshots
-        saved, and no portfolio state is changed.
-        """
+    async def _run_warmup(self, warmup_start: str, actual_start: str,
+                          warmup_days: int, task_id: Optional[PydanticObjectId]) -> None:
+        """Run warmup phase: fill ScoreManager buffers without trading."""
         date = warmup_start
+        day_count = 0
         while date < actual_start:
             if self._skip_non_trading_day(date):
                 date = _next_date(date)
@@ -141,22 +103,25 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            # Predict and score to fill score_buffer and rank_history
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
                 close_prices=close_prices,
-                start_date=date,  # warmup start = its own start_date
+                start_date=date,
                 vol_prices=day_data.get("vol", {}),
             )
             if not stock_map:
                 date = _next_date(date)
                 continue
 
-            # Compute market regime to fill ranking_median_buffer etc.
             self.score_manager.compute_market_regime(stock_map)
-
+            day_count += 1
+            await TaskService.update_progress(
+                task_id,
+                5 + day_count / warmup_days * 10,
+                f"正在预热 {date}...",
+            )
             date = _next_date(date)
 
     async def run_backtest(self, ...) -> ExecutionResult:
@@ -166,12 +131,12 @@ class BacktestPipeline:
         # Warmup phase (before trading starts)
         warmup_days = self._compute_warmup_days(self.strategy_config)
         if warmup_days > 0:
-            warmup_start = await self._find_warmup_start(start_date, warmup_days)
+            warmup_start = self._find_warmup_start(start_date, warmup_days)
             logger.info(
-                f"Warmup {warmup_days} days: {warmup_start} -> "
-                f"{_prev_date(start_date)} (excluding {start_date})"
+                f"Warmup {warmup_days} trading days: {warmup_start}+ "
+                f"(before {start_date})"
             )
-            await self._run_warmup(warmup_start, start_date)
+            await self._run_warmup(warmup_start, start_date, warmup_days, task_id)
 
         # Original main loop (unchanged)
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
@@ -182,10 +147,6 @@ class BacktestPipeline:
         result = await self._finalize_result(...)
         return result
 ```
-
-### 辅助函数
-
-- `_prev_date(date_str: str) -> str`: 返回前一个交易日（用于日志）
 
 ## Key Design Decisions
 
