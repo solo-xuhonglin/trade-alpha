@@ -430,9 +430,9 @@ class ScoreManager:
         crash_th = config.phase_crash_threshold * scale
         recovery_th = config.phase_recovery_threshold * scale
 
-        # decline threshold: scaled like recovery_th. In bear market (cum<=0)
-        # same as recovery_th (-3%). In bull market, proportionally stricter.
-        decline_bar = recovery_th if cum <= 0 else recovery_th * 0.66
+        # decline threshold: in bear market (cum <= 0) use original dr_5d < 0
+        # to avoid missing weak declines. In bull market, require stricter drop.
+        decline_bar = 0.0 if cum <= 0 else recovery_th * 0.66
 
         if dr_5d < crash_th:
             return 0.0, 1.0, "crash"
