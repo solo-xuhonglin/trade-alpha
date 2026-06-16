@@ -655,15 +655,15 @@ class ScoreManager:
 
         for ts_code in stock_map:
             records = self._rank_history.get(ts_code, [])
-            if len(records) < window + 1:
+            if len(records) < window + 2:
                 continue
 
-            recent = records[-(window+1):]
-            if any(s.is_excluded for s in recent[:-1]):
+            recent = records[-(window+2):]
+            historical = recent[-(window+1):-1]
+            if any(s.is_excluded for s in historical):
                 continue
 
-            # Average composite_score over past window days
-            avg_score = sum(s.composite_score for s in recent[:-1]) / window
+            avg_score = sum(s.composite_score for s in historical) / window
 
             # Average pct_chg over past window days
             pct_chgs = []
