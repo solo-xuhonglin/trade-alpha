@@ -166,6 +166,7 @@ class MultiStockStrategy(PositionManager):
                 if s.ts_code not in hold_ts_codes
                 and s.rank_improvement >= self.rank_up_min_improvement_pct
                 and s.composite_score > self.rank_up_min_score * buy_mult
+                and self._score_not_declining(s.ts_code, score_manager)
             ]
             rank_up_candidates.sort(
                 key=lambda s: s.rank_improvement, reverse=True
@@ -198,6 +199,8 @@ class MultiStockStrategy(PositionManager):
                 if stock.ts_code in hold_ts_codes:
                     continue
                 if stock.ts_code in purchased_ts_codes:
+                    continue
+                if not self._score_not_declining(stock.ts_code, score_manager):
                     continue
 
                 if suggestion_mode:
@@ -263,6 +266,19 @@ class MultiStockStrategy(PositionManager):
         if market_data.market_phase in ("decline",):
             return 1.5
         return 1.0
+
+    _SCORE_DECLINE_THRESHOLD = 0.05
+
+    def _score_not_declining(self, ts_code: str, score_manager: Optional["ScoreManager"] = None) -> bool:
+        """Check if stock's composite_score isn't dropping significantly.
+
+        Prevents buying stocks whose score just dropped (chasing peaks).
+        Uses raw score buffer for day-over-day comparison with threshold.
+        """
+        if score_manager is None:
+            return True
+        buffer = score_manager.get_score_buffer(ts_code)
+        return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self._SCORE_DECLINE_THRESHOLD
 
     def _apply_full_position_sell(
         self,
