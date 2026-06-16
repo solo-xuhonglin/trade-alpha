@@ -480,6 +480,8 @@ class ScoreManager:
         close_prices_hist = await self._load_close_prices_hist(
             pred_results, date, data_loader,
         )
+        apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
+        apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
 
         apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist)
         apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist)
@@ -624,11 +626,9 @@ class ScoreManager:
         date: str,
         data_loader: DataLoader,
     ) -> Dict[str, List[float]]:
-        """Load historical close prices for trend/momentum/strategy PnL.
+        """Load historical close prices and store on self for strategy PnL.
 
         Computes lookback from config (sell_rank_n as baseline + trend/momentum windows).
-        Stores result on self for strategy-level access to window PnL.
-        Applies trend_bonus/penalty inline.
         """
         sell_rank_n = getattr(self._strategy_config, 'sell_rank_n', 15) if self._strategy_config else 15
         lookback = sell_rank_n
@@ -645,9 +645,6 @@ class ScoreManager:
         for ts_code, records in history_data.items():
             close_prices_hist[ts_code] = [r.close for r in records if r.close is not None]
         self._last_close_prices_hist = close_prices_hist
-
-        apply_trend_bonus(pred_results, self._strategy_config, close_prices_hist)
-        apply_trend_penalty(pred_results, self._strategy_config, close_prices_hist)
         return close_prices_hist
 
     def get_score_buffer(self, ts_code: str) -> List[float]:
