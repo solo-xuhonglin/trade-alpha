@@ -26,9 +26,9 @@ class TrendMode(PhaseMode):
         scored_stocks = [st for st in scored_stocks if not st.is_excluded]
         full_candidates = sorted(scored_stocks, key=lambda st: st.ranking_score, reverse=True)
 
-        pos_mult, buy_mult = self._strategy._market_multipliers(market_data)
-        effective_threshold = self._strategy.buy_threshold * buy_mult
-        effective_max_pos = max(1, int(self._strategy.max_positions * pos_mult))
+        position_multiplier, buy_threshold_multiplier = self._strategy._market_multipliers(market_data)
+        effective_threshold = self._strategy.buy_threshold * buy_threshold_multiplier
+        effective_max_positions = max(1, int(self._strategy.max_positions * position_multiplier))
 
         scored_stocks = [st for st in scored_stocks if st.composite_score > effective_threshold]
         sorted_stocks = sorted(scored_stocks, key=lambda st: st.ranking_score, reverse=True)
@@ -38,7 +38,7 @@ class TrendMode(PhaseMode):
         elif len(sorted_stocks) % 10 == 0:
             logger.info(f"settle_mode_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
 
-        top_stocks = sorted_stocks[:effective_max_pos]
+        top_stocks = sorted_stocks[:effective_max_positions]
         top_ts_codes = {st.ts_code for st in top_stocks}
         sell_rank_stocks = sorted_stocks[:self._strategy.sell_rank_n]
         sell_rank_ts_codes = {st.ts_code for st in sell_rank_stocks}
@@ -60,10 +60,10 @@ class TrendMode(PhaseMode):
             if should_sell:
                 in_score = ts_code in score_map
                 in_sell_rank = ts_code in sell_rank_ts_codes
-                cur_score = score_map.get(ts_code, 0.0)
+                current_score = score_map.get(ts_code, 0.0)
                 logger.info(
                     f"settle_mode_orders SELL ts_code={ts_code} hold_days={pos.hold_days} "
-                    f"in_score_map={in_score} current_score={cur_score:.3f} "
+                    f"in_score_map={in_score} current_score={current_score:.3f} "
                     f"in_sell_rank={in_sell_rank} reason={sell_reason}"
                 )
                 sell_price = close_prices.get(ts_code, pos.buy_price)
@@ -96,7 +96,7 @@ class TrendMode(PhaseMode):
                 st for st in full_candidates
                 if st.ts_code not in hold_ts_codes
                 and st.rank_improvement >= self._strategy.rank_up_min_improvement_pct
-                and st.composite_score > self._strategy.rank_up_min_score * buy_mult
+                and st.composite_score > self._strategy.rank_up_min_score * buy_threshold_multiplier
                 and self._strategy._score_not_declining(st.ts_code, score_manager)
             ]
             rank_up_candidates.sort(key=lambda st: st.rank_improvement, reverse=True)
@@ -109,7 +109,7 @@ class TrendMode(PhaseMode):
                     orders.append(self._strategy._build_order(stock, 0, REASON_PRIORITY_RANK_UP, trade_date))
                     continue
                 success, shares, _fee = portfolio.reserve_funds(
-                    stock.ts_code, stock.close, close_prices, max_position_scalar=pos_mult,
+                    stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
                 )
                 if not success:
                     continue
@@ -132,7 +132,7 @@ class TrendMode(PhaseMode):
                     orders.append(self._strategy._build_order(stock, 0, REASON_NORMAL_BUY, trade_date))
                     continue
                 success, shares, _fee = portfolio.reserve_funds(
-                    stock.ts_code, stock.close, close_prices, max_position_scalar=pos_mult,
+                    stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
                 )
                 if not success:
                     continue

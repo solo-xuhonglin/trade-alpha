@@ -10,6 +10,7 @@ class PhaseMode(ABC):
 
     def __init__(self, strategy: "MultiStockStrategy"):
         self._strategy = strategy
+        self._strategy_config = strategy.strategy_config
 
     @abstractmethod
     async def settle_mode_orders(

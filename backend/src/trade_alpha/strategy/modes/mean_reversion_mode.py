@@ -17,13 +17,12 @@ class MeanReversionMode(PhaseMode):
 
     def __init__(self, strategy: "MultiStockStrategy"):
         super().__init__(strategy)
-        cfg = strategy.strategy_config
-        self.score_window = getattr(cfg, "mr_score_window", 20)
-        self.exclude_recent = getattr(cfg, "mr_exclude_recent_days", 5)
-        self.reversion_threshold = getattr(cfg, "mr_mean_reversion_threshold", 0.05)
-        self.sell_multiplier = getattr(cfg, "mr_sell_multiplier", 1.0)
-        self.ranking_window = getattr(cfg, "mr_ranking_window", 50)
-        self.max_candidates = getattr(cfg, "mr_max_candidates", 30)
+        self.score_window = self._strategy_config.mr_score_window
+        self.exclude_recent = self._strategy_config.mr_exclude_recent_days
+        self.reversion_threshold = self._strategy_config.mr_mean_reversion_threshold
+        self.sell_multiplier = self._strategy_config.mr_sell_multiplier
+        self.ranking_window = self._strategy_config.mr_ranking_window
+        self.max_candidates = self._strategy_config.mr_max_candidates
 
     async def settle_mode_orders(
         self,
@@ -45,7 +44,7 @@ class MeanReversionMode(PhaseMode):
         orders: List[PendingOrder] = []
 
         for ts_code, pos in portfolio.positions.items():
-            should_sell, reason = self._check_sell_mr(
+            should_sell, reason = self._check_sell_mean_reversion(
                 pos, close_prices, score_manager,
                 self._strategy.stop_loss_pct, self._strategy.max_hold_days,
             )
@@ -95,9 +94,9 @@ class MeanReversionMode(PhaseMode):
         candidates.sort(key=lambda x: x[2] - x[1], reverse=True)
         candidates = candidates[:self.max_candidates]
 
-        pos_mult, _ = self._strategy._market_multipliers(market_data)
+        position_multiplier, _ = self._strategy._market_multipliers(market_data)
 
-        for stock, hist_mean, rec_mean in candidates:
+        for stock, historical_mean, recent_mean in candidates:
             if stock.ts_code in purchased_ts_codes:
                 continue
             if suggestion_mode:
@@ -107,7 +106,7 @@ class MeanReversionMode(PhaseMode):
                 orders.append(self._strategy._build_order(stock, 0, "mean_reversion_buy", trade_date))
                 continue
             success, shares, _fee = portfolio.reserve_funds(
-                stock.ts_code, stock.close, close_prices, max_position_scalar=pos_mult,
+                stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
             )
             if not success:
                 continue
@@ -116,7 +115,7 @@ class MeanReversionMode(PhaseMode):
 
         return orders
 
-    def _check_sell_mr(
+    def _check_sell_mean_reversion(
         self,
         position: PositionEmbed,
         close_prices: Dict[str, float],
@@ -130,9 +129,9 @@ class MeanReversionMode(PhaseMode):
             buffer = score_manager.get_score_buffer(position.ts_code)
             if len(buffer) >= self.score_window + self.exclude_recent:
                 historical = buffer[-(self.score_window + self.exclude_recent):-self.exclude_recent]
-                hist_mean = statistics.mean(historical)
+                historical_mean = statistics.mean(historical)
                 current_score = buffer[-1] if buffer else 0.0
-                if current_score > hist_mean * self.sell_multiplier:
+                if current_score > historical_mean * self.sell_multiplier:
                     return True, SELL_REASON_MEAN_REVERSION
 
         return MultiStockStrategy.check_common_sell(

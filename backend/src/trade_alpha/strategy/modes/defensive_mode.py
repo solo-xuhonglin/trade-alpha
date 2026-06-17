@@ -39,6 +39,8 @@ class DefensiveMode(PhaseMode):
         for ts_code, pos in portfolio.positions.items():
             should_sell, reason = self._check_sell_defensive(
                 pos, close_prices, score_map, self._strategy.max_hold_days,
+                self._strategy_config.down_stop_loss_pct,
+                self._strategy_config.down_sell_threshold,
             )
             if should_sell:
                 sell_price = close_prices.get(ts_code, pos.buy_price)
@@ -65,20 +67,20 @@ class DefensiveMode(PhaseMode):
         close_prices: Dict[str, float],
         score_map: Dict[str, float],
         max_hold_days: int,
+        down_stop_loss_pct: float,
+        down_sell_threshold: float,
     ) -> Tuple[bool, str]:
         """Aggressive sell check for defensive mode."""
         from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
-        stop_loss_pct = -0.07
-        sell_threshold = 0.0
         current_score = score_map.get(position.ts_code, 0.0)
 
         common_sell, common_reason = MultiStockStrategy.check_common_sell(
-            position, close_prices, stop_loss_pct, max_hold_days,
+            position, close_prices, down_stop_loss_pct, max_hold_days,
         )
         if common_sell:
             return True, common_reason
 
-        if current_score < sell_threshold:
+        if current_score < down_sell_threshold:
             return True, SELL_REASON_SCORE_BELOW
 
         return False, ""
