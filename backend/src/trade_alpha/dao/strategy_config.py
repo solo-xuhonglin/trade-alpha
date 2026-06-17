@@ -47,6 +47,9 @@ class StrategyConfig(Document):
     rank_up_min_improvement_pct: float = 0.20
     ranking_smooth_window: int = 5
     ranking_smooth_alpha: float = 0.3
+    score_decline_threshold: float = 0.05
+    use_score_decline_filter: bool = False
+    full_position_pnl_weight: float = 0.5
     market_smooth_window: int = 5
     market_smooth_alpha: float = 0.3
     top_n_retention: int = 20

@@ -62,6 +62,9 @@ class MultiStockStrategy(PositionManager):
         self.rank_up_count = strategy_config.rank_up_count if strategy_config else 3
         self.rank_up_min_score = strategy_config.rank_up_min_score if strategy_config else 0.1
         self.rank_up_min_improvement_pct = strategy_config.rank_up_min_improvement_pct if strategy_config else 0.20
+        self.score_decline_threshold = strategy_config.score_decline_threshold if strategy_config else 0.05
+        self.use_score_decline_filter = strategy_config.use_score_decline_filter if strategy_config else False
+        self._full_position_pnl_weight = strategy_config.full_position_pnl_weight if strategy_config else 0.5
 
     async def make_orders(
         self,
@@ -267,7 +270,7 @@ class MultiStockStrategy(PositionManager):
             return 1.5
         return 1.0
 
-    _SCORE_DECLINE_THRESHOLD = 0.05
+    _FULL_POSITION_PNL_CLIP_PCT = 50.0
 
     def _score_not_declining(self, ts_code: str, score_manager: Optional["ScoreManager"] = None) -> bool:
         """Check if stock's composite_score isn't dropping significantly.
@@ -275,10 +278,28 @@ class MultiStockStrategy(PositionManager):
         Prevents buying stocks whose score just dropped (chasing peaks).
         Uses raw score buffer for day-over-day comparison with threshold.
         """
+        if not self.use_score_decline_filter:
+            return True
         if score_manager is None:
+            logger.warning(f"_score_not_declining ts_code={ts_code} score_manager is None, allowing buy")
             return True
         buffer = score_manager.get_score_buffer(ts_code)
-        return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self._SCORE_DECLINE_THRESHOLD
+        return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self.score_decline_threshold
+
+    @staticmethod
+    def _is_stop_loss_triggered(
+        position: PositionEmbed,
+        close_prices: Dict[str, float],
+        effective_stop_loss: float,
+    ) -> bool:
+        """Check if position has hit stop-loss based on cost basis."""
+        if position.ts_code not in close_prices:
+            return False
+        current_price = close_prices[position.ts_code]
+        cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
+        if cost_basis <= 0:
+            return False
+        return current_price < cost_basis * (1 + effective_stop_loss)
 
     def _apply_full_position_sell(
         self,
@@ -335,8 +356,8 @@ class MultiStockStrategy(PositionManager):
                 if cost_basis > 0:
                     pnl_pct = (close_prices[ts_code] - cost_basis) / cost_basis * 100
 
-            pnl_clipped = max(min(pnl_pct, 50.0), -50.0) / 100.0
-            sell_priority = avg_score + pnl_clipped * 0.5
+            pnl_clipped = max(min(pnl_pct, self._FULL_POSITION_PNL_CLIP_PCT), -self._FULL_POSITION_PNL_CLIP_PCT) / 100.0
+            sell_priority = avg_score + pnl_clipped * self._full_position_pnl_weight
             scored_holds.append((sell_priority, avg_score, pnl_pct, ts_code))
             logger.debug(f"full_position FORCE_SELL CANDIDATE ts_code={ts_code} avg_score={avg_score:.3f} pnl={pnl_pct:+.1f}% priority={sell_priority:.3f}")
 
@@ -380,29 +401,26 @@ class MultiStockStrategy(PositionManager):
         effective_stop_loss = self.stop_loss_pct * self._stop_loss_mult(market_data)
 
         if position.hold_days < self.min_hold_days:
-            if close_prices and position.ts_code in close_prices:
-                current_price = close_prices[position.ts_code]
-                cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
-                if current_price < cost_basis * (1 + effective_stop_loss):
-                    logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
-                    return True, SELL_REASON_STOP_LOSS
+            if close_prices and self._is_stop_loss_triggered(position, close_prices, effective_stop_loss):
+                logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
+                return True, SELL_REASON_STOP_LOSS
             logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
             return False, ""
 
         if current_score < self.sell_threshold:
+            logger.debug(f"_check_sell ts_code={position.ts_code} score below sell_threshold={self.sell_threshold:.3f}, sell")
             return True, SELL_REASON_SCORE_BELOW
 
         if position.hold_days >= self.max_hold_days:
+            logger.debug(f"_check_sell ts_code={position.ts_code} max_hold_days={self.max_hold_days} reached, sell")
             return True, SELL_REASON_MAX_HOLD_DAYS
 
-        if close_prices and position.ts_code in close_prices:
-            current_price = close_prices[position.ts_code]
-            cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
-            if current_price < cost_basis * (1 + effective_stop_loss):
-                return True, SELL_REASON_STOP_LOSS
+        if close_prices and self._is_stop_loss_triggered(position, close_prices, effective_stop_loss):
+            return True, SELL_REASON_STOP_LOSS
 
         if position.ts_code not in sell_rank_ts_codes:
             if current_score < self.hold_score_threshold:
+                logger.debug(f"_check_sell ts_code={position.ts_code} hold_score_low={self.hold_score_threshold:.3f}, sell")
                 return True, SELL_REASON_HOLD_SCORE_LOW
 
         return False, ""

@@ -418,6 +418,11 @@
                     label="每次卖出数量" hint="每次触发卖几只" persistent-hint
                     :disabled="!form.use_full_position_sell"></v-text-field>
                 </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.full_position_pnl_weight" type="number" step="0.1"
+                    label="PnL权重" hint="强制卖出排序中盈亏占比权重" persistent-hint
+                    :disabled="!form.use_full_position_sell"></v-text-field>
+                </v-col>
               </v-row>
 
               <v-divider class="my-4"></v-divider>
@@ -449,6 +454,21 @@
                   <v-text-field v-model.number="form.rank_up_min_improvement_pct" type="number" step="0.05"
                     label="最小提升" hint="相对均排名的提升比例，0.20=20%" persistent-hint
                     :disabled="!form.use_rank_up_priority"></v-text-field>
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <v-switch v-model="form.use_score_decline_filter" hide-details density="compact" color="primary"
+                  class="mr-2" label="评分下降过滤"></v-switch>
+                <v-chip size="x-small" variant="outlined" color="info">评分日降超过阈值时禁止买入</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.score_decline_threshold" type="number" step="0.01"
+                    label="评分下降阈值" hint="与前一日评分相比的下降幅度" persistent-hint
+                    :disabled="!form.use_score_decline_filter"></v-text-field>
                 </v-col>
               </v-row>
             </div>
@@ -601,6 +621,9 @@ const form = ref({
   market_smooth_window: 5,
   market_smooth_alpha: 0.3,
   top_n_retention: 20,
+  score_decline_threshold: 0.05,
+  use_score_decline_filter: false,
+  full_position_pnl_weight: 0.5,
 
 })
 
@@ -649,6 +672,9 @@ const compareFields: CompareField[] = [
   { key: 'full_position_days', label: '持续天数', group: '交易优化', type: 'number' },
   { key: 'full_position_score_window', label: '评分窗口', group: '交易优化', type: 'number' },
   { key: 'full_position_sell_count', label: '每次卖出数量', group: '交易优化', type: 'number' },
+  { key: 'score_decline_threshold', label: '评分下降阈值', group: '交易优化', type: 'number' },
+  { key: 'use_score_decline_filter', label: '评分下降过滤', group: '交易优化', type: 'boolean' },
+  { key: 'full_position_pnl_weight', label: 'PnL权重', group: '交易优化', type: 'number' },
   { key: 'use_rank_up_priority', label: '排名上涨优先', group: '交易优化', type: 'boolean' },
   { key: 'rank_up_window', label: '排名窗口', group: '交易优化', type: 'number' },
   { key: 'rank_up_count', label: '优先买入数', group: '交易优化', type: 'number' },
@@ -725,6 +751,9 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       market_smooth_window: item.market_smooth_window ?? 5,
       market_smooth_alpha: item.market_smooth_alpha ?? 0.3,
       top_n_retention: item.top_n_retention ?? 20,
+      score_decline_threshold: item.score_decline_threshold ?? 0.05,
+      use_score_decline_filter: item.use_score_decline_filter ?? false,
+      full_position_pnl_weight: item.full_position_pnl_weight ?? 0.5,
       retention_days: item.retention_days ?? 5,
       correlation_window: item.correlation_window ?? 5,
       use_phase_strategy: item.use_phase_strategy ?? true,
@@ -775,6 +804,9 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       market_smooth_window: 5,
       market_smooth_alpha: 0.3,
       top_n_retention: 20,
+      score_decline_threshold: 0.05,
+      use_score_decline_filter: false,
+      full_position_pnl_weight: 0.5,
       retention_days: 5,
       correlation_window: 5,
       use_phase_strategy: true,
@@ -818,6 +850,9 @@ const saveStrategy = async () => {
       full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,
       full_position_score_window: form.value.type === 'multi' ? form.value.full_position_score_window : undefined,
       full_position_sell_count: form.value.type === 'multi' ? form.value.full_position_sell_count : undefined,
+      score_decline_threshold: form.value.type === 'multi' ? form.value.score_decline_threshold : undefined,
+      use_score_decline_filter: form.value.type === 'multi' ? form.value.use_score_decline_filter : undefined,
+      full_position_pnl_weight: form.value.type === 'multi' ? form.value.full_position_pnl_weight : undefined,
       use_rank_up_priority: form.value.type === 'multi' ? form.value.use_rank_up_priority : undefined,
       rank_up_window: form.value.type === 'multi' ? form.value.rank_up_window : undefined,
       rank_up_count: form.value.type === 'multi' ? form.value.rank_up_count : undefined,
@@ -867,6 +902,9 @@ const saveStrategy = async () => {
       full_position_days: form.value.type === 'multi' ? form.value.full_position_days : undefined,
       full_position_score_window: form.value.type === 'multi' ? form.value.full_position_score_window : undefined,
       full_position_sell_count: form.value.type === 'multi' ? form.value.full_position_sell_count : undefined,
+      score_decline_threshold: form.value.type === 'multi' ? form.value.score_decline_threshold : undefined,
+      use_score_decline_filter: form.value.type === 'multi' ? form.value.use_score_decline_filter : undefined,
+      full_position_pnl_weight: form.value.type === 'multi' ? form.value.full_position_pnl_weight : undefined,
       use_rank_up_priority: form.value.type === 'multi' ? form.value.use_rank_up_priority : undefined,
       rank_up_window: form.value.type === 'multi' ? form.value.rank_up_window : undefined,
       rank_up_count: form.value.type === 'multi' ? form.value.rank_up_count : undefined,

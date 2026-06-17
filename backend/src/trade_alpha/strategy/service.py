@@ -43,6 +43,9 @@ async def create_strategy(
     vol_max_penalty: Optional[float] = None,
     ranking_smooth_window: Optional[int] = None,
     ranking_smooth_alpha: Optional[float] = None,
+    score_decline_threshold: Optional[float] = None,
+    use_score_decline_filter: Optional[bool] = None,
+    full_position_pnl_weight: Optional[float] = None,
     use_full_position_sell: Optional[bool] = None,
     full_position_threshold: Optional[float] = None,
     full_position_days: Optional[int] = None,
@@ -136,6 +139,9 @@ async def update_strategy(
     vol_max_penalty: Optional[float] = None,
     ranking_smooth_window: Optional[int] = None,
     ranking_smooth_alpha: Optional[float] = None,
+    score_decline_threshold: Optional[float] = None,
+    use_score_decline_filter: Optional[bool] = None,
+    full_position_pnl_weight: Optional[float] = None,
     use_full_position_sell: Optional[bool] = None,
     full_position_threshold: Optional[float] = None,
     full_position_days: Optional[int] = None,
@@ -232,6 +238,12 @@ async def update_strategy(
         strategy.ranking_smooth_window = ranking_smooth_window
     if ranking_smooth_alpha is not None:
         strategy.ranking_smooth_alpha = ranking_smooth_alpha
+    if score_decline_threshold is not None:
+        strategy.score_decline_threshold = score_decline_threshold
+    if use_score_decline_filter is not None:
+        strategy.use_score_decline_filter = use_score_decline_filter
+    if full_position_pnl_weight is not None:
+        strategy.full_position_pnl_weight = full_position_pnl_weight
     if use_full_position_sell is not None:
         strategy.use_full_position_sell = use_full_position_sell
     if full_position_threshold is not None:

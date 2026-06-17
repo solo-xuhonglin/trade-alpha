@@ -68,6 +68,9 @@ class StrategyCreateRequest(BaseModel):
     use_trend_penalty: Optional[bool] = False
     ranking_smooth_window: Optional[int] = 3
     ranking_smooth_alpha: Optional[float] = 0.5
+    score_decline_threshold: Optional[float] = 0.05
+    use_score_decline_filter: Optional[bool] = False
+    full_position_pnl_weight: Optional[float] = 0.5
     use_full_position_sell: Optional[bool] = False
     full_position_threshold: Optional[float] = 0.90
     full_position_days: Optional[int] = 3
@@ -116,6 +119,9 @@ class StrategyUpdateRequest(BaseModel):
     use_trend_penalty: Optional[bool] = None
     ranking_smooth_window: Optional[int] = None
     ranking_smooth_alpha: Optional[float] = None
+    score_decline_threshold: Optional[float] = None
+    use_score_decline_filter: Optional[bool] = None
+    full_position_pnl_weight: Optional[float] = None
     use_full_position_sell: Optional[bool] = None
     full_position_threshold: Optional[float] = None
     full_position_days: Optional[int] = None

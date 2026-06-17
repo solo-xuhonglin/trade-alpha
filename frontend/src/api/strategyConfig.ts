@@ -34,6 +34,9 @@ export interface Strategy {
   rank_up_min_improvement_pct?: number
   ranking_smooth_window?: number
   use_trend_bonus?: boolean
+  score_decline_threshold?: number
+  use_score_decline_filter?: boolean
+  full_position_pnl_weight?: number
   trend_bonus_window?: number
   trend_bonus_scale?: number
   trend_r2_threshold?: number
