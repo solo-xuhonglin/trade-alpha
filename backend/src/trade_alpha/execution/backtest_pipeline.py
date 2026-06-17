@@ -321,6 +321,7 @@ class BacktestPipeline:
                 f"(before {start_date})"
             )
             await self._run_warmup(warmup_start, start_date, warmup_days, task_id)
+            self.score_manager.reset_daily_rebalanced_baseline()
 
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
 

@@ -373,6 +373,7 @@ class ScoreManager:
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
         self._daily_rebalanced_values: List[float] = [1.0]
+        self._daily_rebalanced_start: float = 1.0
         self._prev_close_prices: Optional[Dict[str, float]] = None
         self._low_pct_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
@@ -444,6 +445,10 @@ class ScoreManager:
             return 1.0, 0.5, "recovery"
         else:
             return 1.0, 1.0, "normal"
+
+    def reset_daily_rebalanced_baseline(self) -> None:
+        if self._daily_rebalanced_values:
+            self._daily_rebalanced_start = self._daily_rebalanced_values[-1]
 
     # ------------------------------------------------------------------
     # Public API
@@ -593,7 +598,7 @@ class ScoreManager:
             "score_return_corr_smoothed": corr_smoothed,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
-            "daily_rebalanced_cum": self._daily_rebalanced_values[-1] - 1.0,
+            "daily_rebalanced_cum": (self._daily_rebalanced_values[-1] / self._daily_rebalanced_start) - 1.0,
             "position_multiplier": phase_pos_mult,
             "buy_threshold_multiplier": phase_buy_mult,
             "market_phase": phase_name,
