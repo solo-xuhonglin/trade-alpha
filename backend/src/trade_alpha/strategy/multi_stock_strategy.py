@@ -29,45 +29,22 @@ class MultiStockStrategy(PositionManager):
 
     def __init__(
         self,
-        strategy_config: Optional[StrategyConfig],
+        strategy_config: StrategyConfig,
         ts_codes: Optional[List[str]] = None,
     ):
-        buy_threshold = strategy_config.buy_threshold if strategy_config else 0.1
-        sell_threshold = strategy_config.sell_threshold if strategy_config else -0.1
-        min_order_value = strategy_config.min_order_value if strategy_config else 5000.0
-        stop_loss_pct = strategy_config.stop_loss_pct if strategy_config else -0.1
-        min_hold_days = strategy_config.min_hold_days if strategy_config and strategy_config.min_hold_days is not None else 3
-        max_hold_days = strategy_config.max_hold_days if strategy_config else 30
-        max_positions = strategy_config.max_positions if strategy_config else 10
-        max_position_pct = strategy_config.max_position_pct if strategy_config else 0.3
-        sell_rank_n = strategy_config.sell_rank_n if strategy_config else 15
-        hold_score_threshold = strategy_config.hold_score_threshold if strategy_config else 0.05
-        use_phase_strategy = strategy_config.use_phase_strategy if strategy_config else True
-
         super().__init__(
-            max_positions=max_positions,
-            max_position_pct=max_position_pct,
-            min_order_value=min_order_value,
-            stop_loss_pct=stop_loss_pct,
-            max_hold_days=max_hold_days,
-            min_hold_days=min_hold_days,
-            buy_threshold=buy_threshold,
-            sell_threshold=sell_threshold,
+            buy_threshold=strategy_config.buy_threshold,
+            sell_threshold=strategy_config.sell_threshold,
+            min_order_value=strategy_config.min_order_value,
+            stop_loss_pct=strategy_config.stop_loss_pct,
+            min_hold_days=strategy_config.min_hold_days,
+            max_hold_days=strategy_config.max_hold_days,
+            max_positions=strategy_config.max_positions,
+            max_position_pct=strategy_config.max_position_pct,
         )
         self.ts_codes = ts_codes or []
         self.strategy_config = strategy_config
-        self.use_phase_strategy = use_phase_strategy
-        self.sell_rank_n = sell_rank_n
-        self.hold_score_threshold = hold_score_threshold
         self._full_position_consecutive_days = 0
-        self.use_rank_up_priority = strategy_config.use_rank_up_priority if strategy_config else False
-        self.rank_up_window = strategy_config.rank_up_window if strategy_config else 5
-        self.rank_up_count = strategy_config.rank_up_count if strategy_config else 3
-        self.rank_up_min_score = strategy_config.rank_up_min_score if strategy_config else 0.1
-        self.rank_up_min_improvement_pct = strategy_config.rank_up_min_improvement_pct if strategy_config else 0.20
-        self.score_decline_threshold = strategy_config.score_decline_threshold if strategy_config else 0.05
-        self.use_score_decline_filter = strategy_config.use_score_decline_filter if strategy_config else False
-        self._full_position_pnl_weight = strategy_config.full_position_pnl_weight if strategy_config else 0.5
         self._modes = {
             "up": TrendMode(self),
             "flat": MeanReversionMode(self),
@@ -134,13 +111,13 @@ class MultiStockStrategy(PositionManager):
         Prevents buying stocks whose score just dropped (chasing peaks).
         Uses raw score buffer for day-over-day comparison with threshold.
         """
-        if not self.use_score_decline_filter:
+        if not self.strategy_config.use_score_decline_filter:
             return True
         if score_manager is None:
             logger.warning(f"_score_not_declining ts_code={ts_code} score_manager is None, allowing buy")
             return True
         buffer = score_manager.get_score_buffer(ts_code)
-        return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self.score_decline_threshold
+        return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self.strategy_config.score_decline_threshold
 
     @staticmethod
     def _is_stop_loss_triggered(
@@ -163,11 +140,16 @@ class MultiStockStrategy(PositionManager):
         close_prices: Dict[str, float],
         stop_loss_pct: float,
         max_hold_days: int,
+        min_hold_days: int = 0,
     ) -> Tuple[bool, str]:
-        """Common sell checks shared by all modes: stop-loss and max hold days."""
+        """Common sell checks shared by all modes: stop-loss and max hold days.
+
+        When within min_hold_days, only stop-loss triggers a sell.
+        """
         if MultiStockStrategy._is_stop_loss_triggered(position, close_prices, stop_loss_pct):
             return True, SELL_REASON_STOP_LOSS
-        if position.hold_days >= max_hold_days:
+
+        if position.hold_days >= min_hold_days and position.hold_days >= max_hold_days:
             return True, SELL_REASON_MAX_HOLD_DAYS
         return False, ""
 
@@ -188,7 +170,7 @@ class MultiStockStrategy(PositionManager):
         pos_mult, _ = self._market_multipliers(market_data)
         threshold *= pos_mult
         days_required = getattr(self.strategy_config, "full_position_days", 3)
-        score_window = getattr(self.strategy_config, "full_position_score_window", 5)
+        score_window = getattr(self.strategy_config, "full_position_score_window", 10)
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
 
         total_value = portfolio.get_total_value(close_prices)
@@ -227,7 +209,7 @@ class MultiStockStrategy(PositionManager):
                     pnl_pct = (close_prices[ts_code] - cost_basis) / cost_basis * 100
 
             pnl_clipped = max(min(pnl_pct, self._FULL_POSITION_PNL_CLIP_PCT), -self._FULL_POSITION_PNL_CLIP_PCT) / 100.0
-            sell_priority = avg_score + pnl_clipped * self._full_position_pnl_weight
+            sell_priority = avg_score + pnl_clipped * self.strategy_config.full_position_pnl_weight
             scored_holds.append((sell_priority, avg_score, pnl_pct, ts_code))
             logger.debug(f"full_position FORCE_SELL CANDIDATE ts_code={ts_code} avg_score={avg_score:.3f} pnl={pnl_pct:+.1f}% priority={sell_priority:.3f}")
 
@@ -289,8 +271,8 @@ class MultiStockStrategy(PositionManager):
             return True, SELL_REASON_STOP_LOSS
 
         if position.ts_code not in sell_rank_ts_codes:
-            if current_score < self.hold_score_threshold:
-                logger.debug(f"_check_sell ts_code={position.ts_code} hold_score_low={self.hold_score_threshold:.3f}, sell")
+            if current_score < self.strategy_config.hold_score_threshold:
+                logger.debug(f"_check_sell ts_code={position.ts_code} hold_score_low={self.strategy_config.hold_score_threshold:.3f}, sell")
                 return True, SELL_REASON_HOLD_SCORE_LOW
 
         return False, ""

@@ -38,7 +38,7 @@ class StrategyConfig(Document):
     use_full_position_sell: bool = False
     full_position_threshold: float = 0.90
     full_position_days: int = 5
-    full_position_score_window: int = 8
+    full_position_score_window: int = 10
     full_position_sell_count: int = 1
     use_rank_up_priority: bool = False
     rank_up_window: int = 5

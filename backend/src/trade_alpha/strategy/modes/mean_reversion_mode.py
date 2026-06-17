@@ -1,8 +1,6 @@
 import statistics
 from typing import Dict, List, Optional, Set, Tuple
 
-from trade_alpha.constants import SELL_REASON_MEAN_REVERSION
-from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
@@ -20,7 +18,6 @@ class MeanReversionMode(PhaseMode):
         self.score_window = self._strategy_config.mr_score_window
         self.exclude_recent = self._strategy_config.mr_exclude_recent_days
         self.reversion_threshold = self._strategy_config.mr_mean_reversion_threshold
-        self.sell_multiplier = self._strategy_config.mr_sell_multiplier
         self.ranking_window = self._strategy_config.mr_ranking_window
         self.max_candidates = self._strategy_config.mr_max_candidates
 
@@ -45,8 +42,10 @@ class MeanReversionMode(PhaseMode):
 
         for ts_code, pos in portfolio.positions.items():
             should_sell, reason = self._check_sell_mean_reversion(
-                pos, close_prices, score_manager,
-                self._strategy.stop_loss_pct, self._strategy.max_hold_days,
+                pos, close_prices,
+                self._strategy.stop_loss_pct,
+                self._strategy.max_hold_days,
+                self._strategy.min_hold_days,
             )
             if should_sell:
                 sell_price = close_prices.get(ts_code, pos.buy_price)
@@ -115,25 +114,19 @@ class MeanReversionMode(PhaseMode):
 
         return orders
 
+    @staticmethod
     def _check_sell_mean_reversion(
-        self,
-        position: PositionEmbed,
+        position: "PositionEmbed",
         close_prices: Dict[str, float],
-        score_manager: Optional["ScoreManager"],
         stop_loss_pct: float,
         max_hold_days: int,
+        min_hold_days: int,
     ) -> Tuple[bool, str]:
-        """Sell check for mean reversion mode."""
+        """Sell check for mean reversion mode - only common sell checks.
+        
+        Relies on _apply_full_position_sell for position rotation.
+        """
         from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
-        if score_manager is not None:
-            buffer = score_manager.get_score_buffer(position.ts_code)
-            if len(buffer) >= self.score_window + self.exclude_recent:
-                historical = buffer[-(self.score_window + self.exclude_recent):-self.exclude_recent]
-                historical_mean = statistics.mean(historical)
-                current_score = buffer[-1] if buffer else 0.0
-                if current_score > historical_mean * self.sell_multiplier:
-                    return True, SELL_REASON_MEAN_REVERSION
-
         return MultiStockStrategy.check_common_sell(
-            position, close_prices, stop_loss_pct, max_hold_days,
+            position, close_prices, stop_loss_pct, max_hold_days, min_hold_days,
         )
