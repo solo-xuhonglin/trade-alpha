@@ -24,9 +24,6 @@ class RotationMode(PhaseMode):
 
     def __init__(self, strategy: "MultiStockStrategy"):
         super().__init__(strategy)
-        strategy.min_hold_days = 10
-        strategy.sell_threshold = -0.5
-        self._strategy_config.full_position_score_window = 10
 
     async def settle_mode_orders(
         self,

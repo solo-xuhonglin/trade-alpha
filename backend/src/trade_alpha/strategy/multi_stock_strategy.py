@@ -42,6 +42,7 @@ class MultiStockStrategy(BaseStrategy):
         self.ts_codes = ts_codes or []
         self.strategy_config = strategy_config
         self._full_position_consecutive_days = 0
+        self.full_position_score_window = strategy_config.full_position_score_window
         self._modes = {
             "up": TrendMode(self),
             "flat": RotationMode(self),
@@ -63,6 +64,16 @@ class MultiStockStrategy(BaseStrategy):
 
         phase = market_data.market_phase if market_data else "up"
         mode = self._modes.get(phase, self._modes["up"])
+
+        if isinstance(mode, RotationMode):
+            self.min_hold_days = 10
+            self.sell_threshold = -0.5
+            self.full_position_score_window = 10
+        else:
+            self.min_hold_days = self.strategy_config.min_hold_days
+            self.sell_threshold = self.strategy_config.sell_threshold
+            self.full_position_score_window = self.strategy_config.full_position_score_window
+
         return await mode.settle_mode_orders(
             scored_stocks, trade_date, ctx,
             close_prices, market_data,
@@ -143,7 +154,7 @@ class MultiStockStrategy(BaseStrategy):
         pos_mult, _ = self._market_multipliers(market_data)
         threshold *= pos_mult
         days_required = getattr(self.strategy_config, "full_position_days", 3)
-        score_window = getattr(self.strategy_config, "full_position_score_window", 10)
+        score_window = self.full_position_score_window
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
 
         total_value = ctx.portfolio.get_total_value(close_prices)
