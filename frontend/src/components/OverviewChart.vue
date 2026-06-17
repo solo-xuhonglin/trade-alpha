@@ -17,7 +17,6 @@ export interface OverviewChartItem {
   buy_threshold_multiplier?: number
   position_pct?: number
   market_phase?: string
-  market_phase_detail?: string
   top_n_retention_rate_smoothed: number
   score_return_corr_smoothed: number
 }
@@ -42,15 +41,6 @@ let resizeObserver: ResizeObserver | null = null
 
 const handleResize = () => chartInstance?.resize()
 
-const phaseLabelDetail: Record<string, string> = {
-  crash: '急跌',
-  decline: '下跌',
-  recovery: '企稳',
-  sideways: '横盘',
-  uptrend: '上涨趋势',
-  normal: '正常',
-}
-
 const phaseLabel: Record<string, string> = {
   down: '下跌',
   flat: '震荡',
@@ -58,30 +48,27 @@ const phaseLabel: Record<string, string> = {
 }
 
 const phaseColors: Record<string, string> = {
-  crash: 'rgba(244, 67, 54, 0.10)',
-  decline: 'rgba(255, 152, 0, 0.08)',
-  recovery: 'rgba(76, 175, 80, 0.08)',
-  sideways: 'rgba(158, 158, 158, 0.08)',
-  uptrend: 'rgba(33, 150, 243, 0.08)',
+  down: 'rgba(244, 67, 54, 0.10)',
+  up: 'rgba(33, 150, 243, 0.10)',
 }
 
 function computePhaseZones(data: OverviewChartItem[]): PhaseZone[] {
   const zones: PhaseZone[] = []
   if (!data.length) return zones
   let start = data[0].date
-  let currentPhase = data[0].market_phase_detail || 'normal'
+  let currentPhase = data[0].market_phase || 'flat'
 
   for (let i = 1; i < data.length; i++) {
-    const phase = data[i].market_phase_detail || 'normal'
+    const phase = data[i].market_phase || 'flat'
     if (phase !== currentPhase) {
-      if (currentPhase !== 'normal' && currentPhase) {
+      if (currentPhase !== 'flat' && currentPhase) {
         zones.push({ start, end: data[i - 1].date, phase: currentPhase })
       }
       start = data[i].date
       currentPhase = phase
     }
   }
-  if (currentPhase !== 'normal' && currentPhase) {
+  if (currentPhase !== 'flat' && currentPhase) {
     zones.push({ start, end: data[data.length - 1].date, phase: currentPhase })
   }
   return zones
@@ -122,10 +109,6 @@ const renderChart = () => {
         const phase = props.data[params[0].dataIndex]?.market_phase
         if (phase) {
           html += `<br>市场阶段: ${phaseLabel[phase] || phase}`
-        }
-        const detail = props.data[params[0].dataIndex]?.market_phase_detail
-        if (detail) {
-          html += `<br>详细阶段: ${phaseLabelDetail[detail] || detail}`
         }
         params.forEach((p: any) => {
           if (p.value == null) return

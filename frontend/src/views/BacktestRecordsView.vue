@@ -1361,7 +1361,6 @@ const loadMarketData = async () => {
       position_multiplier: s.position_multiplier,
       buy_threshold_multiplier: s.buy_threshold_multiplier,
       market_phase: s.market_phase,
-      market_phase_detail: s.market_phase_detail,
       daily_rebalanced_cum: s.daily_rebalanced_cum ?? 0,
       position_pct: s.position_pct ?? 50,
       top_n_retention_rate_smoothed: s.top_n_retention_rate_smoothed ?? 0,
