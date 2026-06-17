@@ -9,7 +9,6 @@ from trade_alpha.constants import (
     SELL_REASON_HOLD_SCORE_LOW,
     SELL_REASON_MAX_HOLD_DAYS,
     SELL_REASON_SCORE_BELOW,
-    SELL_REASON_SCORE_DECLINE,
     SELL_REASON_STOP_LOSS,
 )
 from trade_alpha.dao.strategy_config import StrategyConfig
@@ -120,11 +119,7 @@ class MultiStockStrategy(PositionManager):
 
         logger.info(f"make_orders trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
         for ts_code, pos in portfolio.positions.items():
-            price_hist_list = (score_manager.last_close_prices_hist or {}).get(ts_code, []) if score_manager else []
-            should_sell, sell_reason = self._check_sell(
-                pos, top_ts_codes, sell_rank_ts_codes, score_map,
-                close_prices, market_data, price_hist=price_hist_list,
-            )
+            should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data)
             if should_sell:
                 in_score = ts_code in score_map
                 in_sell_rank = ts_code in sell_rank_ts_codes
@@ -375,7 +370,6 @@ class MultiStockStrategy(PositionManager):
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        price_hist: Optional[List[float]] = None,
     ) -> Tuple[bool, str]:
         """Check whether a position should be sold.
 
@@ -410,21 +404,5 @@ class MultiStockStrategy(PositionManager):
         if position.ts_code not in sell_rank_ts_codes:
             if current_score < self.hold_score_threshold:
                 return True, SELL_REASON_HOLD_SCORE_LOW
-
-        # Early sell: price peak drawdown
-        if price_hist and len(price_hist) >= 3:
-            peak_price = max(price_hist)
-            current_price = price_hist[-1]
-            drawdown = (peak_price - current_price) / max(peak_price, 0.001)
-
-            drawdown_threshold = 0.15
-            if market_data:
-                if market_data.market_phase in ("crash",):
-                    return False, ""
-                if market_data.market_phase in ("decline",):
-                    drawdown_threshold = 0.25
-
-            if drawdown > drawdown_threshold:
-                return True, SELL_REASON_SCORE_DECLINE
 
         return False, ""
