@@ -60,6 +60,16 @@ class SuggestionPipeline:
         self.data_loader = DataLoader()
         self.predictor = None
         self.score_manager = ScoreManager(strategy_config, model_config)
+
+        # Must create portfolio before PipelineContext (it requires portfolio)
+        self.portfolio = PortfolioManager(
+            account_config=None,
+            initial_capital=0,
+            max_positions=10,
+            max_position_pct=0.3,
+            min_order_value=5000.0,
+        )
+
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
             score_manager=self.score_manager,
@@ -73,15 +83,6 @@ class SuggestionPipeline:
         self.strategy = MultiStockStrategy(
             strategy_config=strategy_config,
             ts_codes=[],
-        )
-
-        # PortfolioManager with no account_config (cash=0, no fees)
-        self.portfolio = PortfolioManager(
-            account_config=None,
-            initial_capital=0,
-            max_positions=10,
-            max_position_pct=0.3,
-            min_order_value=5000.0,
         )
 
     async def _ensure_predictor(self) -> None:
