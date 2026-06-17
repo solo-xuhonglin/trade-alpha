@@ -47,7 +47,7 @@ class BaselineTracker:
                 self._daily_rebalanced_values.append(
                     self._daily_rebalanced_values[-1] * (1 + daily_return)
                 )
-                if len(self._daily_rebalanced_values) > 120:
+                if len(self._daily_rebalanced_values) > 250:
                     self._daily_rebalanced_values.pop(0)
         self._prev_close_prices = close_prices if close_prices else {}
 
