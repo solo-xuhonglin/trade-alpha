@@ -1,10 +1,10 @@
 from typing import Dict, List, Optional, Set
 
 from trade_alpha.constants import REASON_NORMAL_BUY, REASON_PRIORITY_RANK_UP
-from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.modes.base import PhaseMode
+from trade_alpha.execution.context import PipelineContext
 
 logger = get_logger("strategy.modes.trend_mode")
 
@@ -16,10 +16,9 @@ class TrendMode(PhaseMode):
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
-        portfolio: PortfolioManager,
+        ctx: PipelineContext,
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         score_map = {st.ts_code: st.composite_score for st in scored_stocks}
@@ -40,20 +39,20 @@ class TrendMode(PhaseMode):
 
         top_stocks = sorted_stocks[:effective_max_positions]
         top_ts_codes = {st.ts_code for st in top_stocks}
-        sell_rank_stocks = sorted_stocks[:self._strategy.sell_rank_n]
+        sell_rank_stocks = sorted_stocks[:self._strategy.strategy_config.sell_rank_n]
         sell_rank_ts_codes = {st.ts_code for st in sell_rank_stocks}
 
         orders: List[PendingOrder] = []
         close_prices = close_prices or {}
-        for pos in portfolio.positions.values():
+        for pos in ctx.portfolio.positions.values():
             pos.hold_days += 1
 
         logger.info(
-            f"settle_mode_orders trade_date={trade_date} positions={len(portfolio.positions)} "
+            f"settle_mode_orders trade_date={trade_date} positions={len(ctx.portfolio.positions)} "
             f"top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}"
         )
 
-        for ts_code, pos in portfolio.positions.items():
+        for ts_code, pos in ctx.portfolio.positions.items():
             should_sell, sell_reason = self._strategy._check_sell(
                 pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data
             )
@@ -83,32 +82,32 @@ class TrendMode(PhaseMode):
                 ))
 
         forced_orders = self._strategy._apply_full_position_sell(
-            scored_stocks, portfolio, close_prices, trade_date, market_data, score_manager,
+            scored_stocks, close_prices, trade_date, ctx, market_data,
         )
         orders.extend(forced_orders)
 
         suggestion_count = 0
-        hold_ts_codes = set(portfolio.positions.keys())
+        hold_ts_codes = set(ctx.portfolio.positions.keys())
         purchased_ts_codes: Set[str] = set()
 
-        if self._strategy.use_rank_up_priority and self._strategy.rank_up_count > 0:
+        if self._strategy.strategy_config.use_rank_up_priority and self._strategy.strategy_config.rank_up_count > 0:
             rank_up_candidates = [
                 st for st in full_candidates
                 if st.ts_code not in hold_ts_codes
-                and st.rank_improvement >= self._strategy.rank_up_min_improvement_pct
-                and st.composite_score > self._strategy.rank_up_min_score * buy_threshold_multiplier
-                and self._strategy._score_not_declining(st.ts_code, score_manager)
+                and st.rank_improvement >= self._strategy.strategy_config.rank_up_min_improvement_pct
+                and st.composite_score > self._strategy.strategy_config.rank_up_min_score * buy_threshold_multiplier
+                and self._strategy._score_not_declining(st.ts_code, ctx)
             ]
             rank_up_candidates.sort(key=lambda st: st.rank_improvement, reverse=True)
-            for stock in rank_up_candidates[:self._strategy.rank_up_count]:
+            for stock in rank_up_candidates[:self._strategy.strategy_config.rank_up_count]:
                 if suggestion_mode:
-                    if len(portfolio.positions) + suggestion_count >= self._strategy.max_positions:
+                    if len(ctx.portfolio.positions) + suggestion_count >= self._strategy.max_positions:
                         break
                     suggestion_count += 1
                     purchased_ts_codes.add(stock.ts_code)
                     orders.append(self._strategy._build_order(stock, 0, REASON_PRIORITY_RANK_UP, trade_date))
                     continue
-                success, shares, _fee = portfolio.reserve_funds(
+                success, shares, _fee = ctx.portfolio.reserve_funds(
                     stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
                 )
                 if not success:
@@ -116,14 +115,14 @@ class TrendMode(PhaseMode):
                 purchased_ts_codes.add(stock.ts_code)
                 orders.append(self._strategy._build_order(stock, shares, REASON_PRIORITY_RANK_UP, trade_date))
 
-        remaining_slots = self._strategy.max_positions - len(portfolio.positions) - suggestion_count
+        remaining_slots = self._strategy.max_positions - len(ctx.portfolio.positions) - suggestion_count
         if remaining_slots > 0:
             for stock in top_stocks:
                 if stock.ts_code in hold_ts_codes:
                     continue
                 if stock.ts_code in purchased_ts_codes:
                     continue
-                if not self._strategy._score_not_declining(stock.ts_code, score_manager):
+                if not self._strategy._score_not_declining(stock.ts_code, ctx):
                     continue
                 if suggestion_mode:
                     if suggestion_count >= self._strategy.max_positions:
@@ -131,7 +130,7 @@ class TrendMode(PhaseMode):
                     suggestion_count += 1
                     orders.append(self._strategy._build_order(stock, 0, REASON_NORMAL_BUY, trade_date))
                     continue
-                success, shares, _fee = portfolio.reserve_funds(
+                success, shares, _fee = ctx.portfolio.reserve_funds(
                     stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
                 )
                 if not success:

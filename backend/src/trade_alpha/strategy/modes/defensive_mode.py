@@ -2,10 +2,10 @@ from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.constants import SELL_REASON_SCORE_BELOW
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.modes.base import PhaseMode
+from trade_alpha.execution.context import PipelineContext
 
 
 logger = get_logger("strategy.modes.defensive_mode")
@@ -22,21 +22,20 @@ class DefensiveMode(PhaseMode):
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
-        portfolio: PortfolioManager,
+        ctx: PipelineContext,
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         close_prices = close_prices or {}
         score_map = {st.ts_code: st.composite_score for st in scored_stocks}
 
-        for pos in portfolio.positions.values():
+        for pos in ctx.portfolio.positions.values():
             pos.hold_days += 1
 
         orders: List[PendingOrder] = []
 
-        for ts_code, pos in portfolio.positions.items():
+        for ts_code, pos in ctx.portfolio.positions.items():
             should_sell, reason = self._check_sell_defensive(
                 pos, close_prices, score_map, self._strategy.max_hold_days,
                 self._strategy_config.down_stop_loss_pct,
@@ -56,13 +55,13 @@ class DefensiveMode(PhaseMode):
                 ))
 
         forced_orders = self._strategy._apply_full_position_sell(
-            scored_stocks, portfolio, close_prices, trade_date, market_data, score_manager,
+            scored_stocks, close_prices, trade_date, ctx, market_data,
         )
         orders.extend(forced_orders)
         return orders
 
-    @staticmethod
     def _check_sell_defensive(
+        self,
         position: PositionEmbed,
         close_prices: Dict[str, float],
         score_map: Dict[str, float],
@@ -71,10 +70,9 @@ class DefensiveMode(PhaseMode):
         down_sell_threshold: float,
     ) -> Tuple[bool, str]:
         """Aggressive sell check for defensive mode."""
-        from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
         current_score = score_map.get(position.ts_code, 0.0)
 
-        common_sell, common_reason = MultiStockStrategy.check_common_sell(
+        common_sell, common_reason = self._strategy.check_common_sell(
             position, close_prices, down_stop_loss_pct, max_hold_days,
         )
         if common_sell:

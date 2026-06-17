@@ -7,6 +7,7 @@ from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.logging import get_logger
+from trade_alpha.execution.context import PipelineContext
 
 logger = get_logger("strategy.base")
 
@@ -14,8 +15,8 @@ RISK_FREE_RATE = 0.03
 TRADING_DAYS = 252
 
 
-class PositionManager:
-    """Position manager base class with common functionality."""
+class BaseStrategy:
+    """Base strategy class with common functionality."""
 
     def __init__(
         self,
@@ -41,10 +42,9 @@ class PositionManager:
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
-        portfolio: "PortfolioManager",
+        ctx: PipelineContext,
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make buy/sell decisions (to be implemented by subclasses)."""
@@ -274,7 +274,7 @@ class PositionManager:
         baseline_return = (end_price - start_price) / start_price
 
         values = [price / daily_prices[0] * start_price for price in daily_prices]
-        baseline_max_drawdown = PositionManager.calculate_max_drawdown(values)
+        baseline_max_drawdown = BaseStrategy.calculate_max_drawdown(values)
 
         baseline_daily_returns = [
             (daily_prices[i] - daily_prices[i-1]) / daily_prices[i-1]

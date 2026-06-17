@@ -4,36 +4,30 @@ from typing import Dict, List, Optional
 
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
-from trade_alpha.strategy.base import PositionManager
+from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.logging import get_logger
+from trade_alpha.execution.context import PipelineContext
 
 logger = get_logger("strategy.single_stock")
 
 
-class SingleStockStrategy(PositionManager):
+class SingleStockStrategy(BaseStrategy):
     """Single-stock strategy based on prediction probabilities."""
 
     def __init__(
         self,
-        strategy_config: Optional[StrategyConfig],
+        strategy_config: StrategyConfig,
         target_ts_code: str,
     ):
-        buy_threshold = strategy_config.buy_threshold if strategy_config else 0.1
-        sell_threshold = strategy_config.sell_threshold if strategy_config else -0.1
-        min_order_value = strategy_config.min_order_value if strategy_config else 5000.0
-        stop_loss_pct = strategy_config.stop_loss_pct if strategy_config else -0.1
-        max_hold_days = strategy_config.max_hold_days if strategy_config else 30
-
         super().__init__(
             max_positions=1,
             max_position_pct=0.95,
-            min_order_value=min_order_value,
-            stop_loss_pct=stop_loss_pct,
-            max_hold_days=max_hold_days,
-            buy_threshold=buy_threshold,
-            sell_threshold=sell_threshold,
+            min_order_value=strategy_config.min_order_value,
+            stop_loss_pct=strategy_config.stop_loss_pct,
+            max_hold_days=strategy_config.max_hold_days,
+            buy_threshold=strategy_config.buy_threshold,
+            sell_threshold=strategy_config.sell_threshold,
         )
         self.target_ts_code = target_ts_code
 
@@ -41,15 +35,14 @@ class SingleStockStrategy(PositionManager):
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
-        portfolio: PortfolioManager,
+        ctx: PipelineContext,
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         """Make decisions based on prediction probabilities.
 
-        Uses portfolio.reserve_funds for buy feasibility.
+        Uses ctx.portfolio.reserve_funds for buy feasibility.
         """
         target_stock = next((s for s in scored_stocks if s.ts_code == self.target_ts_code), None)
         if not target_stock:
@@ -59,7 +52,7 @@ class SingleStockStrategy(PositionManager):
 
         orders: List[PendingOrder] = []
         close_prices = close_prices or {}
-        current_position = portfolio.positions.get(self.target_ts_code)
+        current_position = ctx.portfolio.positions.get(self.target_ts_code)
 
         if current_position:
             if self._should_sell(target_stock, current_position, close_prices):
@@ -82,7 +75,7 @@ class SingleStockStrategy(PositionManager):
 
         if not current_position and target_stock.composite_score > self.buy_threshold:
             logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
-            success, shares, _fee = portfolio.reserve_funds(
+            success, shares, _fee = ctx.portfolio.reserve_funds(
                 self.target_ts_code, target_stock.close, close_prices,
             )
             if success:

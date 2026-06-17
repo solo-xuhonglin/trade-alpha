@@ -15,6 +15,7 @@ from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 from trade_alpha.dao.live_portfolio import LivePortfolio
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
+from trade_alpha.execution.context import PipelineContext
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
@@ -59,6 +60,14 @@ class SuggestionPipeline:
         self.data_loader = DataLoader()
         self.predictor = None
         self.score_manager = ScoreManager(strategy_config, model_config)
+        self.ctx = PipelineContext(
+            data_loader=self.data_loader,
+            score_manager=self.score_manager,
+            portfolio=self.portfolio,
+            predictor=self.predictor,
+            strategy_config=self.strategy_config,
+            model_config=self.model_config,
+        )
 
         # Strategy for decision making
         self.strategy = MultiStockStrategy(
@@ -241,10 +250,9 @@ class SuggestionPipeline:
                     pending_orders = await self.strategy.make_orders(
                         scored_stocks=list(stock_map.values()),
                         trade_date=date,
-                        portfolio=self.portfolio,
+                        ctx=self.ctx,
                         close_prices=close_prices,
                         market_data=market_data,
-                        score_manager=self.score_manager,
                         suggestion_mode=True,
                     )
 

@@ -1,10 +1,10 @@
 import statistics
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set
 
-from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.modes.base import PhaseMode
+from trade_alpha.execution.context import PipelineContext
 
 
 logger = get_logger("strategy.modes.mean_reversion_mode")
@@ -25,23 +25,22 @@ class MeanReversionMode(PhaseMode):
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
-        portfolio: PortfolioManager,
+        ctx: PipelineContext,
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         close_prices = close_prices or {}
         total_window = self.score_window + self.exclude_recent
 
-        for pos in portfolio.positions.values():
+        for pos in ctx.portfolio.positions.values():
             pos.hold_days += 1
 
         # --- SELL ---
         orders: List[PendingOrder] = []
 
-        for ts_code, pos in portfolio.positions.items():
-            should_sell, reason = self._check_sell_mean_reversion(
+        for ts_code, pos in ctx.portfolio.positions.items():
+            should_sell, reason = self._strategy.check_common_sell(
                 pos, close_prices,
                 self._strategy.stop_loss_pct,
                 self._strategy.max_hold_days,
@@ -61,12 +60,12 @@ class MeanReversionMode(PhaseMode):
                 ))
 
         forced_orders = self._strategy._apply_full_position_sell(
-            scored_stocks, portfolio, close_prices, trade_date, market_data, score_manager,
+            scored_stocks, close_prices, trade_date, ctx, market_data,
         )
         orders.extend(forced_orders)
 
         # --- BUY ---
-        hold_ts_codes = set(portfolio.positions.keys())
+        hold_ts_codes = set(ctx.portfolio.positions.keys())
         purchased_ts_codes: Set[str] = set()
 
         non_excluded = [st for st in scored_stocks if not st.is_excluded]
@@ -77,7 +76,7 @@ class MeanReversionMode(PhaseMode):
         for st in bottom_pool:
             if st.ts_code in hold_ts_codes:
                 continue
-            buffer = score_manager.get_score_buffer(st.ts_code) if score_manager else []
+            buffer = ctx.score_manager.get_score_buffer(st.ts_code) or []
             if len(buffer) < total_window:
                 continue
             historical = buffer[-(total_window + 1):-self.exclude_recent] if len(buffer) > total_window else buffer[:-self.exclude_recent]
@@ -99,12 +98,12 @@ class MeanReversionMode(PhaseMode):
             if stock.ts_code in purchased_ts_codes:
                 continue
             if suggestion_mode:
-                if len(portfolio.positions) + 1 > self._strategy.max_positions:
+                if len(ctx.portfolio.positions) + 1 > self._strategy.max_positions:
                     break
                 purchased_ts_codes.add(stock.ts_code)
                 orders.append(self._strategy._build_order(stock, 0, "mean_reversion_buy", trade_date))
                 continue
-            success, shares, _fee = portfolio.reserve_funds(
+            success, shares, _fee = ctx.portfolio.reserve_funds(
                 stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
             )
             if not success:
@@ -113,20 +112,3 @@ class MeanReversionMode(PhaseMode):
             orders.append(self._strategy._build_order(stock, shares, "mean_reversion_buy", trade_date))
 
         return orders
-
-    @staticmethod
-    def _check_sell_mean_reversion(
-        position: "PositionEmbed",
-        close_prices: Dict[str, float],
-        stop_loss_pct: float,
-        max_hold_days: int,
-        min_hold_days: int,
-    ) -> Tuple[bool, str]:
-        """Sell check for mean reversion mode - only common sell checks.
-        
-        Relies on _apply_full_position_sell for position rotation.
-        """
-        from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
-        return MultiStockStrategy.check_common_sell(
-            position, close_prices, stop_loss_pct, max_hold_days, min_hold_days,
-        )

@@ -13,10 +13,10 @@ from trade_alpha.constants import (
 )
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
-from trade_alpha.strategy.base import PositionManager
+from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.logging import get_logger
+from trade_alpha.execution.context import PipelineContext
 from trade_alpha.strategy.modes.trend_mode import TrendMode
 from trade_alpha.strategy.modes.mean_reversion_mode import MeanReversionMode
 from trade_alpha.strategy.modes.defensive_mode import DefensiveMode
@@ -24,7 +24,7 @@ from trade_alpha.strategy.modes.defensive_mode import DefensiveMode
 logger = get_logger("strategy.multi_stock_strategy")
 
 
-class MultiStockStrategy(PositionManager):
+class MultiStockStrategy(BaseStrategy):
     """Multi-stock portfolio strategy based on ranking."""
 
     def __init__(
@@ -55,10 +55,9 @@ class MultiStockStrategy(PositionManager):
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
-        portfolio: PortfolioManager,
+        ctx: PipelineContext,
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
         if self.ts_codes:
@@ -68,8 +67,8 @@ class MultiStockStrategy(PositionManager):
         phase = market_data.market_phase if market_data else "up"
         mode = self._modes.get(phase, self._modes["up"])
         return await mode.settle_mode_orders(
-            scored_stocks, trade_date, portfolio,
-            close_prices, market_data, score_manager,
+            scored_stocks, trade_date, ctx,
+            close_prices, market_data,
             suggestion_mode=suggestion_mode,
         )
 
@@ -105,7 +104,7 @@ class MultiStockStrategy(PositionManager):
 
     _FULL_POSITION_PNL_CLIP_PCT = 50.0
 
-    def _score_not_declining(self, ts_code: str, score_manager: Optional["ScoreManager"] = None) -> bool:
+    def _score_not_declining(self, ts_code: str, ctx: PipelineContext) -> bool:
         """Check if stock's composite_score isn't dropping significantly.
 
         Prevents buying stocks whose score just dropped (chasing peaks).
@@ -113,10 +112,7 @@ class MultiStockStrategy(PositionManager):
         """
         if not self.strategy_config.use_score_decline_filter:
             return True
-        if score_manager is None:
-            logger.warning(f"_score_not_declining ts_code={ts_code} score_manager is None, allowing buy")
-            return True
-        buffer = score_manager.get_score_buffer(ts_code)
+        buffer = ctx.score_manager.get_score_buffer(ts_code)
         return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self.strategy_config.score_decline_threshold
 
     @staticmethod
@@ -156,11 +152,10 @@ class MultiStockStrategy(PositionManager):
     def _apply_full_position_sell(
         self,
         scored_stocks: List[ScoredStock],
-        portfolio: PortfolioManager,
         close_prices: Dict[str, float],
         trade_date: str,
+        ctx: PipelineContext,
         market_data: Optional[MarketDataEmbed] = None,
-        score_manager: Optional["ScoreManager"] = None,
     ) -> List[PendingOrder]:
         """Sell worst-scored stocks when portfolio is over-positioned for N days."""
         forced_orders: List[PendingOrder] = []
@@ -173,10 +168,10 @@ class MultiStockStrategy(PositionManager):
         score_window = getattr(self.strategy_config, "full_position_score_window", 10)
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
 
-        total_value = portfolio.get_total_value(close_prices)
+        total_value = ctx.portfolio.get_total_value(close_prices)
         if total_value <= 0:
             return forced_orders
-        cash = portfolio.cash
+        cash = ctx.portfolio.cash
         market_value = total_value - cash
         invested_pct = market_value / total_value
         if invested_pct < threshold:
@@ -186,15 +181,15 @@ class MultiStockStrategy(PositionManager):
         if self._full_position_consecutive_days < days_required:
             return forced_orders
 
-        if not portfolio.positions:
+        if not ctx.portfolio.positions:
             return forced_orders
 
         # Build stock_name lookup from scored_stocks
         stock_name_map = {s.ts_code: s.stock_name for s in scored_stocks}
 
         scored_holds: List[tuple] = []
-        for ts_code, pos in portfolio.positions.items():
-            buffer = score_manager.get_score_buffer(ts_code) if score_manager is not None else []
+        for ts_code, pos in ctx.portfolio.positions.items():
+            buffer = ctx.score_manager.get_score_buffer(ts_code) or []
             if len(buffer) >= score_window:
                 avg_score = sum(buffer[-score_window:]) / score_window
             elif buffer:
@@ -218,7 +213,7 @@ class MultiStockStrategy(PositionManager):
         scored_holds.sort(key=lambda x: x[0])
         for i in range(min(sell_count, len(scored_holds))):
             priority, avg_score, pnl_pct, ts_code = scored_holds[i]
-            pos = portfolio.positions.get(ts_code)
+            pos = ctx.portfolio.positions.get(ts_code)
             if not pos:
                 continue
             logger.info(f"full_position FORCE_SELL SELL ts_code={ts_code} priority={priority:.3f} avg_score={avg_score:.3f} pnl={pnl_pct:+.1f}%")

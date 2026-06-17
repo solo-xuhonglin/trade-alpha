@@ -13,6 +13,7 @@ from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_name_cache import get_stock_name
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
+from trade_alpha.execution.context import PipelineContext
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
@@ -79,6 +80,15 @@ class BacktestPipeline:
             min_order_value=getattr(strategy_config, 'min_order_value', 5000.0),
         )
         self.score_manager = ScoreManager(strategy_config, model_config)
+        self.ctx = PipelineContext(
+            data_loader=self.data_loader,
+            score_manager=self.score_manager,
+            portfolio=self.portfolio,
+            predictor=self.predictor,
+            strategy_config=self.strategy_config,
+            model_config=self.model_config,
+            account_config=self.account_config,
+        )
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -400,10 +410,9 @@ class BacktestPipeline:
             pending_orders = await self.strategy.make_orders(
                 scored_stocks=list(stock_map.values()),
                 trade_date=date,
-                portfolio=self.portfolio,
+                ctx=self.ctx,
                 close_prices=close_prices,
                 market_data=market_data,
-                score_manager=self.score_manager,
             )
 
             # Mark forced-sell orders for snapshot reporting

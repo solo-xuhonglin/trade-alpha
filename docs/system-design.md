@@ -66,7 +66,7 @@ trade-alpha/
 │   │   │       └── helpers.py   # 共享训练辅助函数
 │   │   ├── strategy/          # 交易策略模块
 │   │   │   ├── __init__.py
-│   │   │   ├── base.py        # 策略基类 (PositionManager)
+│   │   │   ├── base.py        # 策略基类 (BaseStrategy)
 │   │   │   ├── multi_stock_strategy.py   # 多股票策略
 │   │   │   └── single_stock.py # 单股票策略 (SingleStockStrategy)
 │   │   ├── account/           # 账户管理模块
@@ -339,9 +339,9 @@ trade-alpha/
 
 ### 8. 策略模块 (strategy)
 
-#### base.py - 策略基类 (PositionManager)
+#### base.py - 策略基类 (BaseStrategy)
 
-- 仓位管理基类，提供通用功能
+- 策略基类，提供策略参数和通用功能
 - 处理订单执行和手续费计算
 - 管理持仓信息
 - 计算交易记录、夏普比率、最大回撤等指标
