@@ -180,15 +180,12 @@ class SuggestionPipeline:
                     continue
 
                 close_prices = day_data["close"]
-                vol_prices = day_data.get("vol", {})
 
                 stock_map = await self.score_manager.predict_and_score(
                     predictor=self.predictor,
                     data_loader=self.data_loader,
                     date=date,
                     close_prices=close_prices,
-                    start_date=date,
-                    vol_prices=vol_prices,
                 )
                 if not stock_map:
                     date = _next_date(date)

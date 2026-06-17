@@ -5,7 +5,7 @@ import numpy as np
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
-from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed, BaselineTracker
+from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.logging import get_logger
 
 logger = get_logger("strategy.base")

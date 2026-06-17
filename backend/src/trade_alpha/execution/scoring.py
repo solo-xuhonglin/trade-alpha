@@ -286,7 +286,6 @@ async def filter_explosions(
     strategy_config: StrategyConfig,
     trade_date: str,
     data_loader: DataLoader,
-    current_vol_dict: Optional[Dict[str, float]] = None,
 ) -> None:
     """Mark stocks with price+volume explosion as excluded.
 
@@ -307,11 +306,11 @@ async def filter_explosions(
     ts_codes = list(pred_results.keys())
 
     records_by_code: Dict[str, List[Dict]] = {}
-    history_data = await data_loader.peek_history_data(trade_date, ts_codes, window + 1)
+    history_data = await data_loader.peek_history_data(trade_date, ts_codes, window + 2)
     if history_data:
         for ts_code, records in history_data.items():
             records.sort(key=lambda r: r.trade_date, reverse=True)
-            if len(records) >= window + 1:
+            if len(records) >= window + 2:
                 records_by_code[ts_code] = [
                     {"close": r.close, "vol": r.vol, "trade_date": r.trade_date}
                     for r in records[:window + 1]
@@ -329,9 +328,9 @@ async def filter_explosions(
             r["is_excluded"] = False
             continue
 
-        closes = [rec["close"] for rec in records[:window]]
-        vols = [rec["vol"] for rec in records[:window]]
-        current_vol = current_vol_dict.get(ts_code, 0) if current_vol_dict else 0
+        closes = [rec["close"] for rec in records[1:window + 1]]
+        vols = [rec["vol"] for rec in records[1:window + 1]]
+        current_vol = records[0]["vol"]
 
         avg_close = sum(closes) / len(closes) if closes else close
         avg_vol = sum(vols) / len(vols) if vols else 1
@@ -382,20 +381,20 @@ class ScoreManager:
 
     def _compute_phase_multipliers(
         self,
-        dr_values: Optional[List[float]] = None,
+        daily_rebalanced_values: Optional[List[float]] = None,
     ) -> Tuple[float, float, str]:
         config = self._strategy_config
         if not config or not config.use_phase_strategy:
             return 1.0, 1.0, "normal"
-        if dr_values is None or len(dr_values) < 6:
+        if daily_rebalanced_values is None or len(daily_rebalanced_values) < 6:
             return 1.0, 1.0, "normal"
-        dr_5d = (dr_values[-1] - dr_values[-6]) / dr_values[-6]
+        rebalanced_5d = (daily_rebalanced_values[-1] - daily_rebalanced_values[-6]) / daily_rebalanced_values[-6]
         lp_buffer = self._low_pct_buffer
         low_5d = (lp_buffer[-1] - lp_buffer[-6]) if len(lp_buffer) >= 6 else 0.0
 
-        peak = max(dr_values)
-        trough = min(dr_values)
-        current = dr_values[-1]
+        peak = max(daily_rebalanced_values)
+        trough = min(daily_rebalanced_values)
+        current = daily_rebalanced_values[-1]
         drawdown = (current - peak) / peak if peak > 0 else 0.0
         drawup = (current - trough) / trough if trough > 0 else 0.0
 
@@ -410,11 +409,11 @@ class ScoreManager:
         recovery_th = config.phase_recovery_threshold * scale
         decline_bar = recovery_th * 0.66 if drawup > 0.02 else 0.0
 
-        if dr_5d < crash_th:
+        if rebalanced_5d < crash_th:
             return 0.0, 1.0, "crash"
-        elif dr_5d < decline_bar and low_5d > 0:
+        elif rebalanced_5d < decline_bar and low_5d > 0:
             return 0.5, 1.0, "decline"
-        elif dr_5d < recovery_th and low_5d < 0:
+        elif rebalanced_5d < recovery_th and low_5d < 0:
             return 1.0, 0.5, "recovery"
         else:
             return 1.0, 1.0, "normal"
@@ -429,13 +428,7 @@ class ScoreManager:
         data_loader: DataLoader,
         date: str,
         close_prices: Dict[str, float],
-        start_date: str,
-        vol_prices: Optional[Dict[str, float]] = None,
     ) -> Dict[str, ScoredStock]:
-        """Full scoring pipeline: predict -> enhance -> compose -> smooth -> rank.
-
-        Returns a dict of ts_code -> ScoredStock.
-        """
         horizons = self._model_config.classification_horizons
         target_names = [f"label_{h}d" for h in horizons]
         pred_results_raw = await predictor.predict_batch(
@@ -448,10 +441,8 @@ class ScoreManager:
         if not pred_results:
             return {}
 
-        # Look up stock names from global cache
         name_map = await get_stock_names(list(pred_results.keys()))
 
-        # Load historical close prices for trend/momentum/strategy PnL
         close_prices_hist = await self._load_close_prices_hist(
             pred_results, date, data_loader,
         )
@@ -460,7 +451,7 @@ class ScoreManager:
 
         apply_momentum_boost(pred_results, self._strategy_config, close_prices_hist)
         apply_momentum_penalty(pred_results, self._strategy_config, close_prices_hist)
-        await filter_explosions(pred_results, self._strategy_config, date, data_loader, vol_prices)
+        await filter_explosions(pred_results, self._strategy_config, date, data_loader)
 
         # Compute composite_score
         for r in pred_results.values():
@@ -516,24 +507,18 @@ class ScoreManager:
             )
             stock.rank_improvement = improvement if improvement is not None else 0.0
 
-        if date == start_date:
-            logger.info(f"First day {date}: {len(pred_results)} predictions, {len(scored_list)} with score > 0")
-            if scored_list:
-                top5 = sorted(scored_list, key=lambda s: s.composite_score, reverse=True)[:5]
-                logger.info(f"Top 5 stocks: " + ", ".join([f"{s.ts_code}({s.composite_score:.3f})" for s in top5]))
-
         return stock_map
 
     def compute_market_regime(
         self,
         stock_map: Dict[str, ScoredStock],
-        dr_values: Optional[List[float]] = None,
-        dr_cum: float = 0.0,
+        daily_rebalanced_values: Optional[List[float]] = None,
+        daily_rebalanced_cum: float = 0.0,
     ) -> str:
         """Compute market phase from ranking_scores and daily-rebalanced baseline.
 
         Phase-based multipliers drive position sizing and buy threshold adjustments.
-        dr_values and dr_cum come from BaselineTracker in backtest mode.
+        daily_rebalanced_values and daily_rebalanced_cum come from BaselineTracker.
         """
         rank_scores = [
             s.ranking_score for s in stock_map.values()
@@ -551,7 +536,7 @@ class ScoreManager:
         self._low_pct_buffer.append(ranking_low_pct)
         if len(self._low_pct_buffer) > 50:
             self._low_pct_buffer.pop(0)
-        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(dr_values)
+        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(daily_rebalanced_values)
 
         raw_retention = self._compute_top_n_retention(stock_map)
         self._retention_rate_buffer.append(raw_retention)
@@ -572,7 +557,7 @@ class ScoreManager:
             "score_return_corr_smoothed": corr_smoothed,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
-            "daily_rebalanced_cum": dr_cum,
+            "daily_rebalanced_cum": daily_rebalanced_cum,
             "position_multiplier": phase_pos_mult,
             "buy_threshold_multiplier": phase_buy_mult,
             "market_phase": phase_name,

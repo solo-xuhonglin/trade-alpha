@@ -18,7 +18,8 @@ from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.single_stock import SingleStockStrategy
-from trade_alpha.schemas import ScoredStock, PendingOrder, BaselineTracker, MarketDataEmbed
+from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
+from trade_alpha.execution.baseline_tracker import BaselineTracker
 from trade_alpha.constants import SELL_REASON_FULL_POSITION
 from trade_alpha.logging import get_logger
 
@@ -281,22 +282,20 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
             close_prices = day_data["close"]
-            baseline_tracker.track_dr_only(close_prices)
+            baseline_tracker.track_daily_rebalanced_only(close_prices)
 
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
                 close_prices=close_prices,
-                start_date=date,
-                vol_prices=day_data.get("vol", {}),
             )
             if not stock_map:
                 date = _next_date(date)
                 continue
 
             self.score_manager.compute_market_regime(
-                stock_map, dr_values=baseline_tracker.daily_rebalanced_values,
+                stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
             )
             day_count += 1
             await TaskService.update_progress(
@@ -329,7 +328,7 @@ class BacktestPipeline:
             await self._run_warmup(
                 warmup_start, start_date, warmup_days, task_id, baseline_tracker,
             )
-            baseline_tracker.reset_dr_anchor()
+            baseline_tracker.reset_daily_rebalanced_anchor()
 
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
 
@@ -379,14 +378,11 @@ class BacktestPipeline:
             total_trades += trades_add
             total_fees += fees_add
 
-            vol_prices = day_data.get("vol", {})
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
                 close_prices=close_prices,
-                start_date=start_date,
-                vol_prices=vol_prices,
             )
             if not stock_map:
                 date = _next_date(date)
@@ -394,8 +390,8 @@ class BacktestPipeline:
 
             self.score_manager.compute_market_regime(
                 stock_map,
-                dr_values=baseline_tracker.daily_rebalanced_values,
-                dr_cum=baseline_tracker.daily_rebalanced_cum,
+                daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
+                daily_rebalanced_cum=baseline_tracker.daily_rebalanced_cum,
             )
 
             market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
