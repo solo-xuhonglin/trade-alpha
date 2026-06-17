@@ -391,6 +391,9 @@ class ScoreManager:
         if daily_rebalanced_values is None or len(daily_rebalanced_values) < 6:
             return 1.0, 1.0, "flat"
         rebalanced_5d = (daily_rebalanced_values[-1] - daily_rebalanced_values[-6]) / daily_rebalanced_values[-6]
+        trend_60d = 0.0
+        if len(daily_rebalanced_values) >= 61:
+            trend_60d = (daily_rebalanced_values[-1] - daily_rebalanced_values[-61]) / daily_rebalanced_values[-61]
         lp_buffer = self._low_pct_buffer
         low_5d = (lp_buffer[-1] - lp_buffer[-6]) if len(lp_buffer) >= 6 else 0.0
 
@@ -415,12 +418,15 @@ class ScoreManager:
         if rebalanced_5d < crash_th or (rebalanced_5d < decline_bar and low_5d > 0):
             three_phase = "down"
         elif current_phase == "down":
-            three_phase = "down" if rebalanced_5d <= -0.01 else "flat"
+            three_phase = "down" if trend_60d < 0.02 else "flat"
         elif current_phase == "up":
-            three_phase = "up" if rebalanced_5d >= 0.01 else "flat"
+            three_phase = "up" if trend_60d > -0.02 else "flat"
+        elif trend_60d > 0.03 and rebalanced_5d > 0.01:
+            three_phase = "up"
+        elif trend_60d < -0.03 and rebalanced_5d < -0.01:
+            three_phase = "down"
         else:
-            enter_up = 0.02 * scale
-            three_phase = "up" if rebalanced_5d > enter_up else "flat"
+            three_phase = "flat"
 
         if three_phase == "down":
             return 0.3, 1.0, "down"
