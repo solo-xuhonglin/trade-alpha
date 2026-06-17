@@ -63,6 +63,7 @@ class StrategyConfig(Document):
     mr_exclude_recent_days: int = 5
     mr_mean_reversion_threshold: float = 0.05
     mr_sell_multiplier: float = 1.0
+    mr_ranking_window: int = 50
     mr_max_candidates: int = 30
     # Defensive mode (down market) params
     down_sell_threshold: float = 0.0

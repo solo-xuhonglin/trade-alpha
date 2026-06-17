@@ -12,7 +12,7 @@ class PhaseMode(ABC):
         self._strategy = strategy
 
     @abstractmethod
-    async def run(
+    async def execute(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
