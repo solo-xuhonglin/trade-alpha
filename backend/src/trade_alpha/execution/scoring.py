@@ -374,7 +374,8 @@ class ScoreManager:
         self._low_pct_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
         self._last_close_prices_hist: Optional[Dict[str, List[float]]] = None
-        self._market_phase: str = "normal"
+        self._market_phase_3: str = "flat"
+        self._market_phase_detail: str = "normal"
 
     # ------------------------------------------------------------------
     # Phase-based multipliers
@@ -383,13 +384,15 @@ class ScoreManager:
     def _compute_phase_multipliers(
         self,
         daily_rebalanced_values: Optional[List[float]] = None,
-        current_phase: str = "normal",
+        current_phase: str = "flat",
     ) -> Tuple[float, float, str]:
         config = self._strategy_config
         if not config or not config.use_phase_strategy:
-            return 1.0, 1.0, "normal"
+            self._market_phase_detail = "normal"
+            return 1.0, 1.0, "flat"
         if daily_rebalanced_values is None or len(daily_rebalanced_values) < 6:
-            return 1.0, 1.0, "normal"
+            self._market_phase_detail = "normal"
+            return 1.0, 1.0, "flat"
         rebalanced_5d = (daily_rebalanced_values[-1] - daily_rebalanced_values[-6]) / daily_rebalanced_values[-6]
         lp_buffer = self._low_pct_buffer
         low_5d = (lp_buffer[-1] - lp_buffer[-6]) if len(lp_buffer) >= 6 else 0.0
@@ -411,32 +414,38 @@ class ScoreManager:
         recovery_th = config.phase_recovery_threshold * scale
         decline_bar = recovery_th * 0.66 if drawup > 0.02 else 0.0
 
-        # Step 1: crash (highest priority)
+        # --- detailed phase (stateless, for display) ---
         if rebalanced_5d < crash_th:
-            return 0.0, 1.0, "crash"
+            detail = "crash"
+        elif rebalanced_5d < decline_bar and low_5d > 0:
+            detail = "decline"
+        else:
+            cum_10d = (daily_rebalanced_values[-1] / daily_rebalanced_values[-10]) - 1 if len(daily_rebalanced_values) >= 10 else 999
+            if abs(cum_10d) < 0.02 and drawup < 0.15:
+                detail = "sideways"
+            elif rebalanced_5d > 0.02 and drawup > 0.10:
+                detail = "uptrend"
+            else:
+                detail = "normal"
+        self._market_phase_detail = detail
 
-        # Step 2: decline
-        if rebalanced_5d < decline_bar and low_5d > 0:
-            return 0.5, 1.0, "decline"
+        # --- 3-phase with hysteresis (for strategy) ---
+        if detail == "crash" or detail == "decline":
+            three_phase = "down"
+        elif current_phase == "down":
+            three_phase = "down" if rebalanced_5d <= -0.01 else "flat"
+        elif current_phase == "up":
+            three_phase = "up" if rebalanced_5d >= 0.01 else "flat"
+        else:
+            enter_up = 0.02 * scale
+            three_phase = "up" if rebalanced_5d > enter_up else "flat"
 
-        # Step 3: recovery bridge (stateful)
-        if current_phase in ("crash", "decline"):
-            return 1.0, 0.5, "recovery"
-        if current_phase == "recovery":
-            if rebalanced_5d < 0:
-                return 1.0, 0.5, "recovery"
-            # dr_5d >= 0: exit recovery, fall through to stateless check
+        self._market_phase_3 = three_phase
 
-        # Step 4: sideways
-        cum_10d = (daily_rebalanced_values[-1] / daily_rebalanced_values[-10]) - 1 if len(daily_rebalanced_values) >= 10 else 999
-        if abs(cum_10d) < 0.02 and drawup < 0.15:
-            return 0.8, 0.8, "sideways"
-
-        # Step 5: uptrend (reserved, same coefficients as normal for now)
-        if rebalanced_5d > 0.02 and drawup > 0.10:
-            return 1.0, 1.0, "uptrend"
-
-        return 1.0, 1.0, "normal"
+        if three_phase == "down":
+            return 0.5, 1.0, "down"
+        else:
+            return 1.0, 1.0, three_phase
 
     # ------------------------------------------------------------------
     # Public API
@@ -557,9 +566,9 @@ class ScoreManager:
         if len(self._low_pct_buffer) > 50:
             self._low_pct_buffer.pop(0)
         phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(
-            daily_rebalanced_values, current_phase=self._market_phase,
+            daily_rebalanced_values, current_phase=self._market_phase_3,
         )
-        self._market_phase = phase_name
+        self._market_phase_3 = phase_name
 
         raw_retention = self._compute_top_n_retention(stock_map)
         self._retention_rate_buffer.append(raw_retention)
@@ -584,6 +593,7 @@ class ScoreManager:
             "position_multiplier": phase_pos_mult,
             "buy_threshold_multiplier": phase_buy_mult,
             "market_phase": phase_name,
+            "market_phase_detail": self._market_phase_detail,
         }
         return phase_name
 

@@ -67,7 +67,7 @@
     </v-data-table-server>
   </v-card>
 
-  <v-dialog v-model="resultDialog" max-width="1050px">
+  <v-dialog v-model="resultDialog" max-width="1300px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center text-h6 pa-4">
         <div class="d-flex align-center ga-2">
@@ -1361,6 +1361,7 @@ const loadMarketData = async () => {
       position_multiplier: s.position_multiplier,
       buy_threshold_multiplier: s.buy_threshold_multiplier,
       market_phase: s.market_phase,
+      market_phase_detail: s.market_phase_detail,
       daily_rebalanced_cum: s.daily_rebalanced_cum ?? 0,
       position_pct: s.position_pct ?? 50,
       top_n_retention_rate_smoothed: s.top_n_retention_rate_smoothed ?? 0,

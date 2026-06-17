@@ -98,3 +98,4 @@ class MarketDataEmbed(BaseModel):
     position_multiplier: float = 1.0
     buy_threshold_multiplier: float = 1.0
     market_phase: str = ""
+    market_phase_detail: str = ""
