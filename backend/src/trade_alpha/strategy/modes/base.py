@@ -12,7 +12,7 @@ class PhaseMode(ABC):
         self._strategy = strategy
 
     @abstractmethod
-    async def execute(
+    async def settle_mode_orders(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,

@@ -90,7 +90,7 @@ class MultiStockStrategy(PositionManager):
 
         phase = market_data.market_phase if market_data else "up"
         mode = self._modes.get(phase, self._modes["up"])
-        return await mode.execute(
+        return await mode.settle_mode_orders(
             scored_stocks, trade_date, portfolio,
             close_prices, market_data, score_manager,
             suggestion_mode=suggestion_mode,

@@ -13,13 +13,7 @@ logger = get_logger("strategy.modes.mean_reversion_mode")
 
 
 class MeanReversionMode(PhaseMode):
-    """Mean reversion mode (market_phase = 'flat').
-
-    Buys stocks whose scores have reverted from a high historical mean.
-    Initial candidate pool is limited to the bottom-ranked stocks (worst
-    ranking_score), then filtered by score mean reversion signal.
-    Sells when the score recovers back above the mean.
-    """
+    """Mean reversion mode (market_phase = 'flat')."""
 
     def __init__(self, strategy: "MultiStockStrategy"):
         super().__init__(strategy)
@@ -31,7 +25,7 @@ class MeanReversionMode(PhaseMode):
         self.ranking_window = getattr(cfg, "mr_ranking_window", 50)
         self.max_candidates = getattr(cfg, "mr_max_candidates", 30)
 
-    async def execute(
+    async def settle_mode_orders(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
@@ -41,7 +35,6 @@ class MeanReversionMode(PhaseMode):
         score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
-        strategy = self._strategy
         close_prices = close_prices or {}
         total_window = self.score_window + self.exclude_recent
 
@@ -50,12 +43,11 @@ class MeanReversionMode(PhaseMode):
 
         # --- SELL ---
         orders: List[PendingOrder] = []
-        stop_loss_pct = strategy.stop_loss_pct
 
         for ts_code, pos in portfolio.positions.items():
             should_sell, reason = self._check_sell_mr(
                 pos, close_prices, score_manager,
-                stop_loss_pct, strategy.max_hold_days,
+                self._strategy.stop_loss_pct, self._strategy.max_hold_days,
             )
             if should_sell:
                 sell_price = close_prices.get(ts_code, pos.buy_price)
@@ -66,11 +58,11 @@ class MeanReversionMode(PhaseMode):
                     order_shares=-pos.shares,
                     entry_score=pos.entry_score,
                     trade_date=trade_date,
-                    settle_date=strategy._next_trade_date(trade_date),
+                    settle_date=self._strategy._next_trade_date(trade_date),
                     reason=reason,
                 ))
 
-        forced_orders = strategy._apply_full_position_sell(
+        forced_orders = self._strategy._apply_full_position_sell(
             scored_stocks, portfolio, close_prices, trade_date, market_data, score_manager,
         )
         orders.extend(forced_orders)
@@ -103,16 +95,16 @@ class MeanReversionMode(PhaseMode):
         candidates.sort(key=lambda x: x[2] - x[1], reverse=True)
         candidates = candidates[:self.max_candidates]
 
-        pos_mult, _ = strategy._market_multipliers(market_data)
+        pos_mult, _ = self._strategy._market_multipliers(market_data)
 
         for stock, hist_mean, rec_mean in candidates:
             if stock.ts_code in purchased_ts_codes:
                 continue
             if suggestion_mode:
-                if len(portfolio.positions) + 1 > strategy.max_positions:
+                if len(portfolio.positions) + 1 > self._strategy.max_positions:
                     break
                 purchased_ts_codes.add(stock.ts_code)
-                orders.append(strategy._build_order(stock, 0, "mean_reversion_buy", trade_date))
+                orders.append(self._strategy._build_order(stock, 0, "mean_reversion_buy", trade_date))
                 continue
             success, shares, _fee = portfolio.reserve_funds(
                 stock.ts_code, stock.close, close_prices, max_position_scalar=pos_mult,
@@ -120,7 +112,7 @@ class MeanReversionMode(PhaseMode):
             if not success:
                 continue
             purchased_ts_codes.add(stock.ts_code)
-            orders.append(strategy._build_order(stock, shares, "mean_reversion_buy", trade_date))
+            orders.append(self._strategy._build_order(stock, shares, "mean_reversion_buy", trade_date))
 
         return orders
 

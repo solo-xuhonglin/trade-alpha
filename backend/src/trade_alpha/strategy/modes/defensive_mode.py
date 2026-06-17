@@ -18,7 +18,7 @@ class DefensiveMode(PhaseMode):
     and elevated sell threshold.
     """
 
-    async def execute(
+    async def settle_mode_orders(
         self,
         scored_stocks: List[ScoredStock],
         trade_date: str,
@@ -28,7 +28,6 @@ class DefensiveMode(PhaseMode):
         score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
-        strategy = self._strategy
         close_prices = close_prices or {}
         score_map = {st.ts_code: st.composite_score for st in scored_stocks}
 
@@ -39,7 +38,7 @@ class DefensiveMode(PhaseMode):
 
         for ts_code, pos in portfolio.positions.items():
             should_sell, reason = self._check_sell_defensive(
-                pos, close_prices, score_map, strategy.max_hold_days,
+                pos, close_prices, score_map, self._strategy.max_hold_days,
             )
             if should_sell:
                 sell_price = close_prices.get(ts_code, pos.buy_price)
@@ -50,11 +49,11 @@ class DefensiveMode(PhaseMode):
                     order_shares=-pos.shares,
                     entry_score=pos.entry_score,
                     trade_date=trade_date,
-                    settle_date=strategy._next_trade_date(trade_date),
+                    settle_date=self._strategy._next_trade_date(trade_date),
                     reason=reason,
                 ))
 
-        forced_orders = strategy._apply_full_position_sell(
+        forced_orders = self._strategy._apply_full_position_sell(
             scored_stocks, portfolio, close_prices, trade_date, market_data, score_manager,
         )
         orders.extend(forced_orders)
