@@ -423,7 +423,7 @@ class ScoreManager:
             three_phase = "up" if rebalanced_5d > enter_up else "flat"
 
         if three_phase == "down":
-            return 0.5, 1.0, "down"
+            return 0.3, 1.0, "down"
         else:
             return 1.0, 1.0, three_phase
 
