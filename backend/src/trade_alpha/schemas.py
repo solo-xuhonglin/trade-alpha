@@ -101,13 +101,16 @@ class MarketDataEmbed(BaseModel):
 
 
 class BaselineTracker:
-    """Track buy-and-hold baseline portfolio value."""
+    """Track buy-and-hold baseline and daily-rebalanced equal-weight baseline."""
     def __init__(self, ts_codes: List[str], initial_capital: float):
         self.ts_codes = ts_codes
         self.initial_capital = initial_capital
         self._daily_values: List[float] = [initial_capital]
         self._shares: Dict[str, float] = {}
         self._initialized = False
+        self._dr_values: List[float] = [1.0]
+        self._dr_anchor: float = 1.0
+        self._prev_close_prices: Optional[Dict[str, float]] = None
 
     def track(self, close_prices: Dict[str, float]) -> None:
         if not self._initialized:
@@ -124,6 +127,28 @@ class BaselineTracker:
         )
         if total > 0:
             self._daily_values.append(total)
+        self._update_dr(close_prices)
+
+    def track_dr_only(self, close_prices: Dict[str, float]) -> None:
+        self._update_dr(close_prices)
+
+    def _update_dr(self, close_prices: Dict[str, float]) -> None:
+        if self._prev_close_prices and close_prices:
+            common_codes = set(self._prev_close_prices.keys()) & set(close_prices.keys())
+            if len(common_codes) > 5:
+                returns = [
+                    (close_prices[c] - self._prev_close_prices[c]) / self._prev_close_prices[c]
+                    for c in common_codes if self._prev_close_prices[c] > 0
+                ]
+                dr = sum(returns) / len(returns) if returns else 0.0
+                self._dr_values.append(self._dr_values[-1] * (1 + dr))
+                if len(self._dr_values) > 120:
+                    self._dr_values.pop(0)
+        self._prev_close_prices = close_prices if close_prices else {}
+
+    def reset_dr_anchor(self) -> None:
+        if self._dr_values:
+            self._dr_anchor = self._dr_values[-1]
 
     @property
     def latest_value(self) -> float:
@@ -132,3 +157,11 @@ class BaselineTracker:
     @property
     def daily_values(self) -> List[float]:
         return self._daily_values
+
+    @property
+    def daily_rebalanced_values(self) -> List[float]:
+        return self._dr_values
+
+    @property
+    def daily_rebalanced_cum(self) -> float:
+        return (self._dr_values[-1] / self._dr_anchor) - 1.0

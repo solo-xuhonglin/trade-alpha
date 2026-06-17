@@ -267,6 +267,7 @@ class BacktestPipeline:
         actual_start: str,
         warmup_days: int,
         task_id: Optional[PydanticObjectId],
+        baseline_tracker: BaselineTracker,
     ) -> None:
         date = warmup_start
         day_count = 0
@@ -280,6 +281,7 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
             close_prices = day_data["close"]
+            baseline_tracker.track_dr_only(close_prices)
 
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
@@ -293,7 +295,9 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
 
-            self.score_manager.compute_market_regime(stock_map)
+            self.score_manager.compute_market_regime(
+                stock_map, dr_values=baseline_tracker.daily_rebalanced_values,
+            )
             day_count += 1
             await TaskService.update_progress(
                 task_id,
@@ -312,6 +316,8 @@ class BacktestPipeline:
         result = await self._create_result(start_date, end_date, name)
         await self._ensure_predictor(task_id)
 
+        baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
+
         # Warmup phase: fill ScoreManager buffers without trading
         warmup_days = self._compute_warmup_days(self.strategy_config)
         if warmup_days > 0:
@@ -320,12 +326,12 @@ class BacktestPipeline:
                 f"Warmup {warmup_days} trading days: {warmup_start}+ "
                 f"(before {start_date})"
             )
-            await self._run_warmup(warmup_start, start_date, warmup_days, task_id)
-            self.score_manager.reset_daily_rebalanced_baseline()
+            await self._run_warmup(
+                warmup_start, start_date, warmup_days, task_id, baseline_tracker,
+            )
+            baseline_tracker.reset_dr_anchor()
 
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
-
-        baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
 
         daily_values, daily_returns, total_trades, total_fees = await self._run_daily_loop(
             start_date, end_date, result.id, task_id, baseline_tracker,
@@ -386,7 +392,11 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
 
-            self.score_manager.compute_market_regime(stock_map)
+            self.score_manager.compute_market_regime(
+                stock_map,
+                dr_values=baseline_tracker.daily_rebalanced_values,
+                dr_cum=baseline_tracker.daily_rebalanced_cum,
+            )
 
             market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
                 if self.score_manager.last_market_data else None

@@ -372,48 +372,22 @@ class ScoreManager:
         self._rank_history_max: int = window * 5
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
-        self._daily_rebalanced_values: List[float] = [1.0]
-        self._daily_rebalanced_start: float = 1.0
-        self._prev_close_prices: Optional[Dict[str, float]] = None
         self._low_pct_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
         self._last_close_prices_hist: Optional[Dict[str, List[float]]] = None
 
     # ------------------------------------------------------------------
-    # Phase-based multipliers (replaces score_scalar)
+    # Phase-based multipliers
     # ------------------------------------------------------------------
-
-    def _update_daily_rebalanced_baseline(
-        self, stock_map: Dict[str, ScoredStock]
-    ) -> float:
-        today_prices = {
-            ts_code: s.close
-            for ts_code, s in stock_map.items()
-            if s.close > 0
-        }
-        if self._prev_close_prices and today_prices:
-            common_codes = set(self._prev_close_prices.keys()) & set(today_prices.keys())
-            if len(common_codes) > 5:
-                returns = [
-                    (today_prices[c] - self._prev_close_prices[c]) / self._prev_close_prices[c]
-                    for c in common_codes if self._prev_close_prices[c] > 0
-                ]
-                daily_return = sum(returns) / len(returns) if returns else 0.0
-                new_value = self._daily_rebalanced_values[-1] * (1 + daily_return)
-                self._daily_rebalanced_values.append(new_value)
-                if len(self._daily_rebalanced_values) > 120:
-                    self._daily_rebalanced_values.pop(0)
-        self._prev_close_prices = today_prices
-        return self._daily_rebalanced_values[-1] - 1.0
 
     def _compute_phase_multipliers(
         self,
+        dr_values: Optional[List[float]] = None,
     ) -> Tuple[float, float, str]:
         config = self._strategy_config
         if not config or not config.use_phase_strategy:
             return 1.0, 1.0, "normal"
-        dr_values = self._daily_rebalanced_values
-        if len(dr_values) < 6:
+        if dr_values is None or len(dr_values) < 6:
             return 1.0, 1.0, "normal"
         dr_5d = (dr_values[-1] - dr_values[-6]) / dr_values[-6]
         lp_buffer = self._low_pct_buffer
@@ -434,7 +408,6 @@ class ScoreManager:
 
         crash_th = config.phase_crash_threshold * scale
         recovery_th = config.phase_recovery_threshold * scale
-
         decline_bar = recovery_th * 0.66 if drawup > 0.02 else 0.0
 
         if dr_5d < crash_th:
@@ -445,10 +418,6 @@ class ScoreManager:
             return 1.0, 0.5, "recovery"
         else:
             return 1.0, 1.0, "normal"
-
-    def reset_daily_rebalanced_baseline(self) -> None:
-        if self._daily_rebalanced_values:
-            self._daily_rebalanced_start = self._daily_rebalanced_values[-1]
 
     # ------------------------------------------------------------------
     # Public API
@@ -555,10 +524,16 @@ class ScoreManager:
 
         return stock_map
 
-    def compute_market_regime(self, stock_map: Dict[str, ScoredStock]) -> str:
+    def compute_market_regime(
+        self,
+        stock_map: Dict[str, ScoredStock],
+        dr_values: Optional[List[float]] = None,
+        dr_cum: float = 0.0,
+    ) -> str:
         """Compute market phase from ranking_scores and daily-rebalanced baseline.
 
         Phase-based multipliers drive position sizing and buy threshold adjustments.
+        dr_values and dr_cum come from BaselineTracker in backtest mode.
         """
         rank_scores = [
             s.ranking_score for s in stock_map.values()
@@ -573,11 +548,10 @@ class ScoreManager:
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > 0.30) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < -0.30) / n * 100
 
-        self._update_daily_rebalanced_baseline(stock_map)
         self._low_pct_buffer.append(ranking_low_pct)
         if len(self._low_pct_buffer) > 50:
             self._low_pct_buffer.pop(0)
-        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers()
+        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(dr_values)
 
         raw_retention = self._compute_top_n_retention(stock_map)
         self._retention_rate_buffer.append(raw_retention)
@@ -598,7 +572,7 @@ class ScoreManager:
             "score_return_corr_smoothed": corr_smoothed,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
-            "daily_rebalanced_cum": (self._daily_rebalanced_values[-1] / self._daily_rebalanced_start) - 1.0,
+            "daily_rebalanced_cum": dr_cum,
             "position_multiplier": phase_pos_mult,
             "buy_threshold_multiplier": phase_buy_mult,
             "market_phase": phase_name,
