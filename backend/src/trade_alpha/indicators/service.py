@@ -96,7 +96,7 @@ async def calculate_and_store_ma(
     Returns:
         Number of records updated
     """
-    logger.info(f"Calculating MA for {ts_code} with periods {periods}")
+    logger.info("calculate_and_store_ma", f"Calculating MA for {ts_code} with periods {periods}")
     if periods is None:
         periods = [5, 10, 20, 40, 60]
 
@@ -162,7 +162,7 @@ async def calculate_and_store_macd(
         ).update({"$set": update_data})
         updated_count += 1
 
-    logger.info(f"Successfully calculated and stored MACD for {ts_code}: {updated_count} records updated")
+    logger.info("calculate_and_store_macd", f"Successfully calculated and stored MACD for {ts_code}: {updated_count} records updated")
     return updated_count
 
 
@@ -292,7 +292,7 @@ async def calculate_and_store_custom_indicators(
         ).update({"$set": update_data})
         updated_count += 1
 
-    logger.info(f"Successfully stored additional indicators for {ts_code}: {updated_count} records")
+    logger.info("calculate_and_store_custom_indicators", f"Successfully stored additional indicators for {ts_code}: {updated_count} records")
     return updated_count
 
 

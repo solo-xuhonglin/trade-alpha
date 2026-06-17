@@ -131,7 +131,7 @@ async def create_config(
 
     config = ModelConfig(**kwargs)
     await config.insert()
-    logger.info(f"Config created: id={config.id} name={name} model_type={model_type}")
+    logger.info("create_config", f"Config created: id={config.id} name={name} model_type={model_type}")
     return config
 
 

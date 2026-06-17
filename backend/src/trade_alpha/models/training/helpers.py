@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 import pandas as pd
 import numpy as np
-from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao import StockDaily, StockList
 
 

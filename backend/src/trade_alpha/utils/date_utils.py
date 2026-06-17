@@ -1,42 +1,42 @@
-"""日期工具函数"""
+"""Date utility functions."""
 from typing import List, Tuple
 import re
 
 
 def is_valid_api_date(date_str: str) -> bool:
-    """验证是否为有效的API日期格式 YYYY-MM-DD"""
+    """Validate API date format YYYY-MM-DD."""
     if not isinstance(date_str, str):
         return False
     pattern = r'^\d{4}-\d{2}-\d{2}$'
     if not re.match(pattern, date_str):
         return False
-    # 简单的日期范围验证
+    # Simple date range validation
     try:
         year, month, day = map(int, date_str.split('-'))
         return 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31
-    except:
+    except Exception:
         return False
 
 
 def is_valid_db_date(date_str: str) -> bool:
-    """验证是否为有效的数据库日期格式 YYYYMMDD"""
+    """Validate database date format YYYYMMDD."""
     if not isinstance(date_str, str):
         return False
     pattern = r'^\d{8}$'
     if not re.match(pattern, date_str):
         return False
-    # 简单的日期范围验证
+    # Simple date range validation
     try:
         year = int(date_str[:4])
         month = int(date_str[4:6])
         day = int(date_str[6:8])
         return 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31
-    except:
+    except Exception:
         return False
 
 
 def to_db_format(date_str: str) -> str:
-    """将日期转换为数据库格式 YYYYMMDD"""
+    """Convert date to database format YYYYMMDD."""
     if not date_str:
         return date_str
     if is_valid_db_date(date_str):
@@ -47,7 +47,7 @@ def to_db_format(date_str: str) -> str:
 
 
 def to_api_format(date_str: str) -> str:
-    """将日期转换为API格式 YYYY-MM-DD"""
+    """Convert date to API format YYYY-MM-DD."""
     if not date_str:
         return date_str
     if is_valid_api_date(date_str):
@@ -58,16 +58,16 @@ def to_api_format(date_str: str) -> str:
 
 
 def get_year_months(start_date: str, end_date: str) -> List[Tuple[int, int]]:
-    """获取年月列表，支持任意起止日期"""
-    # 统一转换为数据库格式
+    """Get list of (year, month) tuples for the given date range."""
+    # Convert to database format uniformly
     start_date = to_db_format(start_date)
     end_date = to_db_format(end_date)
-    
+
     start_year = int(start_date[:4])
     end_year = int(end_date[:4])
     start_month = int(start_date[4:6]) if len(start_date) >= 6 else 1
     end_month = int(end_date[4:6]) if len(end_date) >= 6 else 12
-    
+
     result = []
     for year in range(start_year, end_year + 1):
         m_start = start_month if year == start_year else 1
@@ -78,7 +78,7 @@ def get_year_months(start_date: str, end_date: str) -> List[Tuple[int, int]]:
 
 
 def format_progress(stage: str, year: int, month: int = None, idx: int = 1, total: int = 1) -> str:
-    """格式化进度消息"""
+    """Format progress message (Chinese for user-facing progress)."""
     if stage == "load":
         return f"正在加载{year}年数据 ({idx}/{total})"
     elif stage == "label":

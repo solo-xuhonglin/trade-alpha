@@ -69,7 +69,6 @@ class DataLoader:
 
     async def get_latest_trading_day(self) -> Optional[str]:
         """Get the most recent trading date available in StockDaily."""
-        from trade_alpha.dao import StockDaily
         latest = await StockDaily.find().sort(-StockDaily.trade_date).limit(1).first_or_none()
         if latest:
             return latest.trade_date

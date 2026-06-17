@@ -5,7 +5,7 @@ that does not depend on AccountConfig.
 """
 
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from beanie import PydanticObjectId
 
@@ -13,6 +13,7 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
+from trade_alpha.dao.live_portfolio import LivePortfolio
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.portfolio import PortfolioManager
@@ -196,8 +197,7 @@ class SuggestionPipeline:
                 # Only save if this date is a target date
                 if date in target_set:
                     # Load positions: use injected portfolio or singleton from DB
-                    from trade_alpha.dao.live_portfolio import LivePortfolio as LPDao
-                    portfolio_doc = live_portfolio or await LPDao.find_one()
+                    portfolio_doc = live_portfolio or await LivePortfolio.find_one()
                     real_positions: Dict[str, PositionEmbed] = {}
                     if portfolio_doc:
                         for pos in portfolio_doc.positions:
@@ -278,7 +278,7 @@ class SuggestionPipeline:
                             "order_price": float(close_prices.get(s.ts_code, 0.0)),
                             "order_shares": int(next((o.order_shares for o in pending_orders if o.ts_code == s.ts_code), 0)),
                             "is_excluded": s.is_excluded,
-                            "updated_at": datetime.utcnow(),
+                            "updated_at": datetime.now(timezone.utc),
                         })
                     if score_docs:
                         await db.live_daily_stock_score.insert_many(score_docs)

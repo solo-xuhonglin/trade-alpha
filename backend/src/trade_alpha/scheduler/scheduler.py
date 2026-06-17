@@ -48,7 +48,7 @@ async def create_scheduler() -> AsyncIOScheduler:
     """Create and configure scheduler from DB configs."""
     stale_count = await _mark_stale_running_logs()
     if stale_count > 0:
-        logger.info(f"Marked {stale_count} stale running log(s) as failed on startup")
+        logger.info("create_scheduler", f"Marked {stale_count} stale running log(s) as failed on startup")
 
     # Lazy import to avoid circular dependency
     from trade_alpha.scheduler.service import _JOB_FN_MAP, _execute_and_log
@@ -72,7 +72,7 @@ async def create_scheduler() -> AsyncIOScheduler:
             replace_existing=True,
             misfire_grace_time=7200,
         )
-        logger.info(f"Scheduled job {cfg.task_key}: {cfg.name} ({cfg.trigger_type})")
+        logger.info("create_scheduler", f"Scheduled job {cfg.task_key}: {cfg.name} ({cfg.trigger_type})")
     return scheduler
 
 
@@ -90,4 +90,4 @@ class DataSyncScheduler:
     def stop(self):
         if self.scheduler:
             self.scheduler.shutdown(wait=False)
-            logger.info("Data sync scheduler stopped")
+            logger.info("stop", "Data sync scheduler stopped")

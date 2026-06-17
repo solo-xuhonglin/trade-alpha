@@ -1,4 +1,4 @@
-import request from './index'
+import api from './index'
 
 export interface LivePosition {
   id: string
@@ -32,21 +32,21 @@ export interface PortfolioOption {
 
 export const livePortfolioApi = {
   listOptions(): Promise<{ data: { items: PortfolioOption[] } }> {
-    return request.get('/live-portfolio/options')
+    return api.get('/live-portfolio/options')
   },
 
   createPortfolio(name: string): Promise<{ data: LivePortfolio }> {
-    return request.post('/live-portfolio/', { name })
+    return api.post('/live-portfolio/', { name })
   },
 
   deletePortfolio(id: string): Promise<void> {
-    return request.delete(`/live-portfolio/${id}`)
+    return api.delete(`/live-portfolio/${id}`)
   },
 
   getPortfolio(id?: string): Promise<{ data: LivePortfolio }> {
     const params: Record<string, string> = {}
     if (id) params.id = id
-    return request.get('/live-portfolio/', { params })
+    return api.get('/live-portfolio/', { params })
   },
 
   addPosition(data: {
@@ -57,7 +57,7 @@ export const livePortfolioApi = {
   }, portfolioId?: string): Promise<{ data: LivePortfolio }> {
     const params: Record<string, string> = {}
     if (portfolioId) params.portfolio_id = portfolioId
-    return request.post('/live-portfolio/positions', data, { params })
+    return api.post('/live-portfolio/positions', data, { params })
   },
 
   updatePosition(
@@ -67,16 +67,16 @@ export const livePortfolioApi = {
   ): Promise<{ data: LivePortfolio }> {
     const params: Record<string, string> = {}
     if (portfolioId) params.portfolio_id = portfolioId
-    return request.put(`/live-portfolio/positions/${id}`, data, { params })
+    return api.put(`/live-portfolio/positions/${id}`, data, { params })
   },
 
   deletePosition(id: string, portfolioId?: string): Promise<{ data: LivePortfolio }> {
     const params: Record<string, string> = {}
     if (portfolioId) params.portfolio_id = portfolioId
-    return request.delete(`/live-portfolio/positions/${id}`, { params })
+    return api.delete(`/live-portfolio/positions/${id}`, { params })
   },
 
   searchStocks(q: string): Promise<{ data: { items: StockSearchItem[] } }> {
-    return request.get('/live-portfolio/stocks/search', { params: { q } })
+    return api.get('/live-portfolio/stocks/search', { params: { q } })
   },
 }

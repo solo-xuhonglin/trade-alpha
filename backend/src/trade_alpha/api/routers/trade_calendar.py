@@ -15,7 +15,7 @@ async def sync_trade_calendar_endpoint():
         result = await fetch_and_store_trade_calendar()
         return result
     except ValueError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/daily-update")

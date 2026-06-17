@@ -22,6 +22,7 @@ async def _trigger_auto_suggestion(params: dict):
     if not training_id or not strategy_config_id:
         raise ValueError("auto_suggest requires training_id and strategy_config_id in params")
 
+    # Lazy import to avoid circular dependency
     from trade_alpha.models import get_training_by_id
     from trade_alpha.dao.strategy_config import StrategyConfig
 

@@ -142,7 +142,7 @@ async def update_stock_data_count():
             stock.latest_date = doc["latest_date"]
             await stock.save()
             updated += 1
-    logger.info(f"update_stock_data_count", f"Updated {updated} stocks")
+    logger.info("update_stock_data_count", f"Updated {updated} stocks")
     return updated
 
 

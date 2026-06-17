@@ -16,6 +16,12 @@ from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.helpers import create_labels, _load_year_data
 from trade_alpha.data.analysis_service import compute_field_analysis
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
+from trade_alpha.logging import get_logger
+
+logger = get_logger("models.lstm.classifier")
+
+# Temporary directory for memmap files during training
+MEMMAP_TEMP_DIR = "models/temp"
 
 
 class LSTMModel(nn.Module):
@@ -110,8 +116,8 @@ class LSTMClassifier(BaseClassifier):
         combined_df = combined_df.sort_values('trade_date')
 
         if config.use_memmap:
-            os.makedirs("models/temp", exist_ok=True)
-            memmap_dir = f"models/temp/{task_id}/"
+            os.makedirs(MEMMAP_TEMP_DIR, exist_ok=True)
+            memmap_dir = f"{MEMMAP_TEMP_DIR}/{task_id}/"
             total_seqs, n_features = create_sequences_memmap(
                 combined_df, config.feature_fields, target_names,
                 seq_len, normalization_window, memmap_dir,
@@ -280,7 +286,7 @@ class LSTMClassifier(BaseClassifier):
                     try:
                         # 处理多分类 AUC（ovr 模式）
                         val_auc = roc_auc_score(y_val_original, val_proba, multi_class='ovr')
-                    except:
+                    except Exception:
                         # 可能的情况：某个类别没有样本
                         val_auc = 0.5
                     val_epoch_aucs.append(val_auc)

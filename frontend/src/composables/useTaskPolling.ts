@@ -20,7 +20,7 @@ export function useTaskPolling<T extends { status: string }>({
     try {
       const res = await pollFn()
       const items = res.data.items.filter(filterFn)
-      activeTasks.value = items as any
+      activeTasks.value = items
 
       const hasActive = items.some(t => t.status === 'pending' || t.status === 'running')
       if (!hasActive && pollIntervalId) {

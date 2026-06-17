@@ -76,12 +76,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { dataAnalysisApi, DEFAULT_FEATURE_FIELDS, type AnalysisTaskStatus } from '@/api/dataAnalysis'
 import StatusChip from '@/components/StatusChip.vue'
+import { useTaskPolling } from '@/composables/useTaskPolling'
 
 const loadingAnalysis = ref(false)
-const activeTasks = ref<AnalysisTaskStatus[]>([])
 const error = ref('')
 
 const formatDateTime = () => {
@@ -109,32 +109,10 @@ const activeTaskHeaders = [
   { title: '创建时间', key: 'created_at' },
 ]
 
-let pollInterval: number | null = null
-
-const startPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-  pollActiveTasks()
-  pollInterval = window.setInterval(pollActiveTasks, 3000)
-}
-
-const stopPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval)
-    pollInterval = null
-  }
-}
-
-const pollActiveTasks = async () => {
-  try {
-    const res = await dataAnalysisApi.listTasks({ page_size: 10 })
-    activeTasks.value = res.data.items.filter((t: any) => t.status !== 'completed' && t.status !== 'failed' && t.status !== 'cancelled')
-  } catch (e: any) {
-    console.error('Failed to poll tasks:', e)
-  }
-}
+const { activeTasks, startPolling } = useTaskPolling<AnalysisTaskStatus>({
+  pollFn: () => dataAnalysisApi.listTasks({ page_size: 10 }),
+  filterFn: (t) => t.status !== 'completed' && t.status !== 'failed' && t.status !== 'cancelled',
+})
 
 const triggerAnalysis = async () => {
   loadingAnalysis.value = true
@@ -156,12 +134,4 @@ const triggerAnalysis = async () => {
     loadingAnalysis.value = false
   }
 }
-
-onMounted(() => {
-  startPolling()
-})
-
-onUnmounted(() => {
-  stopPolling()
-})
 </script>

@@ -51,7 +51,7 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
     training.model_path = model_path
     await training.save()
 
-    logger.info(f"Training completed: name={name} id={training.id} samples={metrics.get('sample_count')}")
+    logger.info("create_training", f"Training completed: name={name} id={training.id} samples={metrics.get('sample_count')}")
     return training
 
 

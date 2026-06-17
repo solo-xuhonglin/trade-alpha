@@ -29,10 +29,7 @@ async def trigger_training(
     import subprocess
     import sys
 
-    try:
-        config_obj_id = parse_obj_id(config_id, "Invalid config ID format")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    config_obj_id = parse_obj_id(config_id, "Invalid config ID format")
 
     try:
         validate_date_range(start_date, end_date)

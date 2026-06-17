@@ -2,7 +2,7 @@
 
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient
-from beanie import init_beanie, PydanticObjectId
+from beanie import init_beanie
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 
@@ -74,7 +74,7 @@ def get_db() -> Optional[AsyncIOMotorClient]:
     return _db_client
 
 
-async def get_database():
+async def get_database() -> Optional[AsyncIOMotorClient]:
     """Get database instance for raw operations."""
     if _db_client is None:
         return None
@@ -82,7 +82,7 @@ async def get_database():
     return _db_client[config.mongodb_db]
 
 
-async def close_db():
+async def close_db() -> None:
     """Close database connection."""
     global _db_client
     if _db_client:

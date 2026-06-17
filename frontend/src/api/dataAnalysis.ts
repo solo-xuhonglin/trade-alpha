@@ -1,12 +1,5 @@
-import axios from 'axios'
 import { INDICATOR_FIELDS } from './featureFields'
-
-const apiClient = axios.create({
-  baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
+import api from './index'
 
 export interface FieldStatistics {
   mean: number
@@ -96,7 +89,7 @@ export interface AnalysisRecordListResponse {
 
 export const dataAnalysisApi = {
   async triggerAnalysis(params: AnalysisCreateParams) {
-    return await apiClient.post<{
+    return await api.post<{
       task_id: string
       status: string
       message: string
@@ -104,7 +97,7 @@ export const dataAnalysisApi = {
   },
 
   async getTaskStatus(taskId: string) {
-    return await apiClient.get<AnalysisTaskStatus>(`/data-analysis/task/${taskId}`)
+    return await api.get<AnalysisTaskStatus>(`/data-analysis/task/${taskId}`)
   },
 
   async listTasks(params?: { page?: number; page_size?: number; status?: string }) {
@@ -113,15 +106,15 @@ export const dataAnalysisApi = {
     if (params?.page_size) queryParams.append('page_size', params.page_size.toString())
     if (params?.status) queryParams.append('status', params.status)
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
-    return await apiClient.get<AnalysisTaskListResponse>(`/data-analysis/tasks${query}`)
+    return await api.get<AnalysisTaskListResponse>(`/data-analysis/tasks${query}`)
   },
 
   async listResults(limit: number = 20) {
-    return await apiClient.get<AnalysisRecord[]>(`/data-analysis/results?limit=${limit}`)
+    return await api.get<AnalysisRecord[]>(`/data-analysis/results?limit=${limit}`)
   },
 
   async deleteResult(id: string) {
-    return await apiClient.delete(`/data-analysis/results/${id}`)
+    return await api.delete(`/data-analysis/results/${id}`)
   },
 }
 

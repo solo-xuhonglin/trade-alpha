@@ -54,6 +54,7 @@ class LiveSuggestionRunner(BaseRunner):
 
             target_dates: Optional[list[str]] = None
             if params.get("start_date") and params.get("end_date"):
+                # Lazy import to avoid circular dependency
                 from trade_alpha.dao.trade_calendar import TradeCalendar
                 calendar_days = await TradeCalendar.find(
                     TradeCalendar.cal_date >= params["start_date"],

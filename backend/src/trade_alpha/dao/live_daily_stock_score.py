@@ -1,6 +1,6 @@
 """LiveDailyStockScore Document model for daily stock scoring/ranking."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from pydantic import Field
 from beanie import Document
@@ -27,7 +27,7 @@ class LiveDailyStockScore(Document):
     order_price: float = 0.0
     order_shares: int = 0
     is_excluded: bool = False
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "live_daily_stock_score"

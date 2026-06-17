@@ -48,7 +48,7 @@ class LSTMPredictor(BasePredictor):
                 results[ts_code] = probs
 
         if candidates > 0:
-            logger.debug(f"LSTM predict_batch {current_date}: {len(results)}/{candidates}/{len(ts_codes)} stocks predicted/candidate/total")
+            logger.debug("predict_batch", f"LSTM predict_batch {current_date}: {len(results)}/{candidates}/{len(ts_codes)} stocks predicted/candidate/total")
         elif len(ts_codes) > 0:
-            logger.debug(f"LSTM predict_batch {current_date}: 0 candidates, df rows={len(df)}, ts_codes={len(ts_codes)}")
+            logger.debug("predict_batch", f"LSTM predict_batch {current_date}: 0 candidates, df rows={len(df)}, ts_codes={len(ts_codes)}")
         return results

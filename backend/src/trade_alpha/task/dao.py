@@ -4,6 +4,7 @@ from enum import Enum
 from beanie import Document
 from datetime import datetime
 from typing import Optional, Dict, Any
+from pydantic import Field
 
 
 class TaskStatus(str, Enum):
@@ -28,10 +29,10 @@ class Task(Document):
     progress_message: Optional[str] = None
     result_id: Optional[str] = None
     error_message: Optional[str] = None
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=datetime.now)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    params: Dict[str, Any] = {}
+    params: Dict[str, Any] = Field(default_factory=dict)
     pid: Optional[int] = None
 
     class Settings:

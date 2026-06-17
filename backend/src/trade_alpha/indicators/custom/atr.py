@@ -16,7 +16,7 @@ def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
         period: ATR period (default 14)
 
     Returns:
-        DataFrame with new 'atr_14' column added
+        DataFrame with new 'atr_{period}' column added
     """
     df = df.copy()
 
@@ -31,6 +31,6 @@ def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
 
     tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
 
-    df["atr_14"] = tr.rolling(window=period, min_periods=period).mean()
+    df[f"atr_{period}"] = tr.rolling(window=period, min_periods=period).mean()
 
     return df

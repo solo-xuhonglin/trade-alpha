@@ -12,6 +12,9 @@ from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.helpers import create_labels, _load_year_data, _evaluate_classifier
 from trade_alpha.data.analysis_service import compute_field_analysis
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
+from trade_alpha.logging import get_logger
+
+logger = get_logger("models.xgboost.classifier")
 
 
 class XGBoostClassifier(BaseClassifier):

@@ -287,7 +287,7 @@ async function fetchConfigs() {
     const res = await getConfigs()
     configs.value = res.data.items
   } catch (e: any) {
-    snackbar.value = { show: true, message: '加载失败: ' + (e.message || e), color: 'error' }
+    notifyService.error('加载失败: ' + (e.message || e))
   } finally {
     loading.value = false
   }
@@ -302,7 +302,7 @@ async function handleSave() {
     editDialog.value = false
     await fetchConfigs()
   } catch (e: any) {
-    snackbar.value = { show: true, message: '保存失败: ' + (e.message || e), color: 'error' }
+    notifyService.error('保存失败: ' + (e.message || e))
   } finally {
     saving.value = false
   }

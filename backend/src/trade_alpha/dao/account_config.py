@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import Field
-from beanie import Document, PydanticObjectId
+from beanie import Document
 
 
 class AccountConfig(Document):
