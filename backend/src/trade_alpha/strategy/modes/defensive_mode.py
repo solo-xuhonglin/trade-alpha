@@ -6,7 +6,7 @@ from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.modes.base import PhaseMode
-from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
+
 
 logger = get_logger("strategy.modes.defensive_mode")
 
@@ -68,6 +68,7 @@ class DefensiveMode(PhaseMode):
         max_hold_days: int,
     ) -> Tuple[bool, str]:
         """Aggressive sell check for defensive mode."""
+        from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
         stop_loss_pct = -0.07
         sell_threshold = 0.0
         current_score = score_map.get(position.ts_code, 0.0)

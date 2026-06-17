@@ -17,6 +17,9 @@ from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import PositionManager
 from trade_alpha.logging import get_logger
+from trade_alpha.strategy.modes.trend_mode import TrendMode
+from trade_alpha.strategy.modes.mean_reversion_mode import MeanReversionMode
+from trade_alpha.strategy.modes.defensive_mode import DefensiveMode
 
 logger = get_logger("strategy.multi_stock_strategy")
 
@@ -65,6 +68,11 @@ class MultiStockStrategy(PositionManager):
         self.score_decline_threshold = strategy_config.score_decline_threshold if strategy_config else 0.05
         self.use_score_decline_filter = strategy_config.use_score_decline_filter if strategy_config else False
         self._full_position_pnl_weight = strategy_config.full_position_pnl_weight if strategy_config else 0.5
+        self._modes = {
+            "up": TrendMode(self),
+            "flat": MeanReversionMode(self),
+            "down": DefensiveMode(self),
+        }
 
     async def make_orders(
         self,
@@ -76,157 +84,17 @@ class MultiStockStrategy(PositionManager):
         score_manager: Optional["ScoreManager"] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
-        """Make decisions based on ranking.
-
-        Uses portfolio.reserve_funds to determine buy feasibility and shares.
-        PortfolioManager handles all cash pre-deduction internally.
-
-        When suggestion_mode=True, buy logic skips reserve_funds and generates
-        suggestion orders with order_shares=0 and reason="buy_suggestion".
-        Sell logic runs unchanged in suggestion mode.
-        """
         if self.ts_codes:
             scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
-
-        score_map = {s.ts_code: s.composite_score for s in scored_stocks}
-
-        # Exclude filter applies to all phases
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
-        full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
-        # Market-aware multipliers (position count + buy threshold)
-        pos_mult, buy_mult = self._market_multipliers(market_data)
-        effective_threshold = self.buy_threshold * buy_mult
-        effective_max_pos = max(1, int(self.max_positions * pos_mult))
-
-        # Score filter for normal buy / sell decisions
-        scored_stocks = [s for s in scored_stocks if s.composite_score > effective_threshold]
-        sorted_stocks = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
-
-        if len(sorted_stocks) <= 5:
-            logger.info(f"make_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
-        elif len(sorted_stocks) % 10 == 0:
-            logger.info(f"make_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
-
-        top_stocks = sorted_stocks[:effective_max_pos]
-        top_ts_codes = {s.ts_code for s in top_stocks}
-
-        sell_rank_stocks = sorted_stocks[:self.sell_rank_n]
-        sell_rank_ts_codes = {s.ts_code for s in sell_rank_stocks}
-
-        orders: List[PendingOrder] = []
-
-        close_prices = close_prices or {}
-        for pos in portfolio.positions.values():
-            pos.hold_days += 1
-
-        logger.info(f"make_orders trade_date={trade_date} positions={len(portfolio.positions)} top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}")
-        for ts_code, pos in portfolio.positions.items():
-            should_sell, sell_reason = self._check_sell(pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data)
-            if should_sell:
-                in_score = ts_code in score_map
-                in_sell_rank = ts_code in sell_rank_ts_codes
-                cur_score = score_map.get(ts_code, 0.0)
-                logger.info(f"make_orders SELL ts_code={ts_code} hold_days={pos.hold_days} in_score_map={in_score} current_score={cur_score:.3f} in_sell_rank={in_sell_rank} reason={sell_reason}")
-                sell_price = close_prices.get(ts_code, pos.buy_price)
-                orders.append(PendingOrder(
-                    ts_code=pos.ts_code,
-                    stock_name=pos.stock_name,
-                    order_price=sell_price,
-                    order_shares=-pos.shares,
-                    entry_score=pos.entry_score,
-                    up_prob_3d=pos.entry_3d_prob,
-                    up_prob_5d=pos.entry_5d_prob,
-                    up_prob_10d=pos.entry_10d_prob,
-                    up_prob_20d=pos.entry_20d_prob,
-                    trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
-                    reason=sell_reason,
-                ))
-
-        sell_ts_codes = {order.ts_code for order in orders}
-
-        # Full-position sell (moved from pipeline)
-        forced_orders = self._apply_full_position_sell(
-            scored_stocks, portfolio, close_prices, trade_date,
-            market_data, score_manager,
+        phase = market_data.market_phase if market_data else "up"
+        mode = self._modes.get(phase, self._modes["up"])
+        return await mode.run(
+            scored_stocks, trade_date, portfolio,
+            close_prices, market_data, score_manager,
+            suggestion_mode=suggestion_mode,
         )
-        orders.extend(forced_orders)
-
-        # In suggestion mode, limit buy suggestions following the same
-        # position count check as reserve_funds in backtest flow.
-        # Also skip stocks already held (same as reserve_funds ts_code check).
-
-        # Two-phase buy: Phase 1 = rank-up priority, Phase 2 = normal fill.
-        suggestion_count = 0
-        hold_ts_codes = set(portfolio.positions.keys())
-        purchased_ts_codes: set = set()
-
-        # Phase 1: Rank-up priority buy (scan full pool, not just top_stocks)
-        if self.use_rank_up_priority and self.rank_up_count > 0:
-            rank_up_candidates = [
-                s for s in full_candidates
-                if s.ts_code not in hold_ts_codes
-                and s.rank_improvement >= self.rank_up_min_improvement_pct
-                and s.composite_score > self.rank_up_min_score * buy_mult
-                and self._score_not_declining(s.ts_code, score_manager)
-            ]
-            rank_up_candidates.sort(
-                key=lambda s: s.rank_improvement, reverse=True
-            )
-            for stock in rank_up_candidates[:self.rank_up_count]:
-                if suggestion_mode:
-                    if len(portfolio.positions) + suggestion_count >= self.max_positions:
-                        break
-                    suggestion_count += 1
-                    purchased_ts_codes.add(stock.ts_code)
-                    orders.append(self._build_order(
-                        stock, 0, REASON_PRIORITY_RANK_UP, trade_date,
-                    ))
-                    continue
-                success, shares, _fee = portfolio.reserve_funds(
-                    stock.ts_code, stock.close, close_prices,
-                    max_position_scalar=pos_mult,
-                )
-                if not success:
-                    continue
-                purchased_ts_codes.add(stock.ts_code)
-                orders.append(self._build_order(
-                    stock, shares, REASON_PRIORITY_RANK_UP, trade_date,
-                ))
-
-        # Phase 2: Normal fill
-        remaining_slots = self.max_positions - len(portfolio.positions) - suggestion_count
-        if remaining_slots > 0:
-            for stock in top_stocks:
-                if stock.ts_code in hold_ts_codes:
-                    continue
-                if stock.ts_code in purchased_ts_codes:
-                    continue
-                if not self._score_not_declining(stock.ts_code, score_manager):
-                    continue
-
-                if suggestion_mode:
-                    if suggestion_count >= self.max_positions:
-                        break
-                    suggestion_count += 1
-                    orders.append(self._build_order(
-                        stock, 0, REASON_NORMAL_BUY, trade_date,
-                    ))
-                    continue
-
-                success, shares, _fee = portfolio.reserve_funds(
-                    stock.ts_code, stock.close, close_prices,
-                    max_position_scalar=pos_mult,
-                )
-                if not success:
-                    continue
-
-                orders.append(self._build_order(
-                    stock, shares, REASON_NORMAL_BUY, trade_date,
-                ))
-
-        return orders
 
     def _build_order(
         self,
@@ -257,18 +125,6 @@ class MultiStockStrategy(PositionManager):
         if market_data is None:
             return 1.0, 1.0
         return (market_data.position_multiplier, market_data.buy_threshold_multiplier)
-
-    def _stop_loss_mult(self, market_data: Optional[MarketDataEmbed] = None) -> float:
-        """Widen stop-loss during crash/decline to avoid selling at bottoms."""
-        if not getattr(self.strategy_config, "use_phase_strategy", True):
-            return 1.0
-        if market_data is None:
-            return 1.0
-        if market_data.market_phase in ("crash",):
-            return 2.0
-        if market_data.market_phase in ("decline",):
-            return 1.5
-        return 1.0
 
     _FULL_POSITION_PNL_CLIP_PCT = 50.0
 
@@ -412,7 +268,7 @@ class MultiStockStrategy(PositionManager):
             Tuple of (should_sell: bool, reason: str).
         """
         current_score = score_map.get(position.ts_code, 0.0)
-        effective_stop_loss = self.stop_loss_pct * self._stop_loss_mult(market_data)
+        effective_stop_loss = self.stop_loss_pct
 
         if position.hold_days < self.min_hold_days:
             if close_prices and self._is_stop_loss_triggered(position, close_prices, effective_stop_loss):

@@ -7,7 +7,7 @@ from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.modes.base import PhaseMode
-from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
+
 
 logger = get_logger("strategy.modes.mean_reversion_mode")
 
@@ -128,6 +128,7 @@ class MeanReversionMode(PhaseMode):
         max_hold_days: int,
     ) -> Tuple[bool, str]:
         """Sell check for mean reversion mode."""
+        from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
         if score_manager is not None:
             buffer = score_manager.get_score_buffer(position.ts_code)
             if len(buffer) >= self.score_window + self.exclude_recent:
