@@ -301,6 +301,20 @@ class MultiStockStrategy(PositionManager):
             return False
         return current_price < cost_basis * (1 + effective_stop_loss)
 
+    @staticmethod
+    def check_common_sell(
+        position: PositionEmbed,
+        close_prices: Dict[str, float],
+        stop_loss_pct: float,
+        max_hold_days: int,
+    ) -> Tuple[bool, str]:
+        """Common sell checks shared by all modes: stop-loss and max hold days."""
+        if MultiStockStrategy._is_stop_loss_triggered(position, close_prices, stop_loss_pct):
+            return True, SELL_REASON_STOP_LOSS
+        if position.hold_days >= max_hold_days:
+            return True, SELL_REASON_MAX_HOLD_DAYS
+        return False, ""
+
     def _apply_full_position_sell(
         self,
         scored_stocks: List[ScoredStock],
