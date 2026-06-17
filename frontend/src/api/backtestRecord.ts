@@ -109,10 +109,8 @@ export interface DailySnapshot {
   total_value: number
   baseline_value: number
   day_return: number
-  ranking_median: number
   ranking_high_pct: number
   ranking_low_pct: number
-  ranking_regime: string
   position_multiplier?: number
   buy_threshold_multiplier?: number
   market_phase?: string

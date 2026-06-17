@@ -354,9 +354,9 @@ async def filter_explosions(
 class ScoreManager:
     """Stateful score lifecycle manager.
 
-    Owns cross-day state (score buffer, smoothed median, rank history)
+    Owns cross-day state (score buffer, rank history)
     and orchestrates the full scoring pipeline from raw predictions
-    to ranked ScoredStock objects and market regime.
+    to ranked ScoredStock objects and market phase.
     """
 
     def __init__(
@@ -370,7 +370,6 @@ class ScoreManager:
         self._rank_history: Dict[str, List[ScoredStock]] = {}
         window = getattr(strategy_config, 'rank_up_window', 5) if strategy_config else 5
         self._rank_history_max: int = window * 5
-        self._ranking_median_buffer: List[float] = []
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
         self._daily_rebalanced_values: List[float] = [1.0]
@@ -401,7 +400,7 @@ class ScoreManager:
                 daily_return = sum(returns) / len(returns) if returns else 0.0
                 new_value = self._daily_rebalanced_values[-1] * (1 + daily_return)
                 self._daily_rebalanced_values.append(new_value)
-                if len(self._daily_rebalanced_values) > 50:
+                if len(self._daily_rebalanced_values) > 120:
                     self._daily_rebalanced_values.pop(0)
         self._prev_close_prices = today_prices
         return self._daily_rebalanced_values[-1] - 1.0
@@ -419,21 +418,23 @@ class ScoreManager:
         lp_buffer = self._low_pct_buffer
         low_5d = (lp_buffer[-1] - lp_buffer[-6]) if len(lp_buffer) >= 6 else 0.0
 
-        # Dynamic threshold scaling: when cumulative return is high,
-        # require larger drawdowns to trigger crash/decline/recovery phases.
-        # This prevents false triggers from normal volatility in bull markets.
-        cum = dr_values[-1] - 1.0
-        if cum > 0:
-            scale = min(3.0, 1.0 + cum * 5)
+        peak = max(dr_values)
+        trough = min(dr_values)
+        current = dr_values[-1]
+        drawdown = (current - peak) / peak if peak > 0 else 0.0
+        drawup = (current - trough) / trough if trough > 0 else 0.0
+
+        if drawup > 0.02:
+            scale = min(3.0, 1.0 + drawup * 5)
+        elif drawdown < -0.03:
+            scale = max(0.5, 1.0 + drawdown * 2)
         else:
             scale = 1.0
 
         crash_th = config.phase_crash_threshold * scale
         recovery_th = config.phase_recovery_threshold * scale
 
-        # decline threshold: in bear market (cum <= 0) use original dr_5d < 0
-        # to avoid missing weak declines. In bull market, require stricter drop.
-        decline_bar = 0.0 if cum <= 0 else recovery_th * 0.66
+        decline_bar = recovery_th * 0.66 if drawup > 0.02 else 0.0
 
         if dr_5d < crash_th:
             return 0.0, 1.0, "crash"
@@ -550,9 +551,9 @@ class ScoreManager:
         return stock_map
 
     def compute_market_regime(self, stock_map: Dict[str, ScoredStock]) -> str:
-        """Compute market regime from ranking_scores, update internal state.
+        """Compute market phase from ranking_scores and daily-rebalanced baseline.
 
-        Uses smooth_ewma for consistent smoothing with per-stock scores.
+        Phase-based multipliers drive position sizing and buy threshold adjustments.
         """
         rank_scores = [
             s.ranking_score for s in stock_map.values()
@@ -563,40 +564,22 @@ class ScoreManager:
             return ""
         rank_scores_sorted = sorted(rank_scores)
         n = len(rank_scores_sorted)
-        ranking_median = float(rank_scores_sorted[n // 2])
 
         ranking_high_pct = sum(1 for s in rank_scores_sorted if s > 0.30) / n * 100
         ranking_low_pct = sum(1 for s in rank_scores_sorted if s < -0.30) / n * 100
 
-        # EWMA smoothing using unified smooth_market_indicator
-        self._ranking_median_buffer.append(ranking_median)
-        ranking_median_smoothed = smooth_market_indicator(
-            self._ranking_median_buffer, self._strategy_config
-        )
-
-        # Classify regime using smoothed median (kept for chart display)
-        if ranking_median_smoothed > 0.05:
-            regime = "trending_up"
-        elif ranking_median_smoothed < -0.05:
-            regime = "trending_down"
-        else:
-            regime = "sideways"
-
-        # Phase-based multipliers (replaces score_scalar)
         self._update_daily_rebalanced_baseline(stock_map)
         self._low_pct_buffer.append(ranking_low_pct)
         if len(self._low_pct_buffer) > 50:
             self._low_pct_buffer.pop(0)
         phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers()
 
-        # Retention rate
         raw_retention = self._compute_top_n_retention(stock_map)
         self._retention_rate_buffer.append(raw_retention)
         retention_smoothed = smooth_market_indicator(
             self._retention_rate_buffer, self._strategy_config
         )
 
-        # Score-return correlation
         raw_corr = self._compute_score_return_correlation(stock_map)
         self._correlation_buffer.append(raw_corr)
         corr_smoothed = smooth_market_indicator(
@@ -604,21 +587,18 @@ class ScoreManager:
         )
 
         self._last_market_data = {
-            "ranking_median": ranking_median,
-            "ranking_median_smoothed": ranking_median_smoothed,
             "top_n_retention_rate": raw_retention,
             "top_n_retention_rate_smoothed": retention_smoothed,
             "score_return_corr": raw_corr,
             "score_return_corr_smoothed": corr_smoothed,
             "ranking_high_pct": ranking_high_pct,
             "ranking_low_pct": ranking_low_pct,
-            "ranking_regime": regime,
             "daily_rebalanced_cum": self._daily_rebalanced_values[-1] - 1.0,
             "position_multiplier": phase_pos_mult,
             "buy_threshold_multiplier": phase_buy_mult,
             "market_phase": phase_name,
         }
-        return regime
+        return phase_name
 
     async def _load_close_prices_hist(
         self,

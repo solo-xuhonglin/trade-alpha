@@ -88,11 +88,8 @@ class PendingBuy(BaseModel):
 
 class MarketDataEmbed(BaseModel):
     """Market regime and ranking statistics for strategy decisions."""
-    ranking_median: float = 0.0
-    ranking_median_smoothed: float = 0.0
     ranking_high_pct: float = 0.0
     ranking_low_pct: float = 0.0
-    ranking_regime: str = ""
     top_n_retention_rate: float = 0.0
     top_n_retention_rate_smoothed: float = 0.0
     score_return_corr: float = 0.0
