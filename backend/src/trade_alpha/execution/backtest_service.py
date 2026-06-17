@@ -198,6 +198,8 @@ async def get_trades_by_ts_code(result_id: PydanticObjectId, ts_code: str) -> di
                 "position_after": getattr(t, "position_after", 0),
                 "status": t.status,
                 "reason": t.reason,
+                "pnl_amount": t.pnl_amount,
+                "pnl_pct": t.pnl_pct,
             }
             for t in trades
         ]

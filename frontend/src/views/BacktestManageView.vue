@@ -97,11 +97,16 @@ import ActiveTaskPanel from '@/components/ActiveTaskPanel.vue'
 const running = ref(false)
 const error = ref('')
 
+const _today = new Date()
+const _pad = (n: number) => String(n).padStart(2, '0')
+const _fmtDate = (d: Date) => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`
+const _threeYearsAgo = new Date(_today.getFullYear() - 3, _today.getMonth(), _today.getDate())
+
 const form = ref({
   name: '',
   ts_codes: '002594.SZ',
-  start_date: '2025-01-01',
-  end_date: '2025-12-31',
+  start_date: _fmtDate(_threeYearsAgo),
+  end_date: _fmtDate(_today),
   max_positions: 10,
   top_n: 100,
   account_config_id: '',
