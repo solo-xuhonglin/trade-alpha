@@ -45,6 +45,8 @@ const phaseLabel: Record<string, string> = {
   crash: '急跌',
   decline: '下跌',
   recovery: '企稳',
+  sideways: '横盘',
+  uptrend: '上涨',
   normal: '正常',
 }
 
@@ -52,6 +54,8 @@ const phaseColors: Record<string, string> = {
   crash: 'rgba(244, 67, 54, 0.10)',
   decline: 'rgba(255, 152, 0, 0.08)',
   recovery: 'rgba(76, 175, 80, 0.08)',
+  sideways: 'rgba(158, 158, 158, 0.08)',
+  uptrend: 'rgba(33, 150, 243, 0.08)',
 }
 
 function computePhaseZones(data: OverviewChartItem[]): PhaseZone[] {
@@ -147,7 +151,7 @@ const renderChart = () => {
         '留存率': false,
       },
     },
-    grid: { left: '12%', right: '22%', bottom: '12%', top: '8%' },
+    grid: { left: '8%', right: '16%', bottom: '10%', top: '6%' },
     xAxis: {
       type: 'category',
       data: dates,

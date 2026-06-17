@@ -6,7 +6,7 @@ full scoring lifecycle and owns cross-day state.
 
 import math
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
@@ -374,6 +374,7 @@ class ScoreManager:
         self._low_pct_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
         self._last_close_prices_hist: Optional[Dict[str, List[float]]] = None
+        self._market_phase: str = "normal"
 
     # ------------------------------------------------------------------
     # Phase-based multipliers
@@ -382,6 +383,7 @@ class ScoreManager:
     def _compute_phase_multipliers(
         self,
         daily_rebalanced_values: Optional[List[float]] = None,
+        current_phase: str = "normal",
     ) -> Tuple[float, float, str]:
         config = self._strategy_config
         if not config or not config.use_phase_strategy:
@@ -409,14 +411,32 @@ class ScoreManager:
         recovery_th = config.phase_recovery_threshold * scale
         decline_bar = recovery_th * 0.66 if drawup > 0.02 else 0.0
 
+        # Step 1: crash (highest priority)
         if rebalanced_5d < crash_th:
             return 0.0, 1.0, "crash"
-        elif rebalanced_5d < decline_bar and low_5d > 0:
+
+        # Step 2: decline
+        if rebalanced_5d < decline_bar and low_5d > 0:
             return 0.5, 1.0, "decline"
-        elif rebalanced_5d < recovery_th and low_5d < 0:
+
+        # Step 3: recovery bridge (stateful)
+        if current_phase in ("crash", "decline"):
             return 1.0, 0.5, "recovery"
-        else:
-            return 1.0, 1.0, "normal"
+        if current_phase == "recovery":
+            if rebalanced_5d < 0:
+                return 1.0, 0.5, "recovery"
+            # dr_5d >= 0: exit recovery, fall through to stateless check
+
+        # Step 4: sideways
+        cum_10d = (daily_rebalanced_values[-1] / daily_rebalanced_values[-10]) - 1 if len(daily_rebalanced_values) >= 10 else 999
+        if abs(cum_10d) < 0.02 and drawup < 0.15:
+            return 0.8, 0.8, "sideways"
+
+        # Step 5: uptrend (reserved, same coefficients as normal for now)
+        if rebalanced_5d > 0.02 and drawup > 0.10:
+            return 1.0, 1.0, "uptrend"
+
+        return 1.0, 1.0, "normal"
 
     # ------------------------------------------------------------------
     # Public API
@@ -536,7 +556,10 @@ class ScoreManager:
         self._low_pct_buffer.append(ranking_low_pct)
         if len(self._low_pct_buffer) > 50:
             self._low_pct_buffer.pop(0)
-        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(daily_rebalanced_values)
+        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(
+            daily_rebalanced_values, current_phase=self._market_phase,
+        )
+        self._market_phase = phase_name
 
         raw_retention = self._compute_top_n_retention(stock_map)
         self._retention_rate_buffer.append(raw_retention)

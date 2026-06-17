@@ -29,52 +29,69 @@ Current `cum = dr_values[-1] - 1.0` uses total return from day 1. For a 2022→2
 
 ---
 
-## 2. Change 1: Peak/Trough Based Scaling (C + Drawup)
+## 2. Change 1: 6-Phase State Machine with Peak/Trough Scaling
 
-### 2.1 Formula
+### 2.1 The 6 Phases
 
-Replace `cum` (total from start) with `drawdown` from peak and `drawup` from trough:
+| Phase | Meaning | pos_mult | buy_mult | Trigger |
+|-------|---------|----------|----------|---------|
+| `crash` | 急跌 | 0.0 | 1.0 | dr_5d < crash_th |
+| `decline` | 下跌 | 0.5 | 1.0 | dr_5d < decline_bar AND low_5d > 0 |
+| `recovery` | 企稳（桥接状态） | 1.0 | 0.5 | 退出 crash/decline 的第一个状态；stay if dr_5d < 0 |
+| `sideways` | 横盘 | 0.8 | 0.8 | abs(cum_10d) < 0.02 AND drawup < 0.15 |
+| `uptrend` | 上涨趋势 | 1.0 | 1.0 | dr_5d > 0.02 AND drawup > 0.10 |
+| `normal` | 正常 | 1.0 | 1.0 | 全部剩余 |
+
+**State machine flow:**
+
+```
+crash ──→ decline ──→ recovery ──→ sideways ──→ normal ──→ uptrend
+  ↑          ↑            │                           ↑         │
+  │          │            └── dr_5d >= 0 ──────────────┘         │
+  │          │                (fall through to stateless)        │
+  └──────────┴──────────── (can re-enter from any phase) ────────┘
+```
+
+**Decision priority (evaluated in order):**
+1. `crash`: overwhelming negative momentum → highest priority
+2. `decline`: sustained negative momentum with weak market breadth
+3. `recovery` (stateful): bridge state after crash/decline, persists until dr_5d >= 0
+4. `sideways` (stateless): 10-day cumulative return near zero, not strongly up from trough
+5. `uptrend` (stateless): strong positive momentum with established uptrend
+6. `normal`: everything else
+
+### 2.2 Algorithm (scoring.py `_compute_phase_multipliers`)
 
 ```python
-def _compute_phase_multipliers(self):
-    config = self._strategy_config
-    if not config or not config.use_phase_strategy:
-        return 1.0, 1.0, "normal"
-    dr_values = self._daily_rebalanced_values
-    if len(dr_values) < 6:
-        return 1.0, 1.0, "normal"
+def _compute_phase_multipliers(self, daily_rebalanced_values, current_phase="normal"):
+    # ... (existing scale/crash_th/recovery_th/decline_bar calc) ...
 
-    dr_5d = (dr_values[-1] - dr_values[-6]) / dr_values[-6]
-    lp_buffer = self._low_pct_buffer
-    low_5d = (lp_buffer[-1] - lp_buffer[-6]) if len(lp_buffer) >= 6 else 0.0
-
-    peak = max(dr_values)
-    trough = min(dr_values)
-    current = dr_values[-1]
-    drawdown = (current - peak) / peak if peak > 0 else 0.0
-    drawup = (current - trough) / trough if trough > 0 else 0.0
-
-    if drawup > 0.02:
-        scale = min(3.0, 1.0 + drawup * 5)
-        decline_bar = recovery_th * 0.66
-    elif drawdown < -0.03:
-        scale = max(0.5, 1.0 + drawdown * 2)
-        decline_bar = 0.0
-    else:
-        scale = 1.0
-        decline_bar = 0.0
-
-    crash_th = config.phase_crash_threshold * scale
-    recovery_th = config.phase_recovery_threshold * scale
-
-    if dr_5d < crash_th:
+    # Step 1: crash
+    if rebalanced_5d < crash_th:
         return 0.0, 1.0, "crash"
-    elif dr_5d < decline_bar and low_5d > 0:
+
+    # Step 2: decline
+    if rebalanced_5d < decline_bar and low_5d > 0:
         return 0.5, 1.0, "decline"
-    elif dr_5d < recovery_th and low_5d < 0:
+
+    # Step 3: recovery bridge (stateful)
+    if current_phase in ("crash", "decline"):
         return 1.0, 0.5, "recovery"
-    else:
-        return 1.0, 1.0, "normal"
+    if current_phase == "recovery":
+        if rebalanced_5d < 0:
+            return 1.0, 0.5, "recovery"
+        # dr_5d >= 0: exit recovery, fall through to stateless check
+
+    # Step 4: sideways
+    cum_10d = (values[-1] / values[-10]) - 1
+    if abs(cum_10d) < 0.02 and drawup < 0.15:
+        return 0.8, 0.8, "sideways"
+
+    # Step 5: uptrend (reserved, same coeffs as normal)
+    if rebalanced_5d > 0.02 and drawup > 0.10:
+        return 1.0, 1.0, "uptrend"
+
+    return 1.0, 1.0, "normal"
 ```
 
 ### 2.2 How Peak/Trough Work
@@ -304,6 +321,8 @@ const phaseColors: Record<string, string> = {
   crash:   'rgba(244, 67, 54, 0.12)',
   decline: 'rgba(255, 152, 0, 0.10)',
   recovery: 'rgba(76, 175, 80, 0.10)',
+  sideways: 'rgba(158, 158, 158, 0.08)',
+  uptrend: 'rgba(33, 150, 243, 0.08)',
 }
 ```
 
@@ -332,7 +351,8 @@ formatter: (params) => {
   const phase = props.data[params[0].dataIndex]?.market_phase
   if (phase) {
     const phaseLabel: Record<string, string> = {
-      crash: '急跌', decline: '下跌', recovery: '企稳', normal: '正常',
+      crash: '急跌', decline: '下跌', recovery: '企稳',
+      sideways: '横盘', uptrend: '上涨', normal: '正常',
     }
     html += `<br>市场阶段: ${phaseLabel[phase] || phase}`
   }
@@ -349,15 +369,15 @@ formatter: (params) => {
 
 | File | Change | What |
 |------|--------|------|
-| `execution/scoring.py` | **Edit** | Drawdown/drawup scaling; remove median buffer, ranking_median_smoothed, 3-state regime |
-| `schemas.py` | **Edit** | Remove 3 fields from MarketDataEmbed |
+| `execution/scoring.py` | **Edit** | 6-phase state machine; drawdown/drawup scaling; remove median buffer |
+| `execution/baseline_tracker.py` | **New** | Extract from schemas.py |
+| `schemas.py` | **Edit** | Remove BaselineTracker class, 3 fields from MarketDataEmbed |
 | `dao/execution_daily_snapshot.py` | **Edit** | Remove `ranking_median`, `ranking_regime` |
 | `execution/backtest_service.py` | **Edit** | Remove 2 fields from snapshot response |
+| `execution/backtest_pipeline.py` | **Edit** | Pass BaselineTracker dr values to compute_market_regime |
 | `frontend/src/api/backtestRecord.ts` | **Edit** | Remove 2 fields from DailySnapshot, add `market_phase`, `buy_threshold_multiplier` |
-| `frontend/src/components/OverviewChart.vue` | **Edit** | Major chart redesign: phase zones, new series, removed median |
+| `frontend/src/components/OverviewChart.vue` | **Edit** | Major chart redesign: 6-phase zones, new series, removed median |
 | `frontend/src/views/BacktestRecordsView.vue` | **Edit** | Update mapping |
-| `scripts/analyze_regime.py` | **Edit** (optional) | Handle missing fields |
-| `scripts/analyze_phase_strategy.py` | **Edit** (optional) | Handle missing fields |
 | `docs/features-indicators.md` | **Edit** | Update field tables |
 
 ---
