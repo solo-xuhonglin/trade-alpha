@@ -16,8 +16,7 @@ from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.logging import get_logger
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.strategy.modes.trend_mode import TrendMode
-from trade_alpha.strategy.modes.mean_reversion_mode import MeanReversionMode
-from trade_alpha.strategy.modes.defensive_mode import DefensiveMode
+from trade_alpha.strategy.modes.rotation_mode import RotationMode
 
 logger = get_logger("strategy.multi_stock_strategy")
 
@@ -45,8 +44,8 @@ class MultiStockStrategy(BaseStrategy):
         self._full_position_consecutive_days = 0
         self._modes = {
             "up": TrendMode(self),
-            "flat": MeanReversionMode(self),
-            "down": DefensiveMode(self),
+            "flat": RotationMode(self),
+            "down": RotationMode(self),
         }
 
     async def make_orders(
