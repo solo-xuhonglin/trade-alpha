@@ -613,6 +613,11 @@ class ScoreManager:
         """Return score buffer for a stock."""
         return self._score_buffer.get(ts_code, [])
 
+    def get_rank_history(self, ts_code: str) -> List[int]:
+        """Return daily rank history for a stock, oldest first."""
+        records = self._rank_history.get(ts_code, [])
+        return [s.rank for s in records if s.rank > 0]
+
     @property
     def last_market_data(self) -> Optional[dict]:
         """Latest market data dict."""
