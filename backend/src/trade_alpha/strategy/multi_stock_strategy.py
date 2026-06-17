@@ -3,8 +3,6 @@
 from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.constants import (
-    REASON_NORMAL_BUY,
-    REASON_PRIORITY_RANK_UP,
     SELL_REASON_FULL_POSITION,
     SELL_REASON_HOLD_SCORE_LOW,
     SELL_REASON_MAX_HOLD_DAYS,
@@ -129,25 +127,6 @@ class MultiStockStrategy(BaseStrategy):
         if cost_basis <= 0:
             return False
         return current_price < cost_basis * (1 + effective_stop_loss)
-
-    @staticmethod
-    def check_common_sell(
-        position: PositionEmbed,
-        close_prices: Dict[str, float],
-        stop_loss_pct: float,
-        max_hold_days: int,
-        min_hold_days: int = 0,
-    ) -> Tuple[bool, str]:
-        """Common sell checks shared by all modes: stop-loss and max hold days.
-
-        When within min_hold_days, only stop-loss triggers a sell.
-        """
-        if MultiStockStrategy._is_stop_loss_triggered(position, close_prices, stop_loss_pct):
-            return True, SELL_REASON_STOP_LOSS
-
-        if position.hold_days >= min_hold_days and position.hold_days >= max_hold_days:
-            return True, SELL_REASON_MAX_HOLD_DAYS
-        return False, ""
 
     def _apply_full_position_sell(
         self,
