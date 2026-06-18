@@ -1,6 +1,8 @@
 """Pipeline context - holds runtime stateful references for backtest/suggestion."""
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.model_config import ModelConfig
@@ -8,6 +10,9 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
+
+if TYPE_CHECKING:
+    from trade_alpha.strategy.modes.base import PhaseMode
 
 
 class PipelineContext:
@@ -27,6 +32,7 @@ class PipelineContext:
         model_config: ModelConfig,
         predictor: Any = None,
         account_config: Optional[AccountConfig] = None,
+        mode_map: Optional[Dict[str, PhaseMode]] = None,
     ):
         self.data_loader = data_loader
         self.score_manager = score_manager
@@ -35,3 +41,4 @@ class PipelineContext:
         self.strategy_config = strategy_config
         self.model_config = model_config
         self.account_config = account_config
+        self.mode_map = mode_map or {}

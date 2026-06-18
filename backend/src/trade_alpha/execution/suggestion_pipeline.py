@@ -22,6 +22,8 @@ from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
+from trade_alpha.strategy.modes.trend_mode import TrendMode
+from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.schemas import ScoredStock, MarketDataEmbed
 from trade_alpha.logging import get_logger
 
@@ -77,6 +79,11 @@ class SuggestionPipeline:
             predictor=self.predictor,
             strategy_config=self.strategy_config,
             model_config=self.model_config,
+            mode_map={
+                "up": TrendMode(),
+                "flat": RotationMode(),
+                "down": RotationMode(),
+            },
         )
 
         # Strategy for decision making

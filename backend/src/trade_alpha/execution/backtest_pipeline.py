@@ -18,6 +18,8 @@ from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
+from trade_alpha.strategy.modes.trend_mode import TrendMode
+from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.baseline_tracker import BaselineTracker
@@ -88,6 +90,11 @@ class BacktestPipeline:
             strategy_config=self.strategy_config,
             model_config=self.model_config,
             account_config=self.account_config,
+            mode_map={
+                "up": TrendMode(),
+                "flat": RotationMode(),
+                "down": RotationMode(),
+            },
         )
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
