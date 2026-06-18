@@ -116,6 +116,7 @@ class SuggestionPipeline:
             "low": dict(zip(day_df["ts_code"], day_df["low"])),
             "close": dict(zip(day_df["ts_code"], day_df["close"])),
             "vol": dict(zip(day_df["ts_code"], day_df["vol"])),
+            "atr_14": dict(zip(day_df["ts_code"], day_df.get("atr_14", {}))),
         }
 
     async def run(
@@ -257,6 +258,8 @@ class SuggestionPipeline:
 
                     market_data = self.market_analyzer.last_result
 
+                    atr_values = day_data.get("atr_14", {})
+
                     # Generate buy/sell suggestions
                     pending_orders = await self.strategy.make_orders(
                         scored_stocks=list(stock_map.values()),
@@ -264,6 +267,7 @@ class SuggestionPipeline:
                         ctx=self.ctx,
                         close_prices=close_prices,
                         market_data=market_data,
+                        atr_values=atr_values,
                         suggestion_mode=True,
                     )
 

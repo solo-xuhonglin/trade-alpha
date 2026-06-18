@@ -39,6 +39,7 @@ class SingleStockStrategy(BaseStrategy):
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
+        atr_values: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
         """Make decisions based on prediction probabilities.
 
@@ -77,6 +78,7 @@ class SingleStockStrategy(BaseStrategy):
             logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
             success, shares, _fee = ctx.portfolio.reserve_funds(
                 self.target_ts_code, target_stock.close, close_prices,
+                atr=atr_values.get(self.target_ts_code, 0.0) if atr_values else 0.0,
             )
             if success:
                 orders.append(PendingOrder(

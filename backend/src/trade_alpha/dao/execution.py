@@ -74,8 +74,6 @@ class StrategySnapshotEmbed(BaseModel):
     retention_days: int = 5
     correlation_window: int = 5
     use_phase_strategy: bool = True
-    phase_crash_threshold: float = -0.06
-    phase_recovery_threshold: float = -0.03
     rotation_bottom_threshold: int = 60
     rotation_rank_min: int = 45
     rotation_rank_max: int = 75

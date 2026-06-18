@@ -85,6 +85,7 @@ class StockDaily(Document):
     week_close: Optional[float] = None
     week_vol_avg: Optional[float] = None
     week_amount_avg: Optional[float] = None
+    atr_14: Optional[float] = None
 
     class Settings:
         name = "stock_daily"

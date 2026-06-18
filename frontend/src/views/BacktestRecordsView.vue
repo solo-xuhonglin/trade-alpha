@@ -520,6 +520,10 @@
             </v-row>
             <v-row class="py-0">
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">止损比例：</span>{{ backtestStrategyConfig?.stop_loss_pct ? (backtestStrategyConfig.stop_loss_pct * 100).toFixed(0) + '%' : '-' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">ATR止损乘数：</span>{{ backtestStrategyConfig?.atr_stop_multiplier ?? '3.0' }}</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">ATR上移比例：</span>{{ backtestStrategyConfig?.atr_trail_rate ?? '0.5' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最大持仓天数：</span>{{ backtestStrategyConfig?.max_hold_days ?? '-' }}</v-col>
             </v-row>
             <v-row class="py-0">
@@ -640,10 +644,6 @@
                   &nbsp;急跌空仓 / 企稳低阈值建仓
                 </span>
               </v-col>
-            </v-row>
-            <v-row class="py-0">
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">急跌阈值：</span>{{ backtestStrategyConfig?.phase_crash_threshold ?? '-0.06' }}</v-col>
-              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">企稳阈值：</span>{{ backtestStrategyConfig?.phase_recovery_threshold ?? '-0.03' }}</v-col>
             </v-row>
 
             <v-divider class="my-2" />
@@ -945,6 +945,8 @@ const strategyCompareFields: CompareField[] = [
   { key: 'type', label: '策略类型' },
   { key: 'min_order_value', label: '最小订单金额', group: '基本配置', type: 'number' },
   { key: 'stop_loss_pct', label: '止损比例', group: '基本配置', type: 'number' },
+  { key: 'atr_stop_multiplier', label: 'ATR止损乘数', group: '基本配置', type: 'number' },
+  { key: 'atr_trail_rate', label: 'ATR上移比例', group: '基本配置', type: 'number' },
   { key: 'max_hold_days', label: '最大持仓天数', group: '基本配置', type: 'number' },
   { key: 'min_hold_days', label: '最低持有天数', group: '基本配置', type: 'number' },
   { key: 'buy_threshold', label: '买入阈值', group: '基本配置', type: 'number' },
@@ -984,8 +986,6 @@ const strategyCompareFields: CompareField[] = [
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
   { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
   { key: 'use_phase_strategy', label: '启用市场阶段策略', group: '市场分析', type: 'boolean' },
-  { key: 'phase_crash_threshold', label: '急跌阈值', group: '市场分析', type: 'number' },
-  { key: 'phase_recovery_threshold', label: '企稳阈值', group: '市场分析', type: 'number' },
   { key: 'rotation_bottom_threshold', label: '轮动回调深度阈值', group: '轮动参数', type: 'number' },
   { key: 'rotation_rank_min', label: '排名上限', group: '轮动参数', type: 'number' },
   { key: 'rotation_rank_max', label: '排名下限', group: '轮动参数', type: 'number' },
@@ -1395,7 +1395,8 @@ const loadMarketData = async () => {
       top_n_retention_rate_smoothed: s.top_n_retention_rate_smoothed ?? 0,
       score_return_corr_smoothed: s.score_return_corr_smoothed ?? 0,
     }))
-    marketTrendThreshold.value = (selectedResult.value as any).strategy_snapshot?.phase_crash_threshold ?? -0.06
+    // No longer using phase_crash_threshold for market trend
+    marketTrendThreshold.value = -0.06
   } catch (e) {
     marketChartData.value = []
   }

@@ -81,6 +81,8 @@ class BacktestPipeline:
             max_positions=getattr(strategy_config, 'max_positions', 10),
             max_position_pct=getattr(strategy_config, 'max_position_pct', 0.3),
             min_order_value=getattr(strategy_config, 'min_order_value', 5000.0),
+            atr_stop_multiplier=getattr(strategy_config, 'atr_stop_multiplier', 3.0),
+            atr_trail_rate=getattr(strategy_config, 'atr_trail_rate', 0.5),
         )
         self.score_manager = ScoreManager(strategy_config, model_config)
         self.market_analyzer = MarketRegimeAnalyzer(strategy_config)
@@ -169,6 +171,7 @@ class BacktestPipeline:
             "low": dict(zip(day_df["ts_code"], day_df["low"])),
             "close": dict(zip(day_df["ts_code"], day_df["close"])),
             "vol": dict(zip(day_df["ts_code"], day_df["vol"])),
+            "atr_14": dict(zip(day_df["ts_code"], day_df.get("atr_14", {}))),
         }
 
     async def _settle_orders(
@@ -419,12 +422,15 @@ class BacktestPipeline:
 
             market_data = self.market_analyzer.last_result
 
+            atr_values = day_data.get("atr_14", {})
+
             pending_orders = await self.strategy.make_orders(
                 scored_stocks=list(stock_map.values()),
                 trade_date=date,
                 ctx=self.ctx,
                 close_prices=close_prices,
                 market_data=market_data,
+                atr_values=atr_values,
             )
 
             # Mark forced-sell orders for snapshot reporting

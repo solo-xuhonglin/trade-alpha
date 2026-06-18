@@ -57,6 +57,7 @@ class MultiStockStrategy(BaseStrategy):
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
+        atr_values: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
         # ── 1. Filter scored_stocks ──
         if self.ts_codes:
@@ -147,6 +148,7 @@ class MultiStockStrategy(BaseStrategy):
                 continue
             success, shares, _fee = ctx.portfolio.reserve_funds(
                 cand.stock.ts_code, cand.stock.close, close_prices,
+                atr=atr_values.get(cand.stock.ts_code, 0.0) if atr_values else 0.0,
             )
             if not success:
                 continue

@@ -35,6 +35,8 @@ class PortfolioManager:
         max_positions: int = 10,
         max_position_pct: float = 0.1,
         min_order_value: float = 5000,
+        atr_stop_multiplier: float = 3.0,
+        atr_trail_rate: float = 0.5,
     ):
         self._cash_available: float = initial_capital if account_config is not None else 0
         self._cash_reserved: float = 0.0
@@ -44,6 +46,8 @@ class PortfolioManager:
         self._max_positions = max_positions
         self._max_position_pct = max_position_pct
         self._min_order_value = min_order_value
+        self._atr_stop_multiplier = atr_stop_multiplier
+        self._atr_trail_rate = atr_trail_rate
 
     # ------------------------------------------------------------------
     # Properties (backward compatible)
@@ -74,7 +78,8 @@ class PortfolioManager:
 
     def reserve_funds(self, ts_code: str, price: float,
                       close_prices: Dict[str, float],
-                      max_position_scalar: float = 1.0) -> Tuple[bool, int, float]:
+                      max_position_scalar: float = 1.0,
+                      atr: float = 0.0) -> Tuple[bool, int, float]:
         """Reserve cash for a buy order.
 
         close_prices is used to calculate total portfolio value
@@ -131,7 +136,7 @@ class PortfolioManager:
         self._pending_buys[ts_code] = PendingBuy(
             ts_code=ts_code, stock_name="",
             order_shares=shares, order_price=price,
-            estimated_fee=fee,
+            estimated_fee=fee, atr_at_entry=atr,
         )
         return True, shares, fee
 
@@ -152,7 +157,8 @@ class PortfolioManager:
             matched_cost = order_shares * matched_price
             matched_fee = self.calc_buy_fee(matched_cost)
             self._cash_available -= matched_cost + matched_fee
-            return self._upsert_position(ts_code, stock_name, order_shares, matched_price, matched_fee)
+            return self._upsert_position(ts_code, stock_name, order_shares, matched_price, matched_fee,
+                                         atr_at_entry=0.0)
 
         self._cash_reserved -= pending.reserved_cash
         self._cash_available += pending.reserved_cash
@@ -161,11 +167,14 @@ class PortfolioManager:
         matched_fee = self.calc_buy_fee(matched_cost)
         self._cash_available -= matched_cost + matched_fee
 
-        self._upsert_position(ts_code, stock_name, order_shares, matched_price, matched_fee)
+        atr_at_entry = pending.atr_at_entry if pending else 0.0
+        self._upsert_position(ts_code, stock_name, order_shares, matched_price, matched_fee,
+                              atr_at_entry=atr_at_entry)
 
     def _upsert_position(self, ts_code: str, stock_name: str,
                          order_shares: int, matched_price: float,
-                         matched_fee: float) -> None:
+                         matched_fee: float,
+                         atr_at_entry: float = 0.0) -> None:
         """Create or merge a position record."""
         existing = self.positions.get(ts_code)
         if existing:
@@ -179,6 +188,7 @@ class PortfolioManager:
                 peak_price=max(existing.peak_price, matched_price),
                 entry_score=0, entry_3d_prob=0, entry_5d_prob=0,
                 hold_days=existing.hold_days,
+                atr_at_entry=existing.atr_at_entry,
             )
         else:
             self.positions[ts_code] = PositionEmbed(
@@ -187,6 +197,7 @@ class PortfolioManager:
                 shares=order_shares, fee=matched_fee,
                 peak_price=matched_price,
                 entry_score=0, entry_3d_prob=0, entry_5d_prob=0, entry_10d_prob=0, entry_20d_prob=0, hold_days=0,
+                atr_at_entry=atr_at_entry,
             )
 
     def settle_sell(self, ts_code: str, shares: int, price: float) -> None:
@@ -248,11 +259,14 @@ class PortfolioManager:
         stop_loss_pct: float,
         vol_multiplier: float = 1.0,
     ) -> bool:
-        """Check if position has hit stop-loss based on peak drawdown or cost floor.
+        """Check if position has hit ATR-based trailing stop.
 
-        Two checks (OR-ed):
-          1. Trailing stop: current price < peak_price * (1 + stop_loss_pct * vol_multiplier)
-          2. Cost floor:    current price < cost_basis * (1 + stop_loss_pct)
+        ATR logic (per-stock volatility):
+          stop_price = buy_price - atr_stop_multiplier * ATR * vol_mult
+          + dynamic up-move: each 1xATR gain raises stop by trail_rate * ATR * vol_mult
+          + hard floor: buy_price * (1 + stop_loss_pct)
+
+        Falls back to pure percentage stop when no ATR data available.
         """
         position = self.positions.get(ts_code)
         if position is None:
@@ -261,16 +275,21 @@ class PortfolioManager:
         if current_price is None:
             return False
 
-        # 1. Trailing stop: drawdown from peak, adjusted by volatility
-        effective_stop = stop_loss_pct * vol_multiplier
-        if current_price < position.peak_price * (1 + effective_stop):
-            return True
+        atr = position.atr_at_entry
+        if atr > 0:
+            stop_distance = self._atr_stop_multiplier * atr * vol_multiplier
+            stop_price = position.buy_price - stop_distance
+            gain = max(position.peak_price - position.buy_price, 0)
+            atr_units = gain / atr
+            trail_raise = atr_units * self._atr_trail_rate * atr * vol_multiplier
+            stop_price = stop_price + trail_raise
+        else:
+            stop_price = position.buy_price * (1 + stop_loss_pct)
 
-        # 2. Cost floor: never exceed base stop-loss from cost basis
-        cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
-        if cost_basis <= 0:
-            return False
-        return current_price < cost_basis * (1 + stop_loss_pct)
+        min_stop = position.buy_price * (1 + stop_loss_pct)
+        stop_price = max(stop_price, min_stop)
+
+        return current_price < stop_price
 
     # ------------------------------------------------------------------
     # Fee helpers (internal, also usable by pipeline for PnL/total_fees)

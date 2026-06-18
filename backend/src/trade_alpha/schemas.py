@@ -81,6 +81,7 @@ class PendingBuy(BaseModel):
     order_price: float
     estimated_fee: float
     entry_score: float = 0.0
+    atr_at_entry: float = 0.0
 
     @property
     def reserved_cash(self) -> float:

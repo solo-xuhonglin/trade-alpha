@@ -101,6 +101,18 @@
                     persistent-hint
                   ></v-text-field>
                 </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.atr_stop_multiplier" type="number" step="0.5" min="1" max="10"
+                    label="ATR止损乘数" hint="止损=入场价 - 乘数×ATR（默认3.0）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.atr_trail_rate" type="number" step="0.1" min="0" max="1"
+                    label="ATR上移比例" hint="每涨1倍ATR止损上移此比例×ATR（默认0.5）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field
                     v-model="form.max_hold_days"
@@ -297,28 +309,6 @@
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.market_smooth_alpha" type="number" step="0.05" min="0.05" max="0.95"
                     label="市场平滑系数" hint="EMA 平滑系数，为空则用 2/(window+1)" persistent-hint />
-                </v-col>
-              </v-row>
-
-              <v-divider class="my-3"></v-divider>
-
-              <v-row>
-                <v-col cols="12">
-                  <div class="text-body-2 mb-2">
-                    <v-icon size="small" class="mr-1">mdi-chart-bell-curve</v-icon>
-                    市场阶段阈值
-                    <v-chip size="x-small" variant="outlined" color="info">基于每日重平衡基线(5日变化率) + 低分占比变化</v-chip>
-                  </div>
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.phase_crash_threshold" type="number" step="0.01"
-                    label="急跌阈值" hint="基线5日变化低于此值 -> 急跌空仓（默认 -0.06）" persistent-hint />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.phase_recovery_threshold" type="number" step="0.01"
-                    label="企稳阈值" hint="基线5日变化高于此值且恐慌消退 -> 低阈值建仓（默认 -0.03）" persistent-hint />
                 </v-col>
               </v-row>
 
@@ -557,6 +547,18 @@
                 persistent-hint
               ></v-text-field>
             </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.atr_stop_multiplier" type="number" step="0.5" min="1" max="10"
+                label="ATR止损乘数" hint="止损=入场价 - 乘数×ATR（默认3.0）" persistent-hint />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.atr_trail_rate" type="number" step="0.1" min="0" max="1"
+                label="ATR上移比例" hint="每涨1倍ATR止损上移此比例×ATR（默认0.5）" persistent-hint />
+            </v-col>
+          </v-row>
+          <v-row>
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="form.max_hold_days"
@@ -646,6 +648,8 @@ const form = ref({
   min_hold_days: 5,
   buy_threshold: 0.2,
   sell_threshold: -0.01,
+  atr_stop_multiplier: 3.0,
+  atr_trail_rate: 0.5,
   max_positions: 10,
   max_position_pct: 0.1,
   sell_rank_n: 15,
@@ -698,6 +702,8 @@ const compareFields: CompareField[] = [
   { key: 'type', label: '策略类型' },
   { key: 'min_order_value', label: '最小订单金额', group: '基本配置', type: 'number' },
   { key: 'stop_loss_pct', label: '止损比例', group: '基本配置', type: 'number' },
+  { key: 'atr_stop_multiplier', label: 'ATR止损乘数', group: '基本配置', type: 'number' },
+  { key: 'atr_trail_rate', label: 'ATR上移比例', group: '基本配置', type: 'number' },
   { key: 'max_hold_days', label: '最大持仓天数', group: '基本配置', type: 'number' },
   { key: 'min_hold_days', label: '最低持有天数', group: '基本配置', type: 'number' },
   { key: 'buy_threshold', label: '买入阈值', group: '基本配置', type: 'number' },
@@ -738,8 +744,6 @@ const compareFields: CompareField[] = [
   { key: 'rank_up_min_score', label: '最低评分', group: '交易优化', type: 'number' },
   { key: 'rank_up_min_improvement_pct', label: '最小提升比例', group: '交易优化', type: 'number' },
   { key: 'use_phase_strategy', label: '启用市场阶段策略', group: '市场分析', type: 'boolean' },
-  { key: 'phase_crash_threshold', label: '急跌阈值', group: '市场分析', type: 'number' },
-  { key: 'phase_recovery_threshold', label: '企稳阈值', group: '市场分析', type: 'number' },
   { key: 'market_smooth_alpha', label: '市场平滑系数', group: '市场分析', type: 'number' },
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
@@ -773,6 +777,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       min_hold_days: item.min_hold_days ?? 5,
       buy_threshold: item.buy_threshold ?? 0.2,
       sell_threshold: item.sell_threshold ?? -0.01,
+      atr_stop_multiplier: item.atr_stop_multiplier ?? 3.0,
+      atr_trail_rate: item.atr_trail_rate ?? 0.5,
       max_positions: item.max_positions ?? 10,
       max_position_pct: item.max_position_pct ?? 0.1,
       sell_rank_n: item.sell_rank_n ?? 15,
@@ -821,8 +827,6 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       retention_days: item.retention_days ?? 5,
       correlation_window: item.correlation_window ?? 5,
       use_phase_strategy: item.use_phase_strategy ?? true,
-      phase_crash_threshold: item.phase_crash_threshold ?? -0.06,
-      phase_recovery_threshold: item.phase_recovery_threshold ?? -0.03,
       rotation_bottom_threshold: item.rotation_bottom_threshold ?? 60,
       rotation_rank_min: item.rotation_rank_min ?? 45,
       rotation_rank_max: item.rotation_rank_max ?? 75,
@@ -842,6 +846,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       min_hold_days: 5,
       buy_threshold: 0.2,
       sell_threshold: -0.01,
+      atr_stop_multiplier: 3.0,
+      atr_trail_rate: 0.5,
       max_positions: 10,
       max_position_pct: 0.1,
       sell_rank_n: 15,
@@ -881,8 +887,6 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       retention_days: 5,
       correlation_window: 5,
       use_phase_strategy: true,
-      phase_crash_threshold: -0.06,
-      phase_recovery_threshold: -0.03,
       rotation_bottom_threshold: 60,
       rotation_rank_min: 45,
       rotation_rank_max: 75,
@@ -901,6 +905,8 @@ const saveStrategy = async () => {
       name: form.value.name,
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
+      atr_stop_multiplier: form.value.atr_stop_multiplier,
+      atr_trail_rate: form.value.atr_trail_rate,
       max_hold_days: form.value.max_hold_days,
       min_hold_days: form.value.min_hold_days,
       buy_threshold: form.value.buy_threshold,
@@ -944,8 +950,6 @@ const saveStrategy = async () => {
       retention_days: form.value.retention_days,
       correlation_window: form.value.correlation_window,
       use_phase_strategy: form.value.use_phase_strategy,
-      phase_crash_threshold: form.value.phase_crash_threshold,
-      phase_recovery_threshold: form.value.phase_recovery_threshold,
       rotation_bottom_threshold: form.value.rotation_bottom_threshold,
       rotation_rank_min: form.value.rotation_rank_min,
       rotation_rank_max: form.value.rotation_rank_max,
@@ -960,6 +964,8 @@ const saveStrategy = async () => {
       type: form.value.type,
       min_order_value: form.value.min_order_value,
       stop_loss_pct: form.value.stop_loss_pct,
+      atr_stop_multiplier: form.value.atr_stop_multiplier,
+      atr_trail_rate: form.value.atr_trail_rate,
       max_hold_days: form.value.max_hold_days,
       min_hold_days: form.value.min_hold_days,
       buy_threshold: form.value.buy_threshold,
@@ -1003,8 +1009,6 @@ const saveStrategy = async () => {
       retention_days: form.value.retention_days,
       correlation_window: form.value.correlation_window,
       use_phase_strategy: form.value.use_phase_strategy,
-      phase_crash_threshold: form.value.phase_crash_threshold,
-      phase_recovery_threshold: form.value.phase_recovery_threshold,
       rotation_bottom_threshold: form.value.rotation_bottom_threshold,
       rotation_rank_min: form.value.rotation_rank_min,
       rotation_rank_max: form.value.rotation_rank_max,

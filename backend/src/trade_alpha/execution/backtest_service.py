@@ -732,6 +732,7 @@ async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[st
                 "unrealized_pnl_pct": round(cp / pos.buy_price - 1, 4) if pos.buy_price > 0 else 0.0,
                 "hold_days": pos.hold_days,
                 "entry_score": pos.entry_score,
+                "atr_at_entry": pos.atr_at_entry,
             })
 
         day_trades = trades_by_date.get(snap.date, [])

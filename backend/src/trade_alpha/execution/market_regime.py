@@ -6,8 +6,6 @@ Extracted from ScoreManager to separate stock scoring from market analysis.
 import math
 from typing import Dict, List, Optional
 
-import numpy as np
-
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import MarketDataEmbed, ScoredStock
@@ -78,7 +76,6 @@ class MarketRegimeAnalyzer:
         # --- Market buffers ---
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
-        self._cum_values_buffer: List[float] = []  # for baseline vol computation
         self._last_result: Optional[MarketDataEmbed] = None
 
     # ------------------------------------------------------------------
@@ -333,22 +330,27 @@ class MarketRegimeAnalyzer:
     def _compute_baseline_volatility(
         self, daily_rebalanced_values: Optional[List[float]] = None
     ) -> None:
-        """Compute baseline volatility multiplier for adaptive stop-loss."""
-        if daily_rebalanced_values and len(daily_rebalanced_values) >= 2:
-            cum_value = daily_rebalanced_values[-1]
-            if cum_value > 0:
-                self._cum_values_buffer.append(cum_value)
-        vol_window = getattr(self._strategy_config, 'baseline_vol_window', 20)
-        vol_window_mult = getattr(self._strategy_config, 'baseline_vol_ref_multiplier', 3)
-        ref_window = vol_window * vol_window_mult
-        values = self._cum_values_buffer
-        if len(values) > ref_window:
-            returns = [(values[i] - values[i - 1]) / values[i - 1] for i in range(-ref_window, 0)]
-            rolling_vol = float(np.std(returns[-vol_window:]))
-            ref_vol = float(np.std(returns))
-            if ref_vol > 0:
-                multiplier = rolling_vol / ref_vol
-                self._last_result.baseline_vol_multiplier = max(0.5, min(3.0, multiplier))
+        if not daily_rebalanced_values or len(daily_rebalanced_values) < 2:
+            return
+
+        abs_returns = []
+        prev = daily_rebalanced_values[0]
+        for v in daily_rebalanced_values[1:]:
+            r = abs((v - prev) / prev)
+            abs_returns.append(r)
+            prev = v
+
+        if len(abs_returns) < 2:
+            return
+
+        short_ema = abs_returns[0]
+        long_ema = abs_returns[0]
+        for v in abs_returns[1:]:
+            short_ema = 0.15 * v + 0.85 * short_ema
+            long_ema = 0.05 * v + 0.95 * long_ema
+
+        multiplier = short_ema / long_ema if long_ema > 0 else 1.0
+        self._last_result.baseline_vol_multiplier = max(0.5, min(3.0, multiplier))
 
     @property
     def last_result(self) -> Optional[MarketDataEmbed]:

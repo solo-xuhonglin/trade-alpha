@@ -56,10 +56,8 @@ class StrategyConfig(Document):
     retention_days: int = 5
     correlation_window: int = 5
     use_phase_strategy: bool = True
-    phase_crash_threshold: float = -0.06
-    phase_recovery_threshold: float = -0.03
-    baseline_vol_window: int = 20
-    baseline_vol_ref_multiplier: int = 3
+    atr_stop_multiplier: float = 3.0
+    atr_trail_rate: float = 0.5
     # Rotation mode params
     rotation_bottom_threshold: int = 60
     rotation_rank_min: int = 45

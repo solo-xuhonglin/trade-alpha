@@ -46,6 +46,7 @@ class BaseStrategy:
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
+        atr_values: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
         """Make buy/sell decisions (to be implemented by subclasses)."""
         raise NotImplementedError("Subclasses must implement make_orders")
@@ -183,6 +184,7 @@ class BaseStrategy:
                 entry_10d_prob=pos.entry_10d_prob,
                 entry_20d_prob=pos.entry_20d_prob,
                 hold_days=pos.hold_days,
+                atr_at_entry=pos.atr_at_entry,
             )
             pos_list.append(updated_pos)
 

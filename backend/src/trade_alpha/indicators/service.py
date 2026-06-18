@@ -285,6 +285,7 @@ async def calculate_and_store_custom_indicators(
             "week_close": row.get("week_close"),
             "week_vol_avg": row.get("week_vol_avg"),
             "week_amount_avg": row.get("week_amount_avg"),
+            "atr_14": row.get("atr_14"),
         }
         await StockDaily.find_one(
             StockDaily.ts_code == ts_code,
@@ -313,4 +314,5 @@ ALL_INDICATOR_FIELDS = [
     "obv", "obv_chg_5", "obv_chg_10", "obv_chg_20",
     "candle_body_pct", "candle_upper_pct", "candle_lower_pct",
     "close_location_pct", "gap_pct", "gap_fill_pct",
+    "atr_14",
 ]

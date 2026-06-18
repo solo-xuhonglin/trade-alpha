@@ -86,9 +86,9 @@ class StrategyCreateRequest(BaseModel):
     top_n_retention: Optional[int] = None
     retention_days: Optional[int] = None
     correlation_window: Optional[int] = None
+    atr_stop_multiplier: Optional[float] = None
+    atr_trail_rate: Optional[float] = None
     use_phase_strategy: Optional[bool] = None
-    phase_crash_threshold: Optional[float] = None
-    phase_recovery_threshold: Optional[float] = None
     rotation_bottom_threshold: Optional[int] = None
     rotation_rank_min: Optional[int] = None
     rotation_rank_max: Optional[int] = None
@@ -144,9 +144,9 @@ class StrategyUpdateRequest(BaseModel):
     top_n_retention: Optional[int] = None
     retention_days: Optional[int] = None
     correlation_window: Optional[int] = None
+    atr_stop_multiplier: Optional[float] = None
+    atr_trail_rate: Optional[float] = None
     use_phase_strategy: Optional[bool] = None
-    phase_crash_threshold: Optional[float] = None
-    phase_recovery_threshold: Optional[float] = None
     rotation_bottom_threshold: Optional[int] = None
     rotation_rank_min: Optional[int] = None
     rotation_rank_max: Optional[int] = None

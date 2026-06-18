@@ -49,8 +49,8 @@ export interface Strategy {
   retention_days?: number
   correlation_window?: number
   use_phase_strategy?: boolean
-  phase_crash_threshold?: number
-  phase_recovery_threshold?: number
+  atr_stop_multiplier?: number
+  atr_trail_rate?: number
   rotation_bottom_threshold?: number
   rotation_rank_min?: number
   rotation_rank_max?: number
