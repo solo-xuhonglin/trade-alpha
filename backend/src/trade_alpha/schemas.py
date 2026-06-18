@@ -1,5 +1,6 @@
 """Shared data structures used across modules."""
 
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
@@ -99,3 +100,10 @@ class MarketDataEmbed(BaseModel):
     buy_threshold_multiplier: float = 1.0
     market_phase: str = ""
     baseline_vol_multiplier: float = 1.0
+
+
+@dataclass
+class BuyCandidate:
+    """A stock recommended by the mode for purchase, with buy reason."""
+    stock: ScoredStock
+    reason: str = ""
