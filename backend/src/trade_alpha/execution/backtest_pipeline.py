@@ -8,6 +8,7 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
+from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.dao.execution_trade import ExecutionTrade
 from trade_alpha.dao.stock_name_cache import get_stock_name
@@ -82,9 +83,11 @@ class BacktestPipeline:
             min_order_value=getattr(strategy_config, 'min_order_value', 5000.0),
         )
         self.score_manager = ScoreManager(strategy_config, model_config)
+        self.market_analyzer = MarketRegimeAnalyzer(strategy_config)
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
             score_manager=self.score_manager,
+            market_analyzer=self.market_analyzer,
             portfolio=self.portfolio,
             predictor=self.predictor,
             strategy_config=self.strategy_config,
@@ -251,8 +254,8 @@ class BacktestPipeline:
             prev_total_value=prev_total_value, predictions=stock_map,
             baseline_value=baseline_value,
         )
-        if self.score_manager.last_market_data:
-            updates = dict(self.score_manager.last_market_data)
+        if self.market_analyzer.last_market_data:
+            updates = dict(self.market_analyzer.last_market_data)
             tv = snapshot.total_value
             if tv > 0:
                 updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
@@ -306,12 +309,13 @@ class BacktestPipeline:
                 data_loader=self.data_loader,
                 date=date,
                 close_prices=close_prices,
+                market_analyzer=self.market_analyzer,
             )
             if not stock_map:
                 date = _next_date(date)
                 continue
 
-            self.score_manager.compute_market_regime(
+            self.market_analyzer.analyze(
                 stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
             )
             day_count += 1
@@ -400,19 +404,19 @@ class BacktestPipeline:
                 data_loader=self.data_loader,
                 date=date,
                 close_prices=close_prices,
+                market_analyzer=self.market_analyzer,
             )
             if not stock_map:
                 date = _next_date(date)
                 continue
 
-            self.score_manager.compute_market_regime(
+            self.market_analyzer.analyze(
                 stock_map,
                 daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
-                daily_rebalanced_cum=baseline_tracker.daily_rebalanced_cum,
             )
 
-            market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
-                if self.score_manager.last_market_data else None
+            market_data = MarketDataEmbed(**self.market_analyzer.last_market_data) \
+                if self.market_analyzer.last_market_data else None
 
             pending_orders = await self.strategy.make_orders(
                 scored_stocks=list(stock_map.values()),

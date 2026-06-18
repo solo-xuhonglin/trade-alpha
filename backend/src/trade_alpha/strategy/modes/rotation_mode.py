@@ -30,7 +30,6 @@ class RotationMode(PhaseMode):
         market_data: Optional[MarketDataEmbed] = None,
     ) -> List[BuyCandidate]:
         config = ctx.strategy_config
-        score_manager = ctx.score_manager
         hold_ts_codes = set(ctx.portfolio.positions.keys())
 
         candidates: List[BuyCandidate] = []
@@ -43,17 +42,19 @@ class RotationMode(PhaseMode):
             if not (config.rotation_rank_min <= st.rank <= config.rotation_rank_max):
                 continue
 
-            rank_history = score_manager.get_rank_history(st.ts_code) if score_manager else []
-            if len(rank_history) < 6:
+            rank_history = ctx.market_analyzer.get_rank_history(st.ts_code) if ctx.market_analyzer else []
+            pw = config.rotation_pullback_window
+            rw = config.rotation_reversal_window
+            if len(rank_history) < max(pw, rw) + 1:
                 continue
-            was_top = any(r <= config.rotation_was_top_n for r in rank_history[:-5])
-            recent_bottom = any(r >= config.rotation_bottom_threshold for r in rank_history[-5:])
+            was_top = any(r <= config.rotation_was_top_n for r in rank_history[:-pw])
+            recent_bottom = any(r >= config.rotation_bottom_threshold for r in rank_history[-pw:])
             if not (was_top and recent_bottom):
                 continue
-            # Reversal check: today's rank should be better than recent 5-day average
+            # Reversal check: today's rank should be better than recent average
             if config.rotation_use_reversal_check:
-                avg_rank_5d = sum(rank_history[-6:-1]) / 5
-                if st.rank >= avg_rank_5d:
+                avg = sum(rank_history[-(rw + 1):-1]) / rw
+                if st.rank >= avg:
                     continue
             candidates.append(BuyCandidate(stock=st, reason="rotation_buy"))
 

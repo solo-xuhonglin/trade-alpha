@@ -17,6 +17,7 @@ from trade_alpha.dao.live_portfolio import LivePortfolio
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.execution.data_loader import DataLoader
+from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.models.factory import create_classifier, create_predictor
@@ -62,6 +63,7 @@ class SuggestionPipeline:
         self.data_loader = DataLoader()
         self.predictor = None
         self.score_manager = ScoreManager(strategy_config, model_config)
+        self.market_analyzer = MarketRegimeAnalyzer(strategy_config)
 
         # Must create portfolio before PipelineContext (it requires portfolio)
         self.portfolio = PortfolioManager(
@@ -75,6 +77,7 @@ class SuggestionPipeline:
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
             score_manager=self.score_manager,
+            market_analyzer=self.market_analyzer,
             portfolio=self.portfolio,
             predictor=self.predictor,
             strategy_config=self.strategy_config,
@@ -204,12 +207,13 @@ class SuggestionPipeline:
                     data_loader=self.data_loader,
                     date=date,
                     close_prices=close_prices,
+                    market_analyzer=self.market_analyzer,
                 )
                 if not stock_map:
                     date = _next_date(date)
                     continue
 
-                self.score_manager.compute_market_regime(stock_map)
+                self.market_analyzer.analyze(stock_map)
 
                 # Only save if this date is a target date
                 if date in target_set:
@@ -251,8 +255,8 @@ class SuggestionPipeline:
                             f"正在处理 {date[:4]}年{date[4:6]}月{date[6:8]}日 ({processed}/{total_targets})",
                         )
 
-                    market_data = MarketDataEmbed(**self.score_manager.last_market_data) \
-                        if self.score_manager.last_market_data else None
+                    market_data = MarketDataEmbed(**self.market_analyzer.last_market_data) \
+                        if self.market_analyzer.last_market_data else None
 
                     # Generate buy/sell suggestions
                     pending_orders = await self.strategy.make_orders(

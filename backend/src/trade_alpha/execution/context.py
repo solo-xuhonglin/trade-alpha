@@ -8,6 +8,7 @@ from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.execution.data_loader import DataLoader
+from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
 
@@ -27,6 +28,7 @@ class PipelineContext:
         self,
         data_loader: DataLoader,
         score_manager: ScoreManager,
+        market_analyzer: MarketRegimeAnalyzer,
         portfolio: PortfolioManager,
         strategy_config: StrategyConfig,
         model_config: ModelConfig,
@@ -36,6 +38,7 @@ class PipelineContext:
     ):
         self.data_loader = data_loader
         self.score_manager = score_manager
+        self.market_analyzer = market_analyzer
         self.portfolio = portfolio
         self.predictor = predictor
         self.strategy_config = strategy_config
