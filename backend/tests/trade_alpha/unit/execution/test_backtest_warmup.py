@@ -13,7 +13,7 @@ class TestComputeWarmupDays:
 
     def test_uses_defaults_when_config_has_no_attrs(self):
         days = BacktestPipeline._compute_warmup_days(object())
-        assert days == 15
+        assert days == 40
 
     def test_uses_ranking_smooth_window(self):
         class FakeConfig:
@@ -21,6 +21,8 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 5
+            rotation_was_top_window = 5
+            rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
         assert days == 30
 
@@ -30,6 +32,8 @@ class TestComputeWarmupDays:
             market_smooth_window = 12
             retention_days = 5
             correlation_window = 5
+            rotation_was_top_window = 5
+            rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
         assert days == 22
 
@@ -39,6 +43,8 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 10
             correlation_window = 5
+            rotation_was_top_window = 5
+            rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
         assert days == 20
 
@@ -48,6 +54,8 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 15
+            rotation_was_top_window = 5
+            rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
         assert days == 25
 
@@ -57,8 +65,32 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 5
+            rotation_was_top_window = 5
+            rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
         assert days == 18
+
+    def test_uses_rotation_was_top_window(self):
+        class FakeConfig:
+            ranking_smooth_window = 5
+            market_smooth_window = 5
+            retention_days = 5
+            correlation_window = 5
+            rotation_was_top_window = 50
+            rotation_pullback_window = 5
+        days = BacktestPipeline._compute_warmup_days(FakeConfig())
+        assert days == 60
+
+    def test_uses_rotation_pullback_window(self):
+        class FakeConfig:
+            ranking_smooth_window = 5
+            market_smooth_window = 5
+            retention_days = 5
+            correlation_window = 5
+            rotation_was_top_window = 5
+            rotation_pullback_window = 20
+        days = BacktestPipeline._compute_warmup_days(FakeConfig())
+        assert days == 30
 
 
 class TestFindWarmupStart:

@@ -273,6 +273,8 @@ class BacktestPipeline:
             getattr(strategy_config, 'market_smooth_window', 5),
             getattr(strategy_config, 'retention_days', 5),
             getattr(strategy_config, 'correlation_window', 5),
+            getattr(strategy_config, 'rotation_was_top_window', 30),
+            getattr(strategy_config, 'rotation_pullback_window', 5),
         ]
         return max(windows) + 10
 
