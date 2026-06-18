@@ -81,6 +81,8 @@ class StrategySnapshotEmbed(BaseModel):
     rotation_rank_max: int = 75
     rotation_use_reversal_check: bool = True
     rotation_was_top_n: int = 15
+    rotation_pullback_window: int = 5
+    rotation_reversal_window: int = 5
 
 
 class ModelSnapshotEmbed(BaseModel):

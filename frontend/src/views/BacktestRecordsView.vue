@@ -645,6 +645,26 @@
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">急跌阈值：</span>{{ backtestStrategyConfig?.phase_crash_threshold ?? '-0.06' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">企稳阈值：</span>{{ backtestStrategyConfig?.phase_recovery_threshold ?? '-0.03' }}</v-col>
             </v-row>
+
+            <v-divider class="my-2" />
+            <div class="text-subtitle-2 font-weight-medium mb-1">轮动参数（横盘/下跌买入）</div>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">历史最高排名：</span>{{ backtestStrategyConfig?.rotation_was_top_n ?? '15' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">回调深度阈值：</span>{{ backtestStrategyConfig?.rotation_bottom_threshold ?? '60' }}</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">买入排名范围：</span>{{ backtestStrategyConfig?.rotation_rank_min ?? '45' }} - {{ backtestStrategyConfig?.rotation_rank_max ?? '75' }}</v-col>
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">回调检测窗口：</span>{{ backtestStrategyConfig?.rotation_pullback_window ?? '5' }}天</v-col>
+            </v-row>
+            <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">反转均值窗口：</span>{{ backtestStrategyConfig?.rotation_reversal_window ?? '5' }}天</v-col>
+              <v-col cols="6">
+                <span class="text-body-2 text-medium-emphasis">反转确认：</span>
+                <v-icon :color="backtestStrategyConfig?.rotation_use_reversal_check ? 'success' : 'disabled'" size="small">
+                  {{ backtestStrategyConfig?.rotation_use_reversal_check ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                </v-icon>
+              </v-col>
+            </v-row>
           </v-window-item>
 
           <v-window-item value="model">
@@ -963,6 +983,13 @@ const strategyCompareFields: CompareField[] = [
   { key: 'use_phase_strategy', label: '启用市场阶段策略', group: '市场分析', type: 'boolean' },
   { key: 'phase_crash_threshold', label: '急跌阈值', group: '市场分析', type: 'number' },
   { key: 'phase_recovery_threshold', label: '企稳阈值', group: '市场分析', type: 'number' },
+  { key: 'rotation_bottom_threshold', label: '轮动回调深度阈值', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_min', label: '轮动排名下限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_max', label: '轮动排名上限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
+  { key: 'rotation_was_top_n', label: '轮动历史最高排名', group: '轮动参数', type: 'number' },
+  { key: 'rotation_pullback_window', label: '轮动回调检测窗口', group: '轮动参数', type: 'number' },
+  { key: 'rotation_reversal_window', label: '轮动反转均值窗口', group: '轮动参数', type: 'number' },
 ]
 
 const modelCompareFields: CompareField[] = [

@@ -381,8 +381,18 @@
                     label="历史最高排名" hint="曾进前 N 名才算强势股（默认 15）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rotation_pullback_window" type="number" min="1"
+                    label="回调检测窗口" hint="近N日内检测是否回调到位（默认 5 天）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rotation_reversal_window" type="number" min="1"
+                    label="反转均值窗口" hint="计算N日均值判断是否反转（默认 5 天）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_bottom_threshold" type="number" min="1"
-                    label="回调深度阈值" hint="近5日最低排名超过此值才算回调（默认 60，原 76）" persistent-hint />
+                    label="回调深度阈值" hint="近5日最低排名超过此值才算回调（默认 60）" persistent-hint />
                 </v-col>
               </v-row>
               <v-row>
@@ -670,6 +680,8 @@ const form = ref({
   rotation_rank_max: 75,
   rotation_use_reversal_check: true,
   rotation_was_top_n: 15,
+  rotation_pullback_window: 5,
+  rotation_reversal_window: 5,
 })
 
 const headers = [
@@ -737,6 +749,8 @@ const compareFields: CompareField[] = [
   { key: 'rotation_rank_max', label: '轮动排名上限', group: '轮动参数', type: 'number' },
   { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
   { key: 'rotation_was_top_n', label: '轮动历史最高排名', group: '轮动参数', type: 'number' },
+  { key: 'rotation_pullback_window', label: '轮动回调检测窗口', group: '轮动参数', type: 'number' },
+  { key: 'rotation_reversal_window', label: '轮动反转均值窗口', group: '轮动参数', type: 'number' },
 ]
 
 const loadStrategies = async () => {
@@ -872,6 +886,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rotation_rank_max: 75,
       rotation_use_reversal_check: true,
       rotation_was_top_n: 15,
+      rotation_pullback_window: 5,
+      rotation_reversal_window: 5,
     }
   }
   dialog.value = true
@@ -933,6 +949,8 @@ const saveStrategy = async () => {
       rotation_rank_max: form.value.rotation_rank_max,
       rotation_use_reversal_check: form.value.rotation_use_reversal_check,
       rotation_was_top_n: form.value.rotation_was_top_n,
+      rotation_pullback_window: form.value.rotation_pullback_window,
+      rotation_reversal_window: form.value.rotation_reversal_window,
     })
   } else {
     await strategyConfigApi.create({
@@ -990,6 +1008,8 @@ const saveStrategy = async () => {
       rotation_rank_max: form.value.rotation_rank_max,
       rotation_use_reversal_check: form.value.rotation_use_reversal_check,
       rotation_was_top_n: form.value.rotation_was_top_n,
+      rotation_pullback_window: form.value.rotation_pullback_window,
+      rotation_reversal_window: form.value.rotation_reversal_window,
     })
   }
   dialog.value = false
