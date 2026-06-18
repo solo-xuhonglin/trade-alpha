@@ -95,7 +95,7 @@ class StrategyCreateRequest(BaseModel):
     rotation_use_reversal_check: Optional[bool] = None
     rotation_was_top_n: Optional[int] = None
     rotation_pullback_window: Optional[int] = None
-    rotation_reversal_window: Optional[int] = None
+    rotation_was_top_window: Optional[int] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -153,7 +153,7 @@ class StrategyUpdateRequest(BaseModel):
     rotation_use_reversal_check: Optional[bool] = None
     rotation_was_top_n: Optional[int] = None
     rotation_pullback_window: Optional[int] = None
-    rotation_reversal_window: Optional[int] = None
+    rotation_was_top_window: Optional[int] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

@@ -381,34 +381,34 @@
                     label="历史最高排名" hint="曾进前 N 名才算强势股（默认 15）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_pullback_window" type="number" min="1"
-                    label="回调检测窗口" hint="近N日内检测是否回调到位（默认 5 天）" persistent-hint />
+                  <v-text-field v-model.number="form.rotation_was_top_window" type="number" min="1"
+                    label="历史检测窗口" hint="近N天内曾进前N名才算（默认 30 天）" persistent-hint />
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_reversal_window" type="number" min="1"
-                    label="反转均值窗口" hint="计算N日均值判断是否反转（默认 5 天）" persistent-hint />
+                  <v-text-field v-model.number="form.rotation_bottom_threshold" type="number" min="1"
+                    label="回调最低排名" hint="窗口内最低排名超过此值才算回调（默认 60）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_bottom_threshold" type="number" min="1"
-                    label="回调深度阈值" hint="近5日最低排名超过此值才算回调（默认 60）" persistent-hint />
+                  <v-text-field v-model.number="form.rotation_pullback_window" type="number" min="1"
+                    label="回调检测窗口" hint="近N天内检测是否回调（默认 5 天）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6" class="d-flex align-center">
+                  <v-switch v-model="form.rotation_use_reversal_check" hide-details density="compact" color="primary"
+                    label="反转确认" hint="要求今天排名优于近N日均值，避免在半山腰买入" persistent-hint />
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_rank_min" type="number" min="1"
-                    label="买入排名下限" hint="今天排名最低要求（默认 45）" persistent-hint />
+                    label="排名上限" hint="限制排名不能比此值更靠前（默认 45，小于45太强不买）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_rank_max" type="number" min="1"
-                    label="买入排名上限" hint="今天排名最高要求（默认 75）" persistent-hint />
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="12">
-                  <v-switch v-model="form.rotation_use_reversal_check" hide-details density="compact" color="primary"
-                    label="反转确认" hint="要求今天排名优于近5日均值，避免在半山腰买入" persistent-hint />
+                    label="排名下限" hint="限制排名不能比此值更靠后（默认 75，大于75太弱不买）" persistent-hint />
                 </v-col>
               </v-row>
             </div>
@@ -681,7 +681,7 @@ const form = ref({
   rotation_use_reversal_check: true,
   rotation_was_top_n: 15,
   rotation_pullback_window: 5,
-  rotation_reversal_window: 5,
+  rotation_was_top_window: 30,
 })
 
 const headers = [
@@ -744,13 +744,13 @@ const compareFields: CompareField[] = [
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
   { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
-  { key: 'rotation_bottom_threshold', label: '轮动回调深度阈值', group: '轮动参数', type: 'number' },
-  { key: 'rotation_rank_min', label: '轮动排名下限', group: '轮动参数', type: 'number' },
-  { key: 'rotation_rank_max', label: '轮动排名上限', group: '轮动参数', type: 'number' },
-  { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
   { key: 'rotation_was_top_n', label: '轮动历史最高排名', group: '轮动参数', type: 'number' },
+  { key: 'rotation_was_top_window', label: '轮动历史检测窗口', group: '轮动参数', type: 'number' },
   { key: 'rotation_pullback_window', label: '轮动回调检测窗口', group: '轮动参数', type: 'number' },
-  { key: 'rotation_reversal_window', label: '轮动反转均值窗口', group: '轮动参数', type: 'number' },
+  { key: 'rotation_bottom_threshold', label: '轮动回调深度阈值', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_min', label: '排名上限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_max', label: '排名下限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
 ]
 
 const loadStrategies = async () => {
@@ -828,6 +828,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rotation_rank_max: item.rotation_rank_max ?? 75,
       rotation_use_reversal_check: item.rotation_use_reversal_check ?? true,
       rotation_was_top_n: item.rotation_was_top_n ?? 15,
+      rotation_pullback_window: item.rotation_pullback_window ?? 5,
+      rotation_was_top_window: item.rotation_was_top_window ?? 30,
     }
   } else {
     editingId.value = null
@@ -887,7 +889,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rotation_use_reversal_check: true,
       rotation_was_top_n: 15,
       rotation_pullback_window: 5,
-      rotation_reversal_window: 5,
+      rotation_was_top_window: 30,
     }
   }
   dialog.value = true
@@ -950,7 +952,7 @@ const saveStrategy = async () => {
       rotation_use_reversal_check: form.value.rotation_use_reversal_check,
       rotation_was_top_n: form.value.rotation_was_top_n,
       rotation_pullback_window: form.value.rotation_pullback_window,
-      rotation_reversal_window: form.value.rotation_reversal_window,
+      rotation_was_top_window: form.value.rotation_was_top_window,
     })
   } else {
     await strategyConfigApi.create({
@@ -1009,7 +1011,7 @@ const saveStrategy = async () => {
       rotation_use_reversal_check: form.value.rotation_use_reversal_check,
       rotation_was_top_n: form.value.rotation_was_top_n,
       rotation_pullback_window: form.value.rotation_pullback_window,
-      rotation_reversal_window: form.value.rotation_reversal_window,
+      rotation_was_top_window: form.value.rotation_was_top_window,
     })
   }
   dialog.value = false

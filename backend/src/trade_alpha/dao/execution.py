@@ -82,7 +82,7 @@ class StrategySnapshotEmbed(BaseModel):
     rotation_use_reversal_check: bool = True
     rotation_was_top_n: int = 15
     rotation_pullback_window: int = 5
-    rotation_reversal_window: int = 5
+    rotation_was_top_window: int = 30
 
 
 class ModelSnapshotEmbed(BaseModel):

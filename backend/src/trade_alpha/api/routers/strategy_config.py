@@ -76,7 +76,7 @@ def _strategy_to_dict(s) -> dict:
         "rotation_use_reversal_check": s.rotation_use_reversal_check,
         "rotation_was_top_n": s.rotation_was_top_n,
         "rotation_pullback_window": s.rotation_pullback_window,
-        "rotation_reversal_window": s.rotation_reversal_window,
+        "rotation_was_top_window": s.rotation_was_top_window,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -166,7 +166,7 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             rotation_use_reversal_check=request.rotation_use_reversal_check,
             rotation_was_top_n=request.rotation_was_top_n,
             rotation_pullback_window=request.rotation_pullback_window,
-            rotation_reversal_window=request.rotation_reversal_window,
+            rotation_was_top_window=request.rotation_was_top_window,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -238,7 +238,7 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             rotation_use_reversal_check=request.rotation_use_reversal_check,
             rotation_was_top_n=request.rotation_was_top_n,
             rotation_pullback_window=request.rotation_pullback_window,
-            rotation_reversal_window=request.rotation_reversal_window,
+            rotation_was_top_window=request.rotation_was_top_window,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

@@ -74,7 +74,7 @@ async def create_strategy(
     rotation_use_reversal_check: Optional[bool] = None,
     rotation_was_top_n: Optional[int] = None,
     rotation_pullback_window: Optional[int] = None,
-    rotation_reversal_window: Optional[int] = None,
+    rotation_was_top_window: Optional[int] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -177,7 +177,7 @@ async def update_strategy(
     rotation_use_reversal_check: Optional[bool] = None,
     rotation_was_top_n: Optional[int] = None,
     rotation_pullback_window: Optional[int] = None,
-    rotation_reversal_window: Optional[int] = None,
+    rotation_was_top_window: Optional[int] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -314,8 +314,8 @@ async def update_strategy(
         strategy.rotation_was_top_n = rotation_was_top_n
     if rotation_pullback_window is not None:
         strategy.rotation_pullback_window = rotation_pullback_window
-    if rotation_reversal_window is not None:
-        strategy.rotation_reversal_window = rotation_reversal_window
+    if rotation_was_top_window is not None:
+        strategy.rotation_was_top_window = rotation_was_top_window
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
