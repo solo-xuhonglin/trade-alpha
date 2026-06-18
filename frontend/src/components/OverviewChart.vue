@@ -19,6 +19,7 @@ export interface OverviewChartItem {
   market_phase?: string
   top_n_retention_rate_smoothed: number
   score_return_corr_smoothed: number
+  stop_loss_vol_mult?: number
 }
 
 interface PhaseZone {
@@ -97,6 +98,7 @@ const renderChart = () => {
   const buyMults = props.data.map(d => d.buy_threshold_multiplier ?? 1.0)
   const retentionSmoothed = props.data.map(d => d.top_n_retention_rate_smoothed)
   const corrSmoothed = props.data.map(d => d.score_return_corr_smoothed)
+  const volMults = props.data.map(d => d.baseline_vol_multiplier ?? 1.0)
 
   const phaseZones = computePhaseZones(props.data)
 
@@ -114,7 +116,8 @@ const renderChart = () => {
           if (p.value == null) return
           let val = p.value
           if (p.seriesName === '仓位系数' || p.seriesName === '买入阈值系数'
-              || p.seriesName === '留存率' || p.seriesName === '评分收益关联度')
+              || p.seriesName === '留存率' || p.seriesName === '评分收益关联度'
+              || p.seriesName === '止损波动率乘数')
             val = val.toFixed(4)
           else if (p.seriesName === '策略累计收益率' || p.seriesName === '基准累计收益率' || p.seriesName === '日重平衡基线')
             val = val + '%'
@@ -127,7 +130,7 @@ const renderChart = () => {
     },
     legend: {
       data: ['策略累计收益率', '基准累计收益率', '日重平衡基线', '仓位占比',
-             '仓位系数', '买入阈值系数', '>高分线比例', '<低分线比例',
+             '仓位系数', '买入阈值系数', '止损波动率乘数', '>高分线比例', '<低分线比例',
              '评分收益关联度', '留存率'],
       orient: 'vertical',
       right: 10,
