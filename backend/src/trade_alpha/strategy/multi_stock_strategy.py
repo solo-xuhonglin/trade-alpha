@@ -1,6 +1,6 @@
 """Multi-stock strategy - ranking-based multi-stock trading."""
 
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Set, Tuple
 
 from trade_alpha.constants import (
     SELL_REASON_FULL_POSITION,
@@ -13,13 +13,9 @@ from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import BaseStrategy
+from trade_alpha.strategy.modes.base import PhaseMode
 from trade_alpha.logging import get_logger
 from trade_alpha.execution.context import PipelineContext
-from trade_alpha.strategy.modes.trend_mode import TrendMode
-from trade_alpha.strategy.modes.rotation_mode import RotationMode
-
-if TYPE_CHECKING:
-    from trade_alpha.execution.portfolio import PortfolioManager
 
 logger = get_logger("strategy.multi_stock_strategy")
 
@@ -46,11 +42,12 @@ class MultiStockStrategy(BaseStrategy):
         self.strategy_config = strategy_config
         self._full_position_consecutive_days = 0
         self.full_position_score_window = strategy_config.full_position_score_window
-        self._modes = {
-            "up": TrendMode(self),
-            "flat": RotationMode(self),
-            "down": RotationMode(self),
-        }
+
+    def _apply_mode_params(self, mode: PhaseMode) -> None:
+        """Apply mode-specific parameter overrides."""
+        self.min_hold_days = mode.min_hold_days or self.strategy_config.min_hold_days
+        self.sell_threshold = mode.sell_threshold if mode.sell_threshold is not None else self.strategy_config.sell_threshold
+        self.full_position_score_window = mode.full_position_score_window or self.strategy_config.full_position_score_window
 
     async def make_orders(
         self,
@@ -61,31 +58,104 @@ class MultiStockStrategy(BaseStrategy):
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
     ) -> List[PendingOrder]:
+        # ── 1. Filter scored_stocks ──
         if self.ts_codes:
             scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
 
+        # ── 2. Select mode from context ──
         phase = market_data.market_phase if market_data else "up"
-        mode = self._modes.get(phase, self._modes["up"])
+        mode = ctx.mode_map.get(phase, ctx.mode_map.get("up"))
+        if mode is None:
+            logger.warning(f"make_orders no mode found for phase={phase}, skip")
+            return []
 
-        if isinstance(mode, RotationMode):
-            self.min_hold_days = 10
-            self.sell_threshold = -0.5
-            self.full_position_score_window = 10
-        else:
-            self.min_hold_days = self.strategy_config.min_hold_days
-            self.sell_threshold = self.strategy_config.sell_threshold
-            self.full_position_score_window = self.strategy_config.full_position_score_window
+        # ── 3. Apply mode param overrides ──
+        self._apply_mode_params(mode)
 
-        # Update peak prices before stop-loss check
+        # ── 4. Update peak prices (for trailing stop-loss) ──
         if close_prices:
             ctx.portfolio.update_peak_prices(close_prices)
 
-        return await mode.settle_mode_orders(
-            scored_stocks, trade_date, ctx,
-            close_prices, market_data,
-            suggestion_mode=suggestion_mode,
+        # ── 5. Build score_map + increment hold_days ──
+        score_map = {st.ts_code: st.composite_score for st in scored_stocks}
+        for pos in ctx.portfolio.positions.values():
+            pos.hold_days += 1
+
+        # ── 6. Compute sell_rank_ts_codes for check_sell ──
+        pos_mult, _ = self._market_multipliers(market_data)
+        sorted_all = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
+        top_n = max(1, int(self.max_positions * pos_mult))
+        top_ts_codes = {s.ts_code for s in sorted_all[:top_n]}
+        sell_rank_n = ctx.strategy_config.sell_rank_n
+        sell_rank_ts_codes = {s.ts_code for s in sorted_all[:sell_rank_n]}
+
+        # ── 7. Sell loop ──
+        orders: List[PendingOrder] = []
+        close_prices = close_prices or {}
+        for ts_code, pos in ctx.portfolio.positions.items():
+            should_sell, reason = self.check_sell(
+                pos, top_ts_codes, sell_rank_ts_codes, score_map,
+                close_prices, market_data, ctx=ctx,
+            )
+            if should_sell:
+                in_score = ts_code in score_map
+                in_sell_rank = ts_code in sell_rank_ts_codes
+                current_score = score_map.get(ts_code, 0.0)
+                logger.info(
+                    f"make_orders SELL ts_code={ts_code} hold_days={pos.hold_days} "
+                    f"in_score_map={in_score} current_score={current_score:.3f} "
+                    f"in_sell_rank={in_sell_rank} reason={reason}"
+                )
+                sell_price = close_prices.get(ts_code, pos.buy_price)
+                orders.append(PendingOrder(
+                    ts_code=pos.ts_code,
+                    stock_name=pos.stock_name,
+                    order_price=sell_price,
+                    order_shares=-pos.shares,
+                    entry_score=pos.entry_score,
+                    up_prob_3d=pos.entry_3d_prob,
+                    up_prob_5d=pos.entry_5d_prob,
+                    up_prob_10d=pos.entry_10d_prob,
+                    up_prob_20d=pos.entry_20d_prob,
+                    trade_date=trade_date,
+                    settle_date=self._next_trade_date(trade_date),
+                    reason=reason,
+                ))
+
+        # ── 8. Full position forced sell ──
+        forced_orders = self._apply_full_position_sell(
+            scored_stocks, close_prices, trade_date, ctx, market_data,
         )
+        orders.extend(forced_orders)
+
+        # ── 9. Get buy candidates from mode ──
+        buy_candidates = mode.select_buy_candidates(scored_stocks, ctx, market_data)
+
+        # ── 10. Process buy candidates ──
+        hold_ts_codes: Set[str] = set(ctx.portfolio.positions.keys())
+        purchased: Set[str] = set()
+        suggestion_count = 0
+
+        for cand in buy_candidates:
+            if cand.stock.ts_code in hold_ts_codes or cand.stock.ts_code in purchased:
+                continue
+            if suggestion_mode:
+                if suggestion_count >= self.max_positions:
+                    break
+                suggestion_count += 1
+                orders.append(self._build_order(cand.stock, 0, cand.reason, trade_date))
+                continue
+            success, shares, _fee = ctx.portfolio.reserve_funds(
+                cand.stock.ts_code, cand.stock.close, close_prices,
+                max_position_scalar=pos_mult,
+            )
+            if not success:
+                continue
+            purchased.add(cand.stock.ts_code)
+            orders.append(self._build_order(cand.stock, shares, cand.reason, trade_date))
+
+        return orders
 
     def _build_order(
         self,
@@ -120,11 +190,7 @@ class MultiStockStrategy(BaseStrategy):
     _FULL_POSITION_PNL_CLIP_PCT = 50.0
 
     def _score_not_declining(self, ts_code: str, ctx: PipelineContext) -> bool:
-        """Check if stock's composite_score isn't dropping significantly.
-
-        Prevents buying stocks whose score just dropped (chasing peaks).
-        Uses raw score buffer for day-over-day comparison with threshold.
-        """
+        """Check if stock's composite_score isn't dropping significantly."""
         if not self.strategy_config.use_score_decline_filter:
             return True
         buffer = ctx.score_manager.get_score_buffer(ts_code)
