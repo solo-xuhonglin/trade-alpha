@@ -113,6 +113,8 @@ export interface DailySnapshot {
   ranking_low_pct: number
   market_phase?: string
   daily_rebalanced_cum?: number
+  rebalanced_ma10_pct?: number
+  rebalanced_ma60_pct?: number
   position_pct?: number
   top_n_retention_rate_smoothed: number
   score_return_corr_smoothed: number

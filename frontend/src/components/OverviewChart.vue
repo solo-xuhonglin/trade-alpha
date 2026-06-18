@@ -11,6 +11,8 @@ export interface OverviewChartItem {
   strategy_return: number
   baseline_return: number
   daily_rebalanced_cum: number
+  rebalanced_ma10_pct: number
+  rebalanced_ma60_pct: number
   ranking_high_pct: number
   ranking_low_pct: number
   position_pct?: number
@@ -95,6 +97,8 @@ const renderChart = () => {
   const retentionSmoothed = props.data.map(d => d.top_n_retention_rate_smoothed)
   const corrSmoothed = props.data.map(d => d.score_return_corr_smoothed)
   const volMults = props.data.map(d => d.baseline_vol_multiplier ?? 1.0)
+  const ma10Values = props.data.map(d => d.rebalanced_ma10_pct ?? null)
+  const ma60Values = props.data.map(d => d.rebalanced_ma60_pct ?? null)
 
   const phaseZones = computePhaseZones(props.data)
 
@@ -127,7 +131,7 @@ const renderChart = () => {
     legend: {
       data: ['策略累计收益率', '基准累计收益率', '日重平衡基线', '仓位占比',
              '仓位系数', '买入阈值系数', '止损波动率乘数', '>高分线比例', '<低分线比例',
-             '评分收益关联度', '留存率'],
+             '评分收益关联度', '留存率', 'MA10重平衡', 'MA60重平衡'],
       orient: 'vertical',
       right: 10,
       top: 'middle',
@@ -143,6 +147,8 @@ const renderChart = () => {
         '<低分线比例': false,
         '评分收益关联度': false,
         '留存率': false,
+        'MA10重平衡': false,
+        'MA60重平衡': false,
       },
     },
     grid: { left: '8%', right: '25%', bottom: '10%', top: '6%' },
@@ -287,6 +293,26 @@ const renderChart = () => {
         smooth: true,
         lineStyle: { width: 1.5, color: '#00bcd4' },
         itemStyle: { color: '#00bcd4' },
+        symbol: 'none',
+      },
+      {
+        name: 'MA10重平衡',
+        type: 'line',
+        data: ma10Values,
+        yAxisId: 'returns',
+        smooth: true,
+        lineStyle: { width: 1.5, color: '#ff5722', type: 'dashed' },
+        itemStyle: { color: '#ff5722' },
+        symbol: 'none',
+      },
+      {
+        name: 'MA60重平衡',
+        type: 'line',
+        data: ma60Values,
+        yAxisId: 'returns',
+        smooth: true,
+        lineStyle: { width: 1.5, color: '#4caf50', type: 'dashed' },
+        itemStyle: { color: '#4caf50' },
         symbol: 'none',
       },
     ],

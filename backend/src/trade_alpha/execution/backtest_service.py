@@ -660,6 +660,8 @@ async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
                 "ranking_low_pct": s.ranking_low_pct,
                 "market_phase": s.market_phase,
                 "daily_rebalanced_cum": s.daily_rebalanced_cum,
+                "rebalanced_ma10_pct": s.rebalanced_ma10_pct,
+                "rebalanced_ma60_pct": s.rebalanced_ma60_pct,
                 "position_pct": s.position_pct,
                 "top_n_retention_rate_smoothed": s.top_n_retention_rate_smoothed,
                 "score_return_corr_smoothed": s.score_return_corr_smoothed,

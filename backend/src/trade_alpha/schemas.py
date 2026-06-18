@@ -96,6 +96,8 @@ class MarketDataEmbed(BaseModel):
     score_return_corr: float = 0.0
     score_return_corr_smoothed: float = 0.0
     daily_rebalanced_cum: float = 0.0
+    rebalanced_ma10_pct: float = 0.0
+    rebalanced_ma60_pct: float = 0.0
     market_phase: str = ""
     baseline_vol_multiplier: float = 1.0
 

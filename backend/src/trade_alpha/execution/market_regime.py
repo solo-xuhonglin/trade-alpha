@@ -78,9 +78,7 @@ class MarketRegimeAnalyzer:
         # --- Market buffers ---
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
-        self._low_score_pct_buffer: List[float] = []
         self._cum_values_buffer: List[float] = []  # for baseline vol computation
-        self._current_phase: str = "flat"
         self._last_result: Optional[MarketDataEmbed] = None
 
     # ------------------------------------------------------------------
@@ -227,7 +225,6 @@ class MarketRegimeAnalyzer:
             self._last_result = None
             return MarketDataEmbed()
 
-        self._update_low_score_buffer()
         self._detect_phase(daily_rebalanced_values)
         self._compute_market_indicators(stock_map)
         self._compute_index_cumulative_return(daily_rebalanced_values)
@@ -258,20 +255,24 @@ class MarketRegimeAnalyzer:
         )
         return True
 
-    def _update_low_score_buffer(self) -> None:
-        """Append current ranking_low_pct to low-score buffer."""
-        self._low_score_pct_buffer.append(self._last_result.ranking_low_pct)
-        if len(self._low_score_pct_buffer) > 50:
-            self._low_score_pct_buffer.pop(0)
+    @staticmethod
+    def _sma(values: List[float], window: int) -> float:
+        n = min(window, len(values))
+        return sum(values[-n:]) / n
+
+    @staticmethod
+    def _ema(values: List[float], alpha: float = 0.2) -> List[float]:
+        if not values:
+            return []
+        result = [values[0]]
+        for v in values[1:]:
+            result.append(alpha * v + (1 - alpha) * result[-1])
+        return result
 
     def _detect_phase(
         self,
         daily_rebalanced_values: Optional[List[float]] = None,
     ) -> None:
-        """Detect market phase from index returns and low-score proportion.
-
-        Sets self._last_result.market_phase to "up"/"flat"/"down".
-        """
         config = self._strategy_config
         if not config or not config.use_phase_strategy:
             self._last_result.market_phase = "flat"
@@ -280,57 +281,27 @@ class MarketRegimeAnalyzer:
             self._last_result.market_phase = "flat"
             return
 
-        # 5-day index return: use available data if less than 6 days
-        index_5d_lookback = min(5, len(daily_rebalanced_values) - 1)
-        index_5d_return = (
-            (daily_rebalanced_values[-1] - daily_rebalanced_values[-1 - index_5d_lookback])
-            / daily_rebalanced_values[-1 - index_5d_lookback]
-        )
+        index_values = self._ema(daily_rebalanced_values, alpha=0.2)
+        ma10 = self._sma(index_values, 10)
+        ma60 = self._sma(index_values, 60)
 
-        # 60-day trend: use available data if less than 61 days
-        trend_days = min(len(daily_rebalanced_values) - 1, 60)
-        index_60d_return = 0.0
-        if trend_days >= 1:
-            index_60d_return = (
-                (daily_rebalanced_values[-1] - daily_rebalanced_values[-1 - trend_days])
-                / daily_rebalanced_values[-1 - trend_days]
-            )
+        price_vs_ma60 = (index_values[-1] - ma60) / ma60 * 100
+        ma_deviation = (ma10 - ma60) / ma60 * 100
 
-        low_score_buf = self._low_score_pct_buffer
-        low_score_5d_change = (low_score_buf[-1] - low_score_buf[-6]) if len(low_score_buf) >= 6 else 0.0
-
-        peak = max(daily_rebalanced_values)
-        trough = min(daily_rebalanced_values)
-        current = daily_rebalanced_values[-1]
-        drawdown = (current - peak) / peak if peak > 0 else 0.0
-        drawup = (current - trough) / trough if trough > 0 else 0.0
-
-        if drawup > 0.02:
-            scale = min(3.0, 1.0 + drawup * 5)
-        elif drawdown < -0.03:
-            scale = max(0.5, 1.0 + drawdown * 2)
-        else:
-            scale = 1.0
-
-        crash_entry = config.phase_crash_threshold * scale
-        recovery_entry = config.phase_recovery_threshold * scale
-        decline_trigger = recovery_entry * 0.66 if drawup > 0.02 else 0.0
-
-        if index_5d_return < crash_entry or (index_5d_return < decline_trigger and low_score_5d_change > 0):
-            phase = "down"
-        elif self._current_phase == "down":
-            phase = "down" if index_60d_return < 0.02 else "flat"
-        elif self._current_phase == "up":
-            phase = "up" if index_60d_return > -0.02 else "flat"
-        elif index_60d_return > 0.03 and index_5d_return > 0.01:
+        if price_vs_ma60 > 3 and ma_deviation > 0:
             phase = "up"
-        elif index_60d_return < -0.03 and index_5d_return < -0.01:
+        elif price_vs_ma60 < -3 and ma_deviation < 0:
+            phase = "down"
+        elif price_vs_ma60 > 1 and ma_deviation > 0.5:
+            phase = "up"
+        elif price_vs_ma60 < -1 and ma_deviation < -0.5:
             phase = "down"
         else:
             phase = "flat"
 
         self._last_result.market_phase = phase
-        self._current_phase = phase
+        self._last_result.rebalanced_ma10_pct = (ma10 - 1.0) * 100
+        self._last_result.rebalanced_ma60_pct = (ma60 - 1.0) * 100
 
     def _compute_market_indicators(
         self, stock_map: Dict[str, ScoredStock]
