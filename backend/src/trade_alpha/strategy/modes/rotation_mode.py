@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Set, Tuple
 
 from trade_alpha.constants import (
     SELL_REASON_MAX_HOLD_DAYS,
@@ -10,9 +10,6 @@ from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.strategy.modes.base import PhaseMode
-
-if TYPE_CHECKING:
-    from trade_alpha.execution.portfolio import PortfolioManager
 
 
 logger = get_logger("strategy.modes.rotation_mode")
@@ -36,7 +33,6 @@ class RotationMode(PhaseMode):
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
-        vol_multiplier: float = 1.0,
     ) -> List[PendingOrder]:
         close_prices = close_prices or {}
         score_map = {st.ts_code: st.composite_score for st in scored_stocks}
@@ -50,7 +46,7 @@ class RotationMode(PhaseMode):
         orders: List[PendingOrder] = []
 
         for ts_code, pos in portfolio.positions.items():
-            should_sell, reason = self._check_sell(pos, close_prices, score_map, portfolio, vol_multiplier)
+            should_sell, reason = self.check_sell(pos, close_prices, score_map, market_data, ctx)
             if should_sell:
                 sell_price = close_prices.get(ts_code, pos.buy_price)
                 orders.append(PendingOrder(
@@ -121,18 +117,19 @@ class RotationMode(PhaseMode):
 
         return orders
 
-    def _check_sell(
+    def check_sell(
         self,
         position: PositionEmbed,
         close_prices: Dict[str, float],
         score_map: Dict[str, float],
-        portfolio: "PortfolioManager",
-        vol_multiplier: float = 1.0,
+        market_data: Optional[MarketDataEmbed] = None,
+        ctx: Optional[PipelineContext] = None,
     ) -> Tuple[bool, str]:
         """Sell check for rotation mode: stop_loss -> min_hold -> score -> max_hold."""
         strategy = self._strategy
+        vol_multiplier = market_data.baseline_vol_multiplier if market_data else 1.0
 
-        if portfolio.is_stop_loss_triggered(
+        if ctx and ctx.portfolio.is_stop_loss_triggered(
             position.ts_code, close_prices, strategy.stop_loss_pct, vol_multiplier,
         ):
             return True, SELL_REASON_STOP_LOSS

@@ -591,7 +591,7 @@ class ScoreManager:
         ref_mult = getattr(self._strategy_config, 'baseline_vol_ref_multiplier', 3)
         ref_window = window * ref_mult
         buf = self._rebalanced_cum_buffer
-        if len(buf) >= ref_window:
+        if len(buf) > ref_window:
             returns = [(buf[i] - buf[i - 1]) / buf[i - 1] for i in range(-ref_window, 0)]
             rolling_vol = float(np.std(returns[-window:]))
             ref_vol = float(np.std(returns))

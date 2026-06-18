@@ -1,6 +1,6 @@
 """Multi-stock strategy - ranking-based multi-stock trading."""
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from trade_alpha.constants import (
     SELL_REASON_FULL_POSITION,
@@ -81,13 +81,10 @@ class MultiStockStrategy(BaseStrategy):
         if close_prices:
             ctx.portfolio.update_peak_prices(close_prices)
 
-        vol_multiplier = market_data.baseline_vol_multiplier if market_data else 1.0
-
         return await mode.settle_mode_orders(
             scored_stocks, trade_date, ctx,
             close_prices, market_data,
             suggestion_mode=suggestion_mode,
-            vol_multiplier=vol_multiplier,
         )
 
     def _build_order(
@@ -214,7 +211,7 @@ class MultiStockStrategy(BaseStrategy):
 
         return forced_orders
 
-    def _check_sell(
+    def check_sell(
         self,
         position: PositionEmbed,
         top_ts_codes: set,
@@ -222,8 +219,7 @@ class MultiStockStrategy(BaseStrategy):
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        portfolio: Optional["PortfolioManager"] = None,
-        vol_multiplier: float = 1.0,
+        ctx: Optional[PipelineContext] = None,
     ) -> Tuple[bool, str]:
         """Check whether a position should be sold.
 
@@ -231,22 +227,24 @@ class MultiStockStrategy(BaseStrategy):
             Tuple of (should_sell: bool, reason: str).
         """
         current_score = score_map.get(position.ts_code, 0.0)
+        vol_multiplier = market_data.baseline_vol_multiplier if market_data else 1.0
+        portfolio = ctx.portfolio if ctx else None
 
         if position.hold_days < self.min_hold_days:
             if close_prices and portfolio and portfolio.is_stop_loss_triggered(
                 position.ts_code, close_prices, self.stop_loss_pct, vol_multiplier,
             ):
-                logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
+                logger.debug(f"check_sell ts_code={position.ts_code} stop_loss triggered, sell")
                 return True, SELL_REASON_STOP_LOSS
-            logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
+            logger.debug(f"check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
             return False, ""
 
         if current_score < self.sell_threshold:
-            logger.debug(f"_check_sell ts_code={position.ts_code} score below sell_threshold={self.sell_threshold:.3f}, sell")
+            logger.debug(f"check_sell ts_code={position.ts_code} score below sell_threshold={self.sell_threshold:.3f}, sell")
             return True, SELL_REASON_SCORE_BELOW
 
         if position.hold_days >= self.max_hold_days:
-            logger.debug(f"_check_sell ts_code={position.ts_code} max_hold_days={self.max_hold_days} reached, sell")
+            logger.debug(f"check_sell ts_code={position.ts_code} max_hold_days={self.max_hold_days} reached, sell")
             return True, SELL_REASON_MAX_HOLD_DAYS
 
         if close_prices and portfolio and portfolio.is_stop_loss_triggered(
@@ -256,7 +254,7 @@ class MultiStockStrategy(BaseStrategy):
 
         if position.ts_code not in sell_rank_ts_codes:
             if current_score < self.strategy_config.hold_score_threshold:
-                logger.debug(f"_check_sell ts_code={position.ts_code} hold_score_low={self.strategy_config.hold_score_threshold:.3f}, sell")
+                logger.debug(f"check_sell ts_code={position.ts_code} hold_score_low={self.strategy_config.hold_score_threshold:.3f}, sell")
                 return True, SELL_REASON_HOLD_SCORE_LOW
 
         return False, ""
