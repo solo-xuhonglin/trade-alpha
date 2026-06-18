@@ -111,8 +111,6 @@ export interface DailySnapshot {
   day_return: number
   ranking_high_pct: number
   ranking_low_pct: number
-  position_multiplier?: number
-  buy_threshold_multiplier?: number
   market_phase?: string
   daily_rebalanced_cum?: number
   position_pct?: number

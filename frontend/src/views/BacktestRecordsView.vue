@@ -1385,8 +1385,6 @@ const loadMarketData = async () => {
       baseline_return: baseline_returns[i] || 0,
       ranking_high_pct: s.ranking_high_pct,
       ranking_low_pct: s.ranking_low_pct,
-      position_multiplier: s.position_multiplier,
-      buy_threshold_multiplier: s.buy_threshold_multiplier,
       market_phase: s.market_phase,
       daily_rebalanced_cum: s.daily_rebalanced_cum ?? 0,
       baseline_vol_multiplier: s.baseline_vol_multiplier ?? 1.0,

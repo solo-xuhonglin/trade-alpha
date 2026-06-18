@@ -658,8 +658,6 @@ async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
                 "day_return": s.day_return,
                 "ranking_high_pct": s.ranking_high_pct,
                 "ranking_low_pct": s.ranking_low_pct,
-                "position_multiplier": s.position_multiplier,
-                "buy_threshold_multiplier": s.buy_threshold_multiplier,
                 "market_phase": s.market_phase,
                 "daily_rebalanced_cum": s.daily_rebalanced_cum,
                 "position_pct": s.position_pct,

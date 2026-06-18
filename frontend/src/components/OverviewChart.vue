@@ -13,8 +13,6 @@ export interface OverviewChartItem {
   daily_rebalanced_cum: number
   ranking_high_pct: number
   ranking_low_pct: number
-  position_multiplier?: number
-  buy_threshold_multiplier?: number
   position_pct?: number
   market_phase?: string
   top_n_retention_rate_smoothed: number
@@ -94,8 +92,6 @@ const renderChart = () => {
   const highPcts = props.data.map(d => +d.ranking_high_pct.toFixed(1))
   const lowPcts = props.data.map(d => +d.ranking_low_pct.toFixed(1))
   const positionPcts = props.data.map(d => d.position_pct ?? 0)
-  const posMults = props.data.map(d => d.position_multiplier ?? 1.0)
-  const buyMults = props.data.map(d => d.buy_threshold_multiplier ?? 1.0)
   const retentionSmoothed = props.data.map(d => d.top_n_retention_rate_smoothed)
   const corrSmoothed = props.data.map(d => d.score_return_corr_smoothed)
   const volMults = props.data.map(d => d.baseline_vol_multiplier ?? 1.0)
@@ -241,26 +237,6 @@ const renderChart = () => {
         smooth: true,
         lineStyle: { width: 1.5, color: '#4CAF50' },
         itemStyle: { color: '#4CAF50' },
-        symbol: 'none',
-      },
-      {
-        name: '仓位系数',
-        type: 'line',
-        data: posMults,
-        yAxisId: 'scalar',
-        smooth: true,
-        lineStyle: { width: 1.5, color: '#FF6F61' },
-        itemStyle: { color: '#FF6F61' },
-        symbol: 'none',
-      },
-      {
-        name: '买入阈值系数',
-        type: 'line',
-        data: buyMults,
-        yAxisId: 'scalar',
-        smooth: true,
-        lineStyle: { width: 1.5, color: '#ff5722' },
-        itemStyle: { color: '#ff5722' },
         symbol: 'none',
       },
       {

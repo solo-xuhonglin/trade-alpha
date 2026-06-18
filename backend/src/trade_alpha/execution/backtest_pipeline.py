@@ -254,8 +254,8 @@ class BacktestPipeline:
             prev_total_value=prev_total_value, predictions=stock_map,
             baseline_value=baseline_value,
         )
-        if self.market_analyzer.last_market_data:
-            updates = dict(self.market_analyzer.last_market_data)
+        if self.market_analyzer.last_result:
+            updates = self.market_analyzer.last_result.model_dump()
             tv = snapshot.total_value
             if tv > 0:
                 updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
@@ -415,8 +415,7 @@ class BacktestPipeline:
                 daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
             )
 
-            market_data = MarketDataEmbed(**self.market_analyzer.last_market_data) \
-                if self.market_analyzer.last_market_data else None
+            market_data = self.market_analyzer.last_result
 
             pending_orders = await self.strategy.make_orders(
                 scored_stocks=list(stock_map.values()),

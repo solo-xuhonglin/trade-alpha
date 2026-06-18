@@ -24,21 +24,11 @@ class TrendMode(PhaseMode):
     ) -> List[BuyCandidate]:
         config = ctx.strategy_config
 
-        # Compute effective multipliers
-        pos_mult = 1.0
-        buy_mult = 1.0
-        if getattr(config, "use_phase_strategy", True) and market_data is not None:
-            pos_mult = market_data.position_multiplier
-            buy_mult = market_data.buy_threshold_multiplier
-
-        effective_threshold = config.buy_threshold * buy_mult
-        effective_max = max(1, int(config.max_positions * pos_mult))
-
         # Full candidates (before score filter) — for rank_up check
         full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
         # Score-filtered candidates
-        above = [s for s in scored_stocks if s.composite_score > effective_threshold]
+        above = [s for s in scored_stocks if s.composite_score > config.buy_threshold]
         sorted_above = sorted(above, key=lambda s: s.ranking_score, reverse=True)
 
         if len(sorted_above) <= 5:
@@ -46,7 +36,7 @@ class TrendMode(PhaseMode):
         elif len(sorted_above) % 10 == 0:
             logger.info(f"select_buy_candidates scored_above_threshold={len(sorted_above)}")
 
-        top_stocks = sorted_above[:effective_max]
+        top_stocks = sorted_above[:config.max_positions]
 
         candidates: List[BuyCandidate] = []
         purchased: Set[str] = set()
@@ -58,7 +48,7 @@ class TrendMode(PhaseMode):
                 s for s in full_candidates
                 if s.ts_code not in hold_ts_codes
                 and s.rank_improvement >= config.rank_up_min_improvement_pct
-                and s.composite_score > config.rank_up_min_score * buy_mult
+                and s.composite_score > config.rank_up_min_score
             ]
             # Filter by score_not_declining
             rank_up_list = [

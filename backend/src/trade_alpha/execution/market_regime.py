@@ -4,13 +4,13 @@ Extracted from ScoreManager to separate stock scoring from market analysis.
 """
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.logging import get_logger
-from trade_alpha.schemas import ScoredStock
+from trade_alpha.schemas import MarketDataEmbed, ScoredStock
 
 logger = get_logger("execution.market_regime")
 
@@ -78,10 +78,10 @@ class MarketRegimeAnalyzer:
         # --- Market buffers ---
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
-        self._low_pct_buffer: List[float] = []
+        self._low_score_pct_buffer: List[float] = []
         self._cum_values_buffer: List[float] = []  # for baseline vol computation
         self._current_phase: str = "flat"
-        self._last_market_data: Optional[dict] = None
+        self._last_result: Optional[MarketDataEmbed] = None
 
     # ------------------------------------------------------------------
     # Rank tracking (from ScoreManager)
@@ -124,7 +124,7 @@ class MarketRegimeAnalyzer:
         return [s.rank for s in records if s.rank > 0]
 
     # ------------------------------------------------------------------
-    # Market indicators (from ScoreManager)
+    # Market indicators
     # ------------------------------------------------------------------
 
     def _compute_top_n_retention(
@@ -200,44 +200,104 @@ class MarketRegimeAnalyzer:
         return _pearson_corr(scores, returns)
 
     # ------------------------------------------------------------------
-    # Phase-based multipliers (from ScoreManager, with 60-day fix)
+    # Public API
     # ------------------------------------------------------------------
 
-    def _compute_phase_multipliers(
+    def analyze(
         self,
+        stock_map: Dict[str, ScoredStock],
         daily_rebalanced_values: Optional[List[float]] = None,
-    ) -> Tuple[float, float, str]:
-        """Compute position/buy-threshold multipliers from market phase.
+    ) -> MarketDataEmbed:
+        """Analyze market regime and return structured result.
+
+        Args:
+            stock_map: Today's scored stocks from ScoreManager.
+            daily_rebalanced_values: Equal-weight daily-rebalanced index
+                series from BaselineTracker.
 
         Returns:
-            (position_multiplier, buy_threshold_multiplier, phase_name)
+            MarketDataEmbed with all computed market fields.
+        """
+        if not stock_map:
+            self._last_result = None
+            return MarketDataEmbed()
 
-        60-day fix: uses whatever data is available instead of requiring >=61 days.
+        self._last_result = MarketDataEmbed()
+        if not self._compute_ranking_stats(stock_map):
+            self._last_result = None
+            return MarketDataEmbed()
+
+        self._update_low_score_buffer()
+        self._detect_phase(daily_rebalanced_values)
+        self._compute_market_indicators(stock_map)
+        self._compute_index_cumulative_return(daily_rebalanced_values)
+        self._compute_baseline_volatility(daily_rebalanced_values)
+        return self._last_result
+
+    # ------------------------------------------------------------------
+    # Sub-methods
+    # ------------------------------------------------------------------
+
+    def _compute_ranking_stats(
+        self, stock_map: Dict[str, ScoredStock]
+    ) -> bool:
+        """Compute ranking_high_pct and ranking_low_pct. Returns False if no valid scores."""
+        rank_scores = [
+            s.ranking_score for s in stock_map.values()
+            if s.ranking_score is not None
+        ]
+        if not rank_scores:
+            return False
+        sorted_scores = sorted(rank_scores)
+        total_count = len(sorted_scores)
+        self._last_result.ranking_high_pct = (
+            sum(1 for s in sorted_scores if s > 0.30) / total_count * 100
+        )
+        self._last_result.ranking_low_pct = (
+            sum(1 for s in sorted_scores if s < -0.30) / total_count * 100
+        )
+        return True
+
+    def _update_low_score_buffer(self) -> None:
+        """Append current ranking_low_pct to low-score buffer."""
+        self._low_score_pct_buffer.append(self._last_result.ranking_low_pct)
+        if len(self._low_score_pct_buffer) > 50:
+            self._low_score_pct_buffer.pop(0)
+
+    def _detect_phase(
+        self,
+        daily_rebalanced_values: Optional[List[float]] = None,
+    ) -> None:
+        """Detect market phase from index returns and low-score proportion.
+
+        Sets self._last_result.market_phase to "up"/"flat"/"down".
         """
         config = self._strategy_config
         if not config or not config.use_phase_strategy:
-            return 1.0, 1.0, "flat"
+            self._last_result.market_phase = "flat"
+            return
         if not daily_rebalanced_values or len(daily_rebalanced_values) < 2:
-            return 1.0, 1.0, "flat"
+            self._last_result.market_phase = "flat"
+            return
 
-        # 5-day lookback: use available data if less than 6 points
-        rebalanced_5d_lookback = min(5, len(daily_rebalanced_values) - 1)
-        rebalanced_5d = (
-            (daily_rebalanced_values[-1] - daily_rebalanced_values[-1 - rebalanced_5d_lookback])
-            / daily_rebalanced_values[-1 - rebalanced_5d_lookback]
+        # 5-day index return: use available data if less than 6 days
+        index_5d_lookback = min(5, len(daily_rebalanced_values) - 1)
+        index_5d_return = (
+            (daily_rebalanced_values[-1] - daily_rebalanced_values[-1 - index_5d_lookback])
+            / daily_rebalanced_values[-1 - index_5d_lookback]
         )
 
-        # 60-day trend: use available data if less than 61 points
+        # 60-day trend: use available data if less than 61 days
         trend_days = min(len(daily_rebalanced_values) - 1, 60)
-        trend_60d = 0.0
+        index_60d_return = 0.0
         if trend_days >= 1:
-            trend_60d = (
+            index_60d_return = (
                 (daily_rebalanced_values[-1] - daily_rebalanced_values[-1 - trend_days])
                 / daily_rebalanced_values[-1 - trend_days]
             )
 
-        lp_buffer = self._low_pct_buffer
-        low_5d = (lp_buffer[-1] - lp_buffer[-6]) if len(lp_buffer) >= 6 else 0.0
+        low_score_buf = self._low_score_pct_buffer
+        low_score_5d_change = (low_score_buf[-1] - low_score_buf[-6]) if len(low_score_buf) >= 6 else 0.0
 
         peak = max(daily_rebalanced_values)
         trough = min(daily_rebalanced_values)
@@ -252,124 +312,74 @@ class MarketRegimeAnalyzer:
         else:
             scale = 1.0
 
-        crash_th = config.phase_crash_threshold * scale
-        recovery_th = config.phase_recovery_threshold * scale
-        decline_bar = recovery_th * 0.66 if drawup > 0.02 else 0.0
+        crash_entry = config.phase_crash_threshold * scale
+        recovery_entry = config.phase_recovery_threshold * scale
+        decline_trigger = recovery_entry * 0.66 if drawup > 0.02 else 0.0
 
-        # crash/decline -> down
-        if rebalanced_5d < crash_th or (rebalanced_5d < decline_bar and low_5d > 0):
-            three_phase = "down"
+        if index_5d_return < crash_entry or (index_5d_return < decline_trigger and low_score_5d_change > 0):
+            phase = "down"
         elif self._current_phase == "down":
-            three_phase = "down" if trend_60d < 0.02 else "flat"
+            phase = "down" if index_60d_return < 0.02 else "flat"
         elif self._current_phase == "up":
-            three_phase = "up" if trend_60d > -0.02 else "flat"
-        elif trend_60d > 0.03 and rebalanced_5d > 0.01:
-            three_phase = "up"
-        elif trend_60d < -0.03 and rebalanced_5d < -0.01:
-            three_phase = "down"
+            phase = "up" if index_60d_return > -0.02 else "flat"
+        elif index_60d_return > 0.03 and index_5d_return > 0.01:
+            phase = "up"
+        elif index_60d_return < -0.03 and index_5d_return < -0.01:
+            phase = "down"
         else:
-            three_phase = "flat"
+            phase = "flat"
 
-        if three_phase == "down":
-            return 0.3, 1.0, "down"
-        else:
-            return 1.0, 1.0, three_phase
+        self._last_result.market_phase = phase
+        self._current_phase = phase
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
-    def analyze(
-        self,
-        stock_map: Dict[str, ScoredStock],
-        daily_rebalanced_values: Optional[List[float]] = None,
-    ) -> str:
-        """Compute market regime and return phase name.
-
-        Args:
-            stock_map: Today's scored stocks from ScoreManager.
-            daily_rebalanced_values: Equal-weight daily-rebalanced index
-                series from BaselineTracker.
-
-        Returns:
-            market_phase: "up" / "flat" / "down"
-        """
-        rank_scores = [
-            s.ranking_score for s in stock_map.values()
-            if s.ranking_score is not None
-        ]
-        if not rank_scores:
-            self._last_market_data = None
-            return ""
-        rank_scores_sorted = sorted(rank_scores)
-        n = len(rank_scores_sorted)
-
-        ranking_high_pct = sum(1 for s in rank_scores_sorted if s > 0.30) / n * 100
-        ranking_low_pct = sum(1 for s in rank_scores_sorted if s < -0.30) / n * 100
-
-        self._low_pct_buffer.append(ranking_low_pct)
-        if len(self._low_pct_buffer) > 50:
-            self._low_pct_buffer.pop(0)
-
-        phase_pos_mult, phase_buy_mult, phase_name = self._compute_phase_multipliers(
-            daily_rebalanced_values,
-        )
-        self._current_phase = phase_name
-
+    def _compute_market_indicators(
+        self, stock_map: Dict[str, ScoredStock]
+    ) -> None:
+        """Compute retention rate and score-return correlation, raw + smoothed."""
         raw_retention = self._compute_top_n_retention(stock_map)
         self._retention_rate_buffer.append(raw_retention)
-        retention_smoothed = smooth_market_indicator(
+        self._last_result.top_n_retention_rate = raw_retention
+        self._last_result.top_n_retention_rate_smoothed = smooth_market_indicator(
             self._retention_rate_buffer, self._strategy_config
         )
 
         raw_corr = self._compute_score_return_correlation(stock_map)
         self._correlation_buffer.append(raw_corr)
-        corr_smoothed = smooth_market_indicator(
+        self._last_result.score_return_corr = raw_corr
+        self._last_result.score_return_corr_smoothed = smooth_market_indicator(
             self._correlation_buffer, self._strategy_config
         )
 
-        # Compute daily_rebalanced_cum from values list
-        daily_rebalanced_cum = 0.0
+    def _compute_index_cumulative_return(
+        self, daily_rebalanced_values: Optional[List[float]] = None
+    ) -> None:
+        """Compute cumulative return of the equal-weight index."""
         if daily_rebalanced_values and len(daily_rebalanced_values) >= 2:
-            daily_rebalanced_cum = (daily_rebalanced_values[-1] / daily_rebalanced_values[0]) - 1.0
+            self._last_result.daily_rebalanced_cum = (
+                daily_rebalanced_values[-1] / daily_rebalanced_values[0]
+            ) - 1.0
 
-        self._last_market_data = {
-            "top_n_retention_rate": raw_retention,
-            "top_n_retention_rate_smoothed": retention_smoothed,
-            "score_return_corr": raw_corr,
-            "score_return_corr_smoothed": corr_smoothed,
-            "ranking_high_pct": ranking_high_pct,
-            "ranking_low_pct": ranking_low_pct,
-            "daily_rebalanced_cum": daily_rebalanced_cum,
-            "position_multiplier": phase_pos_mult,
-            "buy_threshold_multiplier": phase_buy_mult,
-            "market_phase": phase_name,
-        }
-
-        # --- Baseline volatility multiplier for adaptive stop-loss ---
+    def _compute_baseline_volatility(
+        self, daily_rebalanced_values: Optional[List[float]] = None
+    ) -> None:
+        """Compute baseline volatility multiplier for adaptive stop-loss."""
         if daily_rebalanced_values and len(daily_rebalanced_values) >= 2:
             cum_value = daily_rebalanced_values[-1]
             if cum_value > 0:
                 self._cum_values_buffer.append(cum_value)
-        window = getattr(self._strategy_config, 'baseline_vol_window', 20)
-        ref_mult = getattr(self._strategy_config, 'baseline_vol_ref_multiplier', 3)
-        ref_window = window * ref_mult
-        buf = self._cum_values_buffer
-        if len(buf) > ref_window:
-            returns = [(buf[i] - buf[i - 1]) / buf[i - 1] for i in range(-ref_window, 0)]
-            rolling_vol = float(np.std(returns[-window:]))
+        vol_window = getattr(self._strategy_config, 'baseline_vol_window', 20)
+        vol_window_mult = getattr(self._strategy_config, 'baseline_vol_ref_multiplier', 3)
+        ref_window = vol_window * vol_window_mult
+        values = self._cum_values_buffer
+        if len(values) > ref_window:
+            returns = [(values[i] - values[i - 1]) / values[i - 1] for i in range(-ref_window, 0)]
+            rolling_vol = float(np.std(returns[-vol_window:]))
             ref_vol = float(np.std(returns))
             if ref_vol > 0:
                 multiplier = rolling_vol / ref_vol
-                self._last_market_data["baseline_vol_multiplier"] = max(0.5, min(3.0, multiplier))
-            else:
-                self._last_market_data["baseline_vol_multiplier"] = 1.0
-        else:
-            self._last_market_data["baseline_vol_multiplier"] = 1.0
-
-        return phase_name
+                self._last_result.baseline_vol_multiplier = max(0.5, min(3.0, multiplier))
 
     @property
-    def last_market_data(self) -> Optional[dict]:
-        """Latest market data dict."""
-        return self._last_market_data
+    def last_result(self) -> Optional[MarketDataEmbed]:
+        """Latest market analysis result."""
+        return self._last_result

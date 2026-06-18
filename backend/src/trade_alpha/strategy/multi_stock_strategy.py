@@ -83,9 +83,8 @@ class MultiStockStrategy(BaseStrategy):
             pos.hold_days += 1
 
         # ── 6. Compute sell_rank_ts_codes for check_sell ──
-        pos_mult, _ = self._market_multipliers(market_data)
         sorted_all = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
-        top_n = max(1, int(self.max_positions * pos_mult))
+        top_n = self.max_positions
         top_ts_codes = {s.ts_code for s in sorted_all[:top_n]}
         sell_rank_n = ctx.strategy_config.sell_rank_n
         sell_rank_ts_codes = {s.ts_code for s in sorted_all[:sell_rank_n]}
@@ -148,7 +147,6 @@ class MultiStockStrategy(BaseStrategy):
                 continue
             success, shares, _fee = ctx.portfolio.reserve_funds(
                 cand.stock.ts_code, cand.stock.close, close_prices,
-                max_position_scalar=pos_mult,
             )
             if not success:
                 continue
@@ -180,13 +178,6 @@ class MultiStockStrategy(BaseStrategy):
             reason=reason,
         )
 
-    def _market_multipliers(self, market_data: Optional[MarketDataEmbed] = None) -> Tuple[float, float]:
-        if not getattr(self.strategy_config, "use_phase_strategy", True):
-            return 1.0, 1.0
-        if market_data is None:
-            return 1.0, 1.0
-        return (market_data.position_multiplier, market_data.buy_threshold_multiplier)
-
     _FULL_POSITION_PNL_CLIP_PCT = 50.0
 
     def _score_not_declining(self, ts_code: str, ctx: PipelineContext) -> bool:
@@ -209,8 +200,6 @@ class MultiStockStrategy(BaseStrategy):
         if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
             return forced_orders
         threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
-        pos_mult, _ = self._market_multipliers(market_data)
-        threshold *= pos_mult
         days_required = getattr(self.strategy_config, "full_position_days", 3)
         score_window = self.full_position_score_window
         sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)

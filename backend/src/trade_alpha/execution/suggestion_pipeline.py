@@ -255,8 +255,7 @@ class SuggestionPipeline:
                             f"正在处理 {date[:4]}年{date[4:6]}月{date[6:8]}日 ({processed}/{total_targets})",
                         )
 
-                    market_data = MarketDataEmbed(**self.market_analyzer.last_market_data) \
-                        if self.market_analyzer.last_market_data else None
+                    market_data = self.market_analyzer.last_result
 
                     # Generate buy/sell suggestions
                     pending_orders = await self.strategy.make_orders(
