@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from trade_alpha.constants import (
     SELL_REASON_MAX_HOLD_DAYS,
@@ -10,6 +10,9 @@ from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.strategy.modes.base import PhaseMode
+
+if TYPE_CHECKING:
+    from trade_alpha.execution.portfolio import PortfolioManager
 
 
 logger = get_logger("strategy.modes.rotation_mode")
@@ -33,6 +36,7 @@ class RotationMode(PhaseMode):
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
+        vol_multiplier: float = 1.0,
     ) -> List[PendingOrder]:
         close_prices = close_prices or {}
         score_map = {st.ts_code: st.composite_score for st in scored_stocks}
@@ -46,7 +50,7 @@ class RotationMode(PhaseMode):
         orders: List[PendingOrder] = []
 
         for ts_code, pos in portfolio.positions.items():
-            should_sell, reason = self._check_sell(pos, close_prices, score_map)
+            should_sell, reason = self._check_sell(pos, close_prices, score_map, portfolio, vol_multiplier)
             if should_sell:
                 sell_price = close_prices.get(ts_code, pos.buy_price)
                 orders.append(PendingOrder(
@@ -70,21 +74,28 @@ class RotationMode(PhaseMode):
         purchased_ts_codes: Set[str] = set()
 
         candidates = []
+        config = self._strategy.strategy_config
         for st in scored_stocks:
             if st.is_excluded:
                 continue
             if st.ts_code in hold_ts_codes:
                 continue
-            if not (50 <= st.rank <= 70):
+            if not (config.rotation_rank_min <= st.rank <= config.rotation_rank_max):
                 continue
 
             rank_history = score_manager.get_rank_history(st.ts_code) if score_manager else []
             if len(rank_history) < 6:
                 continue
-            was_top = any(r <= 15 for r in rank_history[:-5])
-            recent_bottom = any(r >= 76 for r in rank_history[-5:])
+            was_top = any(r <= config.rotation_was_top_n for r in rank_history[:-5])
+            recent_bottom = any(r >= config.rotation_bottom_threshold for r in rank_history[-5:])
             if not (was_top and recent_bottom):
                 continue
+            # Reversal check: today's rank should be better than recent 5-day average
+            if config.rotation_use_reversal_check:
+                recent_ranks = rank_history[-6:-1]
+                avg_rank_5d = sum(recent_ranks) / len(recent_ranks)
+                if st.rank >= avg_rank_5d:
+                    continue
             candidates.append(st)
 
         candidates.sort(key=lambda s: s.rank)
@@ -115,11 +126,15 @@ class RotationMode(PhaseMode):
         position: PositionEmbed,
         close_prices: Dict[str, float],
         score_map: Dict[str, float],
+        portfolio: "PortfolioManager",
+        vol_multiplier: float = 1.0,
     ) -> Tuple[bool, str]:
         """Sell check for rotation mode: stop_loss -> min_hold -> score -> max_hold."""
         strategy = self._strategy
 
-        if strategy._is_stop_loss_triggered(position, close_prices, strategy.stop_loss_pct):
+        if portfolio.is_stop_loss_triggered(
+            position.ts_code, close_prices, strategy.stop_loss_pct, vol_multiplier,
+        ):
             return True, SELL_REASON_STOP_LOSS
 
         if position.hold_days < strategy.min_hold_days:

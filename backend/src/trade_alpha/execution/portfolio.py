@@ -176,6 +176,7 @@ class PortfolioManager:
                 ts_code=ts_code, stock_name=existing.stock_name,
                 buy_date=existing.buy_date, buy_price=round(avg_price, 2),
                 shares=total_shares, fee=total_fee,
+                peak_price=max(existing.peak_price, matched_price),
                 entry_score=0, entry_3d_prob=0, entry_5d_prob=0,
                 hold_days=existing.hold_days,
             )
@@ -184,6 +185,7 @@ class PortfolioManager:
                 ts_code=ts_code, stock_name=stock_name,
                 buy_date="", buy_price=matched_price,
                 shares=order_shares, fee=matched_fee,
+                peak_price=matched_price,
                 entry_score=0, entry_3d_prob=0, entry_5d_prob=0, entry_10d_prob=0, entry_20d_prob=0, hold_days=0,
             )
 
@@ -227,6 +229,48 @@ class PortfolioManager:
             if px > 0:
                 total += pos.shares * px
         return total
+
+    # ------------------------------------------------------------------
+    # Stop-loss helpers
+    # ------------------------------------------------------------------
+
+    def update_peak_prices(self, close_prices: Dict[str, float]) -> None:
+        """Update peak price for all positions from today's close prices."""
+        for ts_code, pos in self.positions.items():
+            current = close_prices.get(ts_code)
+            if current is not None and current > pos.peak_price:
+                pos.peak_price = current
+
+    def is_stop_loss_triggered(
+        self,
+        ts_code: str,
+        close_prices: Dict[str, float],
+        stop_loss_pct: float,
+        vol_multiplier: float = 1.0,
+    ) -> bool:
+        """Check if position has hit stop-loss based on peak drawdown or cost floor.
+
+        Two checks (OR-ed):
+          1. Trailing stop: current price < peak_price * (1 + stop_loss_pct * vol_multiplier)
+          2. Cost floor:    current price < cost_basis * (1 + stop_loss_pct)
+        """
+        position = self.positions.get(ts_code)
+        if position is None:
+            return False
+        current_price = close_prices.get(ts_code)
+        if current_price is None:
+            return False
+
+        # 1. Trailing stop: drawdown from peak, adjusted by volatility
+        effective_stop = stop_loss_pct * vol_multiplier
+        if current_price < position.peak_price * (1 + effective_stop):
+            return True
+
+        # 2. Cost floor: never exceed base stop-loss from cost basis
+        cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
+        if cost_basis <= 0:
+            return False
+        return current_price < cost_basis * (1 + stop_loss_pct)
 
     # ------------------------------------------------------------------
     # Fee helpers (internal, also usable by pipeline for PnL/total_fees)

@@ -18,3 +18,4 @@ class PositionEmbed(BaseModel):
     entry_10d_prob: float = 0.0
     entry_20d_prob: float = 0.0
     hold_days: int = 0
+    peak_price: float = 0.0

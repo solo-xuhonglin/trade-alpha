@@ -1,6 +1,6 @@
 """Multi-stock strategy - ranking-based multi-stock trading."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from trade_alpha.constants import (
     SELL_REASON_FULL_POSITION,
@@ -17,6 +17,9 @@ from trade_alpha.logging import get_logger
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.strategy.modes.trend_mode import TrendMode
 from trade_alpha.strategy.modes.rotation_mode import RotationMode
+
+if TYPE_CHECKING:
+    from trade_alpha.execution.portfolio import PortfolioManager
 
 logger = get_logger("strategy.multi_stock_strategy")
 
@@ -74,10 +77,17 @@ class MultiStockStrategy(BaseStrategy):
             self.sell_threshold = self.strategy_config.sell_threshold
             self.full_position_score_window = self.strategy_config.full_position_score_window
 
+        # Update peak prices before stop-loss check
+        if close_prices:
+            ctx.portfolio.update_peak_prices(close_prices)
+
+        vol_multiplier = market_data.baseline_vol_multiplier if market_data else 1.0
+
         return await mode.settle_mode_orders(
             scored_stocks, trade_date, ctx,
             close_prices, market_data,
             suggestion_mode=suggestion_mode,
+            vol_multiplier=vol_multiplier,
         )
 
     def _build_order(
@@ -122,21 +132,6 @@ class MultiStockStrategy(BaseStrategy):
             return True
         buffer = ctx.score_manager.get_score_buffer(ts_code)
         return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self.strategy_config.score_decline_threshold
-
-    @staticmethod
-    def _is_stop_loss_triggered(
-        position: PositionEmbed,
-        close_prices: Dict[str, float],
-        effective_stop_loss: float,
-    ) -> bool:
-        """Check if position has hit stop-loss based on cost basis."""
-        if position.ts_code not in close_prices:
-            return False
-        current_price = close_prices[position.ts_code]
-        cost_basis = (position.buy_price * position.shares + position.fee) / position.shares
-        if cost_basis <= 0:
-            return False
-        return current_price < cost_basis * (1 + effective_stop_loss)
 
     def _apply_full_position_sell(
         self,
@@ -227,6 +222,8 @@ class MultiStockStrategy(BaseStrategy):
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
+        portfolio: Optional["PortfolioManager"] = None,
+        vol_multiplier: float = 1.0,
     ) -> Tuple[bool, str]:
         """Check whether a position should be sold.
 
@@ -234,10 +231,11 @@ class MultiStockStrategy(BaseStrategy):
             Tuple of (should_sell: bool, reason: str).
         """
         current_score = score_map.get(position.ts_code, 0.0)
-        effective_stop_loss = self.stop_loss_pct
 
         if position.hold_days < self.min_hold_days:
-            if close_prices and self._is_stop_loss_triggered(position, close_prices, effective_stop_loss):
+            if close_prices and portfolio and portfolio.is_stop_loss_triggered(
+                position.ts_code, close_prices, self.stop_loss_pct, vol_multiplier,
+            ):
                 logger.debug(f"_check_sell ts_code={position.ts_code} stop_loss triggered, sell")
                 return True, SELL_REASON_STOP_LOSS
             logger.debug(f"_check_sell ts_code={position.ts_code} hold_days < min_hold_days, skip sell")
@@ -251,7 +249,9 @@ class MultiStockStrategy(BaseStrategy):
             logger.debug(f"_check_sell ts_code={position.ts_code} max_hold_days={self.max_hold_days} reached, sell")
             return True, SELL_REASON_MAX_HOLD_DAYS
 
-        if close_prices and self._is_stop_loss_triggered(position, close_prices, effective_stop_loss):
+        if close_prices and portfolio and portfolio.is_stop_loss_triggered(
+            position.ts_code, close_prices, self.stop_loss_pct, vol_multiplier,
+        ):
             return True, SELL_REASON_STOP_LOSS
 
         if position.ts_code not in sell_rank_ts_codes:

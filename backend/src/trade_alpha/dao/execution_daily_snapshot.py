@@ -30,6 +30,7 @@ class ExecutionDailySnapshot(Document):
     position_multiplier: float = 1.0
     buy_threshold_multiplier: float = 1.0
     market_phase: str = ""
+    baseline_vol_multiplier: float = 1.0
     position_pct: float = 0.0
     predictions: Dict[str, ScoredStock] = Field(default_factory=dict)
 

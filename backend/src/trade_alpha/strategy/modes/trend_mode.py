@@ -20,6 +20,7 @@ class TrendMode(PhaseMode):
         close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
+        vol_multiplier: float = 1.0,
     ) -> List[PendingOrder]:
         score_map = {st.ts_code: st.composite_score for st in scored_stocks}
         scored_stocks = [st for st in scored_stocks if not st.is_excluded]
@@ -54,7 +55,8 @@ class TrendMode(PhaseMode):
 
         for ts_code, pos in ctx.portfolio.positions.items():
             should_sell, sell_reason = self._strategy._check_sell(
-                pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data
+                pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data,
+                portfolio=ctx.portfolio, vol_multiplier=vol_multiplier,
             )
             if should_sell:
                 in_score = ts_code in score_map

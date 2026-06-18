@@ -6,6 +6,8 @@ full scoring lifecycle and owns cross-day state.
 
 import math
 
+import numpy as np
+
 from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.dao.strategy_config import StrategyConfig
@@ -372,6 +374,7 @@ class ScoreManager:
         self._retention_rate_buffer: List[float] = []
         self._correlation_buffer: List[float] = []
         self._low_pct_buffer: List[float] = []
+        self._rebalanced_cum_buffer: List[float] = []
         self._last_market_data: Optional[dict] = None
         self._last_close_prices_hist: Optional[Dict[str, List[float]]] = None
         self._market_phase: str = "flat"
@@ -580,6 +583,25 @@ class ScoreManager:
             "buy_threshold_multiplier": phase_buy_mult,
             "market_phase": phase_name,
         }
+
+        # --- Baseline volatility multiplier for adaptive stop-loss ---
+        if isinstance(daily_rebalanced_cum, (int, float)) and daily_rebalanced_cum > 0:
+            self._rebalanced_cum_buffer.append(daily_rebalanced_cum)
+        window = getattr(self._strategy_config, 'baseline_vol_window', 20)
+        ref_mult = getattr(self._strategy_config, 'baseline_vol_ref_multiplier', 3)
+        ref_window = window * ref_mult
+        buf = self._rebalanced_cum_buffer
+        if len(buf) >= ref_window:
+            returns = [(buf[i] - buf[i - 1]) / buf[i - 1] for i in range(-ref_window, 0)]
+            rolling_vol = float(np.std(returns[-window:]))
+            ref_vol = float(np.std(returns))
+            if ref_vol > 0:
+                multiplier = rolling_vol / ref_vol
+                self._last_market_data["baseline_vol_multiplier"] = max(0.5, min(3.0, multiplier))
+            else:
+                self._last_market_data["baseline_vol_multiplier"] = 1.0
+        else:
+            self._last_market_data["baseline_vol_multiplier"] = 1.0
         return phase_name
 
     async def _load_close_prices_hist(
