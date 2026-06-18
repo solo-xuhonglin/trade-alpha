@@ -1,8 +1,8 @@
-from typing import Dict, List, Optional, Set
+from typing import List, Optional, Set
 
 from trade_alpha.constants import REASON_NORMAL_BUY, REASON_PRIORITY_RANK_UP
 from trade_alpha.logging import get_logger
-from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
+from trade_alpha.schemas import ScoredStock, BuyCandidate, MarketDataEmbed
 from trade_alpha.strategy.modes.base import PhaseMode
 from trade_alpha.execution.context import PipelineContext
 
@@ -10,132 +10,84 @@ logger = get_logger("strategy.modes.trend_mode")
 
 
 class TrendMode(PhaseMode):
-    """Trend-following mode (market_phase = 'up')."""
+    """Trend-following mode (market_phase = 'up').
 
-    async def settle_mode_orders(
+    Selects top-ranked stocks above score threshold.
+    Prioritizes rank-improving stocks, then fills remaining from top stocks.
+    """
+
+    def select_buy_candidates(
         self,
         scored_stocks: List[ScoredStock],
-        trade_date: str,
         ctx: PipelineContext,
-        close_prices: Optional[Dict[str, float]] = None,
         market_data: Optional[MarketDataEmbed] = None,
-        suggestion_mode: bool = False,
-    ) -> List[PendingOrder]:
-        score_map = {st.ts_code: st.composite_score for st in scored_stocks}
-        scored_stocks = [st for st in scored_stocks if not st.is_excluded]
-        full_candidates = sorted(scored_stocks, key=lambda st: st.ranking_score, reverse=True)
+    ) -> List[BuyCandidate]:
+        config = ctx.strategy_config
 
-        position_multiplier, buy_threshold_multiplier = self._strategy._market_multipliers(market_data)
-        effective_threshold = self._strategy.buy_threshold * buy_threshold_multiplier
-        effective_max_positions = max(1, int(self._strategy.max_positions * position_multiplier))
+        # Compute effective multipliers
+        pos_mult = 1.0
+        buy_mult = 1.0
+        if getattr(config, "use_phase_strategy", True) and market_data is not None:
+            pos_mult = market_data.position_multiplier
+            buy_mult = market_data.buy_threshold_multiplier
 
-        scored_stocks = [st for st in scored_stocks if st.composite_score > effective_threshold]
-        sorted_stocks = sorted(scored_stocks, key=lambda st: st.ranking_score, reverse=True)
+        effective_threshold = config.buy_threshold * buy_mult
+        effective_max = max(1, int(config.max_positions * pos_mult))
 
-        if len(sorted_stocks) <= 5:
-            logger.info(f"settle_mode_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
-        elif len(sorted_stocks) % 10 == 0:
-            logger.info(f"settle_mode_orders trade_date={trade_date} scored_above_threshold={len(sorted_stocks)}")
+        # Full candidates (before score filter) — for rank_up check
+        full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
 
-        top_stocks = sorted_stocks[:effective_max_positions]
-        top_ts_codes = {st.ts_code for st in top_stocks}
-        sell_rank_stocks = sorted_stocks[:self._strategy.strategy_config.sell_rank_n]
-        sell_rank_ts_codes = {st.ts_code for st in sell_rank_stocks}
+        # Score-filtered candidates
+        above = [s for s in scored_stocks if s.composite_score > effective_threshold]
+        sorted_above = sorted(above, key=lambda s: s.ranking_score, reverse=True)
 
-        orders: List[PendingOrder] = []
-        close_prices = close_prices or {}
-        for pos in ctx.portfolio.positions.values():
-            pos.hold_days += 1
+        if len(sorted_above) <= 5:
+            logger.info(f"select_buy_candidates scored_above_threshold={len(sorted_above)}")
+        elif len(sorted_above) % 10 == 0:
+            logger.info(f"select_buy_candidates scored_above_threshold={len(sorted_above)}")
 
-        logger.info(
-            f"settle_mode_orders trade_date={trade_date} positions={len(ctx.portfolio.positions)} "
-            f"top_stocks={len(top_stocks)} sell_rank={len(sell_rank_ts_codes)} suggestion_mode={suggestion_mode}"
-        )
+        top_stocks = sorted_above[:effective_max]
 
-        for ts_code, pos in ctx.portfolio.positions.items():
-            should_sell, sell_reason = self._strategy.check_sell(
-                pos, top_ts_codes, sell_rank_ts_codes, score_map, close_prices, market_data,
-                ctx=ctx,
-            )
-            if should_sell:
-                in_score = ts_code in score_map
-                in_sell_rank = ts_code in sell_rank_ts_codes
-                current_score = score_map.get(ts_code, 0.0)
-                logger.info(
-                    f"settle_mode_orders SELL ts_code={ts_code} hold_days={pos.hold_days} "
-                    f"in_score_map={in_score} current_score={current_score:.3f} "
-                    f"in_sell_rank={in_sell_rank} reason={sell_reason}"
-                )
-                sell_price = close_prices.get(ts_code, pos.buy_price)
-                orders.append(PendingOrder(
-                    ts_code=pos.ts_code,
-                    stock_name=pos.stock_name,
-                    order_price=sell_price,
-                    order_shares=-pos.shares,
-                    entry_score=pos.entry_score,
-                    up_prob_3d=pos.entry_3d_prob,
-                    up_prob_5d=pos.entry_5d_prob,
-                    up_prob_10d=pos.entry_10d_prob,
-                    up_prob_20d=pos.entry_20d_prob,
-                    trade_date=trade_date,
-                    settle_date=self._strategy._next_trade_date(trade_date),
-                    reason=sell_reason,
-                ))
-
-        forced_orders = self._strategy._apply_full_position_sell(
-            scored_stocks, close_prices, trade_date, ctx, market_data,
-        )
-        orders.extend(forced_orders)
-
-        suggestion_count = 0
+        candidates: List[BuyCandidate] = []
+        purchased: Set[str] = set()
         hold_ts_codes = set(ctx.portfolio.positions.keys())
-        purchased_ts_codes: Set[str] = set()
 
-        if self._strategy.strategy_config.use_rank_up_priority and self._strategy.strategy_config.rank_up_count > 0:
-            rank_up_candidates = [
-                st for st in full_candidates
-                if st.ts_code not in hold_ts_codes
-                and st.rank_improvement >= self._strategy.strategy_config.rank_up_min_improvement_pct
-                and st.composite_score > self._strategy.strategy_config.rank_up_min_score * buy_threshold_multiplier
-                and self._strategy._score_not_declining(st.ts_code, ctx)
+        # --- Rank-up priority ---
+        if config.use_rank_up_priority and config.rank_up_count > 0:
+            rank_up_list = [
+                s for s in full_candidates
+                if s.ts_code not in hold_ts_codes
+                and s.rank_improvement >= config.rank_up_min_improvement_pct
+                and s.composite_score > config.rank_up_min_score * buy_mult
             ]
-            rank_up_candidates.sort(key=lambda st: st.rank_improvement, reverse=True)
-            for stock in rank_up_candidates[:self._strategy.strategy_config.rank_up_count]:
-                if suggestion_mode:
-                    if len(ctx.portfolio.positions) + suggestion_count >= self._strategy.max_positions:
-                        break
-                    suggestion_count += 1
-                    purchased_ts_codes.add(stock.ts_code)
-                    orders.append(self._strategy._build_order(stock, 0, REASON_PRIORITY_RANK_UP, trade_date))
-                    continue
-                success, shares, _fee = ctx.portfolio.reserve_funds(
-                    stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
-                )
-                if not success:
-                    continue
-                purchased_ts_codes.add(stock.ts_code)
-                orders.append(self._strategy._build_order(stock, shares, REASON_PRIORITY_RANK_UP, trade_date))
+            # Filter by score_not_declining
+            rank_up_list = [
+                s for s in rank_up_list
+                if _score_not_declining(s.ts_code, config, ctx)
+            ]
+            rank_up_list.sort(key=lambda s: s.rank_improvement, reverse=True)
+            for s in rank_up_list[:config.rank_up_count]:
+                purchased.add(s.ts_code)
+                candidates.append(BuyCandidate(stock=s, reason=REASON_PRIORITY_RANK_UP))
 
-        remaining_slots = self._strategy.max_positions - len(ctx.portfolio.positions) - suggestion_count
-        if remaining_slots > 0:
-            for stock in top_stocks:
-                if stock.ts_code in hold_ts_codes:
-                    continue
-                if stock.ts_code in purchased_ts_codes:
-                    continue
-                if not self._strategy._score_not_declining(stock.ts_code, ctx):
-                    continue
-                if suggestion_mode:
-                    if suggestion_count >= self._strategy.max_positions:
-                        break
-                    suggestion_count += 1
-                    orders.append(self._strategy._build_order(stock, 0, REASON_NORMAL_BUY, trade_date))
-                    continue
-                success, shares, _fee = ctx.portfolio.reserve_funds(
-                    stock.ts_code, stock.close, close_prices, max_position_scalar=position_multiplier,
-                )
-                if not success:
-                    continue
-                orders.append(self._strategy._build_order(stock, shares, REASON_NORMAL_BUY, trade_date))
+        # --- Remaining from top_stocks ---
+        for s in top_stocks:
+            if s.ts_code in purchased or s.ts_code in hold_ts_codes:
+                continue
+            if not _score_not_declining(s.ts_code, config, ctx):
+                continue
+            candidates.append(BuyCandidate(stock=s, reason=REASON_NORMAL_BUY))
 
-        return orders
+        return candidates
+
+
+def _score_not_declining(ts_code: str, config, ctx: PipelineContext) -> bool:
+    """Check if stock's composite_score isn't dropping significantly.
+
+    Standalone function shared between TrendMode and MultiStockStrategy.
+    Uses raw score buffer for day-over-day comparison with threshold.
+    """
+    if not config.use_score_decline_filter:
+        return True
+    buffer = ctx.score_manager.get_score_buffer(ts_code)
+    return len(buffer) < 2 or buffer[-1] >= buffer[-2] - config.score_decline_threshold
