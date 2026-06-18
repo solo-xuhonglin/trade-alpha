@@ -70,6 +70,11 @@ def _strategy_to_dict(s) -> dict:
         "use_phase_strategy": s.use_phase_strategy,
         "phase_crash_threshold": s.phase_crash_threshold,
         "phase_recovery_threshold": s.phase_recovery_threshold,
+        "rotation_bottom_threshold": s.rotation_bottom_threshold,
+        "rotation_rank_min": s.rotation_rank_min,
+        "rotation_rank_max": s.rotation_rank_max,
+        "rotation_use_reversal_check": s.rotation_use_reversal_check,
+        "rotation_was_top_n": s.rotation_was_top_n,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -153,6 +158,11 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             use_phase_strategy=request.use_phase_strategy,
             phase_crash_threshold=request.phase_crash_threshold,
             phase_recovery_threshold=request.phase_recovery_threshold,
+            rotation_bottom_threshold=request.rotation_bottom_threshold,
+            rotation_rank_min=request.rotation_rank_min,
+            rotation_rank_max=request.rotation_rank_max,
+            rotation_use_reversal_check=request.rotation_use_reversal_check,
+            rotation_was_top_n=request.rotation_was_top_n,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -218,6 +228,11 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             use_phase_strategy=request.use_phase_strategy,
             phase_crash_threshold=request.phase_crash_threshold,
             phase_recovery_threshold=request.phase_recovery_threshold,
+            rotation_bottom_threshold=request.rotation_bottom_threshold,
+            rotation_rank_min=request.rotation_rank_min,
+            rotation_rank_max=request.rotation_rank_max,
+            rotation_use_reversal_check=request.rotation_use_reversal_check,
+            rotation_was_top_n=request.rotation_was_top_n,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

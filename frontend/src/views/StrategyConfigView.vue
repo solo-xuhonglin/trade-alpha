@@ -63,6 +63,7 @@
           <v-tab value="basic">基本配置</v-tab>
           <v-tab value="multi">多股票配置</v-tab>
           <v-tab value="market">市场分析</v-tab>
+          <v-tab value="rotation">轮动参数</v-tab>
           <v-tab value="ranking">排名优化</v-tab>
           <v-tab value="trading">交易优化</v-tab>
         </v-tabs>
@@ -363,6 +364,46 @@
             </div>
           </v-window-item>
 
+          <v-window-item value="rotation">
+            <div>
+              <v-row>
+                <v-col cols="12">
+                  <div class="text-body-2 mb-2">
+                    <v-icon size="small" class="mr-1">mdi-swap-horizontal-bold</v-icon>
+                    轮动买入条件
+                    <v-chip size="x-small" variant="outlined" color="info">横盘/下跌时，买入曾进前N、近期回调到位并开始反转的股票</v-chip>
+                  </div>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rotation_was_top_n" type="number" min="1"
+                    label="历史最高排名" hint="曾进前 N 名才算强势股（默认 15）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rotation_bottom_threshold" type="number" min="1"
+                    label="回调深度阈值" hint="近5日最低排名超过此值才算回调（默认 60，原 76）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rotation_rank_min" type="number" min="1"
+                    label="买入排名下限" hint="今天排名最低要求（默认 45）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.rotation_rank_max" type="number" min="1"
+                    label="买入排名上限" hint="今天排名最高要求（默认 75）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12">
+                  <v-switch v-model="form.rotation_use_reversal_check" hide-details density="compact" color="primary"
+                    label="反转确认" hint="要求今天排名优于近5日均值，避免在半山腰买入" persistent-hint />
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
+
           <v-window-item value="trading">
             <div>
               <div class="d-flex align-center mb-2">
@@ -624,7 +665,11 @@ const form = ref({
   score_decline_threshold: 0.05,
   use_score_decline_filter: false,
   full_position_pnl_weight: 0.5,
-
+  rotation_bottom_threshold: 60,
+  rotation_rank_min: 45,
+  rotation_rank_max: 75,
+  rotation_use_reversal_check: true,
+  rotation_was_top_n: 15,
 })
 
 const headers = [
@@ -687,6 +732,11 @@ const compareFields: CompareField[] = [
   { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
   { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
+  { key: 'rotation_bottom_threshold', label: '轮动回调深度阈值', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_min', label: '轮动排名下限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_max', label: '轮动排名上限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
+  { key: 'rotation_was_top_n', label: '轮动历史最高排名', group: '轮动参数', type: 'number' },
 ]
 
 const loadStrategies = async () => {
@@ -759,6 +809,11 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       use_phase_strategy: item.use_phase_strategy ?? true,
       phase_crash_threshold: item.phase_crash_threshold ?? -0.06,
       phase_recovery_threshold: item.phase_recovery_threshold ?? -0.03,
+      rotation_bottom_threshold: item.rotation_bottom_threshold ?? 60,
+      rotation_rank_min: item.rotation_rank_min ?? 45,
+      rotation_rank_max: item.rotation_rank_max ?? 75,
+      rotation_use_reversal_check: item.rotation_use_reversal_check ?? true,
+      rotation_was_top_n: item.rotation_was_top_n ?? 15,
     }
   } else {
     editingId.value = null
@@ -812,6 +867,11 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       use_phase_strategy: true,
       phase_crash_threshold: -0.06,
       phase_recovery_threshold: -0.03,
+      rotation_bottom_threshold: 60,
+      rotation_rank_min: 45,
+      rotation_rank_max: 75,
+      rotation_use_reversal_check: true,
+      rotation_was_top_n: 15,
     }
   }
   dialog.value = true
@@ -868,6 +928,11 @@ const saveStrategy = async () => {
       use_phase_strategy: form.value.use_phase_strategy,
       phase_crash_threshold: form.value.phase_crash_threshold,
       phase_recovery_threshold: form.value.phase_recovery_threshold,
+      rotation_bottom_threshold: form.value.rotation_bottom_threshold,
+      rotation_rank_min: form.value.rotation_rank_min,
+      rotation_rank_max: form.value.rotation_rank_max,
+      rotation_use_reversal_check: form.value.rotation_use_reversal_check,
+      rotation_was_top_n: form.value.rotation_was_top_n,
     })
   } else {
     await strategyConfigApi.create({
@@ -920,6 +985,11 @@ const saveStrategy = async () => {
       use_phase_strategy: form.value.use_phase_strategy,
       phase_crash_threshold: form.value.phase_crash_threshold,
       phase_recovery_threshold: form.value.phase_recovery_threshold,
+      rotation_bottom_threshold: form.value.rotation_bottom_threshold,
+      rotation_rank_min: form.value.rotation_rank_min,
+      rotation_rank_max: form.value.rotation_rank_max,
+      rotation_use_reversal_check: form.value.rotation_use_reversal_check,
+      rotation_was_top_n: form.value.rotation_was_top_n,
     })
   }
   dialog.value = false

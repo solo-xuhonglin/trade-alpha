@@ -68,6 +68,11 @@ async def create_strategy(
     use_phase_strategy: Optional[bool] = None,
     phase_crash_threshold: Optional[float] = None,
     phase_recovery_threshold: Optional[float] = None,
+    rotation_bottom_threshold: Optional[int] = None,
+    rotation_rank_min: Optional[int] = None,
+    rotation_rank_max: Optional[int] = None,
+    rotation_use_reversal_check: Optional[bool] = None,
+    rotation_was_top_n: Optional[int] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -164,6 +169,11 @@ async def update_strategy(
     use_phase_strategy: Optional[bool] = None,
     phase_crash_threshold: Optional[float] = None,
     phase_recovery_threshold: Optional[float] = None,
+    rotation_bottom_threshold: Optional[int] = None,
+    rotation_rank_min: Optional[int] = None,
+    rotation_rank_max: Optional[int] = None,
+    rotation_use_reversal_check: Optional[bool] = None,
+    rotation_was_top_n: Optional[int] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -288,6 +298,16 @@ async def update_strategy(
         strategy.phase_crash_threshold = phase_crash_threshold
     if phase_recovery_threshold is not None:
         strategy.phase_recovery_threshold = phase_recovery_threshold
+    if rotation_bottom_threshold is not None:
+        strategy.rotation_bottom_threshold = rotation_bottom_threshold
+    if rotation_rank_min is not None:
+        strategy.rotation_rank_min = rotation_rank_min
+    if rotation_rank_max is not None:
+        strategy.rotation_rank_max = rotation_rank_max
+    if rotation_use_reversal_check is not None:
+        strategy.rotation_use_reversal_check = rotation_use_reversal_check
+    if rotation_was_top_n is not None:
+        strategy.rotation_was_top_n = rotation_was_top_n
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()

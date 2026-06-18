@@ -51,6 +51,11 @@ export interface Strategy {
   use_phase_strategy?: boolean
   phase_crash_threshold?: number
   phase_recovery_threshold?: number
+  rotation_bottom_threshold?: number
+  rotation_rank_min?: number
+  rotation_rank_max?: number
+  rotation_use_reversal_check?: boolean
+  rotation_was_top_n?: number
   created_at: string
   updated_at?: string
 }

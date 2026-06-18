@@ -89,6 +89,11 @@ class StrategyCreateRequest(BaseModel):
     use_phase_strategy: Optional[bool] = None
     phase_crash_threshold: Optional[float] = None
     phase_recovery_threshold: Optional[float] = None
+    rotation_bottom_threshold: Optional[int] = None
+    rotation_rank_min: Optional[int] = None
+    rotation_rank_max: Optional[int] = None
+    rotation_use_reversal_check: Optional[bool] = None
+    rotation_was_top_n: Optional[int] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -140,6 +145,11 @@ class StrategyUpdateRequest(BaseModel):
     use_phase_strategy: Optional[bool] = None
     phase_crash_threshold: Optional[float] = None
     phase_recovery_threshold: Optional[float] = None
+    rotation_bottom_threshold: Optional[int] = None
+    rotation_rank_min: Optional[int] = None
+    rotation_rank_max: Optional[int] = None
+    rotation_use_reversal_check: Optional[bool] = None
+    rotation_was_top_n: Optional[int] = None
 
 
 class AccountConfigCreateRequest(BaseModel):
