@@ -19,7 +19,7 @@ export interface OverviewChartItem {
   market_phase?: string
   top_n_retention_rate_smoothed: number
   score_return_corr_smoothed: number
-  stop_loss_vol_mult?: number
+  baseline_vol_multiplier?: number
 }
 
 interface PhaseZone {

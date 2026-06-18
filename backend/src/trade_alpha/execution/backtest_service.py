@@ -665,6 +665,7 @@ async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
                 "position_pct": s.position_pct,
                 "top_n_retention_rate_smoothed": s.top_n_retention_rate_smoothed,
                 "score_return_corr_smoothed": s.score_return_corr_smoothed,
+                "baseline_vol_multiplier": s.baseline_vol_multiplier,
             }
             for s in snapshots
         ]
