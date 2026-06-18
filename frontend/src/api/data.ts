@@ -35,6 +35,7 @@ export interface Stock {
   sync_status: string
   data_count?: number
   latest_date?: string
+  is_active_for_backtest: boolean
 }
 
 export interface StockListResponse {
@@ -43,6 +44,8 @@ export interface StockListResponse {
   page: number
   page_size: number
   total_pages: number
+  active_count: number
+  backtest_count: number
 }
 
 export interface DataRecordListResponse {
@@ -54,12 +57,23 @@ export interface DataRecordListResponse {
 }
 
 export const dataApi = {
-  listStocks: (page: number = 1, pageSize: number = 20, startRank?: number, endRank?: number) => {
+  listStocks: (
+    page: number = 1,
+    pageSize: number = 20,
+    startRank?: number,
+    endRank?: number,
+    industries?: string,
+    historicalDate?: string,
+    statusFilter?: string,
+  ) => {
     const params: any = { page, page_size: pageSize }
     if (startRank !== undefined && endRank !== undefined) {
       params.start_rank = startRank
       params.end_rank = endRank
     }
+    if (industries) params.industries = industries
+    if (historicalDate) params.historical_date = historicalDate
+    if (statusFilter) params.status_filter = statusFilter
     return api.get<StockListResponse>('/data/stocks', { params })
   },
 
@@ -80,5 +94,14 @@ export const dataApi = {
 
   deleteData: (tsCode: string) =>
     api.delete(`/data/${tsCode}`),
+
+  listIndustries: () =>
+    api.get<{ industries: string[] }>('/data/industries'),
+
+  updateBacktestStatus: (tsCode: string, isActive: boolean) =>
+    api.put(`/data/stocks/${tsCode}/backtest-status`, { is_active_for_backtest: isActive }),
+
+  batchUpdateBacktestStatus: (updates: { ts_code: string; is_active_for_backtest: boolean }[]) =>
+    api.put('/data/stocks/backtest-status/batch', { updates }),
 
 }

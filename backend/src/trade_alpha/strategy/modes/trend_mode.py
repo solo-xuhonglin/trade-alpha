@@ -1,9 +1,9 @@
-from typing import List, Optional, Set
+from typing import List, Optional
 
-from trade_alpha.constants import REASON_NORMAL_BUY, REASON_PRIORITY_RANK_UP
+from trade_alpha.constants import REASON_NORMAL_BUY
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock, BuyCandidate, MarketDataEmbed
-from trade_alpha.strategy.modes.base import PhaseMode
+from trade_alpha.strategy.modes.base import PhaseMode, score_not_declining
 from trade_alpha.execution.context import PipelineContext
 
 logger = get_logger("strategy.modes.trend_mode")
@@ -13,7 +13,8 @@ class TrendMode(PhaseMode):
     """Trend-following mode (market_phase = 'up').
 
     Selects top-ranked stocks above score threshold.
-    Prioritizes rank-improving stocks, then fills remaining from top stocks.
+    Rank-up priority candidates are handled by the strategy-level logic
+    and prepended to this mode's candidates before order processing.
     """
 
     def select_buy_candidates(
@@ -24,10 +25,6 @@ class TrendMode(PhaseMode):
     ) -> List[BuyCandidate]:
         config = ctx.strategy_config
 
-        # Full candidates (before score filter) — for rank_up check
-        full_candidates = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
-
-        # Score-filtered candidates
         above = [s for s in scored_stocks if s.composite_score > config.buy_threshold]
         sorted_above = sorted(above, key=lambda s: s.ranking_score, reverse=True)
 
@@ -39,45 +36,13 @@ class TrendMode(PhaseMode):
         top_stocks = sorted_above[:config.max_positions]
 
         candidates: List[BuyCandidate] = []
-        purchased: Set[str] = set()
         hold_ts_codes = set(ctx.portfolio.positions.keys())
 
-        # --- Rank-up priority ---
-        if config.use_rank_up_priority and config.rank_up_count > 0:
-            rank_up_list = [
-                s for s in full_candidates
-                if s.ts_code not in hold_ts_codes
-                and s.rank_improvement >= config.rank_up_min_improvement_pct
-                and s.composite_score > config.rank_up_min_score
-            ]
-            # Filter by score_not_declining
-            rank_up_list = [
-                s for s in rank_up_list
-                if _score_not_declining(s.ts_code, config, ctx)
-            ]
-            rank_up_list.sort(key=lambda s: s.rank_improvement, reverse=True)
-            for s in rank_up_list[:config.rank_up_count]:
-                purchased.add(s.ts_code)
-                candidates.append(BuyCandidate(stock=s, reason=REASON_PRIORITY_RANK_UP))
-
-        # --- Remaining from top_stocks ---
         for s in top_stocks:
-            if s.ts_code in purchased or s.ts_code in hold_ts_codes:
+            if s.ts_code in hold_ts_codes:
                 continue
-            if not _score_not_declining(s.ts_code, config, ctx):
+            if not score_not_declining(s.ts_code, config, ctx):
                 continue
             candidates.append(BuyCandidate(stock=s, reason=REASON_NORMAL_BUY))
 
         return candidates
-
-
-def _score_not_declining(ts_code: str, config, ctx: PipelineContext) -> bool:
-    """Check if stock's composite_score isn't dropping significantly.
-
-    Standalone function shared between TrendMode and MultiStockStrategy.
-    Uses raw score buffer for day-over-day comparison with threshold.
-    """
-    if not config.use_score_decline_filter:
-        return True
-    buffer = ctx.score_manager.get_score_buffer(ts_code)
-    return len(buffer) < 2 or buffer[-1] >= buffer[-2] - config.score_decline_threshold

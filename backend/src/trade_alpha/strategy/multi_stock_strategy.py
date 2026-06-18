@@ -3,6 +3,7 @@
 from typing import Dict, List, Optional, Set, Tuple
 
 from trade_alpha.constants import (
+    REASON_PRIORITY_RANK_UP,
     SELL_REASON_FULL_POSITION,
     SELL_REASON_HOLD_SCORE_LOW,
     SELL_REASON_MAX_HOLD_DAYS,
@@ -11,9 +12,9 @@ from trade_alpha.constants import (
 )
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
+from trade_alpha.schemas import BuyCandidate, ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import BaseStrategy
-from trade_alpha.strategy.modes.base import PhaseMode
+from trade_alpha.strategy.modes.base import PhaseMode, score_not_declining
 from trade_alpha.logging import get_logger
 from trade_alpha.execution.context import PipelineContext
 
@@ -132,10 +133,16 @@ class MultiStockStrategy(BaseStrategy):
         # ── 9. Get buy candidates from mode ──
         buy_candidates = mode.select_buy_candidates(scored_stocks, ctx, market_data)
 
+        # ── 9b. Prepend rank-up priority candidates (shared across all modes) ──
+        rank_up_candidates = self._get_rank_up_candidates(scored_stocks, ctx)
+        buy_candidates = rank_up_candidates + buy_candidates
+
         # ── 10. Process buy candidates ──
         hold_ts_codes: Set[str] = set(ctx.portfolio.positions.keys())
         purchased: Set[str] = set()
         suggestion_count = 0
+        daily_buy_count = 0
+        max_daily = self.strategy_config.max_daily_buys
 
         for cand in buy_candidates:
             if cand.stock.ts_code in hold_ts_codes or cand.stock.ts_code in purchased:
@@ -146,6 +153,8 @@ class MultiStockStrategy(BaseStrategy):
                 suggestion_count += 1
                 orders.append(self._build_order(cand.stock, 0, cand.reason, trade_date))
                 continue
+            if daily_buy_count >= max_daily:
+                break
             success, shares, _fee = ctx.portfolio.reserve_funds(
                 cand.stock.ts_code, cand.stock.close, close_prices,
                 atr=atr_values.get(cand.stock.ts_code, 0.0) if atr_values else 0.0,
@@ -153,6 +162,7 @@ class MultiStockStrategy(BaseStrategy):
             if not success:
                 continue
             purchased.add(cand.stock.ts_code)
+            daily_buy_count += 1
             orders.append(self._build_order(cand.stock, shares, cand.reason, trade_date))
 
         return orders
@@ -182,12 +192,37 @@ class MultiStockStrategy(BaseStrategy):
 
     _FULL_POSITION_PNL_CLIP_PCT = 50.0
 
-    def _score_not_declining(self, ts_code: str, ctx: PipelineContext) -> bool:
-        """Check if stock's composite_score isn't dropping significantly."""
-        if not self.strategy_config.use_score_decline_filter:
-            return True
-        buffer = ctx.score_manager.get_score_buffer(ts_code)
-        return len(buffer) < 2 or buffer[-1] >= buffer[-2] - self.strategy_config.score_decline_threshold
+    def _get_rank_up_candidates(
+        self,
+        scored_stocks: List[ScoredStock],
+        ctx: PipelineContext,
+    ) -> List[BuyCandidate]:
+        """Build priority buy candidates for stocks with improving ranks.
+
+        Shared across all modes (TrendMode, RotationMode, etc.).
+        Rank-up candidates are prepended to mode candidates so they
+        are processed first in the buy loop.
+        """
+        config = self.strategy_config
+        if not config.use_rank_up_priority or config.rank_up_count <= 0:
+            return []
+
+        hold_ts_codes = set(ctx.portfolio.positions.keys())
+        full_all = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
+
+        rank_up_list = [
+            s for s in full_all
+            if s.ts_code not in hold_ts_codes
+            and s.rank_improvement >= config.rank_up_min_improvement_pct
+            and s.composite_score > config.rank_up_min_score
+            and score_not_declining(s.ts_code, config, ctx)
+        ]
+        rank_up_list.sort(key=lambda s: s.rank_improvement, reverse=True)
+
+        return [
+            BuyCandidate(stock=s, reason=REASON_PRIORITY_RANK_UP)
+            for s in rank_up_list[:config.rank_up_count]
+        ]
 
     def _apply_full_position_sell(
         self,

@@ -527,6 +527,7 @@
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最大持仓天数：</span>{{ backtestStrategyConfig?.max_hold_days ?? '-' }}</v-col>
             </v-row>
             <v-row class="py-0">
+              <v-col cols="6"><span class="text-body-2 text-medium-emphasis">每日最多买入：</span>{{ backtestStrategyConfig?.max_daily_buys ?? '2' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最低持有天数：</span>{{ backtestStrategyConfig?.min_hold_days ?? '-' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">最小交易金额：</span>{{ backtestStrategyConfig?.min_order_value ?? '-' }}</v-col>
               <v-col cols="6"><span class="text-body-2 text-medium-emphasis">持仓评分阈值：</span>{{ backtestStrategyConfig?.hold_score_threshold ?? '-' }}</v-col>
@@ -950,6 +951,7 @@ const strategyCompareFields: CompareField[] = [
   { key: 'max_hold_days', label: '最大持仓天数', group: '基本配置', type: 'number' },
   { key: 'min_hold_days', label: '最低持有天数', group: '基本配置', type: 'number' },
   { key: 'buy_threshold', label: '买入阈值', group: '基本配置', type: 'number' },
+  { key: 'max_daily_buys', label: '每日最多买入', group: '交易优化', type: 'number' },
   { key: 'sell_threshold', label: '卖出阈值', group: '基本配置', type: 'number' },
   { key: 'max_positions', label: '最大持仓数', group: '多股票配置', type: 'number' },
   { key: 'max_position_pct', label: '单票最大仓位', group: '多股票配置', type: 'number' },

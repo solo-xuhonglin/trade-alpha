@@ -88,6 +88,7 @@ class StrategyCreateRequest(BaseModel):
     correlation_window: Optional[int] = None
     atr_stop_multiplier: Optional[float] = None
     atr_trail_rate: Optional[float] = None
+    max_daily_buys: Optional[int] = 2
     use_phase_strategy: Optional[bool] = None
     rotation_bottom_threshold: Optional[int] = None
     rotation_rank_min: Optional[int] = None
@@ -146,6 +147,7 @@ class StrategyUpdateRequest(BaseModel):
     correlation_window: Optional[int] = None
     atr_stop_multiplier: Optional[float] = None
     atr_trail_rate: Optional[float] = None
+    max_daily_buys: Optional[int] = None
     use_phase_strategy: Optional[bool] = None
     rotation_bottom_threshold: Optional[int] = None
     rotation_rank_min: Optional[int] = None
@@ -192,6 +194,7 @@ class StockResponse(BaseModel):
     sync_status: str = "pending"
     data_count: Optional[int] = None
     latest_date: Optional[str] = None
+    is_active_for_backtest: bool = False
 
 
 class StockListResponse(BaseModel):
@@ -200,6 +203,21 @@ class StockListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+    active_count: int = 0
+    backtest_count: int = 0
+
+
+class BacktestStatusRequest(BaseModel):
+    is_active_for_backtest: bool
+
+
+class BacktestStatusItem(BaseModel):
+    ts_code: str
+    is_active_for_backtest: bool
+
+
+class BatchBacktestRequest(BaseModel):
+    updates: list[BacktestStatusItem]
 
 
 class StockDailyItem(BaseModel):

@@ -30,3 +30,14 @@ class PhaseMode(ABC):
         or already-purchased stocks, and process remaining via
         reserve_funds + _build_order.
         """
+
+
+def score_not_declining(ts_code: str, config, ctx: PipelineContext) -> bool:
+    """Check if stock's composite_score isn't dropping significantly.
+
+    Uses raw score buffer for day-over-day comparison with configured threshold.
+    """
+    if not config.use_score_decline_filter:
+        return True
+    buffer = ctx.score_manager.get_score_buffer(ts_code)
+    return len(buffer) < 2 or buffer[-1] >= buffer[-2] - config.score_decline_threshold

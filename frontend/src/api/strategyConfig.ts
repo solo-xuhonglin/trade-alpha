@@ -51,6 +51,7 @@ export interface Strategy {
   use_phase_strategy?: boolean
   atr_stop_multiplier?: number
   atr_trail_rate?: number
+  max_daily_buys?: number
   rotation_bottom_threshold?: number
   rotation_rank_min?: number
   rotation_rank_max?: number

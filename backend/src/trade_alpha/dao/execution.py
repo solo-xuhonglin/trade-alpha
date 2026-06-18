@@ -74,6 +74,7 @@ class StrategySnapshotEmbed(BaseModel):
     retention_days: int = 5
     correlation_window: int = 5
     use_phase_strategy: bool = True
+    max_daily_buys: int = 2
     rotation_bottom_threshold: int = 60
     rotation_rank_min: int = 45
     rotation_rank_max: int = 75

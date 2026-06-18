@@ -58,6 +58,7 @@ class StrategyConfig(Document):
     use_phase_strategy: bool = True
     atr_stop_multiplier: float = 3.0
     atr_trail_rate: float = 0.5
+    max_daily_buys: int = 2
     # Rotation mode params
     rotation_bottom_threshold: int = 60
     rotation_rank_min: int = 45

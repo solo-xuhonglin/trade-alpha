@@ -2,17 +2,17 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Optional
-
-from beanie.odm.operators.find.comparison import NotIn, In
+from typing import Optional
 
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
-from trade_alpha.data.service import fetch_and_store_stock_daily, fetch_and_store_stock_list, update_stock_data_count
+from trade_alpha.data.service import (
+    fetch_and_store_stock_daily, fetch_and_store_stock_list,
+    update_stock_data_count, get_stocks_for_sync,
+)
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
-from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("stock_data_init")
 
@@ -35,22 +35,6 @@ async def ensure_stock_list() -> int:
         logger.info("Stock list is empty, fetching from Tushare")
         return await fetch_and_store_stock_list()
     return count
-
-
-async def get_pending_stocks(top_limit: Optional[int] = None, limit: int = 300) -> List[StockList]:
-    if top_limit is None:
-        config = load_config()
-        top_limit = config.top_market_cap_stocks
-    top_stocks = await StockList.find(
-        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
-    ).sort(-StockList.total_mv).limit(top_limit).to_list()
-    if not top_stocks:
-        return []
-    top_ts_codes = [s.ts_code for s in top_stocks]
-    return await StockList.find(
-        StockList.sync_status == "pending",
-        In(StockList.ts_code, top_ts_codes)
-    ).sort(-StockList.total_mv).limit(limit).to_list()
 
 
 async def update_single_stock_data_count(ts_code: str) -> None:
@@ -128,7 +112,11 @@ async def run_stock_data_init_job(cfg=None):
     if await check_active_stocks_sufficient(stock_count=stock_count):
         logger.info("Target active stocks reached, skipping data init job")
         return
-    pending_stocks = await get_pending_stocks(top_limit=stock_count, limit=300)
+    pending_stocks = await get_stocks_for_sync(
+        sync_status="pending",
+        top_limit=stock_count,
+        include_backtest=True,
+    )
     if not pending_stocks:
         logger.info("No stocks to process")
         return

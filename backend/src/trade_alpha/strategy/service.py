@@ -66,6 +66,7 @@ async def create_strategy(
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
     use_phase_strategy: Optional[bool] = None,
+    max_daily_buys: Optional[int] = None,
     rotation_bottom_threshold: Optional[int] = None,
     rotation_rank_min: Optional[int] = None,
     rotation_rank_max: Optional[int] = None,
@@ -167,6 +168,7 @@ async def update_strategy(
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
     use_phase_strategy: Optional[bool] = None,
+    max_daily_buys: Optional[int] = None,
     rotation_bottom_threshold: Optional[int] = None,
     rotation_rank_min: Optional[int] = None,
     rotation_rank_max: Optional[int] = None,
@@ -294,6 +296,8 @@ async def update_strategy(
         strategy.correlation_window = correlation_window
     if use_phase_strategy is not None:
         strategy.use_phase_strategy = use_phase_strategy
+    if max_daily_buys is not None:
+        strategy.max_daily_buys = max_daily_buys
 
     if rotation_bottom_threshold is not None:
         strategy.rotation_bottom_threshold = rotation_bottom_threshold

@@ -15,6 +15,33 @@
             <v-icon color="medium-emphasis" icon="mdi-database" size="x-small" start></v-icon>
             数据管理
           </v-toolbar-title>
+          <v-select
+            v-model="industries"
+            :items="industryOptions"
+            label="行业筛选"
+            multiple
+            chips
+            clearable
+            density="compact"
+            variant="outlined"
+            hide-details
+            class="mx-2"
+            style="max-width: 300px;"
+            @update:model-value="loadStocks"
+          ></v-select>
+          <v-text-field
+            v-model="historicalDate"
+            label="历史日期"
+            type="date"
+            density="compact"
+            variant="outlined"
+            hide-details
+            class="mx-2"
+            style="max-width: 200px;"
+            @update:model-value="loadStocks"
+          ></v-text-field>
+          <v-chip class="mx-1">已同步: {{ activeCount }}</v-chip>
+          <v-chip color="primary" class="mx-1">回测股票: {{ backtestCount }}</v-chip>
           <v-btn
             class="me-2"
             prepend-icon="mdi-refresh"
@@ -43,6 +70,15 @@
       </template>
       <template v-slot:item.total_mv="{ item }">
         {{ formatMarketValue(item.total_mv) }}
+      </template>
+      <template v-slot:item.is_active_for_backtest="{ item }">
+        <v-switch
+          :model-value="item.is_active_for_backtest"
+          color="primary"
+          hide-details
+          density="compact"
+          @update:model-value="toggleBacktest(item, $event)"
+        ></v-switch>
       </template>
       <template v-slot:item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
@@ -186,6 +222,12 @@ const loadingDownload = ref(false)
 const loadingDelete = ref(false)
 const loadingClear = ref(false)
 
+const industries = ref<string[]>([])
+const industryOptions = ref<string[]>([])
+const historicalDate = ref<string>('')
+const activeCount = ref(0)
+const backtestCount = ref(0)
+
 const stocks = ref<Stock[]>([])
 const totalItems = ref(0)
 const page = ref(1)
@@ -221,15 +263,20 @@ const headers = [
   { title: '状态', key: 'sync_status', width: '80px' },
   { title: '条数', key: 'data_count', width: '60px' },
   { title: '最新日期', key: 'latest_date', width: '100px' },
+  { title: '回测', key: 'is_active_for_backtest', width: '80px', sortable: false },
   { title: '操作', key: 'actions', sortable: false, width: '80px', align: 'end' as const },
 ]
 
 const loadStocks = async () => {
   loadingList.value = true
-  const res = await dataApi.listStocks(page.value, pageSize.value)
+  const indStr = industries.value.length > 0 ? industries.value.join(',') : undefined
+  const histDate = historicalDate.value ? historicalDate.value.replace(/-/g, '') : undefined
+  const res = await dataApi.listStocks(page.value, pageSize.value, undefined, undefined, indStr, histDate)
   const data = res.data
   stocks.value = data.items
   totalItems.value = data.total
+  activeCount.value = data.active_count
+  backtestCount.value = data.backtest_count
   loadingList.value = false
 }
 
@@ -373,8 +420,19 @@ const deleteStock = async () => {
   loadingDelete.value = false
 }
 
+const toggleBacktest = async (stock: Stock, value: boolean) => {
+  await dataApi.updateBacktestStatus(stock.ts_code, value)
+  await loadStocks()
+}
+
+const loadIndustries = async () => {
+  const res = await dataApi.listIndustries()
+  industryOptions.value = res.data.industries
+}
+
 onMounted(() => {
   loadStocks()
+  loadIndustries()
 })
 
 onUnmounted(() => {

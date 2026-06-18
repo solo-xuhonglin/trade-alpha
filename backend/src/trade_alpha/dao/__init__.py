@@ -13,6 +13,7 @@ from trade_alpha.dao.prediction import PredictionResult
 from trade_alpha.dao.signal import SignalResult
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_list import StockList
+from trade_alpha.dao.stock_list_history import StockListHistory
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.dao.order_suggestion import OrderSuggestion
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
@@ -45,5 +46,6 @@ __all__ = [
     "SignalResult",
     "StockDaily",
     "StockList",
+    "StockListHistory",
     "PositionEmbed",
 ]

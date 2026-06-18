@@ -155,6 +155,12 @@
                   ></v-text-field>
                 </v-col>
               </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.max_daily_buys" type="number" step="1" min="1" max="10"
+                    label="每日最多买入" hint="每个交易日最多买入N只股票（默认2）" persistent-hint />
+                </v-col>
+              </v-row>
             </div>
           </v-window-item>
 
@@ -592,6 +598,12 @@
               ></v-text-field>
             </v-col>
           </v-row>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.max_daily_buys" type="number" step="1" min="1" max="10"
+                label="每日最多买入" hint="每个交易日最多买入N只股票（默认2）" persistent-hint />
+            </v-col>
+          </v-row>
         </div>
       </v-card-text>
       <v-divider></v-divider>
@@ -648,6 +660,7 @@ const form = ref({
   min_hold_days: 5,
   buy_threshold: 0.2,
   sell_threshold: -0.01,
+  max_daily_buys: 2,
   atr_stop_multiplier: 3.0,
   atr_trail_rate: 0.5,
   max_positions: 10,
@@ -707,6 +720,7 @@ const compareFields: CompareField[] = [
   { key: 'max_hold_days', label: '最大持仓天数', group: '基本配置', type: 'number' },
   { key: 'min_hold_days', label: '最低持有天数', group: '基本配置', type: 'number' },
   { key: 'buy_threshold', label: '买入阈值', group: '基本配置', type: 'number' },
+  { key: 'max_daily_buys', label: '每日最多买入', group: '交易优化', type: 'number' },
   { key: 'sell_threshold', label: '卖出阈值', group: '基本配置', type: 'number' },
   { key: 'max_positions', label: '最大持仓数', group: '多股票配置', type: 'number' },
   { key: 'max_position_pct', label: '单票最大仓位', group: '多股票配置', type: 'number' },
@@ -777,6 +791,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       min_hold_days: item.min_hold_days ?? 5,
       buy_threshold: item.buy_threshold ?? 0.2,
       sell_threshold: item.sell_threshold ?? -0.01,
+      max_daily_buys: item.max_daily_buys ?? 2,
       atr_stop_multiplier: item.atr_stop_multiplier ?? 3.0,
       atr_trail_rate: item.atr_trail_rate ?? 0.5,
       max_positions: item.max_positions ?? 10,
@@ -846,6 +861,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       min_hold_days: 5,
       buy_threshold: 0.2,
       sell_threshold: -0.01,
+      max_daily_buys: 2,
       atr_stop_multiplier: 3.0,
       atr_trail_rate: 0.5,
       max_positions: 10,
@@ -911,6 +927,7 @@ const saveStrategy = async () => {
       min_hold_days: form.value.min_hold_days,
       buy_threshold: form.value.buy_threshold,
       sell_threshold: form.value.sell_threshold,
+      max_daily_buys: form.value.max_daily_buys,
       max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
       sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
@@ -970,6 +987,7 @@ const saveStrategy = async () => {
       min_hold_days: form.value.min_hold_days,
       buy_threshold: form.value.buy_threshold,
       sell_threshold: form.value.sell_threshold,
+      max_daily_buys: form.value.max_daily_buys,
       max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
       sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,

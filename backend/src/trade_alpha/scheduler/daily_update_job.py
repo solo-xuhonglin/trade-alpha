@@ -14,9 +14,9 @@ import pandas as pd
 from trade_alpha.dao import StockDaily, StockList, TradeCalendar
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.fetcher import fetch_stock_data
+from trade_alpha.data.service import get_stocks_for_sync
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.logging import get_logger
-from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("daily_update")
 
@@ -37,11 +37,11 @@ async def _get_latest_trade_date() -> Optional[str]:
 
 
 async def _get_active_stocks() -> list[StockList]:
-    """Get all active stocks (excluding test stocks)."""
-    stocks = await StockList.find(
-        StockList.sync_status == "active",
-    ).sort(-StockList.total_mv).to_list()
-    return [s for s in stocks if s.ts_code not in TEST_EXCLUDED_TS_CODES]
+    """Get all active stocks including backtest-tagged ones outside top N."""
+    return await get_stocks_for_sync(
+        sync_status="active",
+        include_backtest=True,
+    )
 
 
 async def _check_and_update_single_stock(

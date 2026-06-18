@@ -21,6 +21,7 @@ class StockList(Document):
     sync_status: Optional[str] = "pending"
     data_count: Optional[int] = None
     latest_date: Optional[str] = None
+    is_active_for_backtest: Optional[bool] = False
 
     @staticmethod
     async def get_top_n_ts_codes(n: int) -> list[str]:
@@ -41,4 +42,5 @@ class StockList(Document):
             "market",
             [("total_mv", -1)],
             "sync_status",
+            "is_active_for_backtest",
         ]

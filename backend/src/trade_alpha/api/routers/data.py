@@ -1,13 +1,21 @@
 """Data API endpoints."""
 
 from typing import Optional
-from fastapi import APIRouter, Query
-from trade_alpha.api.schemas import DataFetchRequest, StockListResponse, StockDailyListResponse
+from fastapi import APIRouter, Query, HTTPException
+from trade_alpha.api.schemas import (
+    DataFetchRequest,
+    StockListResponse,
+    StockDailyListResponse,
+    BacktestStatusRequest,
+    BatchBacktestRequest,
+)
 from trade_alpha.data.service import (
     fetch_and_store,
     update_stock_list,
     list_stocks,
     list_stocks_by_mv_rank,
+    list_stocks_with_filters,
+    fetch_and_store_market_caps,
     find_stock_daily_by_ts_code,
     find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
@@ -28,20 +36,46 @@ async def list_stocks_endpoint(
     page_size: int = Query(20, ge=1, le=5000, description="Items per page"),
     start_rank: Optional[int] = Query(None, ge=1, description="Start market value rank (1-based)"),
     end_rank: Optional[int] = Query(None, ge=1, description="End market value rank (1-based)"),
+    industries: Optional[str] = Query(None, description="Comma-separated industry names"),
+    historical_date: Optional[str] = Query(None, description="YYYYMMDD for historical market cap"),
+    status_filter: Optional[str] = Query(None, description="Filter by backtest status: 'backtest'"),
 ):
-    """List stocks with download status and pagination. If start_rank/end_rank provided, returns stocks in that rank range."""
-    if start_rank is not None and end_rank is not None:
-        # Return all stocks in rank range without pagination
-        stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
-        total = len(stocks)
-        page = 1
-        page_size = total
-        total_pages = 1
-    else:
-        # Regular pagination
-        stocks, total = await list_stocks(page=page, page_size=page_size)
-        total_pages = (total + page_size - 1) // page_size
+    """List stocks with download status and pagination."""
+    if not industries and not historical_date and not status_filter:
+        if start_rank is not None and end_rank is not None:
+            stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
+            total = len(stocks)
+            page = 1
+            page_size = total
+            total_pages = 1
+        else:
+            stocks, total = await list_stocks(page=page, page_size=page_size)
+            total_pages = (total + page_size - 1) // page_size
 
+        active_count = await StockList.find(StockList.sync_status == "active").count()
+        backtest_count = await StockList.find(StockList.is_active_for_backtest == True).count()
+
+        items = _build_stock_items(stocks)
+        return StockListResponse(
+            items=items, total=total, page=page, page_size=page_size,
+            total_pages=total_pages, active_count=active_count, backtest_count=backtest_count,
+        )
+
+    ind_list = [x.strip() for x in industries.split(",")] if industries else None
+    stocks, total, active_count, backtest_count = await list_stocks_with_filters(
+        page=page, page_size=page_size,
+        industries=ind_list, historical_date=historical_date, status_filter=status_filter,
+    )
+    total_pages = (total + page_size - 1) // page_size
+    items = _build_stock_items(stocks)
+    return StockListResponse(
+        items=items, total=total, page=page, page_size=page_size,
+        total_pages=total_pages, active_count=active_count, backtest_count=backtest_count,
+    )
+
+
+def _build_stock_items(stocks: list[StockList]) -> list[dict]:
+    """Helper to build stock response items."""
     items = []
     for stock in stocks:
         items.append({
@@ -57,15 +91,48 @@ async def list_stocks_endpoint(
             "sync_status": stock.sync_status or "pending",
             "data_count": stock.data_count,
             "latest_date": to_api_format(stock.latest_date) if stock.latest_date else None,
+            "is_active_for_backtest": stock.is_active_for_backtest or False,
         })
+    return items
 
-    return StockListResponse(
-        items=items,
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=total_pages,
-    )
+
+@router.get("/industries")
+async def list_industries():
+    """Return distinct industry values from StockList."""
+    pipeline = [
+        {"$match": {"industry": {"$ne": None}}},
+        {"$group": {"_id": "$industry"}},
+        {"$sort": {"_id": 1}},
+    ]
+    db = await get_database()
+    cursor = db.stock_list.aggregate(pipeline)
+    industries_list = [doc["_id"] async for doc in cursor]
+    return {"industries": industries_list}
+
+
+@router.put("/stocks/{ts_code}/backtest-status")
+async def update_backtest_status(ts_code: str, request: BacktestStatusRequest):
+    """Toggle is_active_for_backtest for a single stock."""
+    stock = await StockList.find_one(StockList.ts_code == ts_code)
+    if not stock:
+        raise HTTPException(status_code=404, detail=f"Stock {ts_code} not found")
+    stock.is_active_for_backtest = request.is_active_for_backtest
+    await stock.save()
+    return {"ts_code": ts_code, "is_active_for_backtest": stock.is_active_for_backtest}
+
+
+@router.put("/stocks/backtest-status/batch")
+async def batch_update_backtest_status(request: BatchBacktestRequest):
+    """Batch toggle is_active_for_backtest for multiple stocks."""
+    updated = 0
+    for item in request.updates:
+        stock = await StockList.find_one(StockList.ts_code == item.ts_code)
+        if not stock:
+            continue
+        stock.is_active_for_backtest = item.is_active_for_backtest
+        await stock.save()
+        updated += 1
+    return {"updated_count": updated}
 
 
 @router.post("/stocks/update")

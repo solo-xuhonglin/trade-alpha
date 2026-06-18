@@ -4,10 +4,11 @@ import pandas as pd
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Tuple
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic, fetch_trading_calendar
-from trade_alpha.dao import StockDaily, StockList, TradeCalendar
+from trade_alpha.dao import StockDaily, StockList, TradeCalendar, StockListHistory
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
+from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("data_service")
 
@@ -94,6 +95,42 @@ async def fetch_and_store_stock_list() -> int:
     return count
 
 
+async def fetch_and_store_market_caps(trade_date: str) -> int:
+    """Fetch daily basic data for a given trade date and store to StockListHistory.
+
+    Skips already-existing (ts_code, trade_date) pairs.
+    Returns number of new records inserted.
+    """
+    logger.info(f"Fetching market cap data for {trade_date}")
+    df = fetch_daily_basic(trade_date)
+    if df is None or df.empty:
+        logger.warning(f"No market cap data for {trade_date}")
+        return 0
+
+    existing_records = await StockListHistory.find(
+        StockListHistory.trade_date == trade_date
+    ).to_list()
+    existing_keys = {(r.ts_code, r.trade_date) for r in existing_records}
+
+    records = []
+    for _, row in df.iterrows():
+        if (str(row["ts_code"]), trade_date) in existing_keys:
+            continue
+        records.append(StockListHistory(
+            ts_code=str(row["ts_code"]),
+            trade_date=trade_date,
+            total_mv=float(row["total_mv"]) if pd.notna(row.get("total_mv")) else None,
+            pe=float(row["pe"]) if pd.notna(row.get("pe")) else None,
+            pb=float(row["pb"]) if pd.notna(row.get("pb")) else None,
+        ))
+
+    if records:
+        await StockListHistory.insert_many(records)
+
+    logger.info(f"Stored {len(records)} market cap records for {trade_date}")
+    return len(records)
+
+
 async def list_stocks(page: int = 1, page_size: int = 20) -> Tuple[List[StockList], int]:
     """List stocks with pagination."""
     total = await StockList.count()
@@ -108,6 +145,38 @@ async def list_stocks_by_mv_rank(start_rank: int = 1, end_rank: int = 3000) -> L
     limit = max(0, end_rank - start_rank + 1)
     stocks = await StockList.find_all().sort(-StockList.total_mv).skip(start_idx).limit(limit).to_list()
     return stocks
+
+
+async def get_stocks_for_sync(
+    sync_status: str = "active",
+    top_limit: Optional[int] = None,
+    include_backtest: bool = True,
+) -> list[StockList]:
+    """Get stocks for sync in a single query, optionally including backtest stocks.
+
+    Returns top N stocks by total_mv, plus any backtest stocks
+    (is_active_for_backtest=true) outside the top N. Deduplicated by ts_code.
+    """
+    if top_limit is None:
+        config = load_config()
+        top_limit = config.top_market_cap_stocks
+
+    all_stocks = await StockList.find(
+        StockList.sync_status == sync_status,
+    ).sort(-StockList.total_mv).to_list()
+
+    all_stocks = [s for s in all_stocks if s.ts_code not in TEST_EXCLUDED_TS_CODES]
+
+    result = all_stocks[:top_limit]
+    seen = {s.ts_code for s in result}
+
+    if include_backtest:
+        for s in all_stocks:
+            if s.is_active_for_backtest and s.ts_code not in seen:
+                result.append(s)
+                seen.add(s.ts_code)
+
+    return result
 
 
 async def get_downloaded_summary() -> list[dict]:
@@ -279,3 +348,52 @@ async def get_trade_calendar_records(start_date: Optional[str] = None, end_date:
         result.append(item)
 
     return result
+
+
+async def list_stocks_with_filters(
+    page: int = 1,
+    page_size: int = 20,
+    industries: Optional[list[str]] = None,
+    historical_date: Optional[str] = None,
+    status_filter: Optional[str] = None,
+) -> Tuple[List[StockList], int, int, int]:
+    """List stocks with industry filter and optional historical market cap.
+
+    Returns (stocks, total_count, active_count, backtest_count).
+    """
+    query_conditions = []
+    if industries:
+        query_conditions.append(StockList.industry.is_in(industries))
+
+    base_query = StockList.find(*query_conditions)
+
+    active_cond = [StockList.sync_status == "active"]
+    if industries:
+        active_cond.append(StockList.industry.is_in(industries))
+    active_count = await StockList.find(*active_cond).count()
+
+    bt_cond = [StockList.is_active_for_backtest == True]
+    if industries:
+        bt_cond.append(StockList.industry.is_in(industries))
+    backtest_count = await StockList.find(*bt_cond).count()
+
+    if historical_date:
+        historical_records = await StockListHistory.find(
+            StockListHistory.trade_date == historical_date
+        ).to_list()
+        hist_map = {r.ts_code: r.total_mv for r in historical_records}
+
+        stocks = await base_query.sort(-StockList.total_mv).to_list()
+        stocks.sort(key=lambda s: hist_map.get(s.ts_code, 0) if hist_map.get(s.ts_code) is not None else -1, reverse=True)
+    else:
+        stocks = await base_query.sort(-StockList.total_mv).to_list()
+
+    if status_filter == "backtest":
+        stocks = [s for s in stocks if s.is_active_for_backtest]
+
+    total = len(stocks)
+
+    skip = (page - 1) * page_size
+    paginated = stocks[skip:skip + page_size]
+
+    return paginated, total, active_count, backtest_count
