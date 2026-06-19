@@ -57,20 +57,20 @@ class TestBacktestLSTM:
         await delete_execution_by_name(self.backtest_name)
 
         pipeline = BacktestPipeline(
+            params={
+                "mode": "single",
+                "ts_codes": [self.ts_code],
+                "start_date": "20240101",
+                "end_date": "20240131",
+                "name": self.backtest_name,
+            },
             account_config=self.account_config,
             training_id=self.training.id,
             model_config=self.model_config,
             strategy_config=self.strategy_config,
-            mode="single",
-            ts_codes=[self.ts_code],
         )
 
-        result = await pipeline.run_backtest(
-            start_date="20240101",
-            end_date="20240131",
-            name=self.backtest_name,
-            task_id=None,
-        )
+        result = await pipeline.run_backtest()
 
         TestBacktestLSTM._backtest_result = result
         assert result is not None

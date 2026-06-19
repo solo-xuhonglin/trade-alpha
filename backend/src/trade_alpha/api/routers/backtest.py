@@ -10,7 +10,6 @@ from trade_alpha.api.deps import parse_obj_id
 from trade_alpha.logging import get_logger
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.models import training as training_module
-from trade_alpha.execution.backtest_pipeline import BacktestPipeline
 from trade_alpha.dao.execution import ExecutionResult
 from trade_alpha.task.dao import TaskStatus, TaskType
 from trade_alpha.task.service import TaskService
