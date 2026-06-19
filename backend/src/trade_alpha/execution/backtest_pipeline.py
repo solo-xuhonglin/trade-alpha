@@ -294,14 +294,7 @@ class BacktestPipeline:
         dt -= timedelta(days=warmup_days)
         return dt.strftime("%Y%m%d")
 
-    @staticmethod
-    def _get_week_key(date: str, candidate_map: Dict[str, List[str]]) -> Optional[str]:
-        """Find the week key (YYYYMMDD) that contains the given date."""
-        sorted_keys = sorted(candidate_map.keys())
-        for key in reversed(sorted_keys):
-            if date >= key:
-                return key
-        return None
+
 
     async def _run_warmup(
         self,
@@ -311,20 +304,19 @@ class BacktestPipeline:
         task_id: Optional[PydanticObjectId],
         baseline_tracker: BaselineTracker,
     ) -> None:
+        provider = self.ctx.candidate_provider
+        all_ts_codes = provider.all_ts_codes
+        first_week_codes = provider.get_candidates_for_date(actual_start)
+
         date = warmup_start
         day_count = 0
-
-        first_week_codes: List[str] = []
-        if self.candidate_map and sorted(self.candidate_map.keys()):
-            first_week_key = sorted(self.candidate_map.keys())[0]
-            first_week_codes = self.candidate_map[first_week_key]
 
         while date < actual_start:
             if self._skip_non_trading_day(date):
                 date = _next_date(date)
                 continue
 
-            day_data = await self._load_day_data(date, self.ts_codes, self.data_loader)
+            day_data = await self._load_day_data(date, all_ts_codes, self.data_loader)
             if not day_data:
                 date = _next_date(date)
                 continue
@@ -444,6 +436,9 @@ class BacktestPipeline:
     async def _run_daily_loop(
         self, start_date, end_date, backtest_id, task_id, baseline_tracker,
     ):
+        provider = self.ctx.candidate_provider
+        all_ts_codes = provider.all_ts_codes
+
         prev_total_value: Optional[float] = None
         pending_orders: List[PendingOrder] = []
         daily_values: List[float] = []
@@ -464,22 +459,19 @@ class BacktestPipeline:
 
             day_count += 1
             await self._update_progress(task_id, date, day_count, total_days_est)
-            day_data = await self._load_day_data(date, self.ts_codes, self.data_loader)
+            day_data = await self._load_day_data(date, all_ts_codes, self.data_loader)
             if not day_data:
                 date = _next_date(date)
                 continue
             close_prices = day_data["close"]
 
-            current_week_key = self._get_week_key(date, self.candidate_map)
-            if current_week_key and current_week_key != self._last_week_key:
-                self._current_candidates = self.candidate_map[current_week_key]
-                self._last_week_key = current_week_key
+            candidates = provider.get_candidates_for_date(date)
 
             baseline_tracker.track(close_prices)
 
-            if self.candidate_map and self._current_candidates:
+            if provider.candidate_map:
                 candidate_close = {k: v for k, v in close_prices.items()
-                                   if k in self._current_candidates}
+                                   if k in candidates}
             else:
                 candidate_close = close_prices
 
@@ -527,8 +519,10 @@ class BacktestPipeline:
                         stock_map[o.ts_code].is_forced_sell = True
                         stock_map[o.ts_code].forced_sell_reason = "full_position"
 
-            if self.candidate_map and self._current_candidates:
-                outdated_orders = self._detect_outdated_positions(date, close_prices)
+            if provider.candidate_map and candidates:
+                outdated_orders = self._detect_outdated_positions(
+                    date, close_prices, candidates,
+                )
                 pending_orders.extend(outdated_orders)
 
             day_val, day_ret = await self._save_snapshot(
@@ -549,15 +543,16 @@ class BacktestPipeline:
         self,
         date: str,
         close_prices: Dict[str, float],
+        candidates: List[str],
     ) -> List[PendingOrder]:
         """Detect positions whose stocks have fallen out of the current candidate pool.
 
         Returns a list of sell PendingOrders for any held positions
-        whose ts_code is not in the current month's candidate pool.
+        whose ts_code is not in the current candidate pool.
         """
         sell_orders: List[PendingOrder] = []
         for ts_code, pos in list(self.portfolio.positions.items()):
-            if ts_code not in self._current_candidates:
+            if ts_code not in candidates:
                 cp = close_prices.get(ts_code, 0.0)
                 sell_orders.append(PendingOrder(
                     ts_code=ts_code,
@@ -632,7 +627,7 @@ class BacktestPipeline:
         result.win_rate = round(win_rate, 4)
         result.total_trades = total_trades
         result.total_fees = round(total_fees, 2)
-        result.ts_codes = self.ts_codes
+        result.ts_codes = self.ctx.candidate_provider.all_ts_codes
         result.status = "completed"
         await result.save()
 
