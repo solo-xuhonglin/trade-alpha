@@ -42,18 +42,16 @@ class CandidateListProvider:
         ).sort(-StockListHistory.total_mv).limit(top_n).to_list()
 
     async def _get_prev_trade_date(self, trade_date: str) -> Optional[str]:
-        """Get the previous week's first trading day for mv change calculation."""
+        """Get the previous week's trading day for mv change calculation."""
         dt = datetime.strptime(trade_date, "%Y%m%d")
-        for days_back in range(7, 15):
-            check = dt - timedelta(days=days_back)
-            date_str = check.strftime("%Y%m%d")
-            day = await TradeCalendar.find_one(
-                TradeCalendar.cal_date == date_str,
-                TradeCalendar.is_open == 1,
-            )
-            if day:
-                return date_str
-        return None
+        lookback_start = (dt - timedelta(days=14)).strftime("%Y%m%d")
+        lookback_end = (dt - timedelta(days=7)).strftime("%Y%m%d")
+        days = await TradeCalendar.find(
+            TradeCalendar.cal_date >= lookback_start,
+            TradeCalendar.cal_date <= lookback_end,
+            TradeCalendar.is_open == 1,
+        ).sort(-TradeCalendar.cal_date).limit(1).to_list()
+        return days[0].cal_date if days else None
 
     async def _get_weekly_mv_gainers(
         self, trade_date: str, prev_trade_date: str,

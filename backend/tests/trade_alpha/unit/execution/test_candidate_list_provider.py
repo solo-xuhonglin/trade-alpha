@@ -25,7 +25,7 @@ async def test_get_weekly_candidates_with_rolling():
             "20240116": [type("M", (), {"ts_code": "A"}), type("M", (), {"ts_code": "C"})],
             "20240122": [type("M", (), {"ts_code": "A"}), type("M", (), {"ts_code": "B"})],
         }
-        return results.get(provider._current_resolve, [])
+        return results.get(trade_date, [])
 
     def mock_mv_change(trade_date, prev_trade_date, universe_codes, up_n):
         results = {
@@ -36,10 +36,7 @@ async def test_get_weekly_candidates_with_rolling():
         }
         return results.get(trade_date, [])
 
-    provider._current_resolve = None
-
     async def mock_resolve(date):
-        provider._current_resolve = date
         return date
 
     with (

@@ -60,6 +60,7 @@ class BacktestPipeline:
         self.ts_codes = ts_codes or []
         self.candidate_map = candidate_map or {}
         self._current_candidates: List[str] = []
+        self._last_week_key: Optional[str] = None
         if not self.ts_codes and mode != "live":
             raise ValueError("ts_codes is required for pipeline initialization")
 
@@ -313,10 +314,10 @@ class BacktestPipeline:
         date = warmup_start
         day_count = 0
 
-        first_month_codes: List[str] = []
+        first_week_codes: List[str] = []
         if self.candidate_map and sorted(self.candidate_map.keys()):
-            first_month = sorted(self.candidate_map.keys())[0]
-            first_month_codes = self.candidate_map[first_month]
+            first_week_key = sorted(self.candidate_map.keys())[0]
+            first_week_codes = self.candidate_map[first_week_key]
 
         while date < actual_start:
             if self._skip_non_trading_day(date):
@@ -329,9 +330,9 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            if first_month_codes:
+            if first_week_codes:
                 warmup_close = {k: v for k, v in close_prices.items()
-                                if k in first_month_codes}
+                                if k in first_week_codes}
             else:
                 warmup_close = close_prices
 
@@ -370,8 +371,8 @@ class BacktestPipeline:
         await self._ensure_predictor(task_id)
 
         if self.candidate_map and sorted(self.candidate_map.keys()):
-            first_month = sorted(self.candidate_map.keys())[0]
-            baseline_codes = self.candidate_map[first_month]
+            first_week_key = sorted(self.candidate_map.keys())[0]
+            baseline_codes = self.candidate_map[first_week_key]
         else:
             baseline_codes = self.ts_codes
 
@@ -431,7 +432,7 @@ class BacktestPipeline:
             close_prices = day_data["close"]
 
             current_week_key = self._get_week_key(date, self.candidate_map)
-            if current_week_key and current_week_key != getattr(self, '_last_week_key', None):
+            if current_week_key and current_week_key != self._last_week_key:
                 self._current_candidates = self.candidate_map[current_week_key]
                 self._last_week_key = current_week_key
 
