@@ -250,6 +250,7 @@ class BacktestPipeline:
         stock_map: Dict[str, ScoredStock],
         prev_total_value: Optional[float],
         baseline_value: float,
+        daily_rebalanced_cum: float,
     ) -> Tuple[float, Optional[float]]:
         snapshot = await self.strategy.daily_snapshot(
             backtest_id=backtest_id, date=date, cash=self.portfolio.cash,
@@ -259,6 +260,7 @@ class BacktestPipeline:
         )
         if self.market_analyzer.last_result:
             updates = self.market_analyzer.last_result.model_dump()
+            updates["daily_rebalanced_cum"] = daily_rebalanced_cum
             tv = snapshot.total_value
             if tv > 0:
                 updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
@@ -443,6 +445,7 @@ class BacktestPipeline:
             day_val, day_ret = await self._save_snapshot(
                 date, backtest_id, close_prices, stock_map,
                 prev_total_value, baseline_tracker.latest_value,
+                baseline_tracker.daily_rebalanced_cum,
             )
             prev_total_value = day_val
             daily_values.append(day_val)

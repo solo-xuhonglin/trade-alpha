@@ -347,6 +347,7 @@ const compareFields: CompareField[] = [
   { key: 'classification_threshold_3d', label: '3日涨跌阈值', group: '标签参数', type: 'number' },
   { key: 'classification_threshold_5d', label: '5日涨跌阈值', group: '标签参数', type: 'number' },
   { key: 'classification_threshold_10d', label: '10日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_threshold_20d', label: '20日涨跌阈值', group: '标签参数', type: 'number' },
   { key: 'xgb_n_estimators', label: 'n_estimators', group: 'XGBoost', type: 'number' },
   { key: 'xgb_max_depth', label: 'max_depth', group: 'XGBoost', type: 'number' },
   { key: 'xgb_learning_rate', label: 'learning_rate', group: 'XGBoost', type: 'number' },
@@ -365,6 +366,9 @@ const compareFields: CompareField[] = [
   { key: 'lr_scheduler_factor', label: 'lr_scheduler_factor', group: 'LSTM', type: 'number' },
   { key: 'lr_scheduler_patience', label: 'lr_scheduler_patience', group: 'LSTM', type: 'number' },
   { key: 'val_size', label: 'val_size', group: 'LSTM', type: 'number' },
+  { key: 'label_smoothing', label: 'label_smoothing', group: 'LSTM', type: 'number' },
+  { key: 'early_stopping_patience', label: 'early_stopping_patience', group: 'LSTM', type: 'number' },
+  { key: 'use_memmap', label: '磁盘映射', group: 'LSTM', type: 'boolean' },
 ]
 
 const generateDefaultName = (modelType: string) => {

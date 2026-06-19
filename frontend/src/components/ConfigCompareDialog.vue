@@ -5,10 +5,19 @@
         <div class="d-flex align-center ga-2">
           <v-icon color="primary">mdi-compare</v-icon>
           配置对比
+          <v-chip v-if="!showAll && visibleFields.length < fields.length" size="x-small" variant="outlined" color="warning" class="ml-1">
+            隐藏 {{ fields.length - visibleFields.length }} 个相同项
+          </v-chip>
         </div>
-        <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
+        <div class="d-flex align-center ga-2">
+          <v-btn variant="tonal" size="small" :color="showAll ? '' : 'primary'" @click="showAll = !showAll" density="compact">
+            <v-icon start size="small">{{ showAll ? 'mdi-filter-variant' : 'mdi-eye-outline' }}</v-icon>
+            {{ showAll ? '仅显示不同' : '显示全部' }}
+          </v-btn>
+          <v-btn icon variant="text" size="small" @click="$emit('update:modelValue', false)">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
       </v-card-title>
       <v-divider />
       <v-card-text class="pa-0">
@@ -21,8 +30,8 @@
             </tr>
           </thead>
           <tbody>
-            <template v-for="(field, idx) in fields" :key="field.key">
-              <tr v-if="field.group && (idx === 0 || fields[idx - 1].group !== field.group)" class="bg-grey-lighten-3">
+            <template v-for="(field, idx) in visibleFields" :key="field.key">
+              <tr v-if="field.group && (idx === 0 || visibleFields[idx - 1].group !== field.group)" class="bg-grey-lighten-3">
                 <td colspan="3" class="font-weight-medium text-body-2">{{ field.group }}</td>
               </tr>
               <tr :class="!isFieldSame(field) ? 'bg-red-lighten-5' : ''">
@@ -48,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import FormatValue from './FormatValue.vue'
 
 export interface CompareField {
@@ -86,6 +95,13 @@ const isFieldSame = (field: CompareField): boolean => {
   }
   return a === b
 }
+
+const showAll = ref(true)
+
+const visibleFields = computed(() => {
+  if (showAll.value) return props.fields
+  return props.fields.filter(f => !isFieldSame(f))
+})
 
 const isAllSame = computed(() => {
   return props.fields.every(f => isFieldSame(f))
