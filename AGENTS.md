@@ -11,7 +11,9 @@
 ### 1. 设计文档优先
 - 先设计后实现
 - 根据任务复杂度自行判断设计深度
-- 对于复杂功能，先在 `docs/superpowers/plans/` 创建计划文档，再在 `docs/superpowers/specs/` 创建设计文档
+- 对于复杂功能，在 `docs/superpowers/` 创建临时设计文档
+- **`docs/superpowers/` 为临时目录，会定期删除，不需要提交维护**
+- **`docs/` 根目录下的文档需定期同步更新**
 
 ### 2. 代码可维护性
 - 代码应易于理解、修改和扩展
@@ -150,18 +152,7 @@ cd backend
 .venv\Scripts\pytest tests\trade_alpha\integration\ -v
 ```
 
-覆盖 6 个层级、18 个文件、共 **87 个**测试用例：
-
-| 层级 | 说明 | 文件数 |
-|------|------|--------|
-| Layer 1 | 外部依赖（Tushare API 连通性） | 1 |
-| Layer 2 | 基础设施（MongoDB 基本操作） | 1 |
-| Layer 3 | 业务逻辑（数据生命周期+指标+服务） | 6 |
-| Layer 4 | 基础配置（账户/模型/策略） | 3 |
-| Layer 5 | 训练（XGBoost + LSTM） | 4 |
-| Layer 6 | 回测（LSTM 回测 + Task 子进程） | 3 |
-
-测试顺序按文件名数字排序（test_01 → test_10 → test_20 ... test_61）。
+集成测试按文件名数字排序执行（test_01 → test_10 → test_20 → ... → test_99）。
 
 ### 步骤 2：重启后端
 
@@ -187,8 +178,6 @@ Expected: `✓ Server is running at http://localhost:8000`
 cd frontend\e2e
 pytest -v --base-url=http://localhost:3000
 ```
-
-覆盖 11 个页面、共 **41 个**测试用例。
 
 ### 依赖准备
 

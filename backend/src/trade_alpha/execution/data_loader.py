@@ -16,6 +16,7 @@ class DataLoader:
 
     def __init__(self):
         self._history_cache: Dict[str, List] = {}
+        self._max_cache_keep: int = 0
 
     def _get_cache_start(self, ts_code: str):
         """Get the earliest date in cache for a stock."""
@@ -132,14 +133,9 @@ class DataLoader:
         return df
 
     async def peek_history_data(self, end_date: str, ts_codes: List[str], days: int) -> Dict[str, List[Document]]:
-        """Read-only version of load_history_data.
-
-        Loads recent history data from cache (or DB if cache empty) without
-        trimming the shared _history_cache, so other callers with large
-        keep_days requirements are not affected.
-        Returns a dict of {ts_code: [records]} with the most recent records per stock.
-        """
+        """Load recent history data, trimming cache to max required lookback."""
         keep_records = days * 2
+        self._max_cache_keep = max(self._max_cache_keep, keep_records)
         result: Dict[str, List[Document]] = {}
 
         for ts_code in ts_codes:
@@ -159,6 +155,7 @@ class DataLoader:
                     )
                     self._history_cache[ts_code].extend(incremental_records)
                     self._history_cache[ts_code].sort(key=lambda r: r.trade_date)
+                self._trim_cache(ts_code, self._max_cache_keep)
                 records = self._history_cache[ts_code]
 
             latest = records[-keep_records:] if len(records) > keep_records else records

@@ -380,6 +380,14 @@ class ScoreManager:
 
         smooth_scores(pred_results, self._strategy_config, self._score_buffer)
 
+        # Trim score buffer to prevent unbounded growth during long backtests
+        window = getattr(self._strategy_config, 'ranking_smooth_window', 5)
+        max_buffer = max(window * 6, 30)
+        for ts_code in list(self._score_buffer.keys()):
+            buf = self._score_buffer[ts_code]
+            if len(buf) > max_buffer:
+                self._score_buffer[ts_code] = buf[-max_buffer:]
+
         # Build ScoredStock objects with ALL fields from pred_results
         stock_map: Dict[str, ScoredStock] = {}
         for ts_code, r in pred_results.items():
