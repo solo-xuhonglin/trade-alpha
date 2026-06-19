@@ -15,12 +15,16 @@ class LSTMPredictor(BasePredictor):
         if not ts_codes:
             return {}
         
+        import time
+        t0 = time.time()
         df = await self.data_loader.load_history_data(current_date, ts_codes, normalization_window)
         if df.empty:
             return {}
         
         results = {}
         candidates = 0
+        t1 = time.time()
+        logger.debug(f"predict_batch {current_date}: load_history_data took {t1-t0:.2f}s for {len(ts_codes)} stocks, df={len(df)} rows")
         for ts_code in ts_codes:
             stock = df[df["ts_code"] == ts_code].sort_values("trade_date")
             if len(stock) < normalization_window:
