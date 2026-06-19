@@ -59,6 +59,9 @@ class StrategyConfig(Document):
     atr_stop_multiplier: float = 3.0
     atr_trail_rate: float = 0.5
     max_daily_buys: int = 2
+    # Candidate warmup config
+    use_candidate_warmup: bool = True
+    warmup_batch_size: int = 200
     # Rotation mode params
     rotation_bottom_threshold: int = 60
     rotation_rank_min: int = 45

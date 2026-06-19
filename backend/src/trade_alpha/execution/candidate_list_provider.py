@@ -88,6 +88,10 @@ class CandidateListProvider:
                 return key
         return None
 
+    def get_week_key(self, date: str) -> Optional[str]:
+        """Public wrapper for week key lookup."""
+        return self._get_week_key(date)
+
     # ==== 以下方法保持原样不变 ====
 
     async def _get_trade_calendar(

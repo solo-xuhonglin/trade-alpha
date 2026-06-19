@@ -26,6 +26,7 @@ from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.baseline_tracker import BaselineTracker
+from trade_alpha.execution.warmup_manager import WarmupManager
 from trade_alpha.constants import SELL_REASON_CANDIDATE_EXCLUDED, SELL_REASON_FULL_POSITION
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import active_stock_data
@@ -91,6 +92,13 @@ class BacktestPipeline:
         # Synchronously create Provider (no DB operations in __init__)
         provider = CandidateListProvider(params)
 
+        # Initialize warmup manager if enabled and has candidate map
+        warmup_manager = None
+        if (self.strategy_config
+                and getattr(self.strategy_config, 'use_candidate_warmup', False)
+                and provider.candidate_map):
+            warmup_manager = WarmupManager(provider.candidate_map)
+
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
             score_manager=self.score_manager,
@@ -106,6 +114,7 @@ class BacktestPipeline:
                 "flat": RotationMode(),
                 "down": RotationMode(),
             },
+            warmup_manager=warmup_manager,
         )
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
@@ -279,16 +288,17 @@ class BacktestPipeline:
     def _compute_warmup_days(strategy_config: Optional[StrategyConfig]) -> int:
         if strategy_config is None:
             return 0
+        rotation_needs = (
+            getattr(strategy_config, 'rotation_was_top_window', 30)
+            + getattr(strategy_config, 'rotation_pullback_window', 5)
+            + 1
+        )
         windows = [
-            getattr(strategy_config, 'ranking_smooth_window', 5),
-            getattr(strategy_config, 'market_smooth_window', 5),
-            getattr(strategy_config, 'retention_days', 5),
-            getattr(strategy_config, 'correlation_window', 5),
-            getattr(strategy_config, 'rank_up_window', 5),
-            getattr(strategy_config, 'rotation_was_top_window', 30),
-            getattr(strategy_config, 'rotation_pullback_window', 5),
+            rotation_needs,
+            getattr(strategy_config, 'ranking_smooth_window', 5) * 2,
+            getattr(strategy_config, 'market_smooth_window', 5) * 2,
         ]
-        return max(windows) + 10
+        return max(windows)
 
     @staticmethod
     def _find_warmup_start(start_date: str, warmup_days: int) -> str:
@@ -307,11 +317,12 @@ class BacktestPipeline:
         baseline_tracker: BaselineTracker,
     ) -> None:
         provider = self.ctx.candidate_provider
+        warmup_mgr = self.ctx.warmup_manager
         all_ts_codes = provider.all_ts_codes
-        first_week_codes = provider.get_candidates_for_date(actual_start)
 
         date = warmup_start
         day_count = 0
+        last_week_key: Optional[str] = None
 
         while date < actual_start:
             if self._skip_non_trading_day(date):
@@ -324,24 +335,58 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            if first_week_codes:
-                warmup_close = {k: v for k, v in close_prices.items()
-                                if k in first_week_codes}
-            else:
-                warmup_close = close_prices
+            # Determine formal candidates for this date
+            formal_codes = provider.get_candidates_for_date(date)
+            if formal_codes:
+                formal_close = {k: v for k, v in close_prices.items()
+                                if k in formal_codes}
+                # Update warmup pool on week change
+                current_week_key = provider.get_week_key(date)
+                if current_week_key and current_week_key != last_week_key:
+                    if warmup_mgr:
+                        warmup_mgr.update_pool(current_week_key, set(formal_codes))
+                    last_week_key = current_week_key
 
-            baseline_tracker.track_daily_rebalanced_only(warmup_close)
+                # Add warmup stocks to prediction set
+                warmup_codes = warmup_mgr.warmup_codes if warmup_mgr else []
+                warmup_close = {k: v for k, v in close_prices.items()
+                                if k in warmup_codes}
+                pred_close = {**formal_close, **warmup_close}
+            else:
+                # Date before any candidate week — predict all stocks
+                pred_close = close_prices
+
+            baseline_tracker.track_daily_rebalanced_only(pred_close)
 
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
-                close_prices=warmup_close,
+                close_prices=pred_close,
                 market_analyzer=self.market_analyzer,
             )
             if not stock_map:
                 date = _next_date(date)
                 continue
+
+            # Apply virtual ranking for warmup stocks
+            if warmup_mgr and warmup_mgr.warmup_codes and formal_codes:
+                scored_list = list(stock_map.values())
+                formal_stocks = [s for s in scored_list
+                                 if not warmup_mgr.is_warmup(s.ts_code)]
+                warmup_stocks = [s for s in scored_list
+                                 if warmup_mgr.is_warmup(s.ts_code)]
+
+                if formal_stocks:
+                    formal_scores = [s.composite_score for s in formal_stocks]
+                    warmup_score_dict = {s.ts_code: s.composite_score
+                                         for s in warmup_stocks}
+
+                    warmup_ranks = WarmupManager.compute_virtual_rankings(
+                        formal_scores, warmup_score_dict,
+                    )
+                    for s in warmup_stocks:
+                        s.rank = warmup_ranks.get(s.ts_code, 0)
 
             self.market_analyzer.analyze(
                 stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
@@ -473,6 +518,8 @@ class BacktestPipeline:
         date = start_date
         import time
         loop_start = time.time()
+        warmup_mgr = self.ctx.warmup_manager
+        _last_warmup_week: Optional[str] = None
         while date <= end_date:
             if day_count > 0 and day_count % 20 == 0:
                 elapsed = time.time() - loop_start
@@ -492,13 +539,29 @@ class BacktestPipeline:
 
             candidates = provider.get_candidates_for_date(date)
 
+            # Update warmup pool on week change
+            if warmup_mgr and provider.candidate_map:
+                current_week_key = provider.get_week_key(date)
+                if current_week_key and current_week_key != _last_warmup_week:
+                    warmup_mgr.update_pool(current_week_key, set(candidates) if candidates else set())
+                    _last_warmup_week = current_week_key
+
             baseline_tracker.track(close_prices)
 
             if provider.candidate_map:
                 candidate_close = {k: v for k, v in close_prices.items()
                                    if k in candidates}
+                # Include warmup stocks in prediction set
+                warmup_codes = warmup_mgr.warmup_codes if warmup_mgr else []
+                if warmup_codes:
+                    warmup_close = {k: v for k, v in close_prices.items()
+                                    if k in warmup_codes}
+                    pred_close = {**candidate_close, **warmup_close}
+                else:
+                    pred_close = candidate_close
             else:
                 candidate_close = close_prices
+                pred_close = close_prices
 
             baseline_tracker.track_daily_rebalanced_only(candidate_close)
 
@@ -512,7 +575,7 @@ class BacktestPipeline:
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
-                close_prices=candidate_close,
+                close_prices=pred_close,
                 market_analyzer=self.market_analyzer,
             )
             if not stock_map:
@@ -524,6 +587,23 @@ class BacktestPipeline:
                 stock_map,
                 daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
             )
+
+            # Apply virtual ranking for warmup stocks
+            if warmup_mgr and warmup_mgr.warmup_codes and provider.candidate_map and candidates:
+                scored_list = list(stock_map.values())
+                formal_stocks = [s for s in scored_list
+                                 if not warmup_mgr.is_warmup(s.ts_code)]
+                warmup_stocks = [s for s in scored_list
+                                 if warmup_mgr.is_warmup(s.ts_code)]
+                if formal_stocks and warmup_stocks:
+                    formal_scores = [s.composite_score for s in formal_stocks]
+                    warmup_score_dict = {s.ts_code: s.composite_score
+                                         for s in warmup_stocks}
+                    warmup_ranks = WarmupManager.compute_virtual_rankings(
+                        formal_scores, warmup_score_dict,
+                    )
+                    for s in warmup_stocks:
+                        s.rank = warmup_ranks.get(s.ts_code, 0)
 
             market_data = self.market_analyzer.last_result
 

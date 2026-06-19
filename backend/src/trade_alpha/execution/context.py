@@ -15,6 +15,7 @@ from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 
 if TYPE_CHECKING:
     from trade_alpha.strategy.modes.base import PhaseMode
+    from trade_alpha.execution.warmup_manager import WarmupManager
 
 
 class PipelineContext:
@@ -33,10 +34,11 @@ class PipelineContext:
         portfolio: PortfolioManager,
         strategy_config: StrategyConfig,
         model_config: ModelConfig,
-        candidate_provider: CandidateListProvider,
+        candidate_provider: Optional[CandidateListProvider] = None,
         predictor: Any = None,
         account_config: Optional[AccountConfig] = None,
         mode_map: Optional[Dict[str, PhaseMode]] = None,
+        warmup_manager: Optional[WarmupManager] = None,
     ):
         self.data_loader = data_loader
         self.score_manager = score_manager
@@ -48,3 +50,4 @@ class PipelineContext:
         self.account_config = account_config
         self.candidate_provider = candidate_provider
         self.mode_map = mode_map or {}
+        self.warmup_manager = warmup_manager
