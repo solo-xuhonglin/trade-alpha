@@ -30,7 +30,6 @@ class BaselineTracker:
         )
         if total > 0:
             self._daily_values.append(total)
-        self._update_daily_rebalanced(close_prices)
 
     def track_daily_rebalanced_only(self, close_prices: Dict[str, float]) -> None:
         self._update_daily_rebalanced(close_prices)

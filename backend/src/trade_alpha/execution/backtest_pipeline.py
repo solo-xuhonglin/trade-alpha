@@ -24,7 +24,7 @@ from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.baseline_tracker import BaselineTracker
-from trade_alpha.constants import SELL_REASON_FULL_POSITION
+from trade_alpha.constants import SELL_REASON_CANDIDATE_EXCLUDED, SELL_REASON_FULL_POSITION
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.backtest_pipeline")
@@ -50,6 +50,7 @@ class BacktestPipeline:
         strategy_config: Optional[StrategyConfig] = None,
         mode: str = "multi",
         ts_codes: Optional[List[str]] = None,
+        candidate_map: Optional[Dict[str, List[str]]] = None,
     ):
         self.account_config = account_config
         self.training_id = training_id
@@ -57,6 +58,8 @@ class BacktestPipeline:
         self.strategy_config = strategy_config
         self.mode = mode
         self.ts_codes = ts_codes or []
+        self.candidate_map = candidate_map or {}
+        self._current_candidates: List[str] = []
         if not self.ts_codes and mode != "live":
             raise ValueError("ts_codes is required for pipeline initialization")
 
@@ -299,6 +302,12 @@ class BacktestPipeline:
     ) -> None:
         date = warmup_start
         day_count = 0
+
+        first_month_codes: List[str] = []
+        if self.candidate_map and sorted(self.candidate_map.keys()):
+            first_month = sorted(self.candidate_map.keys())[0]
+            first_month_codes = self.candidate_map[first_month]
+
         while date < actual_start:
             if self._skip_non_trading_day(date):
                 date = _next_date(date)
@@ -309,13 +318,20 @@ class BacktestPipeline:
                 date = _next_date(date)
                 continue
             close_prices = day_data["close"]
-            baseline_tracker.track_daily_rebalanced_only(close_prices)
+
+            if first_month_codes:
+                warmup_close = {k: v for k, v in close_prices.items()
+                                if k in first_month_codes}
+            else:
+                warmup_close = close_prices
+
+            baseline_tracker.track_daily_rebalanced_only(warmup_close)
 
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
-                close_prices=close_prices,
+                close_prices=warmup_close,
                 market_analyzer=self.market_analyzer,
             )
             if not stock_map:
@@ -343,7 +359,13 @@ class BacktestPipeline:
         result = await self._create_result(start_date, end_date, name)
         await self._ensure_predictor(task_id)
 
-        baseline_tracker = BaselineTracker(self.ts_codes, result.initial_capital)
+        if self.candidate_map and sorted(self.candidate_map.keys()):
+            first_month = sorted(self.candidate_map.keys())[0]
+            baseline_codes = self.candidate_map[first_month]
+        else:
+            baseline_codes = self.ts_codes
+
+        baseline_tracker = BaselineTracker(baseline_codes, result.initial_capital)
 
         # Warmup phase: fill ScoreManager buffers without trading
         warmup_days = self._compute_warmup_days(self.strategy_config)
@@ -398,7 +420,19 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
+            current_month = date[:6]
+            if current_month in self.candidate_map:
+                self._current_candidates = self.candidate_map[current_month]
+
             baseline_tracker.track(close_prices)
+
+            if self.candidate_map and self._current_candidates:
+                candidate_close = {k: v for k, v in close_prices.items()
+                                   if k in self._current_candidates}
+            else:
+                candidate_close = close_prices
+
+            baseline_tracker.track_daily_rebalanced_only(candidate_close)
 
             trades_add, fees_add = await self._settle_orders(
                 pending_orders, date, backtest_id, day_data,
@@ -410,7 +444,7 @@ class BacktestPipeline:
                 predictor=self.predictor,
                 data_loader=self.data_loader,
                 date=date,
-                close_prices=close_prices,
+                close_prices=candidate_close,
                 market_analyzer=self.market_analyzer,
             )
             if not stock_map:
@@ -442,6 +476,10 @@ class BacktestPipeline:
                         stock_map[o.ts_code].is_forced_sell = True
                         stock_map[o.ts_code].forced_sell_reason = "full_position"
 
+            if self.candidate_map and self._current_candidates:
+                outdated_orders = self._detect_outdated_positions(date, close_prices)
+                pending_orders.extend(outdated_orders)
+
             day_val, day_ret = await self._save_snapshot(
                 date, backtest_id, close_prices, stock_map,
                 prev_total_value, baseline_tracker.latest_value,
@@ -455,6 +493,41 @@ class BacktestPipeline:
             date = _next_date(date)
 
         return daily_values, daily_returns, total_trades, total_fees
+
+    def _detect_outdated_positions(
+        self,
+        date: str,
+        close_prices: Dict[str, float],
+    ) -> List[PendingOrder]:
+        """Detect positions whose stocks have fallen out of the current candidate pool.
+
+        Returns a list of sell PendingOrders for any held positions
+        whose ts_code is not in the current month's candidate pool.
+        """
+        sell_orders: List[PendingOrder] = []
+        for ts_code, pos in list(self.portfolio.positions.items()):
+            if ts_code not in self._current_candidates:
+                cp = close_prices.get(ts_code, 0.0)
+                sell_orders.append(PendingOrder(
+                    ts_code=ts_code,
+                    stock_name=pos.stock_name or ts_code,
+                    order_shares=-pos.shares,
+                    order_price=cp,
+                    entry_score=pos.entry_score,
+                    trade_date=date,
+                    settle_date=date,
+                    reason=SELL_REASON_CANDIDATE_EXCLUDED,
+                    up_prob_3d=pos.entry_3d_prob,
+                    up_prob_5d=pos.entry_5d_prob,
+                    up_prob_10d=pos.entry_10d_prob,
+                    up_prob_20d=pos.entry_20d_prob,
+                ))
+        if sell_orders:
+            logger.info(
+                f"{date}: {len(sell_orders)} positions excluded from candidate pool, "
+                f"generating sell orders: {[o.ts_code for o in sell_orders]}"
+            )
+        return sell_orders
 
     async def _finalize_result(
         self, result, daily_values, daily_returns, total_trades, total_fees, baseline_tracker,

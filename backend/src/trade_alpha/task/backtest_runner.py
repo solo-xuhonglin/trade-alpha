@@ -1,16 +1,14 @@
 """Backtest runner for subprocess execution."""
 
 from beanie import PydanticObjectId
-from beanie.odm.operators.find.comparison import NotIn
 
 from trade_alpha.task.runner import BaseRunner
 from trade_alpha.task.service import TaskService
 from trade_alpha.models import training as training_module
 from trade_alpha.execution.backtest_pipeline import BacktestPipeline
-from trade_alpha.dao import StockList
+from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.strategy.service import get_strategy_by_id
-from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 from trade_alpha.logging import get_logger
 
 logger = get_logger("task.backtest_runner")
@@ -54,11 +52,16 @@ class BacktestRunner(BaseRunner):
 
             ts_codes = params.get("ts_codes")
             if not ts_codes:
-                stocks = await StockList.find(
-                    StockList.sync_status == "active",
-                    NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES),
-                ).sort(-StockList.total_mv).limit(params.get("top_n", 100)).to_list()
-                ts_codes = [s.ts_code for s in stocks]
+                provider = CandidateListProvider()
+                candidate_map = await provider.get_monthly_candidates(
+                    start_date=params["start_date"],
+                    end_date=params["end_date"],
+                    top_n=params.get("top_n", 100),
+                )
+                union_codes = list({c for codes in candidate_map.values() for c in codes})
+                ts_codes = union_codes
+            else:
+                candidate_map = None
 
             pipeline = BacktestPipeline(
                 account_config=account_config,
@@ -67,6 +70,7 @@ class BacktestRunner(BaseRunner):
                 strategy_config=strategy_config,
                 mode=params["mode"],
                 ts_codes=ts_codes,
+                candidate_map=candidate_map,
             )
 
             result = await pipeline.run_backtest(
