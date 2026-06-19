@@ -59,8 +59,6 @@ class MultiStockStrategy(BaseStrategy):
         atr_values: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
         # ── 1. Filter scored_stocks ──
-        provider = ctx.candidate_provider
-        scored_stocks = [s for s in scored_stocks if s.ts_code in provider.all_ts_codes]
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
 
         # ── 2. Select mode from context ──
