@@ -18,7 +18,6 @@ class SingleStockStrategy(BaseStrategy):
     def __init__(
         self,
         strategy_config: StrategyConfig,
-        target_ts_code: str,
     ):
         super().__init__(
             max_positions=1,
@@ -29,7 +28,6 @@ class SingleStockStrategy(BaseStrategy):
             buy_threshold=strategy_config.buy_threshold,
             sell_threshold=strategy_config.sell_threshold,
         )
-        self.target_ts_code = target_ts_code
 
     async def make_orders(
         self,
@@ -45,20 +43,24 @@ class SingleStockStrategy(BaseStrategy):
 
         Uses ctx.portfolio.reserve_funds for buy feasibility.
         """
-        target_stock = next((s for s in scored_stocks if s.ts_code == self.target_ts_code), None)
+        provider = ctx.candidate_provider
+        all_codes = provider.all_ts_codes
+        target_ts_code = all_codes[0] if all_codes else ""
+
+        target_stock = next((s for s in scored_stocks if s.ts_code == target_ts_code), None)
         if not target_stock:
             return []
 
-        logger.debug(f"{trade_date} - {self.target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, up_prob_10d={target_stock.up_prob_10d:.3f}, up_prob_20d={target_stock.up_prob_20d:.3f}, composite_score={target_stock.composite_score:.3f}")
+        logger.debug(f"{trade_date} - {target_ts_code}: up_prob_3d={target_stock.up_prob_3d:.3f}, up_prob_5d={target_stock.up_prob_5d:.3f}, up_prob_10d={target_stock.up_prob_10d:.3f}, up_prob_20d={target_stock.up_prob_20d:.3f}, composite_score={target_stock.composite_score:.3f}")
 
         orders: List[PendingOrder] = []
         close_prices = close_prices or {}
-        current_position = ctx.portfolio.positions.get(self.target_ts_code)
+        current_position = ctx.portfolio.positions.get(target_ts_code)
 
         if current_position:
             if self._should_sell(target_stock, current_position, close_prices):
-                logger.debug(f"{trade_date} - Selling {self.target_ts_code}")
-                sell_price = close_prices.get(self.target_ts_code, current_position.buy_price)
+                logger.debug(f"{trade_date} - Selling {target_ts_code}")
+                sell_price = close_prices.get(target_ts_code, current_position.buy_price)
                 orders.append(PendingOrder(
                     ts_code=current_position.ts_code,
                     stock_name=current_position.stock_name,
@@ -75,10 +77,10 @@ class SingleStockStrategy(BaseStrategy):
                 return orders
 
         if not current_position and target_stock.composite_score > self.buy_threshold:
-            logger.debug(f"{trade_date} - Buying {self.target_ts_code}")
+            logger.debug(f"{trade_date} - Buying {target_ts_code}")
             success, shares, _fee = ctx.portfolio.reserve_funds(
-                self.target_ts_code, target_stock.close, close_prices,
-                atr=atr_values.get(self.target_ts_code, 0.0) if atr_values else 0.0,
+                target_ts_code, target_stock.close, close_prices,
+                atr=atr_values.get(target_ts_code, 0.0) if atr_values else 0.0,
             )
             if success:
                 orders.append(PendingOrder(

@@ -27,7 +27,6 @@ class MultiStockStrategy(BaseStrategy):
     def __init__(
         self,
         strategy_config: StrategyConfig,
-        ts_codes: Optional[List[str]] = None,
     ):
         super().__init__(
             buy_threshold=strategy_config.buy_threshold,
@@ -39,7 +38,6 @@ class MultiStockStrategy(BaseStrategy):
             max_positions=strategy_config.max_positions,
             max_position_pct=strategy_config.max_position_pct,
         )
-        self.ts_codes = ts_codes or []
         self.strategy_config = strategy_config
         self._full_position_consecutive_days = 0
         self.full_position_score_window = strategy_config.full_position_score_window
@@ -61,8 +59,8 @@ class MultiStockStrategy(BaseStrategy):
         atr_values: Optional[Dict[str, float]] = None,
     ) -> List[PendingOrder]:
         # ── 1. Filter scored_stocks ──
-        if self.ts_codes:
-            scored_stocks = [s for s in scored_stocks if s.ts_code in self.ts_codes]
+        provider = ctx.candidate_provider
+        scored_stocks = [s for s in scored_stocks if s.ts_code in provider.all_ts_codes]
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
 
         # ── 2. Select mode from context ──
