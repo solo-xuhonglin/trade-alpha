@@ -15,6 +15,7 @@ from trade_alpha.dao.stock_name_cache import get_stock_name
 from trade_alpha.task.service import TaskService
 from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.execution.context import PipelineContext
+from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.models.factory import create_classifier, create_predictor
@@ -44,39 +45,30 @@ class BacktestPipeline:
 
     def __init__(
         self,
+        params: dict,
         account_config: AccountConfig,
         training_id: PydanticObjectId,
         model_config: ModelConfig,
         strategy_config: Optional[StrategyConfig] = None,
-        mode: str = "multi",
-        ts_codes: Optional[List[str]] = None,
-        candidate_map: Optional[Dict[str, List[str]]] = None,
     ):
+        self.params = params
         self.account_config = account_config
         self.training_id = training_id
         self.model_config = model_config
         self.strategy_config = strategy_config
-        self.mode = mode
-        self.ts_codes = ts_codes or []
-        self.candidate_map = candidate_map or {}
-        self._current_candidates: List[str] = []
-        self._last_week_key: Optional[str] = None
-        if not self.ts_codes and mode != "live":
-            raise ValueError("ts_codes is required for pipeline initialization")
+        self.mode = params.get("mode", "multi")
 
         self.data_loader = DataLoader()
         self.predictor = None  # 延迟初始化
 
         # Initialize strategy based on mode
-        if mode == "single":
+        if self.mode == "single":
             self.strategy = SingleStockStrategy(
                 strategy_config=strategy_config,
-                target_ts_code=self.ts_codes[0],
             )
         else:
             self.strategy = MultiStockStrategy(
                 strategy_config=strategy_config,
-                ts_codes=self.ts_codes,
             )
 
         self.portfolio = PortfolioManager(
@@ -90,6 +82,10 @@ class BacktestPipeline:
         )
         self.score_manager = ScoreManager(strategy_config, model_config)
         self.market_analyzer = MarketRegimeAnalyzer(strategy_config)
+
+        # Synchronously create Provider (no DB operations in __init__)
+        provider = CandidateListProvider(params)
+
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
             score_manager=self.score_manager,
@@ -99,6 +95,7 @@ class BacktestPipeline:
             strategy_config=self.strategy_config,
             model_config=self.model_config,
             account_config=self.account_config,
+            candidate_provider=provider,
             mode_map={
                 "up": TrendMode(),
                 "flat": RotationMode(),
