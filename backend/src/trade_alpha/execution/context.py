@@ -11,6 +11,7 @@ from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
+from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 
 if TYPE_CHECKING:
     from trade_alpha.strategy.modes.base import PhaseMode
@@ -32,6 +33,7 @@ class PipelineContext:
         portfolio: PortfolioManager,
         strategy_config: StrategyConfig,
         model_config: ModelConfig,
+        candidate_provider: CandidateListProvider,
         predictor: Any = None,
         account_config: Optional[AccountConfig] = None,
         mode_map: Optional[Dict[str, PhaseMode]] = None,
@@ -44,4 +46,5 @@ class PipelineContext:
         self.strategy_config = strategy_config
         self.model_config = model_config
         self.account_config = account_config
+        self.candidate_provider = candidate_provider
         self.mode_map = mode_map or {}
