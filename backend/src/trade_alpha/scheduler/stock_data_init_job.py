@@ -112,18 +112,24 @@ async def run_stock_data_init_job(cfg=None):
     data_years = _parse_int_param(cfg, "data_years")
 
     await ensure_stock_list()
-    if await check_active_stocks_sufficient(stock_count=stock_count):
-        logger.info("Target active stocks reached, skipping data init job")
-        return
+
     pending_stocks = await get_stocks_for_sync(
         sync_status="pending",
         top_limit=stock_count,
         include_backtest=True,
     )
+
     if not pending_stocks:
-        logger.info("No stocks to process")
+        if await check_active_stocks_sufficient(stock_count=stock_count):
+            logger.info("Target active stocks reached, no pending stocks to process, skipping")
+        else:
+            logger.info("No stocks to process")
         return
-    logger.info(f"Found {len(pending_stocks)} stocks to process")
+
+    if await check_active_stocks_sufficient(stock_count=stock_count):
+        logger.info(f"Target active stocks reached, initializing {len(pending_stocks)} pending backtest stocks")
+    else:
+        logger.info(f"Found {len(pending_stocks)} stocks to process")
     sem = asyncio.Semaphore(MAX_CONCURRENT_STOCKS)
     async def process_with_semaphore(s: StockList) -> bool:
         async with sem:
