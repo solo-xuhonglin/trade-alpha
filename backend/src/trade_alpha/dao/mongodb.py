@@ -30,6 +30,7 @@ async def init_db():
     from trade_alpha.dao.signal import SignalResult
     from trade_alpha.dao.stock_daily import StockDaily
     from trade_alpha.dao.stock_list import StockList
+    from trade_alpha.dao.stock_list_history import StockListHistory
     from trade_alpha.dao.order_suggestion import OrderSuggestion
     from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
     from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
@@ -54,6 +55,7 @@ async def init_db():
             SignalResult,
             StockDaily,
             StockList,
+            StockListHistory,
             OrderSuggestion,
             LiveDailyStockScore,
             LiveOrderSuggestion,

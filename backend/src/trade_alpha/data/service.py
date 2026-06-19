@@ -3,6 +3,7 @@
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Tuple
+from beanie.odm.operators.find.comparison import In
 from trade_alpha.data.fetcher import fetch_stock_data, fetch_stock_list, fetch_daily_basic, fetch_trading_calendar
 from trade_alpha.dao import StockDaily, StockList, TradeCalendar, StockListHistory
 from trade_alpha.dao.mongodb import get_database
@@ -129,6 +130,39 @@ async def fetch_and_store_market_caps(trade_date: str) -> int:
 
     logger.info(f"Stored {len(records)} market cap records for {trade_date}")
     return len(records)
+
+
+async def resolve_and_fetch_historical_date(date_str: str) -> Optional[str]:
+    """Resolve a date to the nearest trading day (within 20 days) and ensure market cap data exists.
+
+    If the resolved trading day has no cached data in StockListHistory,
+    automatically fetches it from Tushare.
+
+    Returns the resolved trading day in YYYYMMDD, or None if no trading day found.
+    """
+    from datetime import datetime, timedelta
+    start = datetime.strptime(date_str, "%Y%m%d")
+    resolved = None
+    for i in range(20):
+        check = (start + timedelta(days=i)).strftime("%Y%m%d")
+        day = await TradeCalendar.find_one(
+            TradeCalendar.cal_date == check,
+            TradeCalendar.is_open == 1,
+        )
+        if day:
+            resolved = day.cal_date
+            break
+
+    if not resolved:
+        return None
+
+    existing = await StockListHistory.find(
+        StockListHistory.trade_date == resolved
+    ).first_or_none()
+    if not existing:
+        await fetch_and_store_market_caps(resolved)
+
+    return resolved
 
 
 async def list_stocks(page: int = 1, page_size: int = 20) -> Tuple[List[StockList], int]:
@@ -363,18 +397,18 @@ async def list_stocks_with_filters(
     """
     query_conditions = []
     if industries:
-        query_conditions.append(StockList.industry.is_in(industries))
+        query_conditions.append(In(StockList.industry, industries))
 
     base_query = StockList.find(*query_conditions)
 
     active_cond = [StockList.sync_status == "active"]
     if industries:
-        active_cond.append(StockList.industry.is_in(industries))
+        active_cond.append(In(StockList.industry, industries))
     active_count = await StockList.find(*active_cond).count()
 
     bt_cond = [StockList.is_active_for_backtest == True]
     if industries:
-        bt_cond.append(StockList.industry.is_in(industries))
+        bt_cond.append(In(StockList.industry, industries))
     backtest_count = await StockList.find(*bt_cond).count()
 
     if historical_date:

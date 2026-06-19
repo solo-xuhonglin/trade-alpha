@@ -1,5 +1,56 @@
 <template>
   <v-card border rounded>
+    <v-toolbar flat>
+      <v-toolbar-title>
+        <v-icon color="medium-emphasis" icon="mdi-database" size="x-small" start></v-icon>
+        数据管理
+      </v-toolbar-title>
+      <v-spacer></v-spacer>
+      <v-select
+        v-model="industries"
+        :items="industryOptions"
+        label="行业筛选"
+        multiple
+        chips
+        clearable
+        density="compact"
+        variant="outlined"
+        hide-details
+        style="min-width: 200px; margin-right: 12px"
+        @update:model-value="loadStocks"
+      ></v-select>
+      <v-text-field
+        v-model="historicalDate"
+        label="历史日期"
+        type="date"
+        density="compact"
+        variant="outlined"
+        hide-details
+        style="min-width: 150px; margin-right: 12px"
+        @update:model-value="loadStocks"
+      ></v-text-field>
+      <v-chip class="mr-2">已同步: {{ activeCount }}</v-chip>
+      <v-chip color="primary" class="mr-2">回测股票: {{ backtestCount }}</v-chip>
+      <v-btn
+        class="me-2"
+        prepend-icon="mdi-refresh"
+        rounded="lg"
+        text="刷新列表"
+        border
+        @click="loadStocks"
+        :loading="loadingList"
+      ></v-btn>
+      <v-btn
+        prepend-icon="mdi-delete-sweep"
+        rounded="lg"
+        text="清空股票信息"
+        border
+        color="error"
+        @click="clearConfirmDialog = true"
+        :loading="loadingClear"
+      ></v-btn>
+    </v-toolbar>
+
     <v-data-table-server
       :headers="headers"
       :items="stocks"
@@ -9,60 +60,6 @@
       :page="page"
       @update:options="handleOptionsChange"
     >
-      <template v-slot:top>
-        <v-toolbar flat>
-          <v-toolbar-title>
-            <v-icon color="medium-emphasis" icon="mdi-database" size="x-small" start></v-icon>
-            数据管理
-          </v-toolbar-title>
-          <v-select
-            v-model="industries"
-            :items="industryOptions"
-            label="行业筛选"
-            multiple
-            chips
-            clearable
-            density="compact"
-            variant="outlined"
-            hide-details
-            class="mx-2"
-            style="max-width: 300px;"
-            @update:model-value="loadStocks"
-          ></v-select>
-          <v-text-field
-            v-model="historicalDate"
-            label="历史日期"
-            type="date"
-            density="compact"
-            variant="outlined"
-            hide-details
-            class="mx-2"
-            style="max-width: 200px;"
-            @update:model-value="loadStocks"
-          ></v-text-field>
-          <v-chip class="mx-1">已同步: {{ activeCount }}</v-chip>
-          <v-chip color="primary" class="mx-1">回测股票: {{ backtestCount }}</v-chip>
-          <v-btn
-            class="me-2"
-            prepend-icon="mdi-refresh"
-            rounded="lg"
-            text="刷新列表"
-            border
-            @click="loadStocks"
-            :loading="loadingList"
-          ></v-btn>
-          <v-btn
-            prepend-icon="mdi-delete-sweep"
-            rounded="lg"
-            text="清空股票信息"
-            border
-            color="error"
-            @click="clearConfirmDialog = true"
-            :loading="loadingClear"
-          ></v-btn>
-        </v-toolbar>
-      </template>
-
       <template v-slot:item.sync_status="{ item }">
         <v-chip :color="item.sync_status === 'active' ? 'success' : 'default'" size="small" variant="tonal">
           {{ item.sync_status === 'active' ? '已同步' : '待同步' }}
@@ -103,7 +100,6 @@
         </div>
       </template>
     </v-data-table-server>
-  </v-card>
 
   <!-- 下载对话框 -->
   <v-dialog v-model="downloadDialog" max-width="500px">
@@ -196,6 +192,7 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+</v-card>
 </template>
 
 <script setup lang="ts">

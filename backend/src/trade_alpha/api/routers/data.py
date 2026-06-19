@@ -16,6 +16,7 @@ from trade_alpha.data.service import (
     list_stocks_by_mv_rank,
     list_stocks_with_filters,
     fetch_and_store_market_caps,
+    resolve_and_fetch_historical_date,
     find_stock_daily_by_ts_code,
     find_stock_daily_paginated,
     delete_stock_daily_by_ts_code,
@@ -62,9 +63,10 @@ async def list_stocks_endpoint(
         )
 
     ind_list = [x.strip() for x in industries.split(",")] if industries else None
+    resolved_date = await resolve_and_fetch_historical_date(historical_date) if historical_date else None
     stocks, total, active_count, backtest_count = await list_stocks_with_filters(
         page=page, page_size=page_size,
-        industries=ind_list, historical_date=historical_date, status_filter=status_filter,
+        industries=ind_list, historical_date=resolved_date, status_filter=status_filter,
     )
     total_pages = (total + page_size - 1) // page_size
     items = _build_stock_items(stocks)
