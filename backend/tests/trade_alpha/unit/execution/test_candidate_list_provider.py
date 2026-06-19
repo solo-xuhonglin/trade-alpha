@@ -9,7 +9,7 @@ from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 @pytest.mark.asyncio
 async def test_get_weekly_candidates_with_rolling():
     """Verify weekly key format, dual selection, and rolling retain."""
-    provider = CandidateListProvider()
+    provider = CandidateListProvider({})
 
     mock_calendar = [
         type("MockCal", (), {"cal_date": "20240102", "is_open": 1})(),
@@ -46,14 +46,12 @@ async def test_get_weekly_candidates_with_rolling():
         patch.object(provider, "_get_weekly_mv_gainers", side_effect=mock_mv_change),
         patch.object(provider, "_get_prev_trade_date", AsyncMock(return_value="20231226")),
     ):
-        result = await provider.get_weekly_candidates(
+        await provider.initialize(
             start_date="20240101",
             end_date="20240131",
-            range_n=2,
-            top_n=1,
-            up_n=1,
         )
 
+    result = provider.candidate_map
     assert "20240102" in result
     assert "20240108" in result
     assert "20240116" in result
@@ -67,7 +65,7 @@ async def test_get_weekly_candidates_with_rolling():
 @pytest.mark.asyncio
 async def test_first_week_no_previous_base():
     """First week should only have current base."""
-    provider = CandidateListProvider()
+    provider = CandidateListProvider({})
 
     mock_calendar = [
         type("MockCal", (), {"cal_date": "20240102", "is_open": 1})(),
@@ -83,18 +81,18 @@ async def test_first_week_no_previous_base():
         patch.object(provider, "_get_weekly_mv_gainers", AsyncMock(return_value=["C"])),
         patch.object(provider, "_get_prev_trade_date", AsyncMock(return_value="20231226")),
     ):
-        result = await provider.get_weekly_candidates(
+        await provider.initialize(
             start_date="20240101", end_date="20240110",
-            range_n=3, top_n=2, up_n=1,
         )
 
+    result = provider.candidate_map
     assert result["20240102"] == ["A", "B", "C"]
 
 
 @pytest.mark.asyncio
 async def test_skips_missing_data():
     """Month with no data should be skipped."""
-    provider = CandidateListProvider()
+    provider = CandidateListProvider({})
 
     mock_calendar = [type("MockCal", (), {"cal_date": "20240102", "is_open": 1})()]
 
@@ -102,9 +100,8 @@ async def test_skips_missing_data():
         patch.object(provider, "_get_trade_calendar", AsyncMock(return_value=mock_calendar)),
         patch.object(provider, "_resolve_date", AsyncMock(return_value=None)),
     ):
-        result = await provider.get_weekly_candidates(
+        await provider.initialize(
             start_date="20240101", end_date="20240131",
-            range_n=500, top_n=100, up_n=50,
         )
 
-    assert result == {}
+    assert provider.candidate_map == {}
