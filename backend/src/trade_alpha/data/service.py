@@ -249,6 +249,55 @@ async def update_stock_data_count():
     return updated
 
 
+async def active_stock_data(ts_code: str) -> bool:
+    """Ensure a stock has daily data and indicators calculated.
+
+    If the stock already has sync_status='active', returns True immediately.
+    Otherwise fetches daily data from Tushare, calculates all indicators,
+    marks sync_status='active', and updates data_count/latest_date.
+    """
+    stock = await StockList.find_one(StockList.ts_code == ts_code)
+    if not stock:
+        logger.warning(f"Stock not found in StockList: {ts_code}")
+        return False
+    if stock.sync_status == "active":
+        return True
+
+    try:
+        from trade_alpha.scheduler.stock_data_init_job import get_data_period
+        from trade_alpha.indicators.service import calculate_all_indicators
+
+        start_date, end_date = get_data_period()
+        count = await fetch_and_store_stock_daily(ts_code, start_date, end_date)
+        logger.info(f"Fetched {count} daily records for {ts_code}")
+
+        await calculate_all_indicators(ts_code)
+        logger.info(f"Calculated indicators for {ts_code}")
+
+        stock.sync_status = "active"
+        await stock.save()
+
+        db = await get_database()
+        pipeline = [
+            {"$match": {"ts_code": ts_code}},
+            {"$group": {
+                "_id": "$ts_code",
+                "count": {"$sum": 1},
+                "latest_date": {"$max": "$trade_date"}
+            }}
+        ]
+        async for doc in db.stock_daily.aggregate(pipeline):
+            stock.data_count = doc["count"]
+            stock.latest_date = doc["latest_date"]
+            await stock.save()
+            break
+
+        return True
+    except Exception as e:
+        logger.error(f"Failed to prepare data for {ts_code}: {e}")
+        return False
+
+
 async def find_stock_daily_by_ts_code(
     ts_code: str,
     start_date: Optional[str] = None,

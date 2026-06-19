@@ -62,6 +62,34 @@ class BacktestRunner(BaseRunner):
                 )
                 union_codes = list({c for codes in candidate_map.values() for c in codes})
                 ts_codes = union_codes
+
+                from trade_alpha.dao import StockList
+                from trade_alpha.data.service import active_stock_data
+
+                pending_codes = []
+                for code in union_codes:
+                    stock = await StockList.find_one(StockList.ts_code == code)
+                    if stock and stock.sync_status != "active":
+                        pending_codes.append(code)
+
+                if pending_codes:
+                    logger.info(
+                        f"Preparing data for {len(pending_codes)} non-active "
+                        f"candidate stocks..."
+                    )
+                    total = len(pending_codes)
+                    for i, code in enumerate(pending_codes):
+                        await TaskService.update_progress(
+                            self.task_id,
+                            10 + (i / total) * 10,
+                            f"正在准备数据 {code} ({i+1}/{total})",
+                        )
+                        success = await active_stock_data(code)
+                        if not success:
+                            logger.warning(
+                                f"Data preparation failed for {code}, "
+                                f"may be excluded from scoring"
+                            )
             else:
                 candidate_map = None
 

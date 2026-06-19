@@ -7,10 +7,9 @@ from typing import Optional
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import (
-    fetch_and_store_stock_daily, fetch_and_store_stock_list,
-    update_stock_data_count, get_stocks_for_sync,
+    fetch_and_store_stock_list,
+    get_stocks_for_sync,
 )
-from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
 
@@ -59,16 +58,9 @@ async def update_single_stock_data_count(ts_code: str) -> None:
 
 async def process_single_stock(stock: StockList, data_years: Optional[int] = None) -> bool:
     try:
-        start_date, end_date = get_data_period(data_years=data_years)
-        count = await fetch_and_store_stock_daily(stock.ts_code, start_date, end_date)
-        logger.info(f"Fetched {count} daily records for {stock.ts_code}")
+        from trade_alpha.data.service import active_stock_data
         await asyncio.sleep(API_REQUEST_DELAY)
-        await calculate_all_indicators(stock.ts_code)
-        logger.info(f"Completed daily indicators for {stock.ts_code}")
-        stock.sync_status = "active"
-        await stock.save()
-        await update_single_stock_data_count(stock.ts_code)
-        return True
+        return await active_stock_data(stock.ts_code)
     except Exception as e:
         logger.error(f"Failed to process {stock.ts_code}: {e}")
         return False
