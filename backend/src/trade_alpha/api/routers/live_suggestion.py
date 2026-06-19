@@ -6,6 +6,11 @@ from typing import Optional, List
 
 from trade_alpha.api.deps import parse_obj_id
 from trade_alpha.dao.strategy_config import StrategyConfig
+from trade_alpha.execution.suggestion_service import (
+    list_daily_scores as svc_list_daily_scores,
+    list_suggestions as svc_list_suggestions,
+    list_stock_daily_scores as svc_list_stock_daily_scores,
+)
 from trade_alpha.models import training as training_module
 from trade_alpha.task.dao import TaskStatus, TaskType
 from trade_alpha.task.service import TaskService
@@ -99,15 +104,13 @@ async def list_daily_scores(
     page_size: int = 100,
 ):
     """List daily stock scores, optionally filtered by trade_date. Defaults to latest date."""
-    from trade_alpha.execution.suggestion_service import list_daily_scores as svc
-    return await svc(trade_date, page, page_size)
+    return await svc_list_daily_scores(trade_date, page, page_size)
 
 
 @router.get("/daily-scores/stock/{ts_code}")
 async def list_stock_daily_scores(ts_code: str):
     """Return all daily scores for a stock, sorted by trade_date ascending."""
-    from trade_alpha.execution.suggestion_service import list_stock_daily_scores as svc
-    return await svc(ts_code)
+    return await svc_list_stock_daily_scores(ts_code)
 
 
 @router.get("/runs")
@@ -182,8 +185,7 @@ async def list_suggestions(
     page_size: int = 100,
 ):
     """List suggestions for a specific trade date, sorted by rank."""
-    from trade_alpha.execution.suggestion_service import list_suggestions as svc
-    return await svc(trade_date, page, page_size)
+    return await svc_list_suggestions(trade_date, page, page_size)
 
 
 @router.get("/tasks")

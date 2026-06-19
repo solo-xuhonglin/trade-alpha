@@ -5,7 +5,9 @@ import subprocess
 
 from beanie import PydanticObjectId
 
+from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.logging import get_logger
+from trade_alpha.models import get_training_by_id
 from trade_alpha.task.dao import TaskType
 from trade_alpha.task.service import TaskService
 
@@ -21,10 +23,6 @@ async def _trigger_auto_suggestion(params: dict):
 
     if not training_id or not strategy_config_id:
         raise ValueError("auto_suggest requires training_id and strategy_config_id in params")
-
-    # Lazy import to avoid circular dependency
-    from trade_alpha.models import get_training_by_id
-    from trade_alpha.dao.strategy_config import StrategyConfig
 
     training_doc = await get_training_by_id(PydanticObjectId(training_id))
     if not training_doc:

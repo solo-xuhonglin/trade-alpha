@@ -8,6 +8,7 @@ from trade_alpha.task.runner import BaseRunner
 from trade_alpha.task.service import TaskService
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.live_portfolio import LivePortfolio
+from trade_alpha.dao.trade_calendar import TradeCalendar
 from trade_alpha.models import training as training_module
 from trade_alpha.execution.suggestion_pipeline import SuggestionPipeline
 from trade_alpha.logging import get_logger
@@ -54,8 +55,6 @@ class LiveSuggestionRunner(BaseRunner):
 
             target_dates: Optional[list[str]] = None
             if params.get("start_date") and params.get("end_date"):
-                # Lazy import to avoid circular dependency
-                from trade_alpha.dao.trade_calendar import TradeCalendar
                 calendar_days = await TradeCalendar.find(
                     TradeCalendar.cal_date >= params["start_date"],
                     TradeCalendar.cal_date <= params["end_date"],

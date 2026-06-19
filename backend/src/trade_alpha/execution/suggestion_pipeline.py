@@ -15,6 +15,8 @@ from trade_alpha.dao.live_daily_stock_score import LiveDailyStockScore
 from trade_alpha.dao.live_order_suggestion import LiveOrderSuggestion
 from trade_alpha.dao.live_portfolio import LivePortfolio
 from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
+from trade_alpha.dao.mongodb import get_database
+from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
@@ -26,6 +28,7 @@ from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.modes.trend_mode import TrendMode
 from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.schemas import ScoredStock, MarketDataEmbed
+from trade_alpha.task.service import TaskService
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.suggestion_pipeline")
@@ -136,8 +139,6 @@ class SuggestionPipeline:
 
         Returns the LiveSuggestionRun id.
         """
-        from trade_alpha.dao.position import PositionEmbed
-        from trade_alpha.dao.mongodb import get_database
 
         # 1. Determine target dates
         if target_dates is None:
@@ -248,7 +249,6 @@ class SuggestionPipeline:
                     self.portfolio._cash_available = 0
 
                     processed += 1
-                    from trade_alpha.task.service import TaskService
                     if task_id:
                         await TaskService.update_progress(
                             task_id,

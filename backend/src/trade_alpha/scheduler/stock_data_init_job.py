@@ -6,6 +6,7 @@ from typing import Optional
 
 from trade_alpha.dao import StockList
 from trade_alpha.data.service import (
+    active_stock_data,
     fetch_and_store_stock_list,
     get_stocks_for_sync,
 )
@@ -37,7 +38,6 @@ async def ensure_stock_list() -> int:
 
 async def process_single_stock(stock: StockList, data_years: Optional[int] = None) -> bool:
     try:
-        from trade_alpha.data.service import active_stock_data
         await asyncio.sleep(API_REQUEST_DELAY)
         return await active_stock_data(stock.ts_code, data_years=data_years)
     except Exception as e:
