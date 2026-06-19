@@ -1,5 +1,6 @@
 """Backtest pipeline - orchestrator for backtest execution."""
 
+import asyncio
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from beanie import PydanticObjectId
@@ -26,6 +27,8 @@ from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.baseline_tracker import BaselineTracker
 from trade_alpha.constants import SELL_REASON_CANDIDATE_EXCLUDED, SELL_REASON_FULL_POSITION
+from trade_alpha.dao import StockList
+from trade_alpha.data.service import active_stock_data
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.backtest_pipeline")
@@ -359,20 +362,30 @@ class BacktestPipeline:
 
     async def run_backtest(
         self,
-        start_date: str,
-        end_date: str,
-        name: Optional[str] = None,
         task_id: Optional[PydanticObjectId] = None,
     ) -> ExecutionResult:
+        start_date = self.params["start_date"]
+        end_date = self.params["end_date"]
+        name = self.params.get("name")
+
         result = await self._create_result(start_date, end_date, name)
         await self._ensure_predictor(task_id)
 
-        if self.candidate_map and sorted(self.candidate_map.keys()):
-            first_week_key = sorted(self.candidate_map.keys())[0]
-            baseline_codes = self.candidate_map[first_week_key]
-        else:
-            baseline_codes = self.ts_codes
+        await TaskService.update_progress(task_id, 0, "正在初始化候选股票列表...")
 
+        # 1. 延迟初始化 Provider
+        provider = self.ctx.candidate_provider
+        await provider.initialize(start_date, end_date)
+
+        # 2. 数据准备
+        await self._prepare_candidate_data(task_id)
+
+        # 3. Baseline tracker
+        first_week_codes = provider.get_candidates_for_date(start_date)
+        if provider.candidate_map:
+            baseline_codes = first_week_codes
+        else:
+            baseline_codes = provider.all_ts_codes
         baseline_tracker = BaselineTracker(baseline_codes, result.initial_capital)
 
         # Warmup phase: fill ScoreManager buffers without trading
@@ -398,6 +411,35 @@ class BacktestPipeline:
             result, daily_values, daily_returns, total_trades, total_fees, baseline_tracker,
         )
         return result
+
+    async def _prepare_candidate_data(
+        self,
+        task_id: Optional[PydanticObjectId],
+    ) -> None:
+        """Activate non-active candidate stocks for data readiness."""
+        provider = self.ctx.candidate_provider
+        pending_codes = await provider.get_pending_codes()
+        if not pending_codes:
+            return
+
+        logger.info(
+            f"Preparing data for {len(pending_codes)} non-active "
+            f"candidate stocks..."
+        )
+        total = len(pending_codes)
+        for i, code in enumerate(pending_codes):
+            await TaskService.update_progress(
+                task_id,
+                10 + (i / total) * 10,
+                f"正在准备数据 {code} ({i+1}/{total})",
+            )
+            await asyncio.sleep(0.2)
+            success = await active_stock_data(code)
+            if not success:
+                logger.warning(
+                    f"Data preparation failed for {code}, "
+                    f"may be excluded from scoring"
+                )
 
     async def _run_daily_loop(
         self, start_date, end_date, backtest_id, task_id, baseline_tracker,
