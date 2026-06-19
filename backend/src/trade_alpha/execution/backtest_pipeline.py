@@ -33,6 +33,8 @@ from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.backtest_pipeline")
 
+MAX_CONCURRENT_DATA_PREP = 10
+
 
 def _next_date(date_str: str) -> str:
     """Return the next calendar date, skipping weekends."""
@@ -408,30 +410,47 @@ class BacktestPipeline:
         self,
         task_id: Optional[PydanticObjectId],
     ) -> None:
-        """Activate non-active candidate stocks for data readiness."""
+        """Activate non-active candidate stocks for data readiness (concurrent)."""
         provider = self.ctx.candidate_provider
         pending_codes = await provider.get_pending_codes()
         if not pending_codes:
             return
 
-        logger.info(
-            f"Preparing data for {len(pending_codes)} non-active "
-            f"candidate stocks..."
-        )
         total = len(pending_codes)
-        for i, code in enumerate(pending_codes):
-            await TaskService.update_progress(
-                task_id,
-                10 + (i / total) * 10,
-                f"正在准备数据 {code} ({i+1}/{total})",
-            )
-            await asyncio.sleep(0.2)
-            success = await active_stock_data(code)
-            if not success:
-                logger.warning(
-                    f"Data preparation failed for {code}, "
-                    f"may be excluded from scoring"
-                )
+        logger.info(
+            f"Preparing data for {total} non-active candidate stocks "
+            f"(max {MAX_CONCURRENT_DATA_PREP} concurrent)..."
+        )
+
+        sem = asyncio.Semaphore(MAX_CONCURRENT_DATA_PREP)
+        completed = 0
+        lock = asyncio.Lock()
+
+        async def prepare_one(code: str) -> bool:
+            nonlocal completed
+            async with sem:
+                await asyncio.sleep(0.2)
+                success = await active_stock_data(code)
+                async with lock:
+                    completed += 1
+                    progress = 10 + (completed / total) * 10
+                    await TaskService.update_progress(
+                        task_id, progress,
+                        f"正在准备数据 ({completed}/{total})",
+                    )
+                if not success:
+                    logger.warning(
+                        f"Data preparation failed for {code}, "
+                        f"may be excluded from scoring"
+                    )
+                return success
+
+        tasks = [prepare_one(code) for code in pending_codes]
+        results = await asyncio.gather(*tasks)
+        success_count = sum(1 for r in results if r)
+        logger.info(
+            f"Data preparation: {success_count}/{total} succeeded"
+        )
 
     async def _run_daily_loop(
         self, start_date, end_date, backtest_id, task_id, baseline_tracker,

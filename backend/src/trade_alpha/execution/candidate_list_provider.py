@@ -3,6 +3,8 @@
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
+from beanie.odm.operators.find.comparison import In
+
 from trade_alpha.dao import TradeCalendar, StockListHistory, StockList
 from trade_alpha.data.service import resolve_and_fetch_historical_date
 from trade_alpha.logging import get_logger
@@ -66,11 +68,12 @@ class CandidateListProvider:
         codes = self.all_ts_codes
         if not codes:
             return []
-        pending = []
-        for code in codes:
-            stock = await StockList.find_one(StockList.ts_code == code)
-            if stock and stock.sync_status != "active":
-                pending.append(code)
+        active_stocks = await StockList.find(
+            In(StockList.ts_code, codes),
+            StockList.sync_status == "active",
+        ).to_list()
+        active_set = {s.ts_code for s in active_stocks}
+        pending = [c for c in codes if c not in active_set]
         if pending:
             logger.info(
                 f"{len(pending)} non-active candidates need data preparation"
@@ -127,13 +130,13 @@ class CandidateListProvider:
             return []
         current_records = await StockListHistory.find(
             StockListHistory.trade_date == trade_date,
-            StockListHistory.ts_code.is_in(universe_codes),
+            In(StockListHistory.ts_code, universe_codes),
             StockListHistory.total_mv != None,
         ).to_list()
         current_mv = {r.ts_code: r.total_mv for r in current_records}
         prev_records = await StockListHistory.find(
             StockListHistory.trade_date == prev_trade_date,
-            StockListHistory.ts_code.is_in(universe_codes),
+            In(StockListHistory.ts_code, universe_codes),
             StockListHistory.total_mv != None,
         ).to_list()
         prev_mv = {r.ts_code: r.total_mv for r in prev_records}
