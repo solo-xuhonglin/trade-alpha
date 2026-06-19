@@ -133,11 +133,16 @@ class PortfolioManager:
 
         self._cash_available -= shares * price + fee
         self._cash_reserved += shares * price + fee
+
+        if ts_code in self._pending_buys:
+            logger.warning(f"reserve_funds overwriting existing pending buy for {ts_code}")
+
         self._pending_buys[ts_code] = PendingBuy(
             ts_code=ts_code, stock_name="",
             order_shares=shares, order_price=price,
             estimated_fee=fee, atr_at_entry=atr,
         )
+        logger.debug(f"reserve_funds: {ts_code} shares={shares} price={price} fee={fee}, pending_buys={list(self._pending_buys.keys())}")
         return True, shares, fee
 
     def settle_buy(self, ts_code: str, stock_name: str,
@@ -153,7 +158,8 @@ class PortfolioManager:
         pending = self._pending_buys.pop(ts_code, None)
         if pending is None:
             logger.warning(f"settle_buy: no pending buy for {ts_code}, "
-                           f"falling back to direct deduction")
+                           f"falling back to direct deduction, "
+                           f"pending_buys={list(self._pending_buys.keys())}")
             matched_cost = order_shares * matched_price
             matched_fee = self.calc_buy_fee(matched_cost)
             self._cash_available -= matched_cost + matched_fee
@@ -219,7 +225,8 @@ class PortfolioManager:
         """Cancel an unfilled buy order, refunding pre-deducted cash."""
         pending = self._pending_buys.pop(ts_code, None)
         if pending is None:
-            logger.warning(f"cancel_reservation: no pending buy for {ts_code}, skipping")
+            logger.warning(f"cancel_reservation: no pending buy for {ts_code}, skipping, "
+                           f"pending_buys={list(self._pending_buys.keys())}")
             return
         self._cash_reserved -= pending.reserved_cash
         self._cash_available += pending.reserved_cash

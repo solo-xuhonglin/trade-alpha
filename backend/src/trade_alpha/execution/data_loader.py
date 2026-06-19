@@ -99,6 +99,7 @@ class DataLoader:
     async def load_history_data(self, end_date: str, ts_codes: List[str], days: int) -> pd.DataFrame:
         """Load history data with cache optimization."""
         keep_days = days * 2
+        self._max_cache_keep = max(self._max_cache_keep, keep_days)
 
         all_records = []
 

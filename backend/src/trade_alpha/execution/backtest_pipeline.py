@@ -510,6 +510,7 @@ class BacktestPipeline:
                 market_analyzer=self.market_analyzer,
             )
             if not stock_map:
+                pending_orders = []
                 date = _next_date(date)
                 continue
 

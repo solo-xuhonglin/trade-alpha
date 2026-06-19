@@ -80,10 +80,9 @@ class CandidateListProvider:
             )
         return pending
 
-    @staticmethod
-    def _get_week_key(date: str, candidate_map: Dict[str, List[str]]) -> Optional[str]:
-        """Find the week key (YYYYMMDD) that contains the given date."""
-        sorted_keys = sorted(candidate_map.keys())
+    def _get_week_key(self, date: str) -> Optional[str]:
+        """Find the week key (YYYYMMDD) that contains the given date from candidate_map."""
+        sorted_keys = sorted(self._candidate_map.keys())
         for key in reversed(sorted_keys):
             if date >= key:
                 return key
