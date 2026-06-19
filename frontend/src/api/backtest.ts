@@ -38,6 +38,8 @@ export const backtestApi = {
     ts_codes?: string[]
     max_positions?: number
     top_n?: number
+    range_n?: number
+    up_n?: number
     strategy_config_id?: string
   }) => api.post<{ task_id: string; status: string; message: string }>('/backtest/run', data),
 

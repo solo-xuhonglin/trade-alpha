@@ -281,6 +281,7 @@ class BacktestPipeline:
             getattr(strategy_config, 'market_smooth_window', 5),
             getattr(strategy_config, 'retention_days', 5),
             getattr(strategy_config, 'correlation_window', 5),
+            getattr(strategy_config, 'rank_up_window', 5),
             getattr(strategy_config, 'rotation_was_top_window', 30),
             getattr(strategy_config, 'rotation_pullback_window', 5),
         ]
@@ -291,6 +292,15 @@ class BacktestPipeline:
         dt = datetime.strptime(start_date, "%Y%m%d")
         dt -= timedelta(days=warmup_days)
         return dt.strftime("%Y%m%d")
+
+    @staticmethod
+    def _get_week_key(date: str, candidate_map: Dict[str, List[str]]) -> Optional[str]:
+        """Find the week key (YYYYMMDD) that contains the given date."""
+        sorted_keys = sorted(candidate_map.keys())
+        for key in reversed(sorted_keys):
+            if date >= key:
+                return key
+        return None
 
     async def _run_warmup(
         self,
@@ -420,9 +430,10 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            current_month = date[:6]
-            if current_month in self.candidate_map:
-                self._current_candidates = self.candidate_map[current_month]
+            current_week_key = self._get_week_key(date, self.candidate_map)
+            if current_week_key and current_week_key != getattr(self, '_last_week_key', None):
+                self._current_candidates = self.candidate_map[current_week_key]
+                self._last_week_key = current_week_key
 
             baseline_tracker.track(close_prices)
 

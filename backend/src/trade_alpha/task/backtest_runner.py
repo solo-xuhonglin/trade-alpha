@@ -53,10 +53,12 @@ class BacktestRunner(BaseRunner):
             ts_codes = params.get("ts_codes")
             if not ts_codes:
                 provider = CandidateListProvider()
-                candidate_map = await provider.get_monthly_candidates(
+                candidate_map = await provider.get_weekly_candidates(
                     start_date=params["start_date"],
                     end_date=params["end_date"],
+                    range_n=params.get("range_n", 500),
                     top_n=params.get("top_n", 100),
+                    up_n=params.get("up_n", 50),
                 )
                 union_codes = list({c for codes in candidate_map.values() for c in codes})
                 ts_codes = union_codes

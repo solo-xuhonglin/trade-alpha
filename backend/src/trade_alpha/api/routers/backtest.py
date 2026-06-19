@@ -62,6 +62,8 @@ class BacktestRunRequest(BaseModel):
     mode: str = "multi"
     ts_codes: Optional[List[str]] = None
     top_n: int = 100
+    range_n: int = 500
+    up_n: int = 50
     strategy_config_id: Optional[str] = None
     
     @field_validator('start_date', 'end_date')
@@ -96,6 +98,8 @@ async def trigger_backtest(body: BacktestRunRequest) -> dict:
             "mode": body.mode,
             "ts_codes": body.ts_codes,
             "top_n": body.top_n,
+            "range_n": body.range_n,
+            "up_n": body.up_n,
             "strategy_config_id": body.strategy_config_id,
         })
 

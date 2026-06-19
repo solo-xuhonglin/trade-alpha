@@ -55,11 +55,27 @@
           <v-text-field
             v-else
             v-model.number="form.top_n"
-            label="市值排行前N"
+            label="市值前N"
             type="number"
           />
         </v-col>
-        <v-col cols="12" sm="3" md="3">
+        <v-col cols="12" sm="2" md="2">
+          <v-text-field
+            v-if="currentMode !== 'single'"
+            v-model.number="form.range_n"
+            label="计算范围"
+            type="number"
+          />
+        </v-col>
+        <v-col cols="12" sm="2" md="2">
+          <v-text-field
+            v-if="currentMode !== 'single'"
+            v-model.number="form.up_n"
+            label="涨幅前N"
+            type="number"
+          />
+        </v-col>
+        <v-col cols="12" sm="2" md="2">
           <v-text-field v-model="form.name" label="回测名称" />
         </v-col>
         <v-col cols="12" sm="3" md="3">
@@ -104,6 +120,8 @@ const form = ref({
   end_date: '2026-06-16',
   max_positions: 10,
   top_n: 100,
+  range_n: 500,
+  up_n: 50,
   account_config_id: '',
   training_id: '',
   strategy_config_id: '',
@@ -191,6 +209,8 @@ const runBacktest = async () => {
       name: form.value.name || `backtest_${formatDateTime()}`,
       mode: currentMode.value,
       top_n: currentMode.value !== 'single' ? form.value.top_n : undefined,
+      range_n: currentMode.value !== 'single' ? form.value.range_n : undefined,
+      up_n: currentMode.value !== 'single' ? form.value.up_n : undefined,
       ts_codes: currentMode.value === 'single' ? [form.value.ts_codes] : undefined,
       strategy_config_id: form.value.strategy_config_id || undefined,
     })
