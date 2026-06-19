@@ -1354,6 +1354,10 @@ const reasonColor = (reason: string | undefined | null): string => {
     'max_hold_days': 'info',
     'hold_score_low': 'orange',
     'full_position_forced_sell': 'deep-purple',
+    'candidate_excluded': 'grey',
+    'normal_buy': 'success',
+    'priority_rank_up': 'info',
+    'rotation_buy': 'indigo',
     '': 'grey',
   }
   return map[reason || ''] || 'grey'
@@ -1366,6 +1370,10 @@ const reasonLabel = (reason: string | undefined | null): string => {
     'max_hold_days': '达最大持仓天数',
     'hold_score_low': '排名靠后评分低',
     'full_position_forced_sell': '满仓强制卖出',
+    'candidate_excluded': '候选排除',
+    'normal_buy': '常规买入',
+    'priority_rank_up': '排名上涨优先买入',
+    'rotation_buy': '轮动买入',
     '': '-',
   }
   return map[reason || ''] || reason || '-'

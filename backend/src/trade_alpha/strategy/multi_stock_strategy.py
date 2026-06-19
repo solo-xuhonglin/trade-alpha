@@ -148,6 +148,9 @@ class MultiStockStrategy(BaseStrategy):
             if cand.stock.ts_code in hold_ts_codes or cand.stock.ts_code in purchased:
                 continue
             if suggestion_mode:
+                # suggestion_mode is used for UI display only, not actual trading.
+                # It intentionally skips the max_daily_buys limit so the UI can
+                # show all recommended candidates up to max_positions.
                 if suggestion_count >= self.max_positions:
                     break
                 suggestion_count += 1

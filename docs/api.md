@@ -46,6 +46,9 @@ GET /api/data/stocks
 
 **参数**:
 - `market` (query, optional): 市场类型 ("主板", "创业板", "科创板")
+- `industries` (query, optional): 逗号分隔的行业名称列表（如 "银行,汽车"）
+- `historical_date` (query, optional): 历史日期 (YYYY-MM-DD)，指定后返回该日期存在的股票列表（基于 StockListHistory）
+- `status_filter` (query, optional): 回测状态筛选 ("active", "inactive", "all")，默认 "all"
 - `page` (query, optional): 页码，默认 1
 - `page_size` (query, optional): 每页数量，默认 20
 
@@ -61,15 +64,23 @@ GET /api/data/stocks
       "industry": "银行",
       "market": "主板",
       "list_date": "1991-04-03",
-      "latest_date": "2026-05-15"
+      "latest_date": "2026-05-15",
+      "is_active_for_backtest": true
     }
   ],
   "total": 5000,
   "page": 1,
   "page_size": 20,
-  "total_pages": 250
+  "total_pages": 250,
+  "active_count": 4500,
+  "backtest_count": 500
 }
 ```
+
+**新字段说明**:
+- `is_active_for_backtest` (item 级别): 是否参与回测，用户可手动开关
+- `active_count` (响应级别): `sync_status == "active"` 的股票数
+- `backtest_count` (响应级别): `is_active_for_backtest == true` 的股票数
 
 ### 搜索股票
 
@@ -178,6 +189,60 @@ DELETE /api/data/stocks/{ts_code}
 ```json
 {
   "message": "Deleted"
+}
+```
+
+### 获取行业列表
+
+```
+GET /api/data/industries
+```
+
+**响应**:
+```json
+{
+  "industries": ["银行", "汽车", "医药生物", "电子", ...]
+}
+```
+
+### 设置股票回测状态
+
+```
+PUT /api/data/stocks/{ts_code}/backtest-status
+```
+
+**请求体 (JSON)**:
+```json
+{
+  "is_active_for_backtest": true
+}
+```
+
+**响应**:
+```json
+{
+  "message": "Updated"
+}
+```
+
+### 批量设置股票回测状态
+
+```
+PUT /api/data/stocks/backtest-status/batch
+```
+
+**请求体 (JSON)**:
+```json
+{
+  "ts_codes": ["002594.SZ", "000001.SZ"],
+  "is_active_for_backtest": false
+}
+```
+
+**响应**:
+```json
+{
+  "message": "Batch updated"
 }
 ```
 
@@ -614,7 +679,9 @@ POST /api/backtest/run
   "strategy_config_id": "507f1f77bcf86cd799439015",
   "training_id": "507f1f77bcf86cd799439014",
   "start_date": "2024-01-01",
-  "end_date": "2024-12-31"
+  "end_date": "2024-12-31",
+  "range_n": 500,
+  "up_n": 50
 }
 ```
 
@@ -626,6 +693,8 @@ POST /api/backtest/run
 | `training_id` | string | 是 | 训练记录 ID |
 | `start_date` | string | 是 | 开始日期 (YYYY-MM-DD) |
 | `end_date` | string | 是 | 结束日期 (YYYY-MM-DD) |
+| `range_n` | int | 否 | 候选股计算范围（用于周度候选池，默认 500） |
+| `up_n` | int | 否 | 涨幅前 N（用于周度候选池，默认 50） |
 
 **响应**:
 ```json

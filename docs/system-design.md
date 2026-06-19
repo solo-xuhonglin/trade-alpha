@@ -78,9 +78,11 @@ trade-alpha/
 │   │   │   ├── suggestion_pipeline.py # 实盘建议独立流水线
 │   │   │   ├── suggestion_service.py  # 实盘建议查询服务层
 │   │   │   ├── backtest_service.py    # 回测结果查询服务层（原 service.py）
-│   │   │   ├── scoring.py          # 共享评分函数（动量/趋势/波动率/爆炸过滤）
+│   │   │   ├── scoring.py          # 共享评分函数（动量/趋势/波动率/爆炸过滤/评分下滑过滤）
 │   │   │   ├── portfolio.py        # 投资组合管理（资金/持仓/费用）
 │   │   │   ├── data_loader.py      # 数据加载器
+│   │   │   ├── market_regime.py    # 市场阶段分析（MA10/MA60 + EWMA 平滑）
+│   │   │   ├── candidate_list_provider.py # 候选股票池（周度市值+涨幅双选+滚动留存）
 │   │   │   └── schemas.py          # 数据结构定义
 │   │   ├── scheduler/          # 定时任务模块
 │   │   │   ├── stock_data_init_job.py  # 全量数据初始化
@@ -171,7 +173,8 @@ trade-alpha/
 
 - `mongodb.py`: MongoDB 连接管理和 Beanie 初始化
 - `stock_daily.py`: 股票日线数据 Document（新增 rsi_6, rsi_12, atr_14, obv 字段）
-- `stock_list.py`: 股票列表 Document（包含 sync_status 字段用于数据同步状态追踪）
+- `stock_list.py`: 股票列表 Document（包含 sync_status 字段用于数据同步状态追踪，is_active_for_backtest 字段手动控制回测参与）
+- `stock_list_history.py`: 股票列表历史记录（ts_code+trade_date 复合索引，用于历史日期回测回溯）
 - `account_config.py`: 账户配置 Document
 - `strategy_config.py`: 策略配置 Document
 - `model_config.py`: 模型配置 Document
@@ -195,7 +198,7 @@ trade-alpha/
 ### 4. 数据模块 (data)
 
 - `fetcher.py`: Tushare 数据获取
-- `service.py`: 数据流编排
+- `service.py`: 数据流编排（含 `fetch_and_store_market_caps()` 市值数据获取、`resolve_and_fetch_historical_date()` 历史日期解析、`list_stocks_with_filters()` 多条件股票筛选、`get_stocks_for_sync()` 数据同步股票列表）
 
 ### 5. 指标模块 (indicators)
 
@@ -350,8 +353,11 @@ trade-alpha/
 
 - 多股票组合策略，基于评分排名选股
 - `make_orders()` 接收 `PortfolioManager` 对象，买入时调用 `reserve_funds` 获取可买股数
-- 支持最大持仓数限制、单只股票最大仓位限制、止损、最大持仓天数和最低持有天数（最低持有期内仅止损可触发卖出）
-- 支持两阶段买入（`use_rank_up_priority`）：第一阶段优先买入排名持续上涨的股票（基于 `ScoredStockHistory` 的历史排名计算 `rank_improvement`），第二阶段用剩余资金按综合评分买入其余股票
+- 支持两阶段买入（`use_rank_up_priority`）：第一阶段优先买入排名持续上涨的股票，第二阶段用剩余资金按综合评分买入其余股票
+- Rank-up priority 逻辑在模式特定选股前调用，结果前置到候选列表
+- 支持最大持仓数限制、单只股票最大仓位限制、ATR 动态追踪止损、最大/最小持仓天数（最低持有期内仅止损可触发卖出）
+- `score_not_declining()` 共享函数在 `modes/base.py` 中，启用 `use_score_decline_filter` 时丢弃评分下滑的股票
+- 卖出优先级 = `avg_score + pnl_clipped * full_position_pnl_weight`，通过 `full_position_pnl_weight` 控制盈亏权重
 
 #### single_stock.py - 单股票策略 (SingleStockStrategy)
 
@@ -374,6 +380,9 @@ BacktestPipeline 协调数据加载、预测、策略决策的完整回测流程
 - 执行上下文管理，确保状态一致性
 - 基线对比功能（买入持有策略）
 - 夏普比率、波动率等指标计算
+- 支持 `candidate_map`（按周选股池），回测只交易池内股票，`_get_week_key()` 做最近邻日期查找
+- `_detect_outdated_positions()` 每周检查持仓是否仍在候选池中，不在则触发卖出（`SELL_REASON_CANDIDATE_EXCLUDED`）
+- ATR 动态追踪止损 + 每日买入上限（`max_daily_buys`）控制
 
 **核心方法**:
 - `run_backtest()`: 回测模式执行
@@ -401,7 +410,7 @@ composite_score = score + trend_bonus - trend_penalty - vol_penalty + momentum_b
 
 #### scoring.py - 共享评分函数
 
-从原 `ExecutionPipeline` 提取的七个评分工具函数：
+从原 `ExecutionPipeline` 提取的八个评分工具函数：
 - `smooth_scores()`: EWMA 平滑复合分数
 - `apply_trend_bonus()`: 基于线性回归 R² 加权的趋势加分
 - `apply_trend_penalty()`: 基于线性回归 R² 加权的趋势扣分（下跌趋势）
@@ -409,6 +418,7 @@ composite_score = score + trend_bonus - trend_penalty - vol_penalty + momentum_b
 - `apply_momentum_boost()`: 基于收盘价上涨天数比例计算动量加成
 - `apply_momentum_penalty()`: 基于收盘价下跌天数比例计算动量扣分
 - `filter_explosions()`: 基于价格涨幅和成交量倍数的爆炸检测过滤
+- `filter_score_decline()`: 基于连续评分下滑的过滤
 
 #### portfolio.py - 投资组合管理
 
@@ -440,11 +450,31 @@ composite_score = score + trend_bonus - trend_penalty - vol_penalty + momentum_b
 
 **核心数据结构**:
 - `ScoredStock`: 带评分的股票
-- `ScoredStockHistory`: 带评分历史记录的股票（用于排名上涨优先计算）
 - `PendingOrder`: 待执行订单
+- `PendingBuy`: 待成交买入（含 ATR 入场值）
+- `MarketDataEmbed`: 市场分析结果（ranking_high_pct, ranking_low_pct, market_phase, rebalanced_ma10_pct, rebalanced_ma60_pct 等）
+- `BuyCandidate`: 模式推荐的买入候选
 
-**辅助类**:
-- `ScoredStockHistoryHelper`: 管理多只股票的历史评分记录，提供 `compute_rank_improvement()` 方法计算排名提升比例，支持滑动窗口更新和历史清理
+#### market_regime.py - 市场阶段分析
+
+`MarketRegimeAnalyzer` 从 `ScoreManager` 提取独立的市场分析模块：
+
+- 管理 `_rank_history` 排名历史追踪
+- `record_ranking_scores()`: 按排名分排序分配名次
+- `compute_rank_improvement()`: 计算单只股票的排名提升比例
+- `analyze()`: 分析市场阶段，返回 `MarketDataEmbed`
+- 市场阶段基于基线 EMA 的 MA10/MA60 判断（up/down/flat），替代了原有的 crash/decline/recovery/normal 阶段乘数
+- 输出 `rebalanced_ma10_pct` / `rebalanced_ma60_pct` 替代原有的 `rank_median`
+
+#### candidate_list_provider.py - 候选股票池
+
+`CandidateListProvider` 生成周度候选股票池：
+
+- `get_weekly_candidates()`: 按周生成候选股票列表
+- 双选机制：市值排名前 N（`top_n`）+ 周涨幅前 N（`up_n`），范围控制在 `range_n` 只中
+- 滚动留存：每周保留上周候选股，实现 `base_N ∪ base_{N-1}` 的滚动池
+- `_get_prev_trade_date()`: 优化为单次范围查询（查前 7-14 天）
+- `_get_week_key()`: 最近邻日期查找，确保非交易日的容错
 
 #### backtest_service.py - 回测结果查询服务
 
@@ -587,12 +617,12 @@ name 字段具备唯一索引，支持按名称直接查询。
 
 | 路由 | 说明 |
 |-----|------|
-| `data.py` | 数据管理 |
+| `data.py` | 数据管理（含 `GET /data/industries` 获取行业列表、`PUT /data/stocks/{ts_code}/backtest-status` 单只回测开关、`PUT /data/stocks/backtest-status/batch` 批量回测开关） |
 | `indicators.py` | 指标计算 |
 | `predict.py` | 预测 |
 | `strategy_config.py` | 策略管理 |
 | `account_config.py` | 账户管理 |
-| `backtest.py` | 回测管理（异步任务模式） |
+| `backtest.py` | 回测管理（新增 `range_n` / `up_n` 参数） |
 | `backtest_records.py` | 回测记录查询 |
 | `data_analysis.py` | 数据分析（异步任务模式） |
 | `model_configs.py` | 模型配置 CRUD |

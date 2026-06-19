@@ -295,37 +295,44 @@ score = score_3d × 0.4 + score_5d × 0.6
 
 ### 7.1 完整流程
 
-`execution/pipeline.py` → `ExecutionPipeline`
+`execution/backtest_pipeline.py` → `BacktestPipeline`
 
 ```
 1. 创建 ExecutionResult(status="running")
 2. 构建股票池（universe）：
    - sync_status == "active"
-   - 排除 TEST_EXCLUDED_TS_CODES
+   - is_active_for_backtest == true（手动开关）
+   - 如果启用候选池（candidate_map），只交易每周选定的池内股票
    - 按 total_mv 降序取 top N（单股 200，组合 3000）
-3. 逐日循环（start_date → end_date，跳过周末）：
+3. 预热阶段（warmup_days）：初始化 BaselineTracker、排名平滑缓冲区
+4. 逐日循环（start_date → end_date，跳过周末）：
    a. DataLoader.load_day_close() → 当日收盘价
    b. DataLoader.load_day_data() → 当日 StockDaily DataFrame
-   c. Predictor.predict_batch_with_history() → 预测得分
-   d. 构造 ScoredStock 列表
-   e. 评分调整管线（按顺序执行）：
-      i.  评分平滑（EWMA）：_smooth_scores()
-      ii. 趋势加分/扣分：_apply_trend_bonus() / _apply_trend_penalty()
-          基于收盘价 R² 加权线性回归，稳定上涨趋势加分，下跌趋势扣分
-      iii.波动扣分：_apply_volatility_penalty()
-          基于日内振幅比（OHLC），大起大落扣分
-      iv. 动量加成/扣分：_apply_momentum_boost() / _apply_momentum_penalty()
-          基于收盘价日涨跌比，上涨天数多则加分，下跌天数多则扣分
-      v.  暴涨排除：_filter_explosions()
-          放量暴涨/暴跌标记排除，不参与排名
-      vi. 排名提升计算：_compute_rank_improvement()
-          基于滑动窗口历史排名计算 rank_improvement，衡量每只股票排名的改善程度
-      vii. 记录排名：_record_ranks()
-          按最终分从高到低排序
-   f. Strategy.make_orders() → PendingOrder
-   g. Strategy.settle_orders() → ExecutionTrade + 更新现金/持仓
-   h. Strategy.daily_snapshot() → ExecutionDailySnapshot（含 predictions）
-4. 计算最终指标 → 更新 ExecutionResult(status="completed")
+   c. MarketRegimeAnalyzer 管理排名历史与市场指标
+   d. Predictor.predict_batch_with_history() → 预测得分
+   e. 构造 ScoredStock 列表
+   f. 评分调整管线（按顺序执行）：
+      i.   趋势加分/扣分：apply_trend_bonus() / apply_trend_penalty()
+           基于收盘价 R² 加权线性回归，稳定上涨趋势加分，下跌趋势扣分
+      ii.  动量加成/扣分：apply_momentum_boost() / apply_momentum_penalty()
+           基于收盘价日涨跌比，上涨天数多则加分，下跌天数多则扣分
+      iii. 评分下滑过滤：filter_score_decline()
+           启用 use_score_decline_filter 时，丢弃评分连续下滑的股票
+      iv.  暴涨排除：filter_explosions()
+           放量暴涨/暴跌标记排除，不参与排名
+      v.   综合分 = score + trend_bonus - trend_penalty + momentum_bonus - momentum_penalty
+      vi.  EWMA 平滑 → 排名分 (ranking_score)
+      vii. MarketRegimeAnalyzer.record_ranking_scores() → 分配排名
+      viii.MarketRegimeAnalyzer.analyze() → 市场阶段判断（MA10/MA60 基线分析）
+   g. PortfolioManager 资金管理：
+      - ATR 动态追踪止损检查（跌破止损价触发卖出）
+      - _detect_outdated_positions() 每周检查候选池外持仓
+      - 满仓容忍卖出（评分 + pnl 加权）
+   h. Strategy.make_orders() → PendingOrder（限 max_daily_buys 只）
+   i. 排名上涨优先买入（启用时）：两阶段买入
+   j. Strategy.settle_orders() → ExecutionTrade + 更新现金/持仓
+   k. Strategy.daily_snapshot() → ExecutionDailySnapshot
+5. 计算最终指标 → 更新 ExecutionResult(status="completed")
 ```
 
 ### 7.2 数据快照
@@ -404,15 +411,21 @@ score = score_3d × 0.4 + score_5d × 0.6
 | 模块 | 文件 | 职责 |
 |------|------|------|
 | 数据获取 | `data/fetcher.py` | Tushare API 调用 |
-| 数据存储 | `data/service.py` | 数据写入 MongoDB |
+| 数据存储 | `data/service.py` | 数据写入 MongoDB、市值数据获取、多条件股票筛选 |
 | 指标计算 | `indicators/service.py` | 30 个指标统一计算入口 |
-| 模型配置 | `predict/config_service.py` | 配置 CRUD + 默认值 |
-| 标准化 | `predict/normalizers/cross_sectional.py` | 横截面 Z-score |
-| 标签生成 | `predict/training_service.py` | 分类标签 + 训练流程 |
-| XGBoost | `predict/models/xgboost.py` | 多标签分类器 |
-| 预测器 | `execution/predictor.py` | 批量预测 + 得分计算 |
+| 模型配置 | `models/training/config.py` | 配置 CRUD + 默认值 |
+| 标准化 | `models/xgboost/normalizer.py` | 横截面 Z-score |
+| 标签生成 | `models/training/helpers.py` | 分类标签 + 共享训练辅助函数 |
+| 训练流程 | `models/training/trainer.py` | 训练编排（XGBoost/LSTM） |
+| XGBoost | `models/xgboost/classifier.py` | 多标签分类器 |
+| LSTM | `models/lstm/classifier.py` | 序列分类器 |
+| 预测器 | `models/base.py` | compute_scores 分数计算 |
 | 数据加载 | `execution/data_loader.py` | 逐日数据查询 |
-| 回测管线 | `execution/pipeline.py` | 回测执行主流程 |
+| 回测管线 | `execution/backtest_pipeline.py` | 回测执行主流程（含候选池/ATR 止损） |
+| 市场分析 | `execution/market_regime.py` | 市场阶段分析 + 排名历史管理 |
+| 候选股票池 | `execution/candidate_list_provider.py` | 周度候选股双选+滚动留存 |
+| 评分调整 | `execution/scoring.py` | 趋势/动量/评分下滑/暴涨过滤工具函数 |
+| 投资组合 | `execution/portfolio.py` | 资金/持仓/费用管理（含 ATR 追踪） |
 | 训练 API | `api/routers/trainings.py` | 训练任务接口 |
-| 回测 API | `api/routers/backtest.py` | 回测任务接口 |
+| 回测 API | `api/routers/backtest.py` | 回测任务接口（含 range_n/up_n 参数） |
 | 训练脚本 | `scripts/train_model.py` | 命令行训练入口 |

@@ -3,7 +3,7 @@
     <v-card-title class="text-subtitle-1">发起回测</v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="2">
           <v-select
             v-model="form.account_config_id"
             :items="accountOptions"
@@ -13,7 +13,18 @@
             clearable
           />
         </v-col>
-        <v-col cols="12" sm="6" md="3">
+        <v-col cols="12" sm="6" md="2">
+          <v-select
+            v-model="form.strategy_config_id"
+            :items="strategyOptions"
+            item-title="label"
+            item-value="value"
+            label="策略配置"
+            clearable
+          />
+          <StrategyChips :strategy="selectedStrategy" />
+        </v-col>
+        <v-col cols="12" sm="6" md="2">
           <v-select
             v-model="form.training_id"
             :items="trainingOptions"
@@ -31,18 +42,15 @@
         </v-col>
       </v-row>
       <v-row>
-        <v-col cols="12" sm="3" md="3">
-          <v-select
-            v-model="form.strategy_config_id"
-            :items="strategyOptions"
-            item-title="label"
-            item-value="value"
-            label="策略配置"
-            clearable
+        <v-col cols="12" sm="6" md="2">
+          <v-text-field
+            v-if="currentMode !== 'single'"
+            v-model.number="form.range_n"
+            label="计算范围"
+            type="number"
           />
-          <StrategyChips :strategy="selectedStrategy" />
         </v-col>
-        <v-col cols="12" sm="3" md="3">
+        <v-col cols="12" sm="6" md="2">
           <v-select
             v-if="currentMode === 'single'"
             v-model="form.ts_codes"
@@ -59,15 +67,7 @@
             type="number"
           />
         </v-col>
-        <v-col cols="12" sm="2" md="2">
-          <v-text-field
-            v-if="currentMode !== 'single'"
-            v-model.number="form.range_n"
-            label="计算范围"
-            type="number"
-          />
-        </v-col>
-        <v-col cols="12" sm="2" md="2">
+        <v-col cols="12" sm="6" md="2">
           <v-text-field
             v-if="currentMode !== 'single'"
             v-model.number="form.up_n"
@@ -75,10 +75,10 @@
             type="number"
           />
         </v-col>
-        <v-col cols="12" sm="2" md="2">
+        <v-col cols="12" sm="6" md="3">
           <v-text-field v-model="form.name" label="回测名称" />
         </v-col>
-        <v-col cols="12" sm="3" md="3">
+        <v-col cols="12" sm="6" md="3">
           <v-btn color="primary" block @click="runBacktest" :loading="running" height="40">
             发起回测
           </v-btn>

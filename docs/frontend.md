@@ -168,13 +168,22 @@ frontend/
 
 **功能**:
 - 查看 A 股股票列表（按市值降序）
+- 行业筛选下拉框（从 `GET /data/industries` 加载行业列表）
+- 历史日期输入（基于 StockListHistory 回溯指定日期的股票列表）
+- 回测状态筛选（active/inactive/all）
+- 单只股票回测开关切换（`is_active_for_backtest`）
+- 批量设置回测状态（选择多只股票一键开关）
 - 更新股票列表
 - 下载股票数据
 - 查看 K 线图
 - 删除股票数据
 
 **组件**:
-- 服务端分页表格：股票列表（v-data-table-server）
+- 服务端分页表格：股票列表（v-data-table-server），新增 `is_active_for_backtest` 切换列
+- 行业筛选下拉框（v-select）
+- 历史日期输入（v-text-field type="date"）
+- 回测状态筛选（v-select: active/inactive/all）
+- 批量操作按钮组（全选、批量启用、批量禁用）
 - 下载对话框：选择日期范围
 - 弹窗：ECharts K 线图
 - 删除确认对话框
@@ -194,12 +203,16 @@ frontend/
 **功能**:
 - 查看策略列表
 - 创建/编辑/删除策略
-- 组合模式：基础参数 + 排名优化（动量加成/趋势加分/波动扣分/暴涨排除/排名上涨优先五个独立开关）
-- 策略回测列表显示状态 chip（动量加成/趋势加分/波动扣分/排名上涨优先启用标记）
+- 组合模式：基础参数 + 排名优化（动量加成/趋势加分/暴跌排除/排名上涨优先/评分下滑过滤/ATR 动态止损等开关）
+- 策略回测列表显示状态 chip（动量加成/趋势加分/排名上涨优先/ATR 止损/评分下滑过滤启用标记）
+- ATR 止损参数（atr_stop_multiplier, atr_trail_rate）
+- 每日买入上限（max_daily_buys）
+- 评分下滑过滤（use_score_decline_filter, score_decline_threshold）
+- 满仓容忍卖出增加 PnL 权重（full_position_pnl_weight）
 
 **组件**:
 - 数据表格：策略列表
-- 弹窗表单：策略编辑（基础配置 tab + 排名优化 tab）
+- 弹窗表单：策略编辑（基础配置 tab + 排名优化 tab + 止损 tab）
 - 动态表单字段
 
 ### 5. 模型配置 `/models`
@@ -272,9 +285,14 @@ frontend/
 - 选择策略配置（自动推断单股票/组合模式）
 - 设置时间范围（默认 2025 年全年）
 - 输入回测名称（默认 `backtest_YYYYMMDDHHmmss`）
-- 单股票模式输入股票代码，组合模式输入最大持仓数
+- 单股票模式输入股票代码，组合模式输入市值前N、计算范围、涨幅前N（用于周度候选池）
 - 发起回测
 - 查看运行中的任务状态
+
+**表单布局**（2 行 × 5 列，Vuetify grid）:
+- 第 1 行：账户配置(2) | 策略配置(2) | 训练结果(2) | 开始日期(3) | 结束日期(3)
+- 第 2 行：计算范围(2) | 市值前N/股票(2) | 涨幅前N(2) | 回测名称(3) | 发起回测(3)
+- 响应式：md+ 5列，sm 2列，xs 1列
 
 **组件**:
 - 表单：选择参数
@@ -408,7 +426,14 @@ frontend/
 
 ### StrategyChips.vue
 
-策略排名优化标签，显示策略中启用的排名优化项（动量加成/趋势加分/波动扣分/暴涨排除/排名上涨优先）。启用 `use_rank_up_priority` 时显示 "排名上涨优先" chip。
+策略排名优化标签，显示策略中启用的排名优化项（动量加成/趋势加分/暴涨排除/排名上涨优先/评分下滑过滤/ATR 止损）。启用项包括：
+- `use_momentum_boost` → "动量加成"
+- `use_trend_bonus` → "趋势加分"
+- `use_explosion_filter` → "暴涨排除"
+- `use_rank_up_priority` → "排名上涨优先"
+- `use_score_decline_filter` → "评分下滑过滤"
+- `use_trend_penalty` → "趋势扣分"
+- `atr_stop_multiplier > 0` → "ATR止损"
 
 ## API 封装
 
