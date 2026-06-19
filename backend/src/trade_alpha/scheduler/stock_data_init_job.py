@@ -4,6 +4,8 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
+from beanie.odm.operators.find.comparison import NotIn
+
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import (
@@ -13,6 +15,7 @@ from trade_alpha.data.service import (
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
+from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("stock_data_init")
 
