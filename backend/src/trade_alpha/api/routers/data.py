@@ -24,7 +24,7 @@ from trade_alpha.data.service import (
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.indicators.service import calculate_all_indicators
-from trade_alpha.scheduler.stock_data_init_job import update_single_stock_data_count
+from trade_alpha.data.service import refresh_stock_statistic
 from trade_alpha.utils.date_utils import to_db_format, to_api_format
 from trade_alpha.api.validators import TradeDateQuery
 
@@ -216,7 +216,7 @@ async def fetch_data_endpoint(request: DataFetchRequest):
         )
 
     if daily_count > 0:
-        await update_single_stock_data_count(ts_code=request.ts_code)
+        await refresh_stock_statistic(ts_code=request.ts_code)
         stock = await StockList.find_one(StockList.ts_code == request.ts_code)
         if stock and stock.sync_status != "active":
             stock.sync_status = "active"

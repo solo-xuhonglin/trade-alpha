@@ -1,5 +1,7 @@
 """Backtest runner for subprocess execution."""
 
+import asyncio
+
 from beanie import PydanticObjectId
 
 from trade_alpha.task.runner import BaseRunner
@@ -8,6 +10,8 @@ from trade_alpha.models import training as training_module
 from trade_alpha.execution.backtest_pipeline import BacktestPipeline
 from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 from trade_alpha.dao.account_config import AccountConfig
+from trade_alpha.dao import StockList
+from trade_alpha.data.service import active_stock_data
 from trade_alpha.strategy.service import get_strategy_by_id
 from trade_alpha.logging import get_logger
 
@@ -63,9 +67,6 @@ class BacktestRunner(BaseRunner):
                 union_codes = list({c for codes in candidate_map.values() for c in codes})
                 ts_codes = union_codes
 
-                from trade_alpha.dao import StockList
-                from trade_alpha.data.service import active_stock_data
-
                 pending_codes = []
                 for code in union_codes:
                     stock = await StockList.find_one(StockList.ts_code == code)
@@ -84,6 +85,7 @@ class BacktestRunner(BaseRunner):
                             10 + (i / total) * 10,
                             f"正在准备数据 {code} ({i+1}/{total})",
                         )
+                        await asyncio.sleep(0.2)
                         success = await active_stock_data(code)
                         if not success:
                             logger.warning(

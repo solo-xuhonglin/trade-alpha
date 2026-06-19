@@ -249,7 +249,33 @@ async def update_stock_data_count():
     return updated
 
 
-async def active_stock_data(ts_code: str) -> bool:
+async def refresh_stock_statistic(
+    ts_code: str,
+    stock: Optional[StockList] = None,
+) -> None:
+    """Update data_count and latest_date for a single stock from stock_daily aggregation."""
+    if stock is None:
+        stock = await StockList.find_one(StockList.ts_code == ts_code)
+    if not stock:
+        return
+    db = await get_database()
+    pipeline = [
+        {"$match": {"ts_code": ts_code}},
+        {"$group": {
+            "_id": "$ts_code",
+            "count": {"$sum": 1},
+            "latest_date": {"$max": "$trade_date"}
+        }}
+    ]
+    async for doc in db.stock_daily.aggregate(pipeline):
+        stock.data_count = doc["count"]
+        stock.latest_date = doc["latest_date"]
+        await stock.save()
+        logger.info(f"Updated stock {ts_code}: data_count={doc['count']}, latest_date={doc['latest_date']}")
+        break
+
+
+async def active_stock_data(ts_code: str, data_years: Optional[int] = None) -> bool:
     """Ensure a stock has daily data and indicators calculated.
 
     If the stock already has sync_status='active', returns True immediately.
@@ -267,7 +293,7 @@ async def active_stock_data(ts_code: str) -> bool:
         from trade_alpha.scheduler.stock_data_init_job import get_data_period
         from trade_alpha.indicators.service import calculate_all_indicators
 
-        start_date, end_date = get_data_period()
+        start_date, end_date = get_data_period(data_years=data_years)
         count = await fetch_and_store_stock_daily(ts_code, start_date, end_date)
         logger.info(f"Fetched {count} daily records for {ts_code}")
 
@@ -275,23 +301,7 @@ async def active_stock_data(ts_code: str) -> bool:
         logger.info(f"Calculated indicators for {ts_code}")
 
         stock.sync_status = "active"
-        await stock.save()
-
-        db = await get_database()
-        pipeline = [
-            {"$match": {"ts_code": ts_code}},
-            {"$group": {
-                "_id": "$ts_code",
-                "count": {"$sum": 1},
-                "latest_date": {"$max": "$trade_date"}
-            }}
-        ]
-        async for doc in db.stock_daily.aggregate(pipeline):
-            stock.data_count = doc["count"]
-            stock.latest_date = doc["latest_date"]
-            await stock.save()
-            break
-
+        await refresh_stock_statistic(ts_code, stock=stock)
         return True
     except Exception as e:
         logger.error(f"Failed to prepare data for {ts_code}: {e}")

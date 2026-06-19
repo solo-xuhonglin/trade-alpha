@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from trade_alpha.dao import StockList
-from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import (
     fetch_and_store_stock_list,
     get_stocks_for_sync,
@@ -36,31 +35,11 @@ async def ensure_stock_list() -> int:
     return count
 
 
-async def update_single_stock_data_count(ts_code: str) -> None:
-    db = await get_database()
-    pipeline = [
-        {"$match": {"ts_code": ts_code}},
-        {"$group": {
-            "_id": "$ts_code",
-            "count": {"$sum": 1},
-            "latest_date": {"$max": "$trade_date"}
-        }}
-    ]
-    async for doc in db.stock_daily.aggregate(pipeline):
-        stock = await StockList.find_one(StockList.ts_code == ts_code)
-        if stock:
-            stock.data_count = doc["count"]
-            stock.latest_date = doc["latest_date"]
-            await stock.save()
-            logger.info(f"Updated stock {ts_code}: data_count={doc['count']}, latest_date={doc['latest_date']}")
-            break
-
-
 async def process_single_stock(stock: StockList, data_years: Optional[int] = None) -> bool:
     try:
         from trade_alpha.data.service import active_stock_data
         await asyncio.sleep(API_REQUEST_DELAY)
-        return await active_stock_data(stock.ts_code)
+        return await active_stock_data(stock.ts_code, data_years=data_years)
     except Exception as e:
         logger.error(f"Failed to process {stock.ts_code}: {e}")
         return False

@@ -558,7 +558,7 @@ name 字段具备唯一索引，支持按名称直接查询。
 
 - `run_stock_data_init_job()`: 运行数据初始化，处理 pending 股票
 - `get_data_period()`: 获取数据拉取的时间范围
-- `update_single_stock_data_count()`: 更新单只股票的数据统计
+- `refresh_stock_statistic()`: 更新单只股票的数据统计
 
 ### 11. 任务模块 (task)
 
