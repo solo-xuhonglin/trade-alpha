@@ -4,8 +4,6 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
-from beanie.odm.operators.find.comparison import NotIn
-
 from trade_alpha.dao import StockList
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.data.service import (
@@ -15,7 +13,6 @@ from trade_alpha.data.service import (
 from trade_alpha.indicators.service import calculate_all_indicators
 from trade_alpha.config import load_config
 from trade_alpha.logging import get_logger
-from trade_alpha.test_config import TEST_EXCLUDED_TS_CODES
 
 logger = get_logger("stock_data_init")
 
@@ -77,18 +74,6 @@ async def process_single_stock(stock: StockList, data_years: Optional[int] = Non
         return False
 
 
-async def check_active_stocks_sufficient(stock_count: Optional[int] = None) -> bool:
-    if stock_count is None:
-        config = load_config()
-        stock_count = config.top_market_cap_stocks
-    active_count = await StockList.find(
-        StockList.sync_status == "active",
-        NotIn(StockList.ts_code, TEST_EXCLUDED_TS_CODES)
-    ).count()
-    logger.info(f"Current active stocks: {active_count}, target: {stock_count}")
-    return active_count >= stock_count
-
-
 def _parse_int_param(cfg, key: str) -> Optional[int]:
     """Parse an integer parameter from cfg.params, returning None on failure."""
     if not cfg or not cfg.params:
@@ -120,16 +105,10 @@ async def run_stock_data_init_job(cfg=None):
     )
 
     if not pending_stocks:
-        if await check_active_stocks_sufficient(stock_count=stock_count):
-            logger.info("Target active stocks reached, no pending stocks to process, skipping")
-        else:
-            logger.info("No stocks to process")
+        logger.info("No pending stocks to process")
         return
 
-    if await check_active_stocks_sufficient(stock_count=stock_count):
-        logger.info(f"Target active stocks reached, initializing {len(pending_stocks)} pending backtest stocks")
-    else:
-        logger.info(f"Found {len(pending_stocks)} stocks to process")
+    logger.info(f"Found {len(pending_stocks)} pending stocks to process")
     sem = asyncio.Semaphore(MAX_CONCURRENT_STOCKS)
     async def process_with_semaphore(s: StockList) -> bool:
         async with sem:
