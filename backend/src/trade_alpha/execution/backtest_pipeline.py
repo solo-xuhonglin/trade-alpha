@@ -393,7 +393,7 @@ class BacktestPipeline:
         await self._prepare_candidate_data(task_id)
 
         # 3. Baseline tracker
-        baseline_codes = provider.get_candidates_for_date(start_date)
+        baseline_codes = await provider.get_baseline_codes(start_date)
         baseline_tracker = BaselineTracker(baseline_codes, result.initial_capital)
 
         # Warmup phase: fill ScoreManager buffers without trading

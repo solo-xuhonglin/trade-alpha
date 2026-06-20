@@ -63,6 +63,16 @@ class CandidateListProvider:
             self._last_period_key = period_key
         return self._current_candidates
 
+    async def get_baseline_codes(self, date: str) -> List[str]:
+        """Return top-N market cap stocks only (no momentum) for baseline tracking."""
+        if self._ts_codes:
+            return self._ts_codes
+        resolved = await self._resolve_date(date)
+        if not resolved:
+            return []
+        records = await self._query_top_stocks(resolved, self._top_n)
+        return [r.ts_code for r in records]
+
     async def get_pending_codes(self) -> List[str]:
         """Return non-active candidate codes that need data preparation."""
         codes = self.all_ts_codes
