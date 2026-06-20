@@ -68,6 +68,21 @@ class WarmupManager:
     def is_warmup(self, ts_code: str) -> bool:
         return ts_code in self._pool
 
+    def build_prediction_close(
+        self,
+        close_prices: Dict[str, float],
+        formal_set: Optional[Set[str]] = None,
+    ) -> Dict[str, float]:
+        """Build prediction close dict: formal + warmup stocks.
+
+        When formal_set is None (fixed stock mode), returns all close_prices.
+        """
+        if formal_set is None:
+            return close_prices
+        result = {k: v for k, v in close_prices.items() if k in formal_set}
+        result.update({k: v for k, v in close_prices.items() if k in self._pool})
+        return result
+
     def apply_virtual_ranking(self, stock_map: Dict[str, ScoredStock]) -> None:
         """Apply virtual rankings to warmup stocks in-place.
 

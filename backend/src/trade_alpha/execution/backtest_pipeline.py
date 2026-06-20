@@ -332,25 +332,19 @@ class BacktestPipeline:
 
             # Determine formal candidates for this date
             formal_codes = provider.get_candidates_for_date(date)
-            if formal_codes:
-                formal_close = {k: v for k, v in close_prices.items()
-                                if k in formal_codes}
-                # Update warmup pool on week change
-                current_week_key = provider.get_week_key(date)
-                if current_week_key and current_week_key != last_week_key:
-                    warmup_mgr.update_pool(current_week_key, set(formal_codes), provider.candidate_map)
-                    last_week_key = current_week_key
+            formal_close = {k: v for k, v in close_prices.items()
+                            if k in formal_codes}
 
-                # Add warmup stocks to prediction set
-                warmup_codes = warmup_mgr.warmup_codes
-                warmup_close = {k: v for k, v in close_prices.items()
-                                if k in warmup_codes}
-                pred_close = {**formal_close, **warmup_close}
-            else:
-                # Date before any candidate week — predict all stocks
-                pred_close = close_prices
+            # Update warmup pool on week change
+            current_week_key = provider.get_week_key(date)
+            if current_week_key and current_week_key != last_week_key:
+                warmup_mgr.update_pool(current_week_key, set(formal_codes), provider.candidate_map)
+                last_week_key = current_week_key
 
-            baseline_tracker.track_daily_rebalanced_only(pred_close)
+            # Build prediction set including warmup stocks
+            pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
+
+            baseline_tracker.track_daily_rebalanced_only(formal_close)
 
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
@@ -528,16 +522,9 @@ class BacktestPipeline:
             baseline_tracker.track(close_prices)
 
             if provider.candidate_map:
+                pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
                 candidate_close = {k: v for k, v in close_prices.items()
                                    if k in candidates}
-                # Include warmup stocks in prediction set
-                warmup_codes = warmup_mgr.warmup_codes
-                if warmup_codes:
-                    warmup_close = {k: v for k, v in close_prices.items()
-                                    if k in warmup_codes}
-                    pred_close = {**candidate_close, **warmup_close}
-                else:
-                    pred_close = candidate_close
             else:
                 candidate_close = close_prices
                 pred_close = close_prices
@@ -568,7 +555,7 @@ class BacktestPipeline:
             )
 
             # Apply virtual ranking for warmup stocks
-            if provider.candidate_map and candidates:
+            if provider.candidate_map:
                 warmup_mgr.apply_virtual_ranking(stock_map)
 
             market_data = self.market_analyzer.last_result
