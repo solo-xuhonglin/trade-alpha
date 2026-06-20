@@ -130,28 +130,28 @@ class MarketRegimeAnalyzer:
         Compares D days ago top N vs today top N.
         Returns 0.0 if insufficient history or n <= 0.
         """
-        n_pct = self._strategy_config.top_n_retention_pct
-        d = self._strategy_config.retention_days
+        retention_pct = self._strategy_config.top_n_retention_pct
+        retention_days = self._strategy_config.retention_days
         total_stocks = len(stock_map)
-        n = max(1, int(total_stocks * n_pct))
-        if n <= 0:
+        retention_count = max(1, int(total_stocks * retention_pct))
+        if retention_count <= 0:
             return 0.0
 
-        d_ago_top_n = set()
+        past_top_n = set()
         for ts_code in stock_map:
             records = self._rank_history.get(ts_code, [])
-            if len(records) > d and 0 < records[-1 - d].rank <= n:
-                d_ago_top_n.add(ts_code)
+            if len(records) > retention_days and 0 < records[-1 - retention_days].rank <= retention_count:
+                past_top_n.add(ts_code)
 
-        if not d_ago_top_n:
+        if not past_top_n:
             return 0.0
 
         today_top_n = {
             ts_code for ts_code, stock in stock_map.items()
-            if 0 < stock.rank <= n
+            if 0 < stock.rank <= retention_count
         }
 
-        return len(d_ago_top_n & today_top_n) / len(d_ago_top_n)
+        return len(past_top_n & today_top_n) / len(past_top_n)
 
     def _compute_score_return_correlation(
         self, stock_map: Dict[str, ScoredStock]
