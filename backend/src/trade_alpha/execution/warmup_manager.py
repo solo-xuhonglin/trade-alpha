@@ -4,6 +4,7 @@ from bisect import bisect_right
 from typing import Dict, List, Set
 
 from trade_alpha.logging import get_logger
+from trade_alpha.schemas import ScoredStock
 
 logger = get_logger("execution.warmup_manager")
 
@@ -62,6 +63,26 @@ class WarmupManager:
 
     def is_warmup(self, ts_code: str) -> bool:
         return ts_code in self._pool
+
+    def apply_virtual_ranking(self, stock_map: Dict[str, ScoredStock]) -> None:
+        """Apply virtual rankings to warmup stocks in-place.
+
+        Warmup stocks' rank is set to their virtual position within
+        the formal stock set, without modifying formal rankings.
+        """
+        if not self._pool:
+            return
+        scored_list = list(stock_map.values())
+        formal = [s for s in scored_list if not self.is_warmup(s.ts_code)]
+        warmup = [s for s in scored_list if self.is_warmup(s.ts_code)]
+        if not formal or not warmup:
+            return
+        warmup_ranks = self.compute_virtual_rankings(
+            [s.composite_score for s in formal],
+            {s.ts_code: s.composite_score for s in warmup},
+        )
+        for s in warmup:
+            s.rank = warmup_ranks.get(s.ts_code, 0)
 
     @staticmethod
     def compute_virtual_rankings(

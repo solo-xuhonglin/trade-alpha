@@ -92,12 +92,8 @@ class BacktestPipeline:
         # Synchronously create Provider (no DB operations in __init__)
         provider = CandidateListProvider(params)
 
-        # Initialize warmup manager if enabled and has candidate map
-        warmup_manager = None
-        if (self.strategy_config
-                and getattr(self.strategy_config, 'use_candidate_warmup', False)
-                and provider.candidate_map):
-            warmup_manager = WarmupManager(provider.candidate_map)
+        # Initialize warmup manager (mandatory when candidate pool exists)
+        warmup_manager = WarmupManager(provider.candidate_map) if provider.candidate_map else None
 
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
@@ -288,17 +284,16 @@ class BacktestPipeline:
     def _compute_warmup_days(strategy_config: Optional[StrategyConfig]) -> int:
         if strategy_config is None:
             return 0
-        rotation_needs = (
-            getattr(strategy_config, 'rotation_was_top_window', 30)
-            + getattr(strategy_config, 'rotation_pullback_window', 5)
-            + 1
-        )
         windows = [
-            rotation_needs,
-            getattr(strategy_config, 'ranking_smooth_window', 5) * 2,
-            getattr(strategy_config, 'market_smooth_window', 5) * 2,
+            getattr(strategy_config, 'ranking_smooth_window', 5),
+            getattr(strategy_config, 'market_smooth_window', 5),
+            getattr(strategy_config, 'retention_days', 5),
+            getattr(strategy_config, 'correlation_window', 5),
+            getattr(strategy_config, 'rank_up_window', 5),
+            getattr(strategy_config, 'rotation_was_top_window', 30),
+            getattr(strategy_config, 'rotation_pullback_window', 5),
         ]
-        return max(windows)
+        return max(windows) + 10
 
     @staticmethod
     def _find_warmup_start(start_date: str, warmup_days: int) -> str:
@@ -370,23 +365,8 @@ class BacktestPipeline:
                 continue
 
             # Apply virtual ranking for warmup stocks
-            if warmup_mgr and warmup_mgr.warmup_codes and formal_codes:
-                scored_list = list(stock_map.values())
-                formal_stocks = [s for s in scored_list
-                                 if not warmup_mgr.is_warmup(s.ts_code)]
-                warmup_stocks = [s for s in scored_list
-                                 if warmup_mgr.is_warmup(s.ts_code)]
-
-                if formal_stocks:
-                    formal_scores = [s.composite_score for s in formal_stocks]
-                    warmup_score_dict = {s.ts_code: s.composite_score
-                                         for s in warmup_stocks}
-
-                    warmup_ranks = WarmupManager.compute_virtual_rankings(
-                        formal_scores, warmup_score_dict,
-                    )
-                    for s in warmup_stocks:
-                        s.rank = warmup_ranks.get(s.ts_code, 0)
+            if warmup_mgr and formal_codes:
+                warmup_mgr.apply_virtual_ranking(stock_map)
 
             self.market_analyzer.analyze(
                 stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
@@ -589,21 +569,8 @@ class BacktestPipeline:
             )
 
             # Apply virtual ranking for warmup stocks
-            if warmup_mgr and warmup_mgr.warmup_codes and provider.candidate_map and candidates:
-                scored_list = list(stock_map.values())
-                formal_stocks = [s for s in scored_list
-                                 if not warmup_mgr.is_warmup(s.ts_code)]
-                warmup_stocks = [s for s in scored_list
-                                 if warmup_mgr.is_warmup(s.ts_code)]
-                if formal_stocks and warmup_stocks:
-                    formal_scores = [s.composite_score for s in formal_stocks]
-                    warmup_score_dict = {s.ts_code: s.composite_score
-                                         for s in warmup_stocks}
-                    warmup_ranks = WarmupManager.compute_virtual_rankings(
-                        formal_scores, warmup_score_dict,
-                    )
-                    for s in warmup_stocks:
-                        s.rank = warmup_ranks.get(s.ts_code, 0)
+            if warmup_mgr and provider.candidate_map and candidates:
+                warmup_mgr.apply_virtual_ranking(stock_map)
 
             market_data = self.market_analyzer.last_result
 
