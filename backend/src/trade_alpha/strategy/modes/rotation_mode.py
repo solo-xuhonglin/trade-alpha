@@ -31,6 +31,11 @@ class RotationMode(PhaseMode):
     ) -> List[BuyCandidate]:
         config = ctx.strategy_config
         hold_ts_codes = set(ctx.portfolio.positions.keys())
+        total = len(scored_stocks)
+        rank_min = int(total * config.rotation_rank_min_pct)
+        rank_max = int(total * config.rotation_rank_max_pct)
+        bottom_rank = int(total * config.rotation_bottom_pct)
+        was_top_count = int(total * config.rotation_was_top_pct)
 
         candidates: List[BuyCandidate] = []
 
@@ -39,7 +44,7 @@ class RotationMode(PhaseMode):
                 continue
             if st.ts_code in hold_ts_codes:
                 continue
-            if not (config.rotation_rank_min <= st.rank <= config.rotation_rank_max):
+            if not (rank_min <= st.rank <= rank_max):
                 continue
 
             rank_history = ctx.market_analyzer.get_rank_history(st.ts_code) if ctx.market_analyzer else []
@@ -47,8 +52,8 @@ class RotationMode(PhaseMode):
             ww = config.rotation_was_top_window
             if len(rank_history) < max(ww, pw) + pw + 1:
                 continue
-            was_top = any(r <= config.rotation_was_top_n for r in rank_history[-(ww + pw):-pw])
-            recent_bottom = any(r >= config.rotation_bottom_threshold for r in rank_history[-pw:])
+            was_top = any(r <= was_top_count for r in rank_history[-(ww + pw):-pw])
+            recent_bottom = any(r >= bottom_rank for r in rank_history[-pw:])
             if not (was_top and recent_bottom):
                 continue
             if config.rotation_use_reversal_check:

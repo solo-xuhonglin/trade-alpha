@@ -11,15 +11,15 @@ class StrategyConfig(Document):
 
     name: str
     type: str = Field(default="multi")
-    min_order_value: float = 5000.0
+    min_order_value: float = 50000.0
     stop_loss_pct: float = -0.1
-    max_hold_days: int = 120
+    max_hold_days: int = 180
     min_hold_days: int = 5
-    buy_threshold: float = 0.2
-    sell_threshold: float = -0.01
-    max_positions: Optional[int] = 10
-    max_position_pct: Optional[float] = 0.1
-    sell_rank_n: Optional[int] = 15
+    buy_threshold: float = 0.3
+    sell_threshold: float = -0.05
+    max_positions: Optional[int] = 6
+    max_position_pct: Optional[float] = 0.2
+    sell_rank_pct: float = 0.15
     hold_score_threshold: Optional[float] = 0.1
     use_momentum_boost: bool = False
     momentum_window: int = 12
@@ -38,35 +38,34 @@ class StrategyConfig(Document):
     use_full_position_sell: bool = False
     full_position_threshold: float = 0.90
     full_position_days: int = 5
-    full_position_score_window: int = 10
+    full_position_score_window: int = 15
     full_position_sell_count: int = 1
     use_rank_up_priority: bool = False
-    rank_up_window: int = 5
-    rank_up_count: int = 3
-    rank_up_min_score: float = 0.1
-    rank_up_min_improvement_pct: float = 0.20
+    rank_up_window: int = 3
+    rank_up_count: int = 1
+    rank_up_min_score: float = -0.1
+    rank_up_min_improvement_pct: float = 0.15
     ranking_smooth_window: int = 5
     ranking_smooth_alpha: float = 0.3
     score_decline_threshold: float = 0.05
     use_score_decline_filter: bool = False
     full_position_pnl_weight: float = 0.5
-    market_smooth_window: int = 5
+    market_smooth_window: int = 3
     market_smooth_alpha: float = 0.3
-    top_n_retention: int = 20
+    top_n_retention_pct: float = 0.20
     retention_days: int = 5
     correlation_window: int = 5
     use_phase_strategy: bool = True
     atr_stop_multiplier: float = 3.0
     atr_trail_rate: float = 0.5
     max_daily_buys: int = 2
-    # Rotation mode params
-    rotation_bottom_threshold: int = 60
-    rotation_rank_min: int = 45
-    rotation_rank_max: int = 75
+    rotation_bottom_pct: float = 0.60
+    rotation_rank_min_pct: float = 0.30
+    rotation_rank_max_pct: float = 0.70
     rotation_use_reversal_check: bool = True
-    rotation_was_top_n: int = 15
+    rotation_was_top_pct: float = 0.15
     rotation_pullback_window: int = 5
-    rotation_was_top_window: int = 30
+    rotation_was_top_window: int = 60
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

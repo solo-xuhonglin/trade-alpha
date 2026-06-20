@@ -82,17 +82,16 @@ class MultiStockStrategy(BaseStrategy):
 
         # ── 6. Compute sell_rank_ts_codes for check_sell ──
         sorted_all = sorted(scored_stocks, key=lambda s: s.ranking_score, reverse=True)
-        top_n = self.max_positions
-        top_ts_codes = {s.ts_code for s in sorted_all[:top_n]}
-        sell_rank_n = ctx.strategy_config.sell_rank_n
-        sell_rank_ts_codes = {s.ts_code for s in sorted_all[:sell_rank_n]}
+        total = len(sorted_all)
+        sell_rank_count = max(1, int(total * ctx.strategy_config.sell_rank_pct))
+        sell_rank_ts_codes = {s.ts_code for s in sorted_all[:sell_rank_count]}
 
         # ── 7. Sell loop ──
         orders: List[PendingOrder] = []
         close_prices = close_prices or {}
         for ts_code, pos in ctx.portfolio.positions.items():
             should_sell, reason = self.check_sell(
-                pos, top_ts_codes, sell_rank_ts_codes, score_map,
+                pos, sell_rank_ts_codes, score_map,
                 close_prices, market_data, ctx=ctx,
             )
             if should_sell:
@@ -305,7 +304,6 @@ class MultiStockStrategy(BaseStrategy):
     def check_sell(
         self,
         position: PositionEmbed,
-        top_ts_codes: set,
         sell_rank_ts_codes: set,
         score_map: Dict[str, float],
         close_prices: Optional[Dict[str, float]] = None,

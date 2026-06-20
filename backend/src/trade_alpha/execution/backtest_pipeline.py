@@ -55,7 +55,7 @@ class BacktestPipeline:
         account_config: AccountConfig,
         training_id: PydanticObjectId,
         model_config: ModelConfig,
-        strategy_config: Optional[StrategyConfig] = None,
+        strategy_config: StrategyConfig,
     ):
         self.params = params
         self.account_config = account_config
@@ -80,11 +80,11 @@ class BacktestPipeline:
         self.portfolio = PortfolioManager(
             account_config=self.account_config,
             initial_capital=account_config.initial_capital,
-            max_positions=getattr(strategy_config, 'max_positions', 10),
-            max_position_pct=getattr(strategy_config, 'max_position_pct', 0.3),
-            min_order_value=getattr(strategy_config, 'min_order_value', 5000.0),
-            atr_stop_multiplier=getattr(strategy_config, 'atr_stop_multiplier', 3.0),
-            atr_trail_rate=getattr(strategy_config, 'atr_trail_rate', 0.5),
+            max_positions=strategy_config.max_positions,
+            max_position_pct=strategy_config.max_position_pct,
+            min_order_value=strategy_config.min_order_value,
+            atr_stop_multiplier=strategy_config.atr_stop_multiplier,
+            atr_trail_rate=strategy_config.atr_trail_rate,
         )
         self.score_manager = ScoreManager(strategy_config, model_config)
         self.market_analyzer = MarketRegimeAnalyzer(strategy_config)

@@ -130,8 +130,10 @@ class MarketRegimeAnalyzer:
         Compares D days ago top N vs today top N.
         Returns 0.0 if insufficient history or n <= 0.
         """
-        n = getattr(self._strategy_config, "top_n_retention", 20)
-        d = getattr(self._strategy_config, "retention_days", 5)
+        n_pct = self._strategy_config.top_n_retention_pct
+        d = self._strategy_config.retention_days
+        total_stocks = len(stock_map)
+        n = max(1, int(total_stocks * n_pct))
         if n <= 0:
             return 0.0
 

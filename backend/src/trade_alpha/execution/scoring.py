@@ -441,17 +441,12 @@ class ScoreManager:
         date: str,
         data_loader: DataLoader,
     ) -> Dict[str, List[float]]:
-        """Load historical close prices and store on self for strategy PnL.
-
-        Computes lookback from config (sell_rank_n as baseline + trend/momentum windows).
-        """
-        sell_rank_n = getattr(self._strategy_config, 'sell_rank_n', 15) if self._strategy_config else 15
-        lookback = sell_rank_n
-        if self._strategy_config:
-            if self._strategy_config.use_trend_bonus:
-                lookback = max(lookback, self._strategy_config.trend_bonus_window)
-            if self._strategy_config.use_momentum_boost:
-                lookback = max(lookback, self._strategy_config.momentum_window)
+        """Load historical close prices and store on self for strategy PnL."""
+        lookback = 15
+        if self._strategy_config.use_trend_bonus:
+            lookback = max(lookback, self._strategy_config.trend_bonus_window)
+        if self._strategy_config.use_momentum_boost:
+            lookback = max(lookback, self._strategy_config.momentum_window)
 
         history_data = await data_loader.peek_history_data(
             date, list(pred_results.keys()), lookback + 5,

@@ -57,7 +57,7 @@ class SuggestionPipeline:
         self,
         training_id: PydanticObjectId,
         model_config: ModelConfig,
-        strategy_config: Optional[StrategyConfig] = None,
+        strategy_config: StrategyConfig,
     ):
         self.training_id = training_id
         self.model_config = model_config
@@ -151,9 +151,9 @@ class SuggestionPipeline:
 
         # 2. Calculate warmup parameters
         lookback = max(
-            getattr(self.strategy_config, 'trend_bonus_window', 0) if self.strategy_config and self.strategy_config.use_trend_bonus else 0,
-            getattr(self.strategy_config, 'momentum_window', 0) if self.strategy_config and self.strategy_config.use_momentum_boost else 0,
-            getattr(self.strategy_config, 'ranking_smooth_window', 0) if self.strategy_config else 0,
+            self.strategy_config.trend_bonus_window if self.strategy_config.use_trend_bonus else 0,
+            self.strategy_config.momentum_window if self.strategy_config.use_momentum_boost else 0,
+            self.strategy_config.ranking_smooth_window,
         )
         warmup_days = max(int(lookback * 1.5), 10)
         warmup_dt = datetime.strptime(target_dates[0], "%Y%m%d") - timedelta(days=warmup_days)
