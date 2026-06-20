@@ -2,6 +2,7 @@
 
 from typing import Optional
 from beanie import Document
+from pymongo import IndexModel
 
 
 class StockListHistory(Document):
@@ -16,6 +17,6 @@ class StockListHistory(Document):
     class Settings:
         name = "stock_list_history"
         indexes = [
-            [("ts_code", 1), ("trade_date", 1)],
+            IndexModel([("ts_code", 1), ("trade_date", 1)], unique=True),
             "trade_date",
         ]
