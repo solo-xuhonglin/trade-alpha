@@ -1,4 +1,4 @@
-"""Unit tests for CandidateListProvider — weekly dual-selection + rolling retain."""
+"""Unit tests for CandidateListProvider — monthly dual-selection + rolling retain."""
 
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -7,32 +7,30 @@ from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 
 
 @pytest.mark.asyncio
-async def test_get_weekly_candidates_with_rolling():
-    """Verify weekly key format, dual selection, and rolling retain."""
+async def test_get_monthly_candidates_with_rolling():
+    """Verify monthly key format, dual selection, and rolling retain."""
     provider = CandidateListProvider({})
 
+    # 3 months: Jan, Feb, Mar
     mock_calendar = [
         type("MockCal", (), {"cal_date": "20240102", "is_open": 1})(),
-        type("MockCal", (), {"cal_date": "20240108", "is_open": 1})(),
-        type("MockCal", (), {"cal_date": "20240116", "is_open": 1})(),
-        type("MockCal", (), {"cal_date": "20240122", "is_open": 1})(),
+        type("MockCal", (), {"cal_date": "20240201", "is_open": 1})(),
+        type("MockCal", (), {"cal_date": "20240301", "is_open": 1})(),
     ]
 
-    def mock_history(trade_date, top_n):
+    def mock_top_stocks(trade_date, top_n):
         results = {
             "20240102": [type("M", (), {"ts_code": "A"}), type("M", (), {"ts_code": "B"})],
-            "20240108": [type("M", (), {"ts_code": "B"}), type("M", (), {"ts_code": "C"})],
-            "20240116": [type("M", (), {"ts_code": "A"}), type("M", (), {"ts_code": "C"})],
-            "20240122": [type("M", (), {"ts_code": "A"}), type("M", (), {"ts_code": "B"})],
+            "20240201": [type("M", (), {"ts_code": "B"}), type("M", (), {"ts_code": "C"})],
+            "20240301": [type("M", (), {"ts_code": "A"}), type("M", (), {"ts_code": "C"})],
         }
         return results.get(trade_date, [])
 
-    def mock_mv_change(trade_date, prev_trade_date, universe_codes, up_n):
+    def mock_momentum(trade_date, universe_codes, momentum_n):
         results = {
-            "20240102": ["B"],
-            "20240108": ["C"],
-            "20240116": ["C"],
-            "20240122": ["B"],
+            "20240102": ["C"],
+            "20240201": ["A"],
+            "20240301": ["B"],
         }
         return results.get(trade_date, [])
 
@@ -42,29 +40,29 @@ async def test_get_weekly_candidates_with_rolling():
     with (
         patch.object(provider, "_get_trade_calendar", AsyncMock(return_value=mock_calendar)),
         patch.object(provider, "_resolve_date", side_effect=mock_resolve),
-        patch.object(provider, "_query_top_stocks", side_effect=mock_history),
-        patch.object(provider, "_get_weekly_mv_gainers", side_effect=mock_mv_change),
-        patch.object(provider, "_get_prev_trade_date", AsyncMock(return_value="20231226")),
+        patch.object(provider, "_query_top_stocks", side_effect=mock_top_stocks),
+        patch.object(provider, "_get_momentum_stocks", side_effect=mock_momentum),
     ):
         await provider.initialize(
             start_date="20240101",
-            end_date="20240131",
+            end_date="20240331",
         )
 
     result = provider.candidate_map
     assert "20240102" in result
-    assert "20240108" in result
-    assert "20240116" in result
-    assert "20240122" in result
-    assert result["20240102"] == ["A", "B"]
-    assert set(result["20240108"]) == {"A", "B", "C"}
-    assert set(result["20240116"]) == {"A", "B", "C"}
-    assert set(result["20240122"]) == {"A", "B", "C"}
+    assert "20240201" in result
+    assert "20240301" in result
+    # Jan: mv=[A,B] + momentum=[C] -> [A,B,C]
+    assert result["20240102"] == ["A", "B", "C"]
+    # Feb: mv=[B,C] + momentum=[A] -> [A,B,C], rolling retain same set
+    assert set(result["20240201"]) == {"A", "B", "C"}
+    # Mar: mv=[A,C] + momentum=[B] -> [A,B,C]
+    assert set(result["20240301"]) == {"A", "B", "C"}
 
 
 @pytest.mark.asyncio
-async def test_first_week_no_previous_base():
-    """First week should only have current base."""
+async def test_first_month_no_previous_base():
+    """First month should only have current base (no rolling retain yet)."""
     provider = CandidateListProvider({})
 
     mock_calendar = [
@@ -78,8 +76,7 @@ async def test_first_week_no_previous_base():
             type("M", (), {"ts_code": "A"}),
             type("M", (), {"ts_code": "B"}),
         ])),
-        patch.object(provider, "_get_weekly_mv_gainers", AsyncMock(return_value=["C"])),
-        patch.object(provider, "_get_prev_trade_date", AsyncMock(return_value="20231226")),
+        patch.object(provider, "_get_momentum_stocks", AsyncMock(return_value=["C"])),
     ):
         await provider.initialize(
             start_date="20240101", end_date="20240110",
@@ -91,7 +88,7 @@ async def test_first_week_no_previous_base():
 
 @pytest.mark.asyncio
 async def test_skips_missing_data():
-    """Month with no data should be skipped."""
+    """Month with no resolveable data should be skipped."""
     provider = CandidateListProvider({})
 
     mock_calendar = [type("MockCal", (), {"cal_date": "20240102", "is_open": 1})()]
@@ -105,3 +102,4 @@ async def test_skips_missing_data():
         )
 
     assert provider.candidate_map == {}
+
