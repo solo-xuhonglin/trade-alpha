@@ -70,8 +70,8 @@
         <v-col cols="12" sm="6" md="2">
           <v-text-field
             v-if="currentMode !== 'single'"
-            v-model.number="form.up_n"
-            label="涨幅前N"
+            v-model.number="form.momentum_n"
+            label="动量股数"
             type="number"
           />
         </v-col>
@@ -120,8 +120,8 @@ const form = ref({
   end_date: '2026-06-16',
   max_positions: 10,
   top_n: 100,
-  range_n: 500,
-  up_n: 50,
+  range_n: 300,
+  momentum_n: 20,
   account_config_id: '',
   training_id: '',
   strategy_config_id: '',
@@ -210,7 +210,7 @@ const runBacktest = async () => {
       mode: currentMode.value,
       top_n: currentMode.value !== 'single' ? form.value.top_n : undefined,
       range_n: currentMode.value !== 'single' ? form.value.range_n : undefined,
-      up_n: currentMode.value !== 'single' ? form.value.up_n : undefined,
+      momentum_n: currentMode.value !== 'single' ? form.value.momentum_n : undefined,
       ts_codes: currentMode.value === 'single' ? [form.value.ts_codes] : undefined,
       strategy_config_id: form.value.strategy_config_id || undefined,
     })
