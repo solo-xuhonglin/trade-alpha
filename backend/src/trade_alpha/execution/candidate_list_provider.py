@@ -31,6 +31,7 @@ class CandidateListProvider:
         self._momentum_n: int = params.get("momentum_n", 20)
         # Internal state
         self._candidate_map: Dict[str, List[str]] = {}
+        self._group_map: Dict[str, Dict[str, str]] = {}
         self._current_candidates: List[str] = []
         self._last_period_key: Optional[str] = None
 
@@ -101,6 +102,20 @@ class CandidateListProvider:
     def get_period_key(self, date: str) -> Optional[str]:
         """Public wrapper for period key lookup."""
         return self._get_period_key(date)
+
+    def get_stock_group(self, date: str, ts_code: str) -> str:
+        """Return candidate group for a stock on a given date.
+
+        Returns "base", "momentum", or "base" as default fallback.
+        Warmup stocks are not handled here — use WarmupManager.is_warmup() first.
+        """
+        if self._ts_codes:
+            return "base"
+        period_key = self._get_period_key(date)
+        if period_key is None:
+            return "base"
+        period_group = self._group_map.get(period_key, {})
+        return period_group.get(ts_code, "base")
 
     async def _get_trade_calendar(
         self, start_date: str, end_date: str,
@@ -239,6 +254,13 @@ class CandidateListProvider:
             current_base = list(dict.fromkeys(mv_group + momentum_group))
             final = list(dict.fromkeys(current_base + prev_base))
             result[resolved] = final
+            # Record group membership for this period
+            period_group: Dict[str, str] = {}
+            for ts in mv_group:
+                period_group[ts] = "base"
+            for ts in momentum_group:
+                period_group[ts] = "momentum"
+            self._group_map[resolved] = period_group
             prev_base = current_base
         logger.info(
             f"Weekly candidates computed: {len(result)} weeks"

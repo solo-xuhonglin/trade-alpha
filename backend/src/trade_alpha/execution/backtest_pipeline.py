@@ -215,6 +215,7 @@ class BacktestPipeline:
                 entry_score=order.entry_score, up_prob_3d=order.up_prob_3d, up_prob_5d=order.up_prob_5d,
                 up_prob_10d=order.up_prob_10d,
                 up_prob_20d=order.up_prob_20d,
+                candidate_group=order.candidate_group,
             ) for order in unfilled_orders
         ]
 
@@ -548,6 +549,13 @@ class BacktestPipeline:
 
             # Apply virtual ranking for warmup stocks
             warmup_mgr.apply_virtual_ranking(stock_map)
+
+            # Annotate candidate group for each scored stock
+            for ts_code, stock in stock_map.items():
+                if warmup_mgr.is_warmup(ts_code):
+                    stock.candidate_group = "warmup"
+                else:
+                    stock.candidate_group = provider.get_stock_group(date, ts_code)
 
             market_data = self.market_analyzer.last_result
 

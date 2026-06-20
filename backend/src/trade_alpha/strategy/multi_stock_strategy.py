@@ -186,6 +186,7 @@ class MultiStockStrategy(BaseStrategy):
             trade_date=trade_date,
             settle_date=self._next_trade_date(trade_date),
             reason=reason,
+            candidate_group=stock.candidate_group,
         )
 
     _FULL_POSITION_PNL_CLIP_PCT = 50.0

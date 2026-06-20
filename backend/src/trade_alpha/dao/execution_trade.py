@@ -26,6 +26,7 @@ class ExecutionTrade(Document):
     up_prob_20d: Optional[float] = None
     pnl_amount: Optional[float] = None
     pnl_pct: Optional[float] = None
+    candidate_group: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     mode: str = Field(default="backtest")
     status: str = Field(default="filled")  # "filled" or "cancelled"

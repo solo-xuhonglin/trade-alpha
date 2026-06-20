@@ -52,6 +52,9 @@ class ScoredStock(BaseModel):
     is_forced_sell: bool = False
     forced_sell_reason: str = ""
 
+    # --- 候选组 (set by pipeline) ---
+    candidate_group: str = "base"
+
     # --- 排名 ---
     rank: int = 0
     rank_improvement: float = 0.0
@@ -71,6 +74,7 @@ class PendingOrder(BaseModel):
     up_prob_5d: float = 0.0
     up_prob_10d: float = 0.0
     up_prob_20d: float = 0.0
+    candidate_group: str = "base"
 
 
 class PendingBuy(BaseModel):

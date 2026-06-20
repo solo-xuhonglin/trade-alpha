@@ -147,6 +147,7 @@ class BaseStrategy:
                 up_prob_5d=order.up_prob_5d,
                 up_prob_10d=order.up_prob_10d,
                 up_prob_20d=order.up_prob_20d,
+                candidate_group=order.candidate_group,
             ))
 
         return filled_trades, unfilled_orders, net_cash_change
