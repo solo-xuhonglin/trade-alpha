@@ -82,7 +82,8 @@ trade-alpha/
 │   │   │   ├── portfolio.py        # 投资组合管理（资金/持仓/费用）
 │   │   │   ├── data_loader.py      # 数据加载器
 │   │   │   ├── market_regime.py    # 市场阶段分析（MA10/MA60 + EWMA 平滑）
-│   │   │   ├── candidate_list_provider.py # 候选股票池（周度市值+涨幅双选+滚动留存）
+│   │   │   ├── candidate_list_provider.py # 候选股票池（月度市值+动量指标双选+滚动留存）
+│   │   │   ├── baseline_tracker.py  # 基线追踪（买入持有+每日重平衡）
 │   │   │   └── schemas.py          # 数据结构定义
 │   │   ├── scheduler/          # 定时任务模块
 │   │   │   ├── stock_data_init_job.py  # 全量数据初始化
@@ -378,10 +379,12 @@ BacktestPipeline 协调数据加载、预测、策略决策的完整回测流程
 - 支持多股票组合策略和单股票策略模式
 - 资金、持仓、费用计算委托给 `PortfolioManager`
 - 执行上下文管理，确保状态一致性
-- 基线对比功能（买入持有策略）
+- 基线对比功能（买入持有+每日重平衡）
 - 夏普比率、波动率等指标计算
-- 支持 `candidate_map`（按周选股池），回测只交易池内股票，`_get_week_key()` 做最近邻日期查找
-- `_detect_outdated_positions()` 每周检查持仓是否仍在候选池中，不在则触发卖出（`SELL_REASON_CANDIDATE_EXCLUDED`）
+- 支持月度 `candidate_map`（市值+动量双选），`get_period_key()` 做最近邻日期查找
+- `_detect_outdated_positions()` 每月检查持仓是否仍在候选池中
+- `WarmupManager` 管理预热池，为未来候选股积累评分历史
+- 预热池范围限制在 `warmup_days` 窗口内（自动按每月 20 交易日折算），避免全周期预热
 - ATR 动态追踪止损 + 每日买入上限（`max_daily_buys`）控制
 
 **核心方法**:
@@ -468,13 +471,20 @@ composite_score = score + trend_bonus - trend_penalty - vol_penalty + momentum_b
 
 #### candidate_list_provider.py - 候选股票池
 
-`CandidateListProvider` 生成周度候选股票池：
+`CandidateListProvider` 生成月度候选股票池：
 
-- `get_weekly_candidates()`: 按周生成候选股票列表
-- 双选机制：市值排名前 N（`top_n`）+ 周涨幅前 N（`up_n`），范围控制在 `range_n` 只中
-- 滚动留存：每周保留上周候选股，实现 `base_N ∪ base_{N-1}` 的滚动池
-- `_get_prev_trade_date()`: 优化为单次范围查询（查前 7-14 天）
-- `_get_week_key()`: 最近邻日期查找，确保非交易日的容错
+- `_get_candidates()`: 按月生成候选股票列表
+- 双选机制：市值排名前 N（`top_n`）+ 动量指标排名前 N（`momentum_n`），范围控制在 `range_n` 只中
+- 动量筛选指标：`trend_slope_20`、`trend_arrangement_20`、`close_position_20/60`、`bias_20/60`，6 指标排名法选股
+- 滚动留存：每月保留上月基础池，实现 `current_base ∪ prev_base` 的滚动池
+- `_get_period_key()`: 最近邻日期查找，确保非交易日的容错
+- `get_baseline_codes()`: 仅返回市值 top N（不含动量股），用于买入持有基线追踪
+
+#### baseline_tracker.py - 基线追踪
+
+`BaselineTracker` 追踪两个基线：
+- **买入持有基线**：首月市值 top 100 股票买入持有至回测结束
+- **每日重平衡基线**：每日按当月正式候选股等权计算收益，用于市场阶段分析
 
 #### backtest_service.py - 回测结果查询服务
 

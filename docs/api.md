@@ -680,8 +680,8 @@ POST /api/backtest/run
   "training_id": "507f1f77bcf86cd799439014",
   "start_date": "2024-01-01",
   "end_date": "2024-12-31",
-  "range_n": 500,
-  "up_n": 50
+  "range_n": 300,
+  "momentum_n": 20
 }
 ```
 
@@ -693,8 +693,8 @@ POST /api/backtest/run
 | `training_id` | string | 是 | 训练记录 ID |
 | `start_date` | string | 是 | 开始日期 (YYYY-MM-DD) |
 | `end_date` | string | 是 | 结束日期 (YYYY-MM-DD) |
-| `range_n` | int | 否 | 候选股计算范围（用于周度候选池，默认 500） |
-| `up_n` | int | 否 | 涨幅前 N（用于周度候选池，默认 50） |
+| `range_n` | int | 否 | 候选股计算范围（用于月度候选池，默认 300） |
+| `momentum_n` | int | 否 | 动量股数（用于月度候选池，默认 20） |
 
 **响应**:
 ```json
