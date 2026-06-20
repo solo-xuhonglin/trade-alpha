@@ -358,8 +358,7 @@ class BacktestPipeline:
                 continue
 
             # Apply virtual ranking for warmup stocks
-            if formal_codes:
-                warmup_mgr.apply_virtual_ranking(stock_map)
+            warmup_mgr.apply_virtual_ranking(stock_map)
 
             self.market_analyzer.analyze(
                 stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
