@@ -14,6 +14,7 @@
 | **回测分析** | `analyze_backtest.py` | 分析指定回测结果的交易记录 |
 | | `analyze_backtest_today.py` | 分析当天所有回测结果，输出到 `backtest_analysis/` |
 | | `analyze_momentum_selection.py` | 动量选股策略验证——筛选组合未来收益对比 |
+| | `analyze_momentum_overextend.py` | 动量选股参数优化（惩罚权重/市值权重/回踩策略）对比验证 |
 | | `check_backtests.py` | 快速查看回测结果数量和参数分布 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 
