@@ -59,9 +59,13 @@ class CandidateListProvider:
         if self._ts_codes:
             return self._ts_codes
         period_key = self._get_period_key(date)
-        if period_key != self._last_period_key:
-            self._current_candidates = self._candidate_map.get(period_key, [])
-            self._last_period_key = period_key
+        if period_key is not None:
+            if period_key != self._last_period_key:
+                self._current_candidates = self._candidate_map.get(period_key, [])
+                self._last_period_key = period_key
+        elif self._candidate_map:
+            # Warmup phase: date is before first candidate period
+            self._current_candidates = self._candidate_map[min(self._candidate_map.keys())]
         return self._current_candidates
 
     async def get_baseline_codes(self, date: str) -> List[str]:
