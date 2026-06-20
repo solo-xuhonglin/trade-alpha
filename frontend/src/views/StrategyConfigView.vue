@@ -192,7 +192,7 @@
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field
-                    v-model="form.sell_rank_n"
+                    v-model="form.sell_rank_pct"
                     type="number"
                     label="卖出排名阈值"
                     hint="掉出此排名时考虑卖出"
@@ -331,7 +331,7 @@
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.top_n_retention" type="number" min="1"
+                  <v-text-field v-model.number="form.top_n_retention_pct" type="number" step="0.01" min="0" max="1"
                     label="留存率N值" hint="排名前 N 的股票计算留存率（默认 20）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
@@ -373,7 +373,7 @@
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_was_top_n" type="number" min="1"
+                  <v-text-field v-model.number="form.rotation_was_top_pct" type="number" step="0.01" min="0" max="1"
                     label="历史最高排名" hint="曾进前 N 名才算强势股（默认 15）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
@@ -383,7 +383,7 @@
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_bottom_threshold" type="number" min="1"
+                  <v-text-field v-model.number="form.rotation_bottom_pct" type="number" step="0.01" min="0" max="1"
                     label="回调最低排名" hint="窗口内最低排名超过此值才算回调（默认 60）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
@@ -399,11 +399,11 @@
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_rank_min" type="number" min="1"
+                  <v-text-field v-model.number="form.rotation_rank_min_pct" type="number" step="0.01" min="0" max="1"
                     label="排名上限" hint="限制排名不能比此值更靠前（默认 45，小于45太强不买）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.rotation_rank_max" type="number" min="1"
+                  <v-text-field v-model.number="form.rotation_rank_max_pct" type="number" step="0.01" min="0" max="1"
                     label="排名下限" hint="限制排名不能比此值更靠后（默认 75，大于75太弱不买）" persistent-hint />
                 </v-col>
               </v-row>
@@ -654,22 +654,23 @@ const compareDialog = ref(false)
 const form = ref({
   name: '',
   type: 'multi',
-  min_order_value: 5000,
+  min_order_value: 50000,
   stop_loss_pct: -0.1,
-  max_hold_days: 120,
+  max_hold_days: 180,
   min_hold_days: 5,
-  buy_threshold: 0.2,
-  sell_threshold: -0.01,
+  buy_threshold: 0.3,
+  sell_threshold: -0.05,
   max_daily_buys: 2,
   atr_stop_multiplier: 3.0,
   atr_trail_rate: 0.5,
-  max_positions: 10,
-  max_position_pct: 0.1,
-  sell_rank_n: 15,
+  max_positions: 6,
+  max_position_pct: 0.2,
+  sell_rank_pct: 0.15,
   hold_score_threshold: 0.1,
   use_momentum_boost: false,
   momentum_window: 12,
   max_momentum_bonus: 0.15,
+  use_momentum_penalty: false,
   use_explosion_filter: false,
   explosion_price_threshold: 0.08,
   explosion_volume_ratio: 3.0,
@@ -679,26 +680,38 @@ const form = ref({
   trend_bonus_scale: 0.03,
   trend_r2_threshold: 0.30,
   trend_max_bonus: 0.1,
+  use_trend_penalty: false,
   use_full_position_sell: false,
   full_position_threshold: 0.90,
   full_position_days: 5,
-  full_position_score_window: 8,
+  full_position_score_window: 15,
   full_position_sell_count: 1,
+  use_rank_up_priority: false,
+  rank_up_window: 3,
+  rank_up_count: 1,
+  rank_up_min_score: -0.1,
+  rank_up_min_improvement_pct: 0.15,
   ranking_smooth_window: 5,
   ranking_smooth_alpha: 0.3,
-  market_smooth_window: 5,
-  market_smooth_alpha: 0.3,
-  top_n_retention: 20,
   score_decline_threshold: 0.05,
   use_score_decline_filter: false,
   full_position_pnl_weight: 0.5,
-  rotation_bottom_threshold: 60,
-  rotation_rank_min: 45,
-  rotation_rank_max: 75,
+  market_smooth_window: 3,
+  market_smooth_alpha: 0.3,
+  top_n_retention_pct: 0.20,
+  retention_days: 5,
+  correlation_window: 5,
+  use_phase_strategy: true,
+  atr_stop_multiplier: 3.0,
+  atr_trail_rate: 0.5,
+  max_daily_buys: 2,
+  rotation_bottom_pct: 0.60,
+  rotation_rank_min_pct: 0.30,
+  rotation_rank_max_pct: 0.70,
   rotation_use_reversal_check: true,
-  rotation_was_top_n: 15,
+  rotation_was_top_pct: 0.15,
   rotation_pullback_window: 5,
-  rotation_was_top_window: 30,
+  rotation_was_top_window: 60,
 })
 
 const headers = [
@@ -795,7 +808,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       atr_trail_rate: item.atr_trail_rate ?? 0.5,
       max_positions: item.max_positions ?? 10,
       max_position_pct: item.max_position_pct ?? 0.1,
-      sell_rank_n: item.sell_rank_n ?? 15,
+      sell_rank_pct: item.sell_rank_pct ?? 0.15,
       hold_score_threshold: item.hold_score_threshold ?? 0.1,
       use_momentum_boost: item.use_momentum_boost ?? false,
       momentum_window: item.momentum_window ?? 12,
@@ -834,20 +847,21 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       ranking_smooth_alpha: item.ranking_smooth_alpha ?? 0.3,
       market_smooth_window: item.market_smooth_window ?? 5,
       market_smooth_alpha: item.market_smooth_alpha ?? 0.3,
-      top_n_retention: item.top_n_retention ?? 20,
+      top_n_retention_pct: item.top_n_retention_pct ?? 0.20,
+      retention_days: item.retention_days ?? 5,
       score_decline_threshold: item.score_decline_threshold ?? 0.05,
       use_score_decline_filter: item.use_score_decline_filter ?? false,
       full_position_pnl_weight: item.full_position_pnl_weight ?? 0.5,
       retention_days: item.retention_days ?? 5,
       correlation_window: item.correlation_window ?? 5,
       use_phase_strategy: item.use_phase_strategy ?? true,
-      rotation_bottom_threshold: item.rotation_bottom_threshold ?? 60,
-      rotation_rank_min: item.rotation_rank_min ?? 45,
-      rotation_rank_max: item.rotation_rank_max ?? 75,
+      rotation_bottom_pct: item.rotation_bottom_pct ?? 0.60,
+      rotation_rank_min_pct: item.rotation_rank_min_pct ?? 0.30,
+      rotation_rank_max_pct: item.rotation_rank_max_pct ?? 0.70,
       rotation_use_reversal_check: item.rotation_use_reversal_check ?? true,
-      rotation_was_top_n: item.rotation_was_top_n ?? 15,
+      rotation_was_top_pct: item.rotation_was_top_pct ?? 0.15,
       rotation_pullback_window: item.rotation_pullback_window ?? 5,
-      rotation_was_top_window: item.rotation_was_top_window ?? 30,
+      rotation_was_top_window: item.rotation_was_top_window ?? 60,
     }
   } else {
     editingId.value = null
@@ -929,7 +943,7 @@ const saveStrategy = async () => {
       max_daily_buys: form.value.max_daily_buys,
       max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
-      sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
+      sell_rank_pct: form.value.type === 'multi' ? form.value.sell_rank_pct : undefined,
       hold_score_threshold: form.value.type === 'multi' ? form.value.hold_score_threshold : undefined,
       use_momentum_boost: form.value.type === 'multi' ? form.value.use_momentum_boost : undefined,
       momentum_window: form.value.type === 'multi' ? form.value.momentum_window : undefined,
@@ -962,15 +976,15 @@ const saveStrategy = async () => {
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
       market_smooth_window: form.value.market_smooth_window,
       market_smooth_alpha: form.value.market_smooth_alpha,
-      top_n_retention: form.value.top_n_retention,
+      top_n_retention_pct: form.value.top_n_retention_pct,  // Deleted: was top_n_retention: form.value.top_n_retention
       retention_days: form.value.retention_days,
       correlation_window: form.value.correlation_window,
       use_phase_strategy: form.value.use_phase_strategy,
-      rotation_bottom_threshold: form.value.rotation_bottom_threshold,
-      rotation_rank_min: form.value.rotation_rank_min,
-      rotation_rank_max: form.value.rotation_rank_max,
+      rotation_bottom_pct: form.value.rotation_bottom_pct,  // Deleted: was rotation_bottom_threshold: ...
+      rotation_rank_min_pct: form.value.rotation_rank_min_pct,  // Deleted: was rotation_rank_min: ...
+      rotation_rank_max_pct: form.value.rotation_rank_max_pct,  // Deleted: was rotation_rank_max: ...
       rotation_use_reversal_check: form.value.rotation_use_reversal_check,
-      rotation_was_top_n: form.value.rotation_was_top_n,
+      rotation_was_top_pct: form.value.rotation_was_top_pct,  // Deleted: was rotation_was_top_n: ...
       rotation_pullback_window: form.value.rotation_pullback_window,
       rotation_was_top_window: form.value.rotation_was_top_window,
     })
@@ -989,7 +1003,7 @@ const saveStrategy = async () => {
       max_daily_buys: form.value.max_daily_buys,
       max_positions: form.value.type === 'multi' ? form.value.max_positions : undefined,
       max_position_pct: form.value.type === 'multi' ? form.value.max_position_pct : undefined,
-      sell_rank_n: form.value.type === 'multi' ? form.value.sell_rank_n : undefined,
+      sell_rank_pct: form.value.type === 'multi' ? form.value.sell_rank_pct : undefined,
       hold_score_threshold: form.value.type === 'multi' ? form.value.hold_score_threshold : undefined,
       use_momentum_boost: form.value.type === 'multi' ? form.value.use_momentum_boost : undefined,
       momentum_window: form.value.type === 'multi' ? form.value.momentum_window : undefined,
@@ -1022,15 +1036,15 @@ const saveStrategy = async () => {
       ranking_smooth_alpha: form.value.type === 'multi' ? form.value.ranking_smooth_alpha : undefined,
       market_smooth_window: form.value.market_smooth_window,
       market_smooth_alpha: form.value.market_smooth_alpha,
-      top_n_retention: form.value.top_n_retention,
+      top_n_retention_pct: form.value.top_n_retention_pct,  // Deleted: was top_n_retention: form.value.top_n_retention
       retention_days: form.value.retention_days,
       correlation_window: form.value.correlation_window,
       use_phase_strategy: form.value.use_phase_strategy,
-      rotation_bottom_threshold: form.value.rotation_bottom_threshold,
-      rotation_rank_min: form.value.rotation_rank_min,
-      rotation_rank_max: form.value.rotation_rank_max,
+      rotation_bottom_pct: form.value.rotation_bottom_pct,  // Deleted: was rotation_bottom_threshold: ...
+      rotation_rank_min_pct: form.value.rotation_rank_min_pct,  // Deleted: was rotation_rank_min: ...
+      rotation_rank_max_pct: form.value.rotation_rank_max_pct,  // Deleted: was rotation_rank_max: ...
       rotation_use_reversal_check: form.value.rotation_use_reversal_check,
-      rotation_was_top_n: form.value.rotation_was_top_n,
+      rotation_was_top_pct: form.value.rotation_was_top_pct,  // Deleted: was rotation_was_top_n: ...
       rotation_pullback_window: form.value.rotation_pullback_window,
       rotation_was_top_window: form.value.rotation_was_top_window,
     })
