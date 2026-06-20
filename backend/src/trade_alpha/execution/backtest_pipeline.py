@@ -317,7 +317,6 @@ class BacktestPipeline:
 
         date = warmup_start
         day_count = 0
-        last_week_key: Optional[str] = None
 
         while date < actual_start:
             if self._skip_non_trading_day(date):
@@ -335,11 +334,9 @@ class BacktestPipeline:
             formal_close = {k: v for k, v in close_prices.items()
                             if k in formal_codes}
 
-            # Update warmup pool on week change
+            # Update warmup pool on week change (tracked internally)
             current_week_key = provider.get_week_key(date)
-            if current_week_key and current_week_key != last_week_key:
-                warmup_mgr.update_pool(current_week_key, set(formal_codes), provider.candidate_map)
-                last_week_key = current_week_key
+            warmup_mgr.update_pool(current_week_key, set(formal_codes), provider.candidate_map)
 
             # Build prediction set including warmup stocks
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
@@ -392,11 +389,7 @@ class BacktestPipeline:
         await self._prepare_candidate_data(task_id)
 
         # 3. Baseline tracker
-        first_week_codes = provider.get_candidates_for_date(start_date)
-        if provider.candidate_map:
-            baseline_codes = first_week_codes
-        else:
-            baseline_codes = provider.all_ts_codes
+        baseline_codes = provider.get_candidates_for_date(start_date)
         baseline_tracker = BaselineTracker(baseline_codes, result.initial_capital)
 
         # Warmup phase: fill ScoreManager buffers without trading
@@ -490,7 +483,6 @@ class BacktestPipeline:
         import time
         loop_start = time.time()
         warmup_mgr = self.ctx.warmup_manager
-        _last_warmup_week: Optional[str] = None
         while date <= end_date:
             if day_count > 0 and day_count % 20 == 0:
                 elapsed = time.time() - loop_start
@@ -510,22 +502,16 @@ class BacktestPipeline:
 
             candidates = provider.get_candidates_for_date(date)
 
-            # Update warmup pool on week change
-            if provider.candidate_map:
-                current_week_key = provider.get_week_key(date)
-                if current_week_key and current_week_key != _last_warmup_week:
-                    warmup_mgr.update_pool(current_week_key, set(candidates) if candidates else set(), provider.candidate_map)
-                    _last_warmup_week = current_week_key
+            # Update warmup pool on week change (tracked internally)
+            current_week_key = provider.get_week_key(date)
+            warmup_mgr.update_pool(current_week_key, set(candidates), provider.candidate_map)
 
             baseline_tracker.track(close_prices)
 
-            if provider.candidate_map:
-                pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
-                candidate_close = {k: v for k, v in close_prices.items()
-                                   if k in candidates}
-            else:
-                candidate_close = close_prices
-                pred_close = close_prices
+            # Build prediction set including warmup stocks
+            candidate_close = {k: v for k, v in close_prices.items()
+                               if k in candidates}
+            pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
 
             baseline_tracker.track_daily_rebalanced_only(candidate_close)
 
@@ -553,8 +539,7 @@ class BacktestPipeline:
             )
 
             # Apply virtual ranking for warmup stocks
-            if provider.candidate_map:
-                warmup_mgr.apply_virtual_ranking(stock_map)
+            warmup_mgr.apply_virtual_ranking(stock_map)
 
             market_data = self.market_analyzer.last_result
 
@@ -576,11 +561,10 @@ class BacktestPipeline:
                         stock_map[o.ts_code].is_forced_sell = True
                         stock_map[o.ts_code].forced_sell_reason = "full_position"
 
-            if provider.candidate_map and candidates:
-                outdated_orders = self._detect_outdated_positions(
-                    date, close_prices, candidates,
-                )
-                pending_orders.extend(outdated_orders)
+            outdated_orders = self._detect_outdated_positions(
+                date, close_prices, candidates,
+            )
+            pending_orders.extend(outdated_orders)
 
             day_val, day_ret = await self._save_snapshot(
                 date, backtest_id, close_prices, stock_map,

@@ -1,7 +1,7 @@
 """WarmupManager — manages candidate warmup pool for scoring history accumulation."""
 
 from bisect import bisect_right
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock
@@ -32,18 +32,24 @@ class WarmupManager:
     def __init__(self):
         self._pool: Dict[str, WarmupRecord] = {}
         self._ever_seen: Set[str] = set()
+        self._last_week_key: Optional[str] = None
 
-    def update_pool(self, current_week_key: str, formal_set: Set[str], candidate_map: Dict[str, List[str]]) -> None:
-        """Update warmup pool based on current formal set.
+    def update_pool(self, current_week_key: Optional[str], formal_set: Set[str], candidate_map: Dict[str, List[str]]) -> None:
+        """Update warmup pool based on current formal set, only on week changes.
 
         Warmup stocks = future formal candidates - current formal - ever_seen.
         Also removes stocks that have entered the formal pool.
+        Tracks week changes internally; skips already-processed weeks.
 
         Args:
-            current_week_key: Current week key for comparison.
+            current_week_key: Current week key (None if before first candidate week).
             formal_set: Current week's formal candidate ts_codes.
             candidate_map: The provider's weekly candidate map.
         """
+        if current_week_key is None or current_week_key == self._last_week_key:
+            return
+        self._last_week_key = current_week_key
+
         # Collect all future candidate codes
         future_codes: Set[str] = set()
         for wk, codes in candidate_map.items():
