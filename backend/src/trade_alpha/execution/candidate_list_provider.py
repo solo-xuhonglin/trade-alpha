@@ -125,41 +125,80 @@ class CandidateListProvider:
     async def _get_momentum_stocks(
         self, trade_date: str, universe_codes: List[str], momentum_n: int,
     ) -> List[str]:
-        """Select top momentum_n stocks by composite indicator rank from universe."""
+        """Select top momentum_n stocks by weighted composite indicator rank from universe."""
+        # (field_name, ascending, weight)
+        # ascending=True: higher raw value = better
+        # ascending=False: lower raw value = better
         MOMENTUM_FIELDS = [
-            "trend_slope_20", "trend_arrangement_20",
-            "close_position_20", "close_position_60",
-            "bias_20", "bias_60",
+            ("trend_slope_20", True, 1.0),
+            ("trend_arrangement_20", True, 1.0),
+            ("close_position_20", True, 1.0),
+            ("close_position_60", True, 1.0),
+            ("bias_20", True, 1.0),
+            ("bias_60", True, 1.0),
+            ("atr_14", False, 0.3),
         ]
+        field_names = [f[0] for f in MOMENTUM_FIELDS]
         records = await StockDaily.find(
             StockDaily.trade_date == trade_date,
             In(StockDaily.ts_code, universe_codes),
             StockDaily.trend_slope_20 != None,
-            StockDaily.trend_arrangement_20 != None,
-            StockDaily.close_position_20 != None,
-            StockDaily.close_position_60 != None,
-            StockDaily.bias_20 != None,
-            StockDaily.bias_60 != None,
+            StockDaily.atr_14 != None,
         ).to_list()
         if not records:
             return []
 
-        # Build {ts_code: [v1, v2, ...]} for stocks with all indicators
+        # Get log market cap for each stock
+        mv_records = await StockListHistory.find(
+            StockListHistory.trade_date == trade_date,
+            In(StockListHistory.ts_code, universe_codes),
+        ).to_list()
+        from math import log
+        mv_map: Dict[str, float] = {}
+        for r in mv_records:
+            if r.total_mv and r.total_mv > 0:
+                mv_map[r.ts_code] = log(r.total_mv)
+
+        # Build {ts_code: [v1, v2, ..., log_mv]} for stocks with all indicators
         stock_values: Dict[str, List[float]] = {}
         for r in records:
-            vals = [getattr(r, f) for f in MOMENTUM_FIELDS]
-            if all(v is not None for v in vals):
-                stock_values[r.ts_code] = vals
+            vals = []
+            ok = True
+            for fname, _, _ in MOMENTUM_FIELDS:
+                v = getattr(r, fname, None)
+                if v is None:
+                    ok = False
+                    break
+                vals.append(float(v))
+            if not ok:
+                continue
+            ts = r.ts_code
+            if ts in mv_map:
+                vals.append(mv_map[ts])
+                stock_values[ts] = vals
         if not stock_values:
             return []
 
-        # Per-indicator ranking: sum ranks across indicators (lower = better)
+        n_stocks = len(stock_values)
         n_fields = len(MOMENTUM_FIELDS)
-        composite: Dict[str, int] = {ts: 0 for ts in stock_values}
+        composite: Dict[str, float] = {ts: 0.0 for ts in stock_values}
+
+        # Weighted per-indicator ranking
         for fi in range(n_fields):
+            _, ascending, weight = MOMENTUM_FIELDS[fi]
             ranked = sorted(stock_values.items(), key=lambda x: x[1][fi])
             for rank, (ts, _) in enumerate(ranked):
-                composite[ts] += rank
+                if ascending:
+                    composite[ts] += rank * weight
+                else:
+                    composite[ts] += (n_stocks - 1 - rank) * weight
+
+        # Add log_mv with weight 1.0
+        LOG_MV_WEIGHT = 1.0
+        ranked_mv = sorted(stock_values.items(), key=lambda x: x[1][n_fields])
+        for rank, (ts, _) in enumerate(ranked_mv):
+            composite[ts] += rank * LOG_MV_WEIGHT
+
         sorted_stocks = sorted(composite.items(), key=lambda x: x[1], reverse=True)
         return [ts for ts, _ in sorted_stocks[:momentum_n]]
 
