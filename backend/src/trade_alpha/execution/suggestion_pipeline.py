@@ -95,7 +95,6 @@ class SuggestionPipeline:
         # Strategy for decision making
         self.strategy = MultiStockStrategy(
             strategy_config=strategy_config,
-            ts_codes=[],
         )
 
     async def _ensure_predictor(self) -> None:
