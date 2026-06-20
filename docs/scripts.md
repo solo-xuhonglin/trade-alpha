@@ -16,6 +16,7 @@
 | | `analyze_backtest_vol.py` | 回测中熊市买入行为和止损效果分析 |
 | | `analyze_bottom.py` | 底部检测分析——寻找领先指标 |
 | | `analyze_buy_timing.py` | 买入时机深度分析（价格峰谷位置、市场状态） |
+| | `analyze_momentum_selection.py` | 动量选股策略验证——筛选组合未来收益对比 |
 | | `analyze_phase_strategy.py` | 市场阶段策略分析（含 daily-rebalanced 基线对比） |
 | | `analyze_regime.py` | 市场状态分类深度分析 |
 | | `check_backtests.py` | 快速查看回测结果数量和参数分布 |

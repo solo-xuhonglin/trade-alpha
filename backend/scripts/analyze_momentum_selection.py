@@ -1,186 +1,126 @@
-"""Analyze momentum stock selection: selected stocks' future 2-month performance.
-
-Usage: python scripts/analyze_momentum_selection.py
-"""
-import asyncio, json
-from collections import Counter
+"""Compare: current (base100+mom20) vs base100-exclude10+mom20."""
+import asyncio, math
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao.mongodb import init_db
 from trade_alpha.dao import TradeCalendar, StockListHistory
 from trade_alpha.dao.stock_daily import StockDaily
 
-# Replicate provider logic
+RANGE_300, TOP_100, MOMENTUM_N = 300, 100, 20
+EXCLUDE_N = 10
+
 MOMENTUM_FIELDS = [
-    "trend_slope_20", "trend_arrangement_20",
-    "close_position_20", "close_position_60",
-    "bias_20", "bias_60",
+    ("trend_slope_20", True, 1.0), ("trend_arrangement_20", True, 1.0),
+    ("close_position_20", True, 1.0), ("close_position_60", True, 1.0),
+    ("bias_20", True, 1.0), ("bias_60", True, 1.0),
+    ("atr_14", False, 0.3),
 ]
-TOP_N = 100      # base group size
-RANGE_N = 300    # universe size
-MOMENTUM_N = 20  # momentum group size
-LOOKAHEAD_MONTHS = 2  # months to track after selection
 
 
-def next_trade_date(date_str: str, calendar_dates: List[str]) -> Optional[str]:
-    """Get next trading day after date_str."""
-    for d in sorted(calendar_dates):
-        if d > date_str:
-            return d
-    return None
+async def get_momentum_scores(trade_date: str, universe_codes: List[str]) -> Dict[str, float]:
+    """Get momentum composite scores for all universe stocks."""
+    records = await StockDaily.find(
+        StockDaily.trade_date == trade_date,
+        In(StockDaily.ts_code, universe_codes),
+        StockDaily.trend_slope_20 != None, StockDaily.atr_14 != None,
+    ).to_list()
+    if not records: return {}
+    mv_recs = await StockListHistory.find(StockListHistory.trade_date == trade_date, In(StockListHistory.ts_code, universe_codes)).to_list()
+    mv_map = {r.ts_code: math.log(r.total_mv) for r in mv_recs if r.total_mv and r.total_mv > 0}
+    sv = {}
+    for r in records:
+        vals = []
+        ok = True
+        for fname, _, _ in MOMENTUM_FIELDS:
+            v = getattr(r, fname, None)
+            if v is None: ok = False; break
+            vals.append(float(v))
+        if not ok or r.ts_code not in mv_map: continue
+        vals.append(mv_map[r.ts_code])
+        sv[r.ts_code] = vals
+    if not sv: return {}
+    ns, nf = len(sv), len(MOMENTUM_FIELDS)
+    comp = {ts: 0.0 for ts in sv}
+    for fi in range(nf):
+        _, asc, wt = MOMENTUM_FIELDS[fi]
+        rk = sorted(sv.items(), key=lambda x: x[1][fi])
+        for rank, (ts, _) in enumerate(rk):
+            comp[ts] += (rank * wt) if asc else ((ns - 1 - rank) * wt)
+    rk_mv = sorted(sv.items(), key=lambda x: x[1][nf])
+    for rank, (ts, _) in enumerate(rk_mv):
+        comp[ts] += rank * 1.0
+    return comp
+
+
+async def get_returns(trade_date: str, ts_codes: List[str], cal_dates: List[str]) -> Dict[str, float]:
+    dt = datetime.strptime(trade_date, "%Y%m%d")
+    fd = [d for d in cal_dates if trade_date < d <= (dt + timedelta(days=70)).strftime("%Y%m%d")]
+    if len(fd) < 5: return {}
+    ck = fd[-1]
+    fut = {r.ts_code: r.close for r in await StockDaily.find(StockDaily.trade_date == ck, In(StockDaily.ts_code, ts_codes)).to_list() if hasattr(r, 'close') and r.close}
+    sel = {r.ts_code: r.close for r in await StockDaily.find(StockDaily.trade_date == trade_date, In(StockDaily.ts_code, ts_codes)).to_list() if hasattr(r, 'close') and r.close}
+    return {ts: (fut[ts] - sel[ts]) / sel[ts] * 100 for ts in ts_codes if ts in sel and ts in fut and sel[ts] and fut[ts] and sel[ts] > 0}
 
 
 async def main():
     await init_db()
+    cal = [c.cal_date for c in await TradeCalendar.find(TradeCalendar.is_open == 1).sort(TradeCalendar.cal_date).to_list()]
+    months = [f"{y}{m:02d}" for y in range(2023, 2026) for m in range(1, 13) if m in [1, 4, 7, 10]]
 
-    # Get calendar
-    all_cal = await TradeCalendar.find(
-        TradeCalendar.is_open == 1,
-    ).sort(TradeCalendar.cal_date).to_list()
-    cal_dates = [c.cal_date for c in all_cal]
+    print(f"{'月份':>8} {'当前(100+20)':>14} {'排除10+20':>14} {'基础100':>14}")
+    print("-" * 55)
 
-    # Select 4 sample months across different market conditions
-    sample_months = ["202307", "202310", "202401", "202407"]
+    d_cur, d_new, d_base = [], [], []
 
-    for month_key in sample_months:
-        # Find first trading day of the month
-        first_dates = [d for d in cal_dates if d.startswith(month_key)]
-        if not first_dates:
-            continue
-        trade_date = first_dates[0]
-        print(f"\n{'='*80}")
-        print(f"=== 筛选月份: {month_key} (交易日: {trade_date}) ===")
+    for mk in months:
+        fd = [d for d in cal if d.startswith(mk)]
+        if not fd: continue
+        td = fd[0]
+        u = await StockListHistory.find(StockListHistory.trade_date == td, StockListHistory.total_mv != None).sort(-StockListHistory.total_mv).limit(RANGE_300).to_list()
+        if not u: continue
+        uc = [r.ts_code for r in u]
+        bg = uc[:TOP_100]
 
-        # --- Step 1: Query universe (top 300 by MV) ---
-        universe_records = await StockListHistory.find(
-            StockListHistory.trade_date == trade_date,
-            StockListHistory.total_mv != None,
-        ).sort(-StockListHistory.total_mv).limit(RANGE_N).to_list()
-        universe_codes = [r.ts_code for r in universe_records]
-        mv_group = universe_codes[:TOP_N]
+        # Get momentum scores
+        scores = await get_momentum_scores(td, uc)
+        if not scores: continue
 
-        # --- Step 2: Momentum selection (same logic as provider) ---
-        records = await StockDaily.find(
-            StockDaily.trade_date == trade_date,
-            In(StockDaily.ts_code, universe_codes),
-            StockDaily.trend_slope_20 != None,
-            StockDaily.trend_arrangement_20 != None,
-            StockDaily.close_position_20 != None,
-            StockDaily.close_position_60 != None,
-            StockDaily.bias_20 != None,
-            StockDaily.bias_60 != None,
-        ).to_list()
+        # Current: base100 + top20 momentum
+        top_mom = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:MOMENTUM_N]
+        top_mom_codes = [ts for ts, _ in top_mom]
+        pool_cur = list(dict.fromkeys(bg + top_mom_codes))
 
-        stock_values: Dict[str, List[float]] = {}
-        stock_details: Dict[str, dict] = {}
-        for r in records:
-            vals = [getattr(r, f) for f in MOMENTUM_FIELDS]
-            if all(v is not None for v in vals):
-                stock_values[r.ts_code] = vals
-                stock_details[r.ts_code] = {f: getattr(r, f) for f in MOMENTUM_FIELDS +
-                    ["close", "pct_chg", "ma_20", "ma_60", "vol_ratio_20", "rsi_12"]}
+        # New: base100 excluding bottom10 momentum + top20 momentum
+        # Score stocks in base group, find bottom 10
+        bg_scores = {ts: scores.get(ts, -999) for ts in bg}
+        bg_sorted = sorted(bg_scores.items(), key=lambda x: x[1])
+        worst_codes = {ts for ts, _ in bg_sorted[:EXCLUDE_N]}
+        bg_filtered = [ts for ts in bg if ts not in worst_codes]
+        pool_new = list(dict.fromkeys(bg_filtered + top_mom_codes))
 
-        # Compute momentum scores
-        n_fields = len(MOMENTUM_FIELDS)
-        composite: Dict[str, int] = {ts: 0 for ts in stock_values}
-        for fi in range(n_fields):
-            ranked = sorted(stock_values.items(), key=lambda x: x[1][fi])
-            for rank, (ts, _) in enumerate(ranked):
-                composite[ts] += rank
-        sorted_momentum = sorted(composite.items(), key=lambda x: x[1], reverse=True)
-        momentum_selected = [ts for ts, _ in sorted_momentum[:MOMENTUM_N]]
+        rc = await get_returns(td, pool_cur, cal)
+        rn = await get_returns(td, pool_new, cal)
+        rb = await get_returns(td, bg, cal)
 
-        # --- Step 3: Analyze selected stocks ---
-        # Stocks in base group
-        base_set = set(mv_group)
-        momentum_in_base = [s for s in momentum_selected if s in base_set]
-        momentum_not_in_base = [s for s in momentum_selected if s not in base_set]
+        ac = sum(rc.values()) / len(rc) if rc else 0
+        an = sum(rn.values()) / len(rn) if rn else 0
+        ab = sum(rb.values()) / len(rb) if rb else 0
 
-        print(f"  范围池(300): {len(universe_codes)} 只")
-        print(f"  基础池(100): {len(mv_group)} 只")
-        print(f"  动量池(20): {len(momentum_selected)} 只")
-        print(f"    其中已在基础池: {len(momentum_in_base)} 只")
-        print(f"    其中不在基础池: {len(momentum_not_in_base)} 只")
+        d_cur.extend(rc.values())
+        d_new.extend(rn.values())
+        d_base.extend(rb.values())
 
-        # Show top 10 momentum stocks with their indicators
-        print(f"\n  动量前10详细指标:")
-        print(f"  {'股票':<12} {'排名分':>5} {'close':>8} {'slope_20':>8} {'arrange20':>9} {'pos20':>6} {'pos60':>6} {'bias20':>7} {'bias60':>7} {'rsi12':>6}")
-        for ts, score in sorted_momentum[:10]:
-            d = stock_details.get(ts, {})
-            print(f"  {ts:<12} {score:>5} {d.get('close',0):>8.2f} {d.get('trend_slope_20',0):>8.4f} {d.get('trend_arrangement_20',0):>9.4f} {d.get('close_position_20',0):>6.1f} {d.get('close_position_60',0):>6.1f} {d.get('bias_20',0):>7.2f} {d.get('bias_60',0):>7.2f} {d.get('rsi_12',0):>6.1f}")
+        print(f"{mk:>8} {ac:>+10.2f}% {an:>+10.2f}% {ab:>+10.2f}%")
 
-        # --- Step 4: Check 2-month future performance ---
-        # Find trading days ~2 months ahead
-        month_dt = datetime.strptime(trade_date, "%Y%m%d")
-        future_start = month_dt + timedelta(days=30)
-        future_end = month_dt + timedelta(days=70)
-        future_dates = [d for d in cal_dates if future_start.strftime("%Y%m%d") <= d <= future_end.strftime("%Y%m%d")]
-
-        if len(future_dates) >= 2:
-            check_date = future_dates[-1]  # ~2 months later
-            # Get close prices on selection day and future day
-            sel_records = {r.ts_code: r for r in records}
-            fut_records_list = await StockDaily.find(
-                StockDaily.trade_date == check_date,
-                In(StockDaily.ts_code, momentum_selected + mv_group),
-            ).to_list()
-            fut_map = {r.ts_code: r for r in fut_records_list}
-
-            # Calculate returns for momentum group
-            print(f"\n  未来2个月表现 ({trade_date} → {check_date}):")
-            print(f"  {'股票':<12} {'选时价':>8} {'未来价':>8} {'收益%':>7} {'方向':>4}")
-
-            momentum_returns = []
-            for ts in momentum_selected:
-                sel_r = sel_records.get(ts)
-                fut_r = fut_map.get(ts)
-                if sel_r and fut_r and hasattr(sel_r, 'close') and hasattr(fut_r, 'close'):
-                    sel_close = sel_r.close
-                    fut_close = fut_r.close
-                    if sel_close and fut_close and sel_close > 0:
-                        ret = (fut_close - sel_close) / sel_close * 100
-                        direction = "↑" if ret > 0 else "↓"
-                        momentum_returns.append(ret)
-                        if len([r for r in momentum_returns if len(momentum_returns) <= 10]):
-                            print(f"  {ts:<12} {sel_close:>8.2f} {fut_close:>8.2f} {ret:>7.2f} {direction:>4}")
-
-            if momentum_returns:
-                avg_ret = sum(momentum_returns) / len(momentum_returns)
-                win_rate = sum(1 for r in momentum_returns if r > 0) / len(momentum_returns) * 100
-                print(f"  动量组平均收益: {avg_ret:+.2f}%  胜率: {win_rate:.0f}%")
-
-            # Calculate returns for base group
-            base_returns = []
-            for ts in mv_group:
-                sel_r = sel_records.get(ts)
-                fut_r = fut_map.get(ts)
-                if sel_r and fut_r and hasattr(sel_r, 'close') and hasattr(fut_r, 'close'):
-                    sel_close = sel_r.close
-                    fut_close = fut_r.close
-                    if sel_close and fut_close and sel_close > 0:
-                        ret = (fut_close - sel_close) / sel_close * 100
-                        base_returns.append(ret)
-
-            if base_returns:
-                avg_base = sum(base_returns) / len(base_returns)
-                win_base = sum(1 for r in base_returns if r > 0) / len(base_returns) * 100
-                print(f"  基础组平均收益: {avg_base:+.2f}%  胜率: {win_base:.0f}%")
-                print(f"  动量vs基础差异: {avg_ret - avg_base:+.2f}%" if momentum_returns else "")
-        else:
-            print(f"  (未来2个月数据不足)")
-
-
-    # --- Step 5: Summary across months ---
-    print(f"\n{'='*80}")
-    print("=== 总结 ===")
-    print("动量选股使用6指标排名法(排名和越低越好):")
-    for f in MOMENTUM_FIELDS:
-        print(f"  - {f}")
-    print(f"\n参数: range_n={RANGE_N}, top_n={TOP_N}, momentum_n={MOMENTUM_N}")
-    print("注意: 动量组和基础组有重叠（部分动量股已在基础池中）")
-    print("最终候选池 = dedup(基础组 ∪ 动量组 + 上月留存)")
+    print("-" * 55)
+    for label, d in [("当前(100+20)", d_cur), ("排除10+20", d_new), ("基础100", d_base)]:
+        if d:
+            avg = sum(d) / len(d)
+            exc = avg - sum(d_base)/len(d_base) if d_base else 0
+            win = sum(1 for v in d if v > 0) / len(d) * 100
+            print(f"{label:>12}: 收益={avg:>+7.2f}%  超额={exc:>+7.2f}%  胜率={win:>5.0f}%")
 
 
 asyncio.run(main())
