@@ -29,20 +29,24 @@ class WarmupManager:
     and MarketRegimeAnalyzer respectively.
     """
 
-    def __init__(self, candidate_map: Dict[str, List[str]]):
-        self._candidate_map = candidate_map
+    def __init__(self):
         self._pool: Dict[str, WarmupRecord] = {}
         self._ever_seen: Set[str] = set()
 
-    def update_pool(self, current_week_key: str, formal_set: Set[str]) -> None:
+    def update_pool(self, current_week_key: str, formal_set: Set[str], candidate_map: Dict[str, List[str]]) -> None:
         """Update warmup pool based on current formal set.
 
         Warmup stocks = future formal candidates - current formal - ever_seen.
         Also removes stocks that have entered the formal pool.
+
+        Args:
+            current_week_key: Current week key for comparison.
+            formal_set: Current week's formal candidate ts_codes.
+            candidate_map: The provider's weekly candidate map.
         """
         # Collect all future candidate codes
         future_codes: Set[str] = set()
-        for wk, codes in self._candidate_map.items():
+        for wk, codes in candidate_map.items():
             if wk > current_week_key:
                 future_codes.update(codes)
 

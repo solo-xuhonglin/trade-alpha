@@ -92,8 +92,8 @@ class BacktestPipeline:
         # Synchronously create Provider (no DB operations in __init__)
         provider = CandidateListProvider(params)
 
-        # Initialize warmup manager (mandatory when candidate pool exists)
-        warmup_manager = WarmupManager(provider.candidate_map) if provider.candidate_map else None
+        # Initialize warmup manager (always needed for score history)
+        warmup_manager = WarmupManager()
 
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
@@ -338,12 +338,11 @@ class BacktestPipeline:
                 # Update warmup pool on week change
                 current_week_key = provider.get_week_key(date)
                 if current_week_key and current_week_key != last_week_key:
-                    if warmup_mgr:
-                        warmup_mgr.update_pool(current_week_key, set(formal_codes))
+                    warmup_mgr.update_pool(current_week_key, set(formal_codes), provider.candidate_map)
                     last_week_key = current_week_key
 
                 # Add warmup stocks to prediction set
-                warmup_codes = warmup_mgr.warmup_codes if warmup_mgr else []
+                warmup_codes = warmup_mgr.warmup_codes
                 warmup_close = {k: v for k, v in close_prices.items()
                                 if k in warmup_codes}
                 pred_close = {**formal_close, **warmup_close}
@@ -365,7 +364,7 @@ class BacktestPipeline:
                 continue
 
             # Apply virtual ranking for warmup stocks
-            if warmup_mgr and formal_codes:
+            if formal_codes:
                 warmup_mgr.apply_virtual_ranking(stock_map)
 
             self.market_analyzer.analyze(
@@ -520,10 +519,10 @@ class BacktestPipeline:
             candidates = provider.get_candidates_for_date(date)
 
             # Update warmup pool on week change
-            if warmup_mgr and provider.candidate_map:
+            if provider.candidate_map:
                 current_week_key = provider.get_week_key(date)
                 if current_week_key and current_week_key != _last_warmup_week:
-                    warmup_mgr.update_pool(current_week_key, set(candidates) if candidates else set())
+                    warmup_mgr.update_pool(current_week_key, set(candidates) if candidates else set(), provider.candidate_map)
                     _last_warmup_week = current_week_key
 
             baseline_tracker.track(close_prices)
@@ -532,7 +531,7 @@ class BacktestPipeline:
                 candidate_close = {k: v for k, v in close_prices.items()
                                    if k in candidates}
                 # Include warmup stocks in prediction set
-                warmup_codes = warmup_mgr.warmup_codes if warmup_mgr else []
+                warmup_codes = warmup_mgr.warmup_codes
                 if warmup_codes:
                     warmup_close = {k: v for k, v in close_prices.items()
                                     if k in warmup_codes}
@@ -569,7 +568,7 @@ class BacktestPipeline:
             )
 
             # Apply virtual ranking for warmup stocks
-            if warmup_mgr and provider.candidate_map and candidates:
+            if provider.candidate_map and candidates:
                 warmup_mgr.apply_virtual_ranking(stock_map)
 
             market_data = self.market_analyzer.last_result

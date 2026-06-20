@@ -16,10 +16,10 @@ class TestWarmupManager:
             "2026W2": ["B", "C", "D"],
             "2026W3": ["C", "D", "E"],
         }
-        mgr = WarmupManager(candidate_map)
+        mgr = WarmupManager()
 
         # Week 1: formal = {A, B, C}, warmup should = {D, E} (future only)
-        mgr.update_pool("2026W1", {"A", "B", "C"})
+        mgr.update_pool("2026W1", {"A", "B", "C"}, candidate_map)
         assert set(mgr.warmup_codes) == {"D", "E"}
 
     def test_update_pool_ever_seen_blocks_reentry(self):
@@ -29,15 +29,15 @@ class TestWarmupManager:
             "2026W2": ["B", "C"],
             "2026W3": ["C", "D"],
         }
-        mgr = WarmupManager(candidate_map)
+        mgr = WarmupManager()
 
         # Week 1: formal = {A, B}, warmup = {C, D} (C is week2, D is week3)
-        mgr.update_pool("2026W1", {"A", "B"})
+        mgr.update_pool("2026W1", {"A", "B"}, candidate_map)
         assert set(mgr.warmup_codes) == {"C", "D"}
 
         # Week 2: formal = {B, C}, C moves from warmup to formal
-        mgr.update_pool("2026W2", {"B", "C"})
-        assert mgr.warmup_codes == ["D"]  # D is new, C was seen
+        mgr.update_pool("2026W2", {"B", "C"}, candidate_map)
+        assert set(mgr.warmup_codes) == {"D"}  # D is new, C was seen
 
     def test_update_pool_removes_graduated(self):
         """Stock entering formal pool should be removed from warmup."""
@@ -45,14 +45,14 @@ class TestWarmupManager:
             "2026W1": ["A", "B", "C", "D"],
             "2026W2": ["A", "C", "D", "E"],
         }
-        mgr = WarmupManager(candidate_map)
+        mgr = WarmupManager()
 
-        mgr.update_pool("2026W1", {"A", "B"})
+        mgr.update_pool("2026W1", {"A", "B"}, candidate_map)
         assert "C" in mgr.warmup_codes
         assert "D" in mgr.warmup_codes
 
         # Week 2: C enters formal, should leave warmup
-        mgr.update_pool("2026W2", {"A", "C"})
+        mgr.update_pool("2026W2", {"A", "C"}, candidate_map)
         assert "C" not in mgr.warmup_codes
 
     def test_update_pool_no_future_weeks(self):
@@ -60,20 +60,20 @@ class TestWarmupManager:
         candidate_map = {
             "2026W1": ["A", "B"],
         }
-        mgr = WarmupManager(candidate_map)
-        mgr.update_pool("2026W1", {"A", "B"})
+        mgr = WarmupManager()
+        mgr.update_pool("2026W1", {"A", "B"}, candidate_map)
         assert mgr.warmup_codes == []
 
     def test_is_warmup_returns_correct_bool(self):
         candidate_map = {"2026W1": ["A", "B"], "2026W2": ["C"]}
-        mgr = WarmupManager(candidate_map)
-        mgr.update_pool("2026W1", {"A"})
+        mgr = WarmupManager()
+        mgr.update_pool("2026W1", {"A"}, candidate_map)
         assert mgr.is_warmup("B") is False  # B is formal, not warmup
         assert mgr.is_warmup("C") is True
 
     def test_virtual_rank_basic(self):
         """Warmup virtual rank = position in formal scores."""
-        mgr = WarmupManager({})
+        mgr = WarmupManager()
 
         formal_scores = [0.9, 0.7, 0.5, 0.3]
         warmup_scores = {"W1": 0.8, "W2": 0.4}
@@ -89,7 +89,7 @@ class TestWarmupManager:
 
     def test_virtual_rank_tied_score(self):
         """Warmup with same score as formal should get lower rank (bisect_right)."""
-        mgr = WarmupManager({})
+        mgr = WarmupManager()
         formal_scores = [0.9, 0.7, 0.5]
         warmup_scores = {"W1": 0.7}  # Ties with rank 2
 
@@ -100,7 +100,7 @@ class TestWarmupManager:
 
     def test_virtual_rank_highest_and_lowest(self):
         """Warmup with highest score -> rank 1. Lowest -> rank N."""
-        mgr = WarmupManager({})
+        mgr = WarmupManager()
         formal_scores = [0.9, 0.7, 0.5]
 
         warmup_ranks = mgr.compute_virtual_rankings(formal_scores, {"W1": 0.95})
