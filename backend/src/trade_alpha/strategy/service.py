@@ -20,7 +20,7 @@ async def create_strategy(
     sell_threshold: Optional[float] = None,
     max_positions: Optional[int] = None,
     max_position_pct: Optional[float] = None,
-    sell_rank_n: Optional[int] = None,
+    sell_rank_pct: Optional[float] = None,
     hold_score_threshold: Optional[float] = None,
     use_momentum_boost: Optional[bool] = None,
     momentum_window: Optional[int] = None,
@@ -62,16 +62,16 @@ async def create_strategy(
     rank_up_min_improvement_pct: Optional[float] = None,
     market_smooth_alpha: Optional[float] = None,
     market_smooth_window: Optional[int] = None,
-    top_n_retention: Optional[int] = None,
+    top_n_retention_pct: Optional[float] = None,
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
     use_phase_strategy: Optional[bool] = None,
     max_daily_buys: Optional[int] = None,
-    rotation_bottom_threshold: Optional[int] = None,
-    rotation_rank_min: Optional[int] = None,
-    rotation_rank_max: Optional[int] = None,
+    rotation_bottom_pct: Optional[float] = None,
+    rotation_rank_min_pct: Optional[float] = None,
+    rotation_rank_max_pct: Optional[float] = None,
     rotation_use_reversal_check: Optional[bool] = None,
-    rotation_was_top_n: Optional[int] = None,
+    rotation_was_top_pct: Optional[float] = None,
     rotation_pullback_window: Optional[int] = None,
     rotation_was_top_window: Optional[int] = None,
 ) -> StrategyConfig:
@@ -122,7 +122,7 @@ async def update_strategy(
     sell_threshold: Optional[float] = None,
     max_positions: Optional[int] = None,
     max_position_pct: Optional[float] = None,
-    sell_rank_n: Optional[int] = None,
+    sell_rank_pct: Optional[float] = None,
     hold_score_threshold: Optional[float] = None,
     use_momentum_boost: Optional[bool] = None,
     momentum_window: Optional[int] = None,
@@ -164,16 +164,16 @@ async def update_strategy(
     rank_up_min_improvement_pct: Optional[float] = None,
     market_smooth_alpha: Optional[float] = None,
     market_smooth_window: Optional[int] = None,
-    top_n_retention: Optional[int] = None,
+    top_n_retention_pct: Optional[float] = None,
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
     use_phase_strategy: Optional[bool] = None,
     max_daily_buys: Optional[int] = None,
-    rotation_bottom_threshold: Optional[int] = None,
-    rotation_rank_min: Optional[int] = None,
-    rotation_rank_max: Optional[int] = None,
+    rotation_bottom_pct: Optional[float] = None,
+    rotation_rank_min_pct: Optional[float] = None,
+    rotation_rank_max_pct: Optional[float] = None,
     rotation_use_reversal_check: Optional[bool] = None,
-    rotation_was_top_n: Optional[int] = None,
+    rotation_was_top_pct: Optional[float] = None,
     rotation_pullback_window: Optional[int] = None,
     rotation_was_top_window: Optional[int] = None,
 ) -> Optional[StrategyConfig]:
@@ -204,8 +204,8 @@ async def update_strategy(
         strategy.max_positions = max_positions
     if max_position_pct is not None:
         strategy.max_position_pct = max_position_pct
-    if sell_rank_n is not None:
-        strategy.sell_rank_n = sell_rank_n
+    if sell_rank_pct is not None:
+        strategy.sell_rank_pct = sell_rank_pct
     if hold_score_threshold is not None:
         strategy.hold_score_threshold = hold_score_threshold
     if use_momentum_boost is not None:
@@ -288,8 +288,8 @@ async def update_strategy(
         strategy.market_smooth_alpha = market_smooth_alpha
     if market_smooth_window is not None:
         strategy.market_smooth_window = market_smooth_window
-    if top_n_retention is not None:
-        strategy.top_n_retention = top_n_retention
+    if top_n_retention_pct is not None:
+        strategy.top_n_retention_pct = top_n_retention_pct
     if retention_days is not None:
         strategy.retention_days = retention_days
     if correlation_window is not None:
@@ -299,16 +299,16 @@ async def update_strategy(
     if max_daily_buys is not None:
         strategy.max_daily_buys = max_daily_buys
 
-    if rotation_bottom_threshold is not None:
-        strategy.rotation_bottom_threshold = rotation_bottom_threshold
-    if rotation_rank_min is not None:
-        strategy.rotation_rank_min = rotation_rank_min
-    if rotation_rank_max is not None:
-        strategy.rotation_rank_max = rotation_rank_max
+    if rotation_bottom_pct is not None:
+        strategy.rotation_bottom_pct = rotation_bottom_pct
+    if rotation_rank_min_pct is not None:
+        strategy.rotation_rank_min_pct = rotation_rank_min_pct
+    if rotation_rank_max_pct is not None:
+        strategy.rotation_rank_max_pct = rotation_rank_max_pct
     if rotation_use_reversal_check is not None:
         strategy.rotation_use_reversal_check = rotation_use_reversal_check
-    if rotation_was_top_n is not None:
-        strategy.rotation_was_top_n = rotation_was_top_n
+    if rotation_was_top_pct is not None:
+        strategy.rotation_was_top_pct = rotation_was_top_pct
     if rotation_pullback_window is not None:
         strategy.rotation_pullback_window = rotation_pullback_window
     if rotation_was_top_window is not None:
