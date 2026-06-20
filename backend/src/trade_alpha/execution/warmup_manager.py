@@ -71,6 +71,10 @@ class WarmupManager:
     def warmup_codes(self) -> List[str]:
         return list(self._pool.keys())
 
+    @property
+    def warmup_count(self) -> int:
+        return len(self._pool)
+
     def is_warmup(self, ts_code: str) -> bool:
         return ts_code in self._pool
 

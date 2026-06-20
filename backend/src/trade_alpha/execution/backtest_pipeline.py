@@ -27,10 +27,10 @@ from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.execution.baseline_tracker import BaselineTracker
 from trade_alpha.execution.warmup_manager import WarmupManager
-from trade_alpha.constants import SELL_REASON_CANDIDATE_EXCLUDED, SELL_REASON_FULL_POSITION
-from trade_alpha.dao import StockList
 from trade_alpha.data.service import active_stock_data
 from trade_alpha.logging import get_logger
+from trade_alpha.constants import SELL_REASON_CANDIDATE_EXCLUDED, SELL_REASON_FULL_POSITION
+
 
 logger = get_logger("execution.backtest_pipeline")
 
@@ -341,6 +341,11 @@ class BacktestPipeline:
             # Build prediction set including warmup stocks
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
 
+            logger.info(
+                "warmup day %s: formal=%d warmup=%d",
+                date, len(formal_codes), warmup_mgr.warmup_count,
+            )
+
             baseline_tracker.track_daily_rebalanced_only(formal_close)
 
             stock_map = await self.score_manager.predict_and_score(
@@ -512,6 +517,11 @@ class BacktestPipeline:
             candidate_close = {k: v for k, v in close_prices.items()
                                if k in candidates}
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
+
+            logger.info(
+                "daily %s: formal=%d warmup=%d",
+                date, len(candidates), warmup_mgr.warmup_count,
+            )
 
             baseline_tracker.track_daily_rebalanced_only(candidate_close)
 
