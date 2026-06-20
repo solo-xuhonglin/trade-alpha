@@ -34,10 +34,11 @@ class WarmupManager:
         self._ever_seen: Set[str] = set()
         self._last_update_key: Optional[str] = None
 
-    def update_pool(self, current_period_key: Optional[str], formal_set: Set[str], candidate_map: Dict[str, List[str]]) -> None:
+    def update_pool(self, current_period_key: Optional[str], formal_set: Set[str], candidate_map: Dict[str, List[str]], warmup_days: int = 40) -> None:
         """Update warmup pool based on current formal set, only on period changes.
 
         Warmup stocks = future formal candidates - current formal - ever_seen.
+        Limited to future candidates within the warmup_days trading window.
         Also removes stocks that have entered the formal pool.
         Tracks period changes internally; skips already-processed periods.
 
@@ -45,16 +46,20 @@ class WarmupManager:
             current_period_key: Current period key (None if before first candidate period).
             formal_set: Current period's formal candidate ts_codes.
             candidate_map: The provider's candidate map.
+            warmup_days: Number of trading days needed for score accumulation (~40).
         """
         if current_period_key is None or current_period_key == self._last_update_key:
             return
         self._last_update_key = current_period_key
 
-        # Collect all future candidate codes
+        # Limit future candidates to within warmup_days trading days (~20 trading days/month)
+        lookahead_months = max(1, (warmup_days + 19) // 20)
+        sorted_future_keys = sorted(k for k in candidate_map if k > current_period_key)[:lookahead_months]
+
+        # Collect future candidate codes within warmup window
         future_codes: Set[str] = set()
-        for wk, codes in candidate_map.items():
-            if wk > current_period_key:
-                future_codes.update(codes)
+        for wk in sorted_future_keys:
+            future_codes.update(candidate_map[wk])
 
         # Add new warmup stocks
         already_covered = formal_set | self._ever_seen

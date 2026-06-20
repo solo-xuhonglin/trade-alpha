@@ -336,7 +336,7 @@ class BacktestPipeline:
 
             # Update warmup pool on period change (tracked internally)
             current_period_key = provider.get_period_key(date)
-            warmup_mgr.update_pool(current_period_key, set(formal_codes), provider.candidate_map)
+            warmup_mgr.update_pool(current_period_key, set(formal_codes), provider.candidate_map, warmup_days)
 
             # Build prediction set including warmup stocks
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
@@ -411,7 +411,7 @@ class BacktestPipeline:
         await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
 
         daily_values, daily_returns, total_trades, total_fees = await self._run_daily_loop(
-            start_date, end_date, result.id, task_id, baseline_tracker,
+            start_date, end_date, result.id, task_id, baseline_tracker, warmup_days,
         )
 
         result = await self._finalize_result(
@@ -466,7 +466,7 @@ class BacktestPipeline:
         )
 
     async def _run_daily_loop(
-        self, start_date, end_date, backtest_id, task_id, baseline_tracker,
+        self, start_date, end_date, backtest_id, task_id, baseline_tracker, warmup_days,
     ):
         provider = self.ctx.candidate_provider
         all_ts_codes = provider.all_ts_codes
@@ -508,7 +508,7 @@ class BacktestPipeline:
 
             # Update warmup pool on period change (tracked internally)
             current_period_key = provider.get_period_key(date)
-            warmup_mgr.update_pool(current_period_key, set(candidates), provider.candidate_map)
+            warmup_mgr.update_pool(current_period_key, set(candidates), provider.candidate_map, warmup_days)
 
             baseline_tracker.track(close_prices)
 
