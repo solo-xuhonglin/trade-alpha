@@ -52,9 +52,9 @@ class WarmupManager:
             return
         self._last_update_key = current_period_key
 
-        # Limit future candidates to within warmup_days trading days (~20 trading days/month)
-        lookahead_months = max(1, (warmup_days + 19) // 20)
-        sorted_future_keys = sorted(k for k in candidate_map if k > current_period_key)[:lookahead_months]
+        # Limit future candidates to within warmup_days trading days (~5 trading days/week)
+        lookahead_periods = max(1, (warmup_days + 4) // 5)
+        sorted_future_keys = sorted(k for k in candidate_map if k > current_period_key)[:lookahead_periods]
 
         # Collect future candidate codes within warmup window
         future_codes: Set[str] = set()
