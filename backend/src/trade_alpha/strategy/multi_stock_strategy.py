@@ -163,6 +163,11 @@ class MultiStockStrategy(BaseStrategy):
             daily_buy_count += 1
             orders.append(self._build_order(cand.stock, shares, cand.reason, trade_date))
 
+        # Annotate all orders with candidate group
+        for order in orders:
+            group = ctx.candidate_provider.get_stock_group(trade_date, order.ts_code)
+            order.candidate_group = group
+
         return orders
 
     def _build_order(

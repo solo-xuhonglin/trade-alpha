@@ -550,13 +550,6 @@ class BacktestPipeline:
             # Apply virtual ranking for warmup stocks
             warmup_mgr.apply_virtual_ranking(stock_map)
 
-            # Annotate candidate group for each scored stock
-            for ts_code, stock in stock_map.items():
-                if warmup_mgr.is_warmup(ts_code):
-                    stock.candidate_group = "warmup"
-                else:
-                    stock.candidate_group = provider.get_stock_group(date, ts_code)
-
             market_data = self.market_analyzer.last_result
 
             atr_values = day_data.get("atr_14", {})
@@ -581,6 +574,11 @@ class BacktestPipeline:
                 date, close_prices, candidates,
             )
             pending_orders.extend(outdated_orders)
+
+            # Annotate outdated order candidate groups
+            for order in outdated_orders:
+                group = provider.get_stock_group(date, order.ts_code)
+                order.candidate_group = group
 
             day_val, day_ret = await self._save_snapshot(
                 date, backtest_id, close_prices, stock_map,
