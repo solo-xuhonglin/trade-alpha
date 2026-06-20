@@ -193,9 +193,9 @@
                 <v-col cols="12" md="6">
                   <v-text-field
                     v-model="form.sell_rank_pct"
-                    type="number"
-                    label="卖出排名阈值"
-                    hint="掉出此排名时考虑卖出"
+                    type="number" step="0.01" min="0" max="1"
+                    label="卖出排名百分比"
+                    hint="排名低于此百分比的股票触发卖出（默认 0.15）"
                     persistent-hint
                   ></v-text-field>
                 </v-col>
@@ -332,7 +332,7 @@
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.top_n_retention_pct" type="number" step="0.01" min="0" max="1"
-                    label="留存率N值" hint="排名前 N 的股票计算留存率（默认 20）" persistent-hint />
+                    label="留存率百分比" hint="排名前 N% 的股票计算留存率（默认 0.20）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.retention_days" type="number" min="1"
@@ -374,17 +374,17 @@
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_was_top_pct" type="number" step="0.01" min="0" max="1"
-                    label="历史最高排名" hint="曾进前 N 名才算强势股（默认 15）" persistent-hint />
+                    label="历史最高排名百分比" hint="曾进前 N% 才算强势股（默认 0.15）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_was_top_window" type="number" min="1"
-                    label="历史检测窗口" hint="近N天内曾进前N名才算（默认 30 天）" persistent-hint />
+                    label="历史检测窗口" hint="近N天内曾进前N名才算（默认 60 天）" persistent-hint />
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_bottom_pct" type="number" step="0.01" min="0" max="1"
-                    label="回调最低排名" hint="窗口内最低排名超过此值才算回调（默认 60）" persistent-hint />
+                    label="回调最低排名百分比" hint="窗口内最低排名超过此百分比才算回调（默认 0.60）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_pullback_window" type="number" min="1"
@@ -400,11 +400,11 @@
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_rank_min_pct" type="number" step="0.01" min="0" max="1"
-                    label="排名上限" hint="限制排名不能比此值更靠前（默认 45，小于45太强不买）" persistent-hint />
+                    label="排名上限百分比" hint="限制排名百分比不能比此值更靠前（默认 0.30）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.rotation_rank_max_pct" type="number" step="0.01" min="0" max="1"
-                    label="排名下限" hint="限制排名不能比此值更靠后（默认 75，大于75太弱不买）" persistent-hint />
+                    label="排名下限百分比" hint="限制排名百分比不能比此值更靠后（默认 0.70）" persistent-hint />
                 </v-col>
               </v-row>
             </div>
@@ -737,7 +737,7 @@ const compareFields: CompareField[] = [
   { key: 'sell_threshold', label: '卖出阈值', group: '基本配置', type: 'number' },
   { key: 'max_positions', label: '最大持仓数', group: '多股票配置', type: 'number' },
   { key: 'max_position_pct', label: '单票最大仓位', group: '多股票配置', type: 'number' },
-  { key: 'sell_rank_n', label: '卖出排名阈值', group: '多股票配置', type: 'number' },
+  { key: 'sell_rank_pct', label: '卖出排名百分比', group: '多股票配置', type: 'number' },
   { key: 'hold_score_threshold', label: '持仓评分保护阈值', group: '多股票配置', type: 'number' },
   { key: 'use_momentum_boost', label: '动量加权', group: '排名优化', type: 'boolean' },
   { key: 'use_momentum_penalty', label: '动量扣分', group: '排名优化', type: 'boolean' },
@@ -771,15 +771,15 @@ const compareFields: CompareField[] = [
   { key: 'score_decline_threshold', label: '评分下降阈值', group: '交易优化', type: 'number' },
   { key: 'use_score_decline_filter', label: '评分下降过滤', group: '交易优化', type: 'boolean' },
   { key: 'use_phase_strategy', label: '启用市场阶段策略', group: '市场分析', type: 'boolean' },
-  { key: 'top_n_retention', label: '留存率N值', group: '市场分析', type: 'number' },
+  { key: 'top_n_retention_pct', label: '留存率百分比', group: '市场分析', type: 'number' },
   { key: 'retention_days', label: '留存天数', group: '市场分析', type: 'number' },
   { key: 'correlation_window', label: '关联度窗口', group: '市场分析', type: 'number' },
-  { key: 'rotation_was_top_n', label: '轮动历史最高排名', group: '轮动参数', type: 'number' },
+  { key: 'rotation_was_top_pct', label: '轮动历史最高排名百分比', group: '轮动参数', type: 'number' },
   { key: 'rotation_was_top_window', label: '轮动历史检测窗口', group: '轮动参数', type: 'number' },
   { key: 'rotation_pullback_window', label: '轮动回调检测窗口', group: '轮动参数', type: 'number' },
-  { key: 'rotation_bottom_threshold', label: '轮动回调深度阈值', group: '轮动参数', type: 'number' },
-  { key: 'rotation_rank_min', label: '排名上限', group: '轮动参数', type: 'number' },
-  { key: 'rotation_rank_max', label: '排名下限', group: '轮动参数', type: 'number' },
+  { key: 'rotation_bottom_pct', label: '轮动回调深度百分比', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_min_pct', label: '排名上限百分比', group: '轮动参数', type: 'number' },
+  { key: 'rotation_rank_max_pct', label: '排名下限百分比', group: '轮动参数', type: 'number' },
   { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
 ]
 
