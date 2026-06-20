@@ -94,6 +94,14 @@ python scripts/reset_stock_data.py
 
 将股票状态重置为 pending，清空日线和周线数据，用于触发调度器重新全量同步。
 
+### reset_stock_list_history.py — 清空市值历史
+
+```bash
+python scripts/reset_stock_list_history.py
+```
+
+清空 `StockListHistory` 集合所有数据并重建 `(ts_code, trade_date)` 唯一索引。回测或定时任务会自动重新填充。
+
 ---
 
 ## 回测分析
