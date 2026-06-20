@@ -334,9 +334,9 @@ class BacktestPipeline:
             formal_close = {k: v for k, v in close_prices.items()
                             if k in formal_codes}
 
-            # Update warmup pool on week change (tracked internally)
-            current_week_key = provider.get_week_key(date)
-            warmup_mgr.update_pool(current_week_key, set(formal_codes), provider.candidate_map)
+            # Update warmup pool on period change (tracked internally)
+            current_period_key = provider.get_period_key(date)
+            warmup_mgr.update_pool(current_period_key, set(formal_codes), provider.candidate_map)
 
             # Build prediction set including warmup stocks
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
@@ -507,9 +507,9 @@ class BacktestPipeline:
 
             candidates = provider.get_candidates_for_date(date)
 
-            # Update warmup pool on week change (tracked internally)
-            current_week_key = provider.get_week_key(date)
-            warmup_mgr.update_pool(current_week_key, set(candidates), provider.candidate_map)
+            # Update warmup pool on period change (tracked internally)
+            current_period_key = provider.get_period_key(date)
+            warmup_mgr.update_pool(current_period_key, set(candidates), provider.candidate_map)
 
             baseline_tracker.track(close_prices)
 

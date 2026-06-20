@@ -32,34 +32,34 @@ class WarmupManager:
     def __init__(self):
         self._pool: Dict[str, WarmupRecord] = {}
         self._ever_seen: Set[str] = set()
-        self._last_week_key: Optional[str] = None
+        self._last_update_key: Optional[str] = None
 
-    def update_pool(self, current_week_key: Optional[str], formal_set: Set[str], candidate_map: Dict[str, List[str]]) -> None:
-        """Update warmup pool based on current formal set, only on week changes.
+    def update_pool(self, current_period_key: Optional[str], formal_set: Set[str], candidate_map: Dict[str, List[str]]) -> None:
+        """Update warmup pool based on current formal set, only on period changes.
 
         Warmup stocks = future formal candidates - current formal - ever_seen.
         Also removes stocks that have entered the formal pool.
-        Tracks week changes internally; skips already-processed weeks.
+        Tracks period changes internally; skips already-processed periods.
 
         Args:
-            current_week_key: Current week key (None if before first candidate week).
-            formal_set: Current week's formal candidate ts_codes.
-            candidate_map: The provider's weekly candidate map.
+            current_period_key: Current period key (None if before first candidate period).
+            formal_set: Current period's formal candidate ts_codes.
+            candidate_map: The provider's candidate map.
         """
-        if current_week_key is None or current_week_key == self._last_week_key:
+        if current_period_key is None or current_period_key == self._last_update_key:
             return
-        self._last_week_key = current_week_key
+        self._last_update_key = current_period_key
 
         # Collect all future candidate codes
         future_codes: Set[str] = set()
         for wk, codes in candidate_map.items():
-            if wk > current_week_key:
+            if wk > current_period_key:
                 future_codes.update(codes)
 
         # Add new warmup stocks
         already_covered = formal_set | self._ever_seen
         for ts_code in future_codes - already_covered:
-            self._pool[ts_code] = WarmupRecord(ts_code, current_week_key)
+            self._pool[ts_code] = WarmupRecord(ts_code, current_period_key)
             self._ever_seen.add(ts_code)
 
         # Remove graduated stocks
