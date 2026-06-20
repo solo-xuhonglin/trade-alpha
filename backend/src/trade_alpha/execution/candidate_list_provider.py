@@ -1,4 +1,4 @@
-"""CandidateListProvider — provides monthly dynamic candidate stock pools for backtesting."""
+"""CandidateListProvider — provides weekly dynamic candidate stock pools for backtesting."""
 
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -14,11 +14,11 @@ logger = get_logger("execution.candidate_list_provider")
 
 
 class CandidateListProvider:
-    """Unified provider for candidate stock lists (fixed or monthly dynamic).
+    """Unified provider for candidate stock lists (fixed or weekly dynamic).
 
     Fixed mode: when params includes ts_codes, returns that list always.
-    Dynamic mode: when ts_codes is absent, builds monthly candidate_map via
-    _get_candidates() and returns the appropriate month's candidates
+    Dynamic mode: when ts_codes is absent, builds weekly candidate_map via
+    _get_candidates() and returns the appropriate week's candidates
     per date.
     """
 
@@ -43,7 +43,7 @@ class CandidateListProvider:
 
     @property
     def candidate_map(self) -> Dict[str, List[str]]:
-        """Monthly candidate map (populated only in dynamic mode)."""
+        """Weekly candidate map (populated only in dynamic mode)."""
         return self._candidate_map
 
     async def initialize(self, start_date: str, end_date: str) -> None:
@@ -206,7 +206,7 @@ class CandidateListProvider:
         self, start_date: str, end_date: str,
     ) -> Dict[str, List[str]]:
         logger.info(
-            f"Computing monthly candidates: {start_date}~{end_date}, "
+            f"Computing weekly candidates: {start_date}~{end_date}, "
             f"range_n={self._range_n}, top_n={self._top_n}, momentum_n={self._momentum_n}"
         )
         calendar_days = await self._get_trade_calendar(start_date, end_date)
@@ -214,18 +214,18 @@ class CandidateListProvider:
             logger.warning(f"No trading days found in range {start_date}~{end_date}")
             return {}
 
-        # Group by ISO month
-        monthly: Dict[str, str] = {}
+        # Group by ISO week, using last trading day of each week
+        weekly: Dict[str, str] = {}
         for day in calendar_days:
             dt = datetime.strptime(day.cal_date, "%Y%m%d")
-            month_key = f"{dt.year}M{dt.month:02d}"
-            if month_key not in monthly:
-                monthly[month_key] = day.cal_date
+            iso_year, iso_week, _ = dt.isocalendar()
+            week_key = f"{iso_year}W{iso_week:02d}"
+            weekly[week_key] = day.cal_date  # overwrite -> last trading day
 
         result: Dict[str, List[str]] = {}
         prev_base: List[str] = []
-        for _month_key, first_trade_date in sorted(monthly.items()):
-            resolved = await self._resolve_date(first_trade_date)
+        for _week_key, last_trade_date in sorted(weekly.items()):
+            resolved = await self._resolve_date(last_trade_date)
             if not resolved:
                 continue
             universe_records = await self._query_top_stocks(resolved, self._range_n)
@@ -241,6 +241,6 @@ class CandidateListProvider:
             result[resolved] = final
             prev_base = current_base
         logger.info(
-            f"Monthly candidates computed: {len(result)} months"
+            f"Weekly candidates computed: {len(result)} weeks"
         )
         return result

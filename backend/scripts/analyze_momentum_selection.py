@@ -1,15 +1,14 @@
-"""Compare: current (base100+mom20) vs base100-exclude10+mom20."""
+"""Analyze turnover rates: monthly vs weekly momentum selection."""
 import asyncio, math
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from beanie.odm.operators.find.comparison import In
 from trade_alpha.dao.mongodb import init_db
 from trade_alpha.dao import TradeCalendar, StockListHistory
 from trade_alpha.dao.stock_daily import StockDaily
 
-RANGE_300, TOP_100, MOMENTUM_N = 300, 100, 20
-EXCLUDE_N = 10
+RANGE_N, TOP_N, MOMENTUM_N = 300, 100, 20
 
 MOMENTUM_FIELDS = [
     ("trend_slope_20", True, 1.0), ("trend_arrangement_20", True, 1.0),
@@ -20,15 +19,14 @@ MOMENTUM_FIELDS = [
 
 
 async def get_momentum_scores(trade_date: str, universe_codes: List[str]) -> Dict[str, float]:
-    """Get momentum composite scores for all universe stocks."""
     records = await StockDaily.find(
         StockDaily.trade_date == trade_date,
         In(StockDaily.ts_code, universe_codes),
         StockDaily.trend_slope_20 != None, StockDaily.atr_14 != None,
     ).to_list()
     if not records: return {}
-    mv_recs = await StockListHistory.find(StockListHistory.trade_date == trade_date, In(StockListHistory.ts_code, universe_codes)).to_list()
-    mv_map = {r.ts_code: math.log(r.total_mv) for r in mv_recs if r.total_mv and r.total_mv > 0}
+    mv = await StockListHistory.find(StockListHistory.trade_date == trade_date, In(StockListHistory.ts_code, universe_codes)).to_list()
+    mv_map = {r.ts_code: math.log(r.total_mv) for r in mv if r.total_mv and r.total_mv > 0}
     sv = {}
     for r in records:
         vals = []
@@ -54,73 +52,141 @@ async def get_momentum_scores(trade_date: str, universe_codes: List[str]) -> Dic
     return comp
 
 
-async def get_returns(trade_date: str, ts_codes: List[str], cal_dates: List[str]) -> Dict[str, float]:
-    dt = datetime.strptime(trade_date, "%Y%m%d")
-    fd = [d for d in cal_dates if trade_date < d <= (dt + timedelta(days=70)).strftime("%Y%m%d")]
-    if len(fd) < 5: return {}
-    ck = fd[-1]
-    fut = {r.ts_code: r.close for r in await StockDaily.find(StockDaily.trade_date == ck, In(StockDaily.ts_code, ts_codes)).to_list() if hasattr(r, 'close') and r.close}
-    sel = {r.ts_code: r.close for r in await StockDaily.find(StockDaily.trade_date == trade_date, In(StockDaily.ts_code, ts_codes)).to_list() if hasattr(r, 'close') and r.close}
-    return {ts: (fut[ts] - sel[ts]) / sel[ts] * 100 for ts in ts_codes if ts in sel and ts in fut and sel[ts] and fut[ts] and sel[ts] > 0}
+async def get_universe(trade_date: str) -> Tuple[List[str], List[str]]:
+    u = await StockListHistory.find(StockListHistory.trade_date == trade_date, StockListHistory.total_mv != None).sort(-StockListHistory.total_mv).limit(RANGE_N).to_list()
+    if not u: return [], []
+    uc = [r.ts_code for r in u]
+    return uc, uc[:TOP_N]
+
+
+async def analyze_schedule(label: str, cal_dates: List[str], period_dates: List[str], k: int):
+    """
+    Analyze a periodic selection schedule.
+    period_dates: list of first-trading-days of each period (month/week)
+    k: number of prior periods to retain (1 = retain previous period's base)
+    """
+    results = []
+    prev_current_base = []
+    prev_pool = set()
+
+    for i, td in enumerate(period_dates):
+        uc, bg = await get_universe(td)
+        if not uc: continue
+
+        scores = await get_momentum_scores(td, uc)
+        if not scores: continue
+
+        sorted_mom = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        mom_codes = [ts for ts, _ in sorted_mom[:MOMENTUM_N]]
+
+        # current_base = base group + momentum group (deduped)
+        current_base = list(dict.fromkeys(bg + mom_codes))
+
+        # Final pool with rolling retain
+        final = list(dict.fromkeys(current_base + prev_current_base))
+        final_set = set(final)
+
+        # Statistics
+        total_pool = len(final_set)
+        mom_in_bg = len(set(mom_codes) & set(bg))
+        turnover_from_prev = 0
+        overlap_with_prev = 0
+        new_additions = 0
+
+        if prev_pool:
+            overlap_with_prev = len(final_set & prev_pool)
+            turnover_from_prev = 1 - overlap_with_prev / max(len(prev_pool), 1)
+            new_additions = len(final_set - prev_pool)
+
+        results.append({
+            "date": td, "pool_size": total_pool, "mom_in_base": mom_in_bg,
+            "overlap_pct": overlap_with_prev / total_pool * 100 if total_pool else 0,
+            "turnover": turnover_from_prev,
+            "new_additions": new_additions,
+        })
+
+        prev_current_base = current_base.copy()
+        prev_pool = final_set
+
+    return results
 
 
 async def main():
     await init_db()
-    cal = [c.cal_date for c in await TradeCalendar.find(TradeCalendar.is_open == 1).sort(TradeCalendar.cal_date).to_list()]
-    months = [f"{y}{m:02d}" for y in range(2023, 2026) for m in range(1, 13) if m in [1, 4, 7, 10]]
+    all_cal = [c.cal_date for c in await TradeCalendar.find(TradeCalendar.is_open == 1).sort(TradeCalendar.cal_date).to_list()]
 
-    print(f"{'月份':>8} {'当前(100+20)':>14} {'排除10+20':>14} {'基础100':>14}")
-    print("-" * 55)
+    # Monthly: first trading day of each month from 202301 onward
+    monthly_dates = []
+    for d in all_cal:
+        if d.endswith("01") or d.endswith("02") or d.endswith("03"):
+            if not monthly_dates or d[:6] != monthly_dates[-1][:6]:
+                monthly_dates.append(d)
+    monthly_dates = [d for d in monthly_dates if d >= "20230101" and d <= "20251201"]
 
-    d_cur, d_new, d_base = [], [], []
+    # Weekly: first trading day of each week
+    weekly_dates = []
+    for d in all_cal:
+        dt = datetime.strptime(d, "%Y%m%d")
+        iso = dt.isocalendar()
+        wk_key = f"{iso.year}W{iso.week:02d}"
+        if not weekly_dates or d[:4] + "W" + str(dt.isocalendar().week) != weekly_dates[-1][:4] + "W" + str(datetime.strptime(weekly_dates[-1], "%Y%m%d").isocalendar().week):
+            weekly_dates.append(d)
+    weekly_dates = [d for d in weekly_dates if d >= "20230101" and d <= "20251201"]
 
-    for mk in months:
-        fd = [d for d in cal if d.startswith(mk)]
-        if not fd: continue
-        td = fd[0]
-        u = await StockListHistory.find(StockListHistory.trade_date == td, StockListHistory.total_mv != None).sort(-StockListHistory.total_mv).limit(RANGE_300).to_list()
-        if not u: continue
-        uc = [r.ts_code for r in u]
-        bg = uc[:TOP_100]
+    print("=" * 80)
+    print("【月度选股】每月第一个交易日选股，留存上个月base")
+    print(f"{'日期':>10} {'池子总大小':>10} {'动量在基础':>10} {'重叠%':>8} {'换手率':>8} {'新增':>6}")
+    print("-" * 80)
+    month_res = await analyze_schedule("monthly", all_cal, monthly_dates, 1)
 
-        # Get momentum scores
-        scores = await get_momentum_scores(td, uc)
-        if not scores: continue
+    total_pool_sizes = []
+    total_turnovers = []
+    total_additions = []
+    for r in month_res:
+        total_pool_sizes.append(r["pool_size"])
+        if r["turnover"] > 0:
+            total_turnovers.append(r["turnover"])
+        total_additions.append(r["new_additions"])
+        print(f"{r['date']:>10} {r['pool_size']:>10} {r['mom_in_base']:>10} {r['overlap_pct']:>7.0f}% {r['turnover']*100:>7.0f}% {r['new_additions']:>5}")
 
-        # Current: base100 + top20 momentum
-        top_mom = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:MOMENTUM_N]
-        top_mom_codes = [ts for ts, _ in top_mom]
-        pool_cur = list(dict.fromkeys(bg + top_mom_codes))
+    print("-" * 80)
+    avg_pool = sum(total_pool_sizes) / len(total_pool_sizes)
+    avg_turnover = sum(total_turnovers) / len(total_turnovers) * 100
+    avg_add = sum(total_additions) / len(total_additions)
+    print(f"{'平均':>10} {avg_pool:>8.0f}只 {'':>10} {'':>8} {avg_turnover:>6.0f}% {avg_add:>5.0f}只")
 
-        # New: base100 excluding bottom10 momentum + top20 momentum
-        # Score stocks in base group, find bottom 10
-        bg_scores = {ts: scores.get(ts, -999) for ts in bg}
-        bg_sorted = sorted(bg_scores.items(), key=lambda x: x[1])
-        worst_codes = {ts for ts, _ in bg_sorted[:EXCLUDE_N]}
-        bg_filtered = [ts for ts in bg if ts not in worst_codes]
-        pool_new = list(dict.fromkeys(bg_filtered + top_mom_codes))
+    print("\n" + "=" * 80)
+    print("【周度选股】每周第一个交易日选股，留存上周base（持续2周周期）")
+    print(f"{'日期':>10} {'池子总大小':>10} {'动量在基础':>10} {'重叠%':>8} {'换手率':>8} {'新增':>6}")
+    print("-" * 80)
+    week_res = await analyze_schedule("weekly", all_cal, weekly_dates, 2)
 
-        rc = await get_returns(td, pool_cur, cal)
-        rn = await get_returns(td, pool_new, cal)
-        rb = await get_returns(td, bg, cal)
+    wk_pool_sizes = []
+    wk_turnovers = []
+    wk_additions = []
+    for r in week_res:
+        wk_pool_sizes.append(r["pool_size"])
+        if r["turnover"] > 0:
+            wk_turnovers.append(r["turnover"])
+        wk_additions.append(r["new_additions"])
+        print(f"{r['date']:>10} {r['pool_size']:>10} {r['mom_in_base']:>10} {r['overlap_pct']:>7.0f}% {r['turnover']*100:>7.0f}% {r['new_additions']:>5}")
 
-        ac = sum(rc.values()) / len(rc) if rc else 0
-        an = sum(rn.values()) / len(rn) if rn else 0
-        ab = sum(rb.values()) / len(rb) if rb else 0
+    print("-" * 80)
+    wk_avg_pool = sum(wk_pool_sizes) / len(wk_pool_sizes)
+    wk_avg_turnover = sum(wk_turnovers) / len(wk_turnovers) * 100
+    wk_avg_add = sum(wk_additions) / len(wk_additions)
+    print(f"{'平均':>10} {wk_avg_pool:>8.0f}只 {'':>10} {'':>8} {wk_avg_turnover:>6.0f}% {wk_avg_add:>5.0f}只")
 
-        d_cur.extend(rc.values())
-        d_new.extend(rn.values())
-        d_base.extend(rb.values())
-
-        print(f"{mk:>8} {ac:>+10.2f}% {an:>+10.2f}% {ab:>+10.2f}%")
-
-    print("-" * 55)
-    for label, d in [("当前(100+20)", d_cur), ("排除10+20", d_new), ("基础100", d_base)]:
-        if d:
-            avg = sum(d) / len(d)
-            exc = avg - sum(d_base)/len(d_base) if d_base else 0
-            win = sum(1 for v in d if v > 0) / len(d) * 100
-            print(f"{label:>12}: 收益={avg:>+7.2f}%  超额={exc:>+7.2f}%  胜率={win:>5.0f}%")
+    print("\n" + "=" * 60)
+    print(f"月度 vs 周度对比:")
+    print(f"  月度平均池子: {avg_pool:.0f} 只")
+    print(f"  周度平均池子: {wk_avg_pool:.0f} 只")
+    print(f"  月度平均换手率: {avg_turnover:.0f}%")
+    print(f"  周度平均换手率: {wk_avg_turnover:.0f}%")
+    print(f"  月度期均新增: {avg_add:.0f} 只")
+    print(f"  周度期均新增: {wk_avg_add:.0f} 只")
+    print(f"  月度数: {len(month_res)}")
+    print(f"  周度数: {len(week_res)}")
 
 
 asyncio.run(main())
