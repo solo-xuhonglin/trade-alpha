@@ -160,7 +160,7 @@ class CandidateListProvider:
             ranked = sorted(stock_values.items(), key=lambda x: x[1][fi])
             for rank, (ts, _) in enumerate(ranked):
                 composite[ts] += rank
-        sorted_stocks = sorted(composite.items(), key=lambda x: x[1])
+        sorted_stocks = sorted(composite.items(), key=lambda x: x[1], reverse=True)
         return [ts for ts, _ in sorted_stocks[:momentum_n]]
 
     async def _get_candidates(
