@@ -13,12 +13,7 @@
 | | `reset_stock_data.py` | 重置股票数据（清空日线数据，重新同步） |
 | **回测分析** | `analyze_backtest.py` | 分析指定回测结果的交易记录 |
 | | `analyze_backtest_today.py` | 分析当天所有回测结果，输出到 `backtest_analysis/` |
-| | `analyze_backtest_vol.py` | 回测中熊市买入行为和止损效果分析 |
-| | `analyze_bottom.py` | 底部检测分析——寻找领先指标 |
-| | `analyze_buy_timing.py` | 买入时机深度分析（价格峰谷位置、市场状态） |
 | | `analyze_momentum_selection.py` | 动量选股策略验证——筛选组合未来收益对比 |
-| | `analyze_phase_strategy.py` | 市场阶段策略分析（含 daily-rebalanced 基线对比） |
-| | `analyze_regime.py` | 市场状态分类深度分析 |
 | | `check_backtests.py` | 快速查看回测结果数量和参数分布 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 
@@ -114,50 +109,10 @@ python scripts/analyze_backtest.py <backtest_name>
 ### analyze_backtest_today.py — 分析当天回测
 
 ```bash
-python scripts/analyze_backtest.py
+python scripts/analyze_backtest_today.py
 ```
 
 分析当天运行的所有回测结果，输出到 `backtest_analysis/` 目录。
-
-### analyze_backtest_vol.py — 成交量分析
-
-```bash
-python scripts/analyze_backtest_vol.py
-```
-
-分析回测中的熊市买入行为和止损效果。
-
-### analyze_bottom.py — 底部检测分析
-
-```bash
-python scripts/analyze_bottom.py
-```
-
-寻找领先指标。比较 2022 和 2025 H1 验证不同市场状态下的有效性。
-
-### analyze_buy_timing.py — 买入时机分析
-
-```bash
-python scripts/analyze_buy_timing.py
-```
-
-分析买入相对于价格峰谷的位置、趋势反转时的买入时机模式、盈亏分布、买入时市场状态 vs 最终结果。
-
-### analyze_phase_strategy.py — 阶段策略分析
-
-```bash
-python scripts/analyze_phase_strategy.py
-```
-
-计算 daily equal-weight 基线，与现有基线对比，设计阶段依赖的调整策略。
-
-### analyze_regime.py — 市场状态分析
-
-```bash
-python scripts/analyze_regime.py
-```
-
-提取回测快照中的每日市场指标，对比实际市场行为，识别真实信号与噪音特征。
 
 ### check_backtests.py — 查看回测列表
 
