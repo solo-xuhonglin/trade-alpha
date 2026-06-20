@@ -342,8 +342,7 @@ class BacktestPipeline:
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
 
             logger.info(
-                "warmup day %s: formal=%d warmup=%d",
-                date, len(formal_codes), warmup_mgr.warmup_count,
+                f"warmup day {date}: formal={len(formal_codes)} warmup={warmup_mgr.warmup_count}",
             )
 
             baseline_tracker.track_daily_rebalanced_only(formal_close)
@@ -519,8 +518,7 @@ class BacktestPipeline:
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
 
             logger.info(
-                "daily %s: formal=%d warmup=%d",
-                date, len(candidates), warmup_mgr.warmup_count,
+                f"daily {date}: formal={len(candidates)} warmup={warmup_mgr.warmup_count}",
             )
 
             baseline_tracker.track_daily_rebalanced_only(candidate_close)
