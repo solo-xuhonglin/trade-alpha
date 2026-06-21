@@ -1,6 +1,6 @@
 """CandidateListProvider — provides weekly dynamic candidate stock pools for backtesting."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 from beanie.odm.operators.find.comparison import In
@@ -141,8 +141,15 @@ class CandidateListProvider:
 
     async def _get_momentum_stocks(
         self, trade_date: str, universe_codes: List[str], momentum_n: int,
-    ) -> List[str]:
-        """Select top momentum_n stocks by weighted composite indicator rank from universe."""
+        prev_composite: Optional[Dict[str, float]] = None,
+    ) -> Tuple[List[str], Dict[str, float]]:
+        """Select top momentum_n stocks by weighted composite + improvement rank.
+
+        Returns:
+            (momentum_codes, normalized_composite_scores).
+            When prev_composite is provided, uses score improvement (w=1.0).
+            First period with no prev_composite falls back to absolute scores.
+        """
         # (field_name, ascending, weight)
         # ascending=True: higher raw value = better
         # ascending=False: lower raw value = better
@@ -194,7 +201,7 @@ class CandidateListProvider:
                 vals.append(mv_map[ts])
                 stock_values[ts] = vals
         if not stock_values:
-            return []
+            return [], {}
 
         n_stocks = len(stock_values)
         n_fields = len(MOMENTUM_FIELDS)
@@ -216,8 +223,29 @@ class CandidateListProvider:
         for rank, (ts, _) in enumerate(ranked_mv):
             composite[ts] += rank * LOG_MV_WEIGHT
 
+        # Normalize composite scores to [0, 1] for inter-period comparison
+        cur_vals = list(composite.values())
+        cur_min, cur_max = min(cur_vals), max(cur_vals)
+        cur_range = cur_max - cur_min if cur_max > cur_min else 1
+        normalized = {ts: (score - cur_min) / cur_range for ts, score in composite.items()}
+
+        if prev_composite is not None:
+            # Normalize previous scores to [0, 1]
+            prev_vals = list(prev_composite.values())
+            prev_min, prev_max = min(prev_vals), max(prev_vals)
+            prev_range = prev_max - prev_min if prev_max > prev_min else 1
+            prev_norm = {ts: (score - prev_min) / prev_range for ts, score in prev_composite.items()}
+
+            # Compute improvement: current - previous (only stocks in both periods)
+            common = set(normalized.keys()) & set(prev_norm.keys())
+            improvement = {ts: normalized[ts] - prev_norm[ts] for ts in common}
+
+            sorted_stocks = sorted(improvement.items(), key=lambda x: x[1], reverse=True)
+            return [ts for ts, _ in sorted_stocks[:momentum_n]], normalized
+
+        # First period: use absolute scores
         sorted_stocks = sorted(composite.items(), key=lambda x: x[1], reverse=True)
-        return [ts for ts, _ in sorted_stocks[:momentum_n]]
+        return [ts for ts, _ in sorted_stocks[:momentum_n]], normalized
 
     async def _get_candidates(
         self, start_date: str, end_date: str,
@@ -241,6 +269,7 @@ class CandidateListProvider:
 
         result: Dict[str, List[str]] = {}
         prev_base: List[str] = []
+        prev_composite: Optional[Dict[str, float]] = None
         for _week_key, last_trade_date in sorted(weekly.items()):
             resolved = await self._resolve_date(last_trade_date)
             if not resolved:
@@ -250,9 +279,10 @@ class CandidateListProvider:
                 continue
             universe_codes = [r.ts_code for r in universe_records]
             mv_group = universe_codes[:self._top_n]
-            momentum_group = await self._get_momentum_stocks(
-                resolved, universe_codes, self._momentum_n,
+            momentum_group, cur_composite = await self._get_momentum_stocks(
+                resolved, universe_codes, self._momentum_n, prev_composite,
             )
+            prev_composite = cur_composite
             current_base = list(dict.fromkeys(mv_group + momentum_group))
             final = list(dict.fromkeys(current_base + prev_base))
             result[resolved] = final

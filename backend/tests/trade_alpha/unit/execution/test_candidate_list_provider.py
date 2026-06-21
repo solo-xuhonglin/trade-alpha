@@ -37,13 +37,13 @@ async def test_get_weekly_candidates_with_rolling():
         }
         return results.get(trade_date, [])
 
-    def mock_momentum(trade_date, universe_codes, momentum_n):
+    def mock_momentum(trade_date, universe_codes, momentum_n, prev_composite=None):
         results = {
-            "20240105": ["C"],
-            "20240112": ["A"],
-            "20240119": ["B"],
+            "20240105": (["C"], {}),
+            "20240112": (["A"], {}),
+            "20240119": (["B"], {}),
         }
-        return results.get(trade_date, [])
+        return results.get(trade_date, ([], {}))
 
     async def mock_resolve(date):
         return date
@@ -93,7 +93,7 @@ async def test_first_week_no_previous_base():
             type("M", (), {"ts_code": "A"}),
             type("M", (), {"ts_code": "B"}),
         ])),
-        patch.object(provider, "_get_momentum_stocks", AsyncMock(return_value=["C"])),
+        patch.object(provider, "_get_momentum_stocks", AsyncMock(return_value=(["C"], {}))),
     ):
         await provider.initialize(
             start_date="20240101", end_date="20240110",
