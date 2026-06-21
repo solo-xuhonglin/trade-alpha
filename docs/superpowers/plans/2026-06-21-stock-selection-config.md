@@ -258,33 +258,30 @@
       hold_codes = set(ctx.portfolio.positions.keys())
       all_scored = set(candidates) | hold_codes
       candidate_close = {k: v for k, v in close_prices.items() if k in all_scored}
+      # 持仓股对卖出逻辑也是在池中，不会触发 candidate_excluded
+      outdated_candidates = list(all_scored)
   else:
       candidate_close = {k: v for k, v in close_prices.items() if k in candidates}
+      outdated_candidates = candidates
   ```
 
-- [ ] **Step 3: _detect_outdated_positions 添加持仓保护**
+- [ ] **Step 3: 验证 `_detect_outdated_positions` 调用处传参**
 
+  找到 `outdated_orders = self._detect_outdated_positions(date, close_prices, candidates)` 这行，改为：
   ```python
-  def _detect_outdated_positions(self, date, close_prices, candidates):
-      sell_orders = []
-      for ts_code, pos in list(self.portfolio.positions.items()):
-          if ts_code not in candidates:
-              if self.strategy_config.use_hold_protection:
-                  continue
-              # ... 原有逻辑不变
+  outdated_orders = self._detect_outdated_positions(date, close_prices, outdated_candidates)
   ```
-
-- [ ] **Step 4: 验证导入**
+  _detect_outdated_positions 方法本身无需任何改动。
 
   Run: `cd d:\projects\trade-alpha\backend ; .venv\Scripts\python -c "from trade_alpha.execution.backtest_pipeline import BacktestPipeline; print('OK')"`
   Expected: `OK`
 
-- [ ] **Step 5: Run full integration tests**
+- [ ] **Step 4: Run full integration tests**
 
   Run: `cd d:\projects\trade-alpha\backend ; .venv\Scripts\pytest tests\trade_alpha\integration\ -v`
   Expected: 134 passed
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
   Run: `cd d:\projects\trade-alpha ; git add -A ; git commit -m "feat: add hold protection and pass strategy_config to provider"`
 

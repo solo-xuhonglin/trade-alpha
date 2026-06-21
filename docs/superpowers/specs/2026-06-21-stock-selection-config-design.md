@@ -101,28 +101,19 @@ if self.strategy_config.use_hold_protection:
     hold_codes = set(ctx.portfolio.positions.keys())
     all_scored = set(candidates) | hold_codes
     candidate_close = {k: v for k, v in close_prices.items() if k in all_scored}
+    # 持仓股对卖出逻辑也是在池中的，不会触发 candidate_excluded
+    outdated_candidates = list(all_scored)
 else:
     candidate_close = {k: v for k, v in close_prices.items() if k in candidates}
+    outdated_candidates = candidates
+
+# 后续 _detect_outdated_positions 传 outdated_candidates，无需任何改动
 ```
 
-### 3.2 候选池排除跳过
-
-`_detect_outdated_positions` 中，开启保护时跳过持仓股：
-
-```python
-def _detect_outdated_positions(self, date, close_prices, candidates):
-    sell_orders = []
-    for ts_code, pos in list(self.portfolio.positions.items()):
-        if ts_code not in candidates:
-            if self.strategy_config.use_hold_protection:
-                continue
-            # ... 原有强卖逻辑
-```
-
-### 3.3 效果
+### 3.2 效果
 
 - 持仓股始终有评分和排名 → 策略可通过 `hold_score_low` / `stop_loss` 等正常卖出
-- 不会触发 `candidate_excluded` 强制卖出
+- 不会触发 `candidate_excluded` 强制卖出（`_detect_outdated_positions` 认为持仓股仍在池中）
 - 等策略自己判断需要卖出后才自然退出候选池
 
 ## 四、后端 API 改动
