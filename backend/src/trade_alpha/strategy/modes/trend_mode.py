@@ -25,7 +25,7 @@ class TrendMode(PhaseMode):
     ) -> List[BuyCandidate]:
         config = ctx.strategy_config
 
-        above = [s for s in scored_stocks if s.composite_score > config.buy_threshold]
+        above = [s for s in scored_stocks if s.weighted_score > config.buy_threshold]
         sorted_above = sorted(above, key=lambda s: s.ranking_score, reverse=True)
 
         if len(sorted_above) <= 5:

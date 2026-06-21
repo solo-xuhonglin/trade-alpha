@@ -76,7 +76,7 @@ class MultiStockStrategy(BaseStrategy):
             ctx.portfolio.update_peak_prices(close_prices)
 
         # ── 5. Build score_map + increment hold_days ──
-        score_map = {st.ts_code: st.composite_score for st in scored_stocks}
+        score_map = {st.ts_code: st.weighted_score for st in scored_stocks}
         for pos in ctx.portfolio.positions.values():
             pos.hold_days += 1
 
