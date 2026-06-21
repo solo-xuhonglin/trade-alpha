@@ -37,25 +37,30 @@ Provider._get_momentum_stocks() 读取 self._range_n 等
 
 ### 2.1 Provider 初始化
 
-当前 `CandidateListProvider.__init__(params)` 接收 `range_n/top_n/momentum_n`。新增接收可选权重参数：
+当前 `CandidateListProvider.__init__(params)` 接收 `range_n/top_n/momentum_n`。改为直接接收 `strategy_config`：
 
 ```python
-def __init__(self, params: dict):
-    self._momentum_fields_weights = params.get("momentum_fields_weights")
-    self._log_mv_weight = params.get("log_mv_weight", 1.0)
-    self._improvement_weight = params.get("improvement_weight", 0.2)
+def __init__(self, params: dict, strategy_config: Optional[StrategyConfig] = None):
+    self._ts_codes: Optional[List[str]] = params.get("ts_codes")
+    self._range_n: int = params.get("range_n", 300)
+    self._top_n: int = params.get("top_n", 100)
+    self._momentum_n: int = params.get("momentum_n", 20)
+    # 选股权重从 strategy_config 读取
+    if strategy_config:
+        self._momentum_fields_weights = strategy_config.momentum_fields_weights
+        self._log_mv_weight = strategy_config.log_mv_weight
+        self._improvement_weight = strategy_config.improvement_weight
+    else:
+        self._momentum_fields_weights = None
+        self._log_mv_weight = 1.0
+        self._improvement_weight = 0.2
 ```
 
-### 2.2 Pipeline 传入权重
+### 2.2 Pipeline 传入 strategy_config
 
 ```python
 # backtest_pipeline.py 中创建 provider 时
-provider_params = {
-    **params,
-    "momentum_fields_weights": strategy_config.momentum_fields_weights,
-    "log_mv_weight": strategy_config.log_mv_weight,
-    "improvement_weight": strategy_config.improvement_weight,
-}
+provider = CandidateListProvider(params, strategy_config)
 ```
 
 ### 2.3 _get_momentum_stocks 使用配置权重
