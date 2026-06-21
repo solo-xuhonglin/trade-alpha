@@ -86,6 +86,8 @@ def _strategy_to_dict(s) -> dict:
         "sel_log_mv_weight": s.sel_log_mv_weight,
         "sel_rank_rise_weight": s.sel_rank_rise_weight,
         "sel_ewma_alpha": s.sel_ewma_alpha,
+        "use_weighted_score": s.use_weighted_score,
+        "weighted_score_factor": s.weighted_score_factor,
         "use_hold_protection": s.use_hold_protection,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
@@ -186,6 +188,8 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             sel_log_mv_weight=request.sel_log_mv_weight,
             sel_rank_rise_weight=request.sel_rank_rise_weight,
             sel_ewma_alpha=request.sel_ewma_alpha,
+            use_weighted_score=request.use_weighted_score,
+            weighted_score_factor=request.weighted_score_factor,
             use_hold_protection=request.use_hold_protection,
         )
         return _strategy_to_dict(s)
@@ -268,6 +272,8 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             sel_log_mv_weight=request.sel_log_mv_weight,
             sel_rank_rise_weight=request.sel_rank_rise_weight,
             sel_ewma_alpha=request.sel_ewma_alpha,
+            use_weighted_score=request.use_weighted_score,
+            weighted_score_factor=request.weighted_score_factor,
             use_hold_protection=request.use_hold_protection,
         )
         return _strategy_to_dict(s)

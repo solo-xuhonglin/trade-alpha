@@ -107,6 +107,8 @@ class StrategyCreateRequest(BaseModel):
     sel_log_mv_weight: Optional[float] = None
     sel_rank_rise_weight: Optional[float] = None
     sel_ewma_alpha: Optional[float] = None
+    use_weighted_score: Optional[bool] = None
+    weighted_score_factor: Optional[float] = None
     use_hold_protection: Optional[bool] = None
 
 
@@ -177,6 +179,8 @@ class StrategyUpdateRequest(BaseModel):
     sel_log_mv_weight: Optional[float] = None
     sel_rank_rise_weight: Optional[float] = None
     sel_ewma_alpha: Optional[float] = None
+    use_weighted_score: Optional[bool] = None
+    weighted_score_factor: Optional[float] = None
     use_hold_protection: Optional[bool] = None
 
 
