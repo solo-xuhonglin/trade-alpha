@@ -1,6 +1,6 @@
 """CandidateListProvider — provides weekly dynamic candidate stock pools for backtesting."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from datetime import datetime
 
 from beanie.odm.operators.find.comparison import In
@@ -41,6 +41,7 @@ class CandidateListProvider:
             self._sel_log_mv_weight = strategy_config.sel_log_mv_weight
             self._sel_rank_rise_weight = strategy_config.sel_rank_rise_weight
             self._sel_ewma_alpha = strategy_config.sel_ewma_alpha
+            self._use_hold_protection = strategy_config.use_hold_protection
         else:
             self._sel_trend_slope_weight = 1.0
             self._sel_trend_arrangement_weight = 1.0
@@ -52,6 +53,7 @@ class CandidateListProvider:
             self._sel_log_mv_weight = 1.0
             self._sel_rank_rise_weight = 0.2
             self._sel_ewma_alpha = 0.7
+            self._use_hold_protection = False
         # Internal state
         self._candidate_map: Dict[str, List[str]] = {}
         self._stock_groups: Dict[str, str] = {}
@@ -77,8 +79,12 @@ class CandidateListProvider:
                 start_date=start_date, end_date=end_date,
             )
 
-    def get_candidates_for_date(self, date: str) -> List[str]:
-        """Return candidates for given date. Handles period tracking internally."""
+    def get_candidates_for_date(self, date: str, hold_codes: Optional[Set[str]] = None) -> List[str]:
+        """Return candidates for given date. Handles period tracking internally.
+
+        When hold_protection is enabled and hold_codes provided, held stocks
+        are included in the returned set so they remain scored and ranked.
+        """
         if self._ts_codes:
             return self._ts_codes
         period_key = self._get_period_key(date)
@@ -89,6 +95,9 @@ class CandidateListProvider:
         elif self._candidate_map:
             # Warmup phase: date is before first candidate period
             self._current_candidates = self._candidate_map[min(self._candidate_map.keys())]
+
+        if hold_codes and self._use_hold_protection:
+            return list(set(self._current_candidates) | hold_codes)
         return self._current_candidates
 
     async def get_baseline_codes(self, date: str) -> List[str]:

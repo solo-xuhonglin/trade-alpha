@@ -508,7 +508,8 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            candidates = provider.get_candidates_for_date(date)
+            hold_codes = set(self.ctx.portfolio.positions.keys()) if self.strategy_config.use_hold_protection else None
+            candidates = provider.get_candidates_for_date(date, hold_codes)
 
             # Update warmup pool on period change (tracked internally)
             current_period_key = provider.get_period_key(date)
@@ -516,16 +517,8 @@ class BacktestPipeline:
 
             baseline_tracker.track(close_prices)
 
-            # Hold protection: include current positions in scoring pool
-            if self.strategy_config.use_hold_protection:
-                all_scored = self.ctx.portfolio.expand_with_holdings(candidates)
-                candidate_close = {k: v for k, v in close_prices.items()
-                                   if k in all_scored}
-                outdated_candidates = list(all_scored)
-            else:
-                candidate_close = {k: v for k, v in close_prices.items()
-                                   if k in candidates}
-                outdated_candidates = candidates
+            candidate_close = {k: v for k, v in close_prices.items()
+                               if k in candidates}
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
 
             logger.info(
@@ -581,7 +574,7 @@ class BacktestPipeline:
                         stock_map[o.ts_code].forced_sell_reason = "full_position"
 
             outdated_orders = self._detect_outdated_positions(
-                date, close_prices, outdated_candidates,
+                date, close_prices, candidates,
             )
             pending_orders.extend(outdated_orders)
 

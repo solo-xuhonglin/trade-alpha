@@ -6,7 +6,7 @@ It handles fee calculation, fund reservation (pre-deduct), settlement
 All fee inputs/outputs are computed internally — callers never pass fee values.
 """
 
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.position import PositionEmbed
@@ -67,15 +67,6 @@ class PortfolioManager:
     def pending_buys(self) -> Dict[str, "PendingBuy"]:
         """Buy reservations awaiting T+1 settlement."""
         return self._pending_buys
-
-    def expand_with_holdings(self, candidates: List[str]) -> Set[str]:
-        """Extend a candidate set with currently held positions.
-
-        Used by hold protection: held stocks stay in the scoring pool
-        even if not selected by momentum logic, so they continue to
-        receive scores and rankings for strategy sell decisions.
-        """
-        return set(candidates) | set(self.positions.keys())
 
     @property
     def total_position_count(self) -> int:
