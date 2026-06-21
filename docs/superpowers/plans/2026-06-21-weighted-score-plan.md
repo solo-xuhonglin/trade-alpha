@@ -205,6 +205,50 @@ git commit -m "feat: add weighted_score computation in ScoreManager"
 
 ---
 
+### Task 4b: Use weighted_score in strategy decisions
+
+**Files:**
+- Modify: `backend/src/trade_alpha/strategy/multi_stock_strategy.py`
+- Modify: `backend/src/trade_alpha/strategy/modes/trend_mode.py`
+
+- [ ] **Change score_map to use weighted_score**
+
+In `multi_stock_strategy.py:79`, change from:
+```python
+score_map = {st.ts_code: st.composite_score for st in scored_stocks}
+```
+To:
+```python
+score_map = {st.ts_code: st.weighted_score for st in scored_stocks}
+```
+
+This ensures `hold_score_low` (line 351) and `score_below_sell` (line 337) comparisons use the weighted score.
+
+- [ ] **Change buy threshold to use weighted_score**
+
+In `trend_mode.py:28`, change from:
+```python
+above = [s for s in scored_stocks if s.composite_score > config.buy_threshold]
+```
+To:
+```python
+above = [s for s in scored_stocks if s.weighted_score > config.buy_threshold]
+```
+
+- [ ] **Verify tests pass**
+
+Run: `cd backend && .venv\Scripts\pytest tests/trade_alpha/unit/ -v 2>&1`
+Expected: All tests pass
+
+- [ ] **Commit**
+
+```bash
+git add backend/src/trade_alpha/strategy/multi_stock_strategy.py backend/src/trade_alpha/strategy/modes/trend_mode.py
+git commit -m "feat: use weighted_score in strategy buy/sell decisions"
+```
+
+---
+
 ### Task 5: API schemas + router + service
 
 **Files:**
