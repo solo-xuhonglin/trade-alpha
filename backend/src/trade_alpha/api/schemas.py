@@ -97,6 +97,16 @@ class StrategyCreateRequest(BaseModel):
     rotation_was_top_pct: Optional[float] = 0.15
     rotation_pullback_window: Optional[int] = 5
     rotation_was_top_window: Optional[int] = 60
+    sel_trend_slope_weight: Optional[float] = None
+    sel_trend_arrangement_weight: Optional[float] = None
+    sel_close_position_20_weight: Optional[float] = None
+    sel_close_position_60_weight: Optional[float] = None
+    sel_bias_20_weight: Optional[float] = None
+    sel_bias_60_weight: Optional[float] = None
+    sel_atr_14_weight: Optional[float] = None
+    sel_log_mv_weight: Optional[float] = None
+    sel_rank_rise_weight: Optional[float] = None
+    use_hold_protection: Optional[bool] = None
 
 
 class StrategyUpdateRequest(BaseModel):

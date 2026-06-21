@@ -76,6 +76,16 @@ def _strategy_to_dict(s) -> dict:
         "rotation_was_top_pct": s.rotation_was_top_pct,
         "rotation_pullback_window": s.rotation_pullback_window,
         "rotation_was_top_window": s.rotation_was_top_window,
+        "sel_trend_slope_weight": s.sel_trend_slope_weight,
+        "sel_trend_arrangement_weight": s.sel_trend_arrangement_weight,
+        "sel_close_position_20_weight": s.sel_close_position_20_weight,
+        "sel_close_position_60_weight": s.sel_close_position_60_weight,
+        "sel_bias_20_weight": s.sel_bias_20_weight,
+        "sel_bias_60_weight": s.sel_bias_60_weight,
+        "sel_atr_14_weight": s.sel_atr_14_weight,
+        "sel_log_mv_weight": s.sel_log_mv_weight,
+        "sel_rank_rise_weight": s.sel_rank_rise_weight,
+        "use_hold_protection": s.use_hold_protection,
         "created_at": s.created_at,
         "updated_at": s.updated_at,
     }
@@ -165,6 +175,16 @@ async def create_strategy_endpoint(request: StrategyCreateRequest):
             rotation_was_top_pct=request.rotation_was_top_pct,
             rotation_pullback_window=request.rotation_pullback_window,
             rotation_was_top_window=request.rotation_was_top_window,
+            sel_trend_slope_weight=request.sel_trend_slope_weight,
+            sel_trend_arrangement_weight=request.sel_trend_arrangement_weight,
+            sel_close_position_20_weight=request.sel_close_position_20_weight,
+            sel_close_position_60_weight=request.sel_close_position_60_weight,
+            sel_bias_20_weight=request.sel_bias_20_weight,
+            sel_bias_60_weight=request.sel_bias_60_weight,
+            sel_atr_14_weight=request.sel_atr_14_weight,
+            sel_log_mv_weight=request.sel_log_mv_weight,
+            sel_rank_rise_weight=request.sel_rank_rise_weight,
+            use_hold_protection=request.use_hold_protection,
         )
         return _strategy_to_dict(s)
     except ValueError as e:
@@ -236,6 +256,16 @@ async def update_strategy_endpoint(strategy_id: str, request: StrategyUpdateRequ
             rotation_was_top_pct=request.rotation_was_top_pct,
             rotation_pullback_window=request.rotation_pullback_window,
             rotation_was_top_window=request.rotation_was_top_window,
+            sel_trend_slope_weight=request.sel_trend_slope_weight,
+            sel_trend_arrangement_weight=request.sel_trend_arrangement_weight,
+            sel_close_position_20_weight=request.sel_close_position_20_weight,
+            sel_close_position_60_weight=request.sel_close_position_60_weight,
+            sel_bias_20_weight=request.sel_bias_20_weight,
+            sel_bias_60_weight=request.sel_bias_60_weight,
+            sel_atr_14_weight=request.sel_atr_14_weight,
+            sel_log_mv_weight=request.sel_log_mv_weight,
+            sel_rank_rise_weight=request.sel_rank_rise_weight,
+            use_hold_protection=request.use_hold_protection,
         )
         return _strategy_to_dict(s)
     except ValueError as e:

@@ -74,6 +74,16 @@ async def create_strategy(
     rotation_was_top_pct: Optional[float] = None,
     rotation_pullback_window: Optional[int] = None,
     rotation_was_top_window: Optional[int] = None,
+    sel_trend_slope_weight: Optional[float] = None,
+    sel_trend_arrangement_weight: Optional[float] = None,
+    sel_close_position_20_weight: Optional[float] = None,
+    sel_close_position_60_weight: Optional[float] = None,
+    sel_bias_20_weight: Optional[float] = None,
+    sel_bias_60_weight: Optional[float] = None,
+    sel_atr_14_weight: Optional[float] = None,
+    sel_log_mv_weight: Optional[float] = None,
+    sel_rank_rise_weight: Optional[float] = None,
+    use_hold_protection: Optional[bool] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -176,6 +186,16 @@ async def update_strategy(
     rotation_was_top_pct: Optional[float] = None,
     rotation_pullback_window: Optional[int] = None,
     rotation_was_top_window: Optional[int] = None,
+    sel_trend_slope_weight: Optional[float] = None,
+    sel_trend_arrangement_weight: Optional[float] = None,
+    sel_close_position_20_weight: Optional[float] = None,
+    sel_close_position_60_weight: Optional[float] = None,
+    sel_bias_20_weight: Optional[float] = None,
+    sel_bias_60_weight: Optional[float] = None,
+    sel_atr_14_weight: Optional[float] = None,
+    sel_log_mv_weight: Optional[float] = None,
+    sel_rank_rise_weight: Optional[float] = None,
+    use_hold_protection: Optional[bool] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
@@ -313,6 +333,27 @@ async def update_strategy(
         strategy.rotation_pullback_window = rotation_pullback_window
     if rotation_was_top_window is not None:
         strategy.rotation_was_top_window = rotation_was_top_window
+
+    if sel_trend_slope_weight is not None:
+        strategy.sel_trend_slope_weight = sel_trend_slope_weight
+    if sel_trend_arrangement_weight is not None:
+        strategy.sel_trend_arrangement_weight = sel_trend_arrangement_weight
+    if sel_close_position_20_weight is not None:
+        strategy.sel_close_position_20_weight = sel_close_position_20_weight
+    if sel_close_position_60_weight is not None:
+        strategy.sel_close_position_60_weight = sel_close_position_60_weight
+    if sel_bias_20_weight is not None:
+        strategy.sel_bias_20_weight = sel_bias_20_weight
+    if sel_bias_60_weight is not None:
+        strategy.sel_bias_60_weight = sel_bias_60_weight
+    if sel_atr_14_weight is not None:
+        strategy.sel_atr_14_weight = sel_atr_14_weight
+    if sel_log_mv_weight is not None:
+        strategy.sel_log_mv_weight = sel_log_mv_weight
+    if sel_rank_rise_weight is not None:
+        strategy.sel_rank_rise_weight = sel_rank_rise_weight
+    if use_hold_protection is not None:
+        strategy.use_hold_protection = use_hold_protection
 
     strategy.updated_at = datetime.now(timezone.utc)
     await strategy.save()
