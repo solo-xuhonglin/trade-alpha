@@ -573,6 +573,18 @@
                     label="EWMA平滑系数" hint="评分EWMA平滑，值越小越平滑（默认0.7）" persistent-hint />
                 </v-col>
                 <v-col cols="12" md="6">
+                  <v-switch v-model="form.use_weighted_score"
+                    label="启用分数加权"
+                    hint="开启后用 log 市值对预测分数加权，大市值更可靠" persistent-hint color="primary"
+                    :disabled="form.type !== 'multi'" />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.weighted_score_factor"
+                    type="number" step="0.1" min="0" max="5"
+                    label="加权因子" hint="加权强度（默认0.2）" persistent-hint
+                    :disabled="!form.use_weighted_score || form.type !== 'multi'" />
+                </v-col>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.sel_rank_rise_weight" type="number" step="0.05" min="0" max="1"
                     label="排名上升权重" hint="选股时评分改善的占比（默认0.2）" persistent-hint />
                 </v-col>
@@ -785,6 +797,8 @@ const form = ref({
   sel_log_mv_weight: 1.0,
   sel_rank_rise_weight: 0.2,
   sel_ewma_alpha: 0.7,
+  use_weighted_score: false,
+  weighted_score_factor: 0.2,
   use_hold_protection: false,
 })
 
@@ -865,6 +879,8 @@ const compareFields: CompareField[] = [
   { key: 'sel_log_mv_weight', label: '对数市值权重', group: '选股配置', type: 'number' },
   { key: 'sel_rank_rise_weight', label: '排名上升权重', group: '选股配置', type: 'number' },
   { key: 'sel_ewma_alpha', label: 'EWMA平滑系数', group: '选股配置', type: 'number' },
+  { key: 'use_weighted_score', label: '分数加权', group: '选股配置', type: 'boolean' },
+  { key: 'weighted_score_factor', label: '加权因子', group: '选股配置', type: 'number' },
   { key: 'use_hold_protection', label: '持仓保护', group: '选股配置', type: 'boolean' },
 ]
 
@@ -957,6 +973,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       sel_log_mv_weight: item.sel_log_mv_weight ?? 1.0,
       sel_rank_rise_weight: item.sel_rank_rise_weight ?? 0.2,
       sel_ewma_alpha: item.sel_ewma_alpha ?? 0.7,
+      use_weighted_score: item.use_weighted_score ?? false,
+      weighted_score_factor: item.weighted_score_factor ?? 0.2,
       use_hold_protection: item.use_hold_protection ?? false,
     }
   } else {
@@ -1093,6 +1111,8 @@ const saveStrategy = async () => {
       sel_log_mv_weight: form.value.type === 'multi' ? form.value.sel_log_mv_weight : undefined,
       sel_rank_rise_weight: form.value.type === 'multi' ? form.value.sel_rank_rise_weight : undefined,
       sel_ewma_alpha: form.value.type === 'multi' ? form.value.sel_ewma_alpha : undefined,
+      use_weighted_score: form.value.type === 'multi' ? form.value.use_weighted_score : undefined,
+      weighted_score_factor: form.value.type === 'multi' ? form.value.weighted_score_factor : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
     })
   } else {
@@ -1164,6 +1184,8 @@ const saveStrategy = async () => {
       sel_log_mv_weight: form.value.type === 'multi' ? form.value.sel_log_mv_weight : undefined,
       sel_rank_rise_weight: form.value.type === 'multi' ? form.value.sel_rank_rise_weight : undefined,
       sel_ewma_alpha: form.value.type === 'multi' ? form.value.sel_ewma_alpha : undefined,
+      use_weighted_score: form.value.type === 'multi' ? form.value.use_weighted_score : undefined,
+      weighted_score_factor: form.value.type === 'multi' ? form.value.weighted_score_factor : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
     })
   }
