@@ -15,7 +15,7 @@
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|:------:|------|
 | `use_weighted_score` | bool | `false` | 是否启用加权（开关） |
-| `weighted_score_factor` | float | `1.0` | 外部因子权重 |
+| `weighted_score_factor` | float | `0.2` | 外部因子权重 |
 
 ### 2. 新增分数段
 
@@ -31,9 +31,10 @@ weighted_score: float = 0.0  # 经外部因子加权后的分数，用于决策
 
 | 环节 | 原用字段 | 改为 |
 |------|---------|------|
-| `smooth_scores` → `ranking_score` | `composite_score` | `weighted_score` (fallback 到 `composite_score`) |
-| `hold_score_low` 卖出判断 | `composite_score` | 同上 |
-| 排名 `record_ranking_scores` | `ranking_score` | 不变（`ranking_score` 由 `smooth_scores` 产出） |
+| `smooth_scores` → `ranking_score` | `composite_score` | `weighted_score` |
+| `hold_score_low`/`score_below_sell` | `composite_score` | `weighted_score`（通过 `score_map`） |
+| 买入 `buy_threshold` | `composite_score` | `weighted_score` |
+| 排名 `record_ranking_scores` | `ranking_score` | 代码不变，但 `ranking_score` 的输入变为 `weighted_score`，所以排名效果受加权影响 |
 | 持久化 | `composite_score` | 保留 + 新增 `weighted_score` 作为独立字段 |
 
 `composite_score` 原样保留，仅用于记录和分析对比。所有决策逻辑基于 `weighted_score`。
