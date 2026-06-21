@@ -11,9 +11,10 @@
 | | `sync_live_portfolio.py` | 同步实盘持仓（配合 `positions.json`） |
 | **数据维护** | `backfill_weekly_features.py` | 回填周线特征数据 |
 | | `reset_stock_data.py` | 重置股票数据（清空日线数据，重新同步） |
-| | `reset_stock_list_history.py` | 清空市值历史并重建唯一索引 |
 | **回测分析** | `analyze_backtest.py` | 分析指定回测结果的交易记录 |
 | | `analyze_backtest_today.py` | 分析当天所有回测结果，输出到 `backtest_analysis/` |
+| | `analyze_momentum_selection.py` | 动量选股策略验证——筛选组合未来收益对比 |
+| | `analyze_selection_v2.py` | 选股逻辑对比验证（固定市值+动量 vs 全动量选股） |
 | | `check_backtests.py` | 快速查看回测结果数量和参数分布 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 
@@ -129,6 +130,18 @@ python scripts/check_backtests.py
 ```
 
 快速查看数据库中回测结果的数量和参数分布。
+
+### analyze_selection_v2.py — 选股逻辑对比
+
+```bash
+python scripts/analyze_selection_v2.py
+```
+
+对比两种选股策略的历史表现：
+- **旧逻辑**: 市值前100 + 从101~300中动量选20只
+- **新逻辑**: 市值前150中动量选120只
+
+逐周回测各逻辑的候选池，计算20/40个交易日后平均收益，输出月度明细和年度汇总。
 
 ---
 
