@@ -569,6 +569,10 @@
 
               <v-row>
                 <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_ewma_alpha" type="number" step="0.05" min="0" max="1"
+                    label="EWMA平滑系数" hint="评分EWMA平滑，值越小越平滑（默认0.7）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.sel_rank_rise_weight" type="number" step="0.05" min="0" max="1"
                     label="排名上升权重" hint="选股时评分改善的占比（默认0.2）" persistent-hint />
                 </v-col>
@@ -780,6 +784,7 @@ const form = ref({
   sel_atr_14_weight: 0.3,
   sel_log_mv_weight: 1.0,
   sel_rank_rise_weight: 0.2,
+  sel_ewma_alpha: 0.7,
   use_hold_protection: false,
 })
 
@@ -859,6 +864,7 @@ const compareFields: CompareField[] = [
   { key: 'sel_atr_14_weight', label: 'ATR14权重', group: '选股配置', type: 'number' },
   { key: 'sel_log_mv_weight', label: '对数市值权重', group: '选股配置', type: 'number' },
   { key: 'sel_rank_rise_weight', label: '排名上升权重', group: '选股配置', type: 'number' },
+  { key: 'sel_ewma_alpha', label: 'EWMA平滑系数', group: '选股配置', type: 'number' },
   { key: 'use_hold_protection', label: '持仓保护', group: '选股配置', type: 'boolean' },
 ]
 
@@ -950,6 +956,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       sel_atr_14_weight: item.sel_atr_14_weight ?? 0.3,
       sel_log_mv_weight: item.sel_log_mv_weight ?? 1.0,
       sel_rank_rise_weight: item.sel_rank_rise_weight ?? 0.2,
+      sel_ewma_alpha: item.sel_ewma_alpha ?? 0.7,
       use_hold_protection: item.use_hold_protection ?? false,
     }
   } else {
@@ -1085,6 +1092,7 @@ const saveStrategy = async () => {
       sel_atr_14_weight: form.value.type === 'multi' ? form.value.sel_atr_14_weight : undefined,
       sel_log_mv_weight: form.value.type === 'multi' ? form.value.sel_log_mv_weight : undefined,
       sel_rank_rise_weight: form.value.type === 'multi' ? form.value.sel_rank_rise_weight : undefined,
+      sel_ewma_alpha: form.value.type === 'multi' ? form.value.sel_ewma_alpha : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
     })
   } else {
@@ -1155,6 +1163,7 @@ const saveStrategy = async () => {
       sel_atr_14_weight: form.value.type === 'multi' ? form.value.sel_atr_14_weight : undefined,
       sel_log_mv_weight: form.value.type === 'multi' ? form.value.sel_log_mv_weight : undefined,
       sel_rank_rise_weight: form.value.type === 'multi' ? form.value.sel_rank_rise_weight : undefined,
+      sel_ewma_alpha: form.value.type === 'multi' ? form.value.sel_ewma_alpha : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
     })
   }

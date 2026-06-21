@@ -106,6 +106,7 @@ class StrategyCreateRequest(BaseModel):
     sel_atr_14_weight: Optional[float] = None
     sel_log_mv_weight: Optional[float] = None
     sel_rank_rise_weight: Optional[float] = None
+    sel_ewma_alpha: Optional[float] = None
     use_hold_protection: Optional[bool] = None
 
 
@@ -257,4 +258,6 @@ class StockDailyListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    total_pages: int
+    total_pages: int
     total_pages: int

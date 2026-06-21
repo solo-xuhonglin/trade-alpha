@@ -83,6 +83,7 @@ async def create_strategy(
     sel_atr_14_weight: Optional[float] = None,
     sel_log_mv_weight: Optional[float] = None,
     sel_rank_rise_weight: Optional[float] = None,
+    sel_ewma_alpha: Optional[float] = None,
     use_hold_protection: Optional[bool] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
@@ -195,6 +196,7 @@ async def update_strategy(
     sel_atr_14_weight: Optional[float] = None,
     sel_log_mv_weight: Optional[float] = None,
     sel_rank_rise_weight: Optional[float] = None,
+    sel_ewma_alpha: Optional[float] = None,
     use_hold_protection: Optional[bool] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
@@ -352,6 +354,8 @@ async def update_strategy(
         strategy.sel_log_mv_weight = sel_log_mv_weight
     if sel_rank_rise_weight is not None:
         strategy.sel_rank_rise_weight = sel_rank_rise_weight
+    if sel_ewma_alpha is not None:
+        strategy.sel_ewma_alpha = sel_ewma_alpha
     if use_hold_protection is not None:
         strategy.use_hold_protection = use_hold_protection
 

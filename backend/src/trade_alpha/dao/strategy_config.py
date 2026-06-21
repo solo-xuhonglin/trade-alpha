@@ -77,6 +77,7 @@ class StrategyConfig(Document):
     sel_atr_14_weight: float = 0.3
     sel_log_mv_weight: float = 1.0
     sel_rank_rise_weight: float = 0.2
+    sel_ewma_alpha: float = 0.7
 
     # ── 持仓保护 ──
     use_hold_protection: bool = False

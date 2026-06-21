@@ -40,6 +40,7 @@ class CandidateListProvider:
             self._sel_atr_14_weight = strategy_config.sel_atr_14_weight
             self._sel_log_mv_weight = strategy_config.sel_log_mv_weight
             self._sel_rank_rise_weight = strategy_config.sel_rank_rise_weight
+            self._sel_ewma_alpha = strategy_config.sel_ewma_alpha
         else:
             self._sel_trend_slope_weight = 1.0
             self._sel_trend_arrangement_weight = 1.0
@@ -50,6 +51,7 @@ class CandidateListProvider:
             self._sel_atr_14_weight = 0.3
             self._sel_log_mv_weight = 1.0
             self._sel_rank_rise_weight = 0.2
+            self._sel_ewma_alpha = 0.7
         # Internal state
         self._candidate_map: Dict[str, List[str]] = {}
         self._stock_groups: Dict[str, str] = {}
@@ -251,6 +253,23 @@ class CandidateListProvider:
         cur_range = cur_max - cur_min if cur_max > cur_min else 1
         normalized = {ts: (score - cur_min) / cur_range for ts, score in composite.items()}
 
+        # Apply EWMA smoothing if configured (alpha < 1.0)
+        # Smoothed score = alpha * current_raw + (1-alpha) * previous_ewma
+        # prev_composite holds previous EWMA values when EWMA is active
+        if self._sel_ewma_alpha < 1.0 and prev_composite is not None:
+            ewma_alpha = self._sel_ewma_alpha
+            ewma = {}
+            for code, raw in normalized.items():
+                if code in prev_composite:
+                    ewma[code] = ewma_alpha * raw + (1 - ewma_alpha) * prev_composite[code]
+                else:
+                    ewma[code] = raw
+            scores_for_selection = ewma
+            scores_to_return = ewma
+        else:
+            scores_for_selection = normalized
+            scores_to_return = normalized
+
         if prev_composite is not None:
             # Normalize previous scores to [0, 1]
             prev_vals = list(prev_composite.values())
@@ -258,22 +277,22 @@ class CandidateListProvider:
             prev_range = prev_max - prev_min if prev_max > prev_min else 1
             prev_norm = {ts: (score - prev_min) / prev_range for ts, score in prev_composite.items()}
 
-            # Compute improvement: current - previous (only stocks in both periods)
-            common = set(normalized.keys()) & set(prev_norm.keys())
-            improvement = {ts: normalized[ts] - prev_norm[ts] for ts in common}
+            # Compute improvement using EWMA-smoothed scores (or raw if EWMA disabled)
+            common = set(scores_for_selection.keys()) & set(prev_norm.keys())
+            improvement = {ts: scores_for_selection[ts] - prev_norm[ts] for ts in common}
 
             # Combined score: (1-w) * absolute + w * rank rise
             RANK_RISE_WEIGHT = self._sel_rank_rise_weight
             combined = {}
             for ts in common:
-                combined[ts] = (1 - RANK_RISE_WEIGHT) * normalized[ts] + RANK_RISE_WEIGHT * improvement[ts]
+                combined[ts] = (1 - RANK_RISE_WEIGHT) * scores_for_selection[ts] + RANK_RISE_WEIGHT * improvement[ts]
 
             sorted_stocks = sorted(combined.items(), key=lambda x: x[1], reverse=True)
-            return [ts for ts, _ in sorted_stocks[:momentum_n]], normalized
+            return [ts for ts, _ in sorted_stocks[:momentum_n]], scores_to_return
 
         # First period: use absolute scores
         sorted_stocks = sorted(composite.items(), key=lambda x: x[1], reverse=True)
-        return [ts for ts, _ in sorted_stocks[:momentum_n]], normalized
+        return [ts for ts, _ in sorted_stocks[:momentum_n]], scores_to_return
 
     async def _get_candidates(
         self, start_date: str, end_date: str,
