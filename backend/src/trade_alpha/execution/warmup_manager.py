@@ -1,7 +1,7 @@
 """WarmupManager — manages candidate warmup pool for scoring history accumulation."""
 
 from bisect import bisect_right
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 from trade_alpha.logging import get_logger
 from trade_alpha.schemas import ScoredStock
@@ -86,14 +86,9 @@ class WarmupManager:
     def build_prediction_close(
         self,
         close_prices: Dict[str, float],
-        formal_set: Optional[Set[str]] = None,
+        formal_set: Set[str],
     ) -> Dict[str, float]:
-        """Build prediction close dict: formal + warmup stocks.
-
-        When formal_set is None (fixed stock mode), returns all close_prices.
-        """
-        if formal_set is None:
-            return close_prices
+        """Build prediction close dict: formal + warmup stocks."""
         result = {k: v for k, v in close_prices.items() if k in formal_set}
         result.update({k: v for k, v in close_prices.items() if k in self._pool})
         return result

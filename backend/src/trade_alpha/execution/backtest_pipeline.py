@@ -285,17 +285,15 @@ class BacktestPipeline:
         return snapshot.total_value, snapshot.day_return
 
     @staticmethod
-    def _compute_warmup_days(strategy_config: Optional[StrategyConfig]) -> int:
-        if strategy_config is None:
-            return 0
+    def _compute_warmup_days(strategy_config: StrategyConfig) -> int:
         windows = [
-            getattr(strategy_config, 'ranking_smooth_window', 5),
-            getattr(strategy_config, 'market_smooth_window', 5),
-            getattr(strategy_config, 'retention_days', 5),
-            getattr(strategy_config, 'correlation_window', 5),
-            getattr(strategy_config, 'rank_up_window', 5),
-            getattr(strategy_config, 'rotation_was_top_window', 30),
-            getattr(strategy_config, 'rotation_pullback_window', 5),
+            strategy_config.ranking_smooth_window,
+            strategy_config.market_smooth_window,
+            strategy_config.retention_days,
+            strategy_config.correlation_window,
+            strategy_config.rank_up_window,
+            strategy_config.rotation_was_top_window,
+            strategy_config.rotation_pullback_window,
         ]
         return max(windows) + 10
 
