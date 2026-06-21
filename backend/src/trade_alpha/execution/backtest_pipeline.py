@@ -90,7 +90,7 @@ class BacktestPipeline:
         self.market_analyzer = MarketRegimeAnalyzer(strategy_config)
 
         # Synchronously create Provider (no DB operations in __init__)
-        provider = CandidateListProvider(params)
+        provider = CandidateListProvider(params, strategy_config)
 
         # Initialize warmup manager (always needed for score history)
         warmup_manager = WarmupManager()
@@ -516,9 +516,17 @@ class BacktestPipeline:
 
             baseline_tracker.track(close_prices)
 
-            # Build prediction set including warmup stocks
-            candidate_close = {k: v for k, v in close_prices.items()
-                               if k in candidates}
+            # Hold protection: include current positions in scoring pool
+            if self.strategy_config.use_hold_protection:
+                hold_codes = set(ctx.portfolio.positions.keys())
+                all_scored = set(candidates) | hold_codes
+                candidate_close = {k: v for k, v in close_prices.items()
+                                   if k in all_scored}
+                outdated_candidates = list(all_scored)
+            else:
+                candidate_close = {k: v for k, v in close_prices.items()
+                                   if k in candidates}
+                outdated_candidates = candidates
             pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
 
             logger.info(
@@ -574,7 +582,7 @@ class BacktestPipeline:
                         stock_map[o.ts_code].forced_sell_reason = "full_position"
 
             outdated_orders = self._detect_outdated_positions(
-                date, close_prices, candidates,
+                date, close_prices, outdated_candidates,
             )
             pending_orders.extend(outdated_orders)
 

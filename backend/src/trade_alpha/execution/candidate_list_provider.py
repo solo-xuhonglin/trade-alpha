@@ -22,13 +22,34 @@ class CandidateListProvider:
     per date.
     """
 
-    def __init__(self, params: dict):
+    def __init__(self, params: dict, strategy_config=None):
         # Fixed-list mode
         self._ts_codes: Optional[List[str]] = params.get("ts_codes")
-        # Dynamic monthly mode params
+        # Dynamic pool params
         self._range_n: int = params.get("range_n", 300)
         self._top_n: int = params.get("top_n", 100)
         self._momentum_n: int = params.get("momentum_n", 20)
+        # Momentum selection weights from strategy_config
+        if strategy_config is not None:
+            self._sel_trend_slope_weight = strategy_config.sel_trend_slope_weight
+            self._sel_trend_arrangement_weight = strategy_config.sel_trend_arrangement_weight
+            self._sel_close_position_20_weight = strategy_config.sel_close_position_20_weight
+            self._sel_close_position_60_weight = strategy_config.sel_close_position_60_weight
+            self._sel_bias_20_weight = strategy_config.sel_bias_20_weight
+            self._sel_bias_60_weight = strategy_config.sel_bias_60_weight
+            self._sel_atr_14_weight = strategy_config.sel_atr_14_weight
+            self._sel_log_mv_weight = strategy_config.sel_log_mv_weight
+            self._sel_rank_rise_weight = strategy_config.sel_rank_rise_weight
+        else:
+            self._sel_trend_slope_weight = 1.0
+            self._sel_trend_arrangement_weight = 1.0
+            self._sel_close_position_20_weight = 1.0
+            self._sel_close_position_60_weight = 1.0
+            self._sel_bias_20_weight = 1.0
+            self._sel_bias_60_weight = 1.0
+            self._sel_atr_14_weight = 0.3
+            self._sel_log_mv_weight = 1.0
+            self._sel_rank_rise_weight = 0.2
         # Internal state
         self._candidate_map: Dict[str, List[str]] = {}
         self._stock_groups: Dict[str, str] = {}
@@ -155,13 +176,13 @@ class CandidateListProvider:
         # ascending=True: higher raw value = better
         # ascending=False: lower raw value = better
         MOMENTUM_FIELDS = [
-            ("trend_slope_20", True, 1.0),
-            ("trend_arrangement_20", True, 1.0),
-            ("close_position_20", True, 1.0),
-            ("close_position_60", True, 1.0),
-            ("bias_20", True, 1.0),
-            ("bias_60", True, 1.0),
-            ("atr_14", False, 0.3),
+            ("trend_slope_20", True, self._sel_trend_slope_weight),
+            ("trend_arrangement_20", True, self._sel_trend_arrangement_weight),
+            ("close_position_20", True, self._sel_close_position_20_weight),
+            ("close_position_60", True, self._sel_close_position_60_weight),
+            ("bias_20", True, self._sel_bias_20_weight),
+            ("bias_60", True, self._sel_bias_60_weight),
+            ("atr_14", False, self._sel_atr_14_weight),
         ]
         field_names = [f[0] for f in MOMENTUM_FIELDS]
         records = await StockDaily.find(
@@ -218,8 +239,8 @@ class CandidateListProvider:
                 else:
                     composite[ts] += (n_stocks - 1 - rank) * weight
 
-        # Add log_mv with weight 1.0
-        LOG_MV_WEIGHT = 1.0
+        # Add log_mv with configured weight
+        LOG_MV_WEIGHT = self._sel_log_mv_weight
         ranked_mv = sorted(stock_values.items(), key=lambda x: x[1][n_fields])
         for rank, (ts, _) in enumerate(ranked_mv):
             composite[ts] += rank * LOG_MV_WEIGHT
@@ -241,11 +262,11 @@ class CandidateListProvider:
             common = set(normalized.keys()) & set(prev_norm.keys())
             improvement = {ts: normalized[ts] - prev_norm[ts] for ts in common}
 
-            # Combined score: 80% absolute + 20% improvement
-            IMPROVEMENT_WEIGHT = 0.2
+            # Combined score: (1-w) * absolute + w * rank rise
+            RANK_RISE_WEIGHT = self._sel_rank_rise_weight
             combined = {}
             for ts in common:
-                combined[ts] = (1 - IMPROVEMENT_WEIGHT) * normalized[ts] + IMPROVEMENT_WEIGHT * improvement[ts]
+                combined[ts] = (1 - RANK_RISE_WEIGHT) * normalized[ts] + RANK_RISE_WEIGHT * improvement[ts]
 
             sorted_stocks = sorted(combined.items(), key=lambda x: x[1], reverse=True)
             return [ts for ts, _ in sorted_stocks[:momentum_n]], normalized
