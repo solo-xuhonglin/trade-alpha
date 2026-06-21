@@ -166,11 +166,13 @@ if strategy.use_weighted_score and strategy.weighted_score_factor > 0:
     mv_factors = await self._apply_mv_weight(pred_results, date, data_loader, strategy.weighted_score_factor)
     for ts_code, r in pred_results.items():
         f = mv_factors.get(ts_code, 1.0)
-        r["weighted_score"] = r.get("composite_score", r["score"]) * f
+        r["weighted_score"] = r["composite_score"] * f
 else:
     for r in pred_results.values():
-        r["weighted_score"] = r.get("composite_score", r["score"])
+        r["weighted_score"] = r["composite_score"]
 ```
+
+`weighted_score` is always explicitly set — no fallback needed.
 
 - [ ] **Modify `smooth_scores` to use `weighted_score`**
 
@@ -180,15 +182,16 @@ composite = r.get("composite_score", r["score"])
 ```
 To:
 ```python
-composite = r.get("weighted_score", r.get("composite_score", r["score"]))
+composite = r["weighted_score"]
 ```
+
+Since `weighted_score` is always set before `smooth_scores` is called, direct key access is safe.
 
 - [ ] **Build ScoredStock with weighted_score**
 
 In the ScoredStock construction block (around line 393-418), add after `ranking_score`:
 ```python
-ranking_score=r.get("ranking_score", r["score"]),
-weighted_score=r.get("weighted_score", r["score"]),  # ADD
+weighted_score=r["weighted_score"],  # ADD
 ```
 
 - [ ] **Verify by running existing tests**
@@ -222,7 +225,7 @@ To:
 score_map = {st.ts_code: st.weighted_score for st in scored_stocks}
 ```
 
-This ensures `hold_score_low` (line 351) and `score_below_sell` (line 337) comparisons use the weighted score.
+This ensures `hold_score_low` (line 351) and `score_below_sell` (line 337) comparisons use the weighted score. Since `weighted_score` defaults to `0.0` in `ScoredStock`, direct attribute access is safe.
 
 - [ ] **Change buy threshold to use weighted_score**
 
