@@ -6,10 +6,23 @@ from unittest.mock import AsyncMock, patch
 from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 
 
+def _mock_strategy_config():
+    """Create a mock strategy config with default weight values."""
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        sel_trend_slope_weight=1.0, sel_trend_arrangement_weight=1.0,
+        sel_close_position_20_weight=1.0, sel_close_position_60_weight=1.0,
+        sel_bias_20_weight=1.0, sel_bias_60_weight=1.0,
+        sel_atr_14_weight=0.3, sel_log_mv_weight=1.0,
+        sel_rank_rise_weight=0.2, sel_ewma_alpha=0.7,
+        use_hold_protection=False,
+    )
+
+
 @pytest.mark.asyncio
 async def test_get_weekly_candidates_with_rolling():
     """Verify weekly key format, last trading day, dual selection, and rolling retain."""
-    provider = CandidateListProvider({})
+    provider = CandidateListProvider({}, _mock_strategy_config())
 
     # 3 weeks: week 1 (Mon Jan 1), week 2 (Tue Jan 9), week 3 (Tue Jan 16)
     # Last trading days: Jan 5 (Fri), Jan 12 (Fri), Jan 19 (Fri)
@@ -78,7 +91,7 @@ async def test_get_weekly_candidates_with_rolling():
 @pytest.mark.asyncio
 async def test_first_week_no_previous_base():
     """First week should only have current base (no rolling retain yet)."""
-    provider = CandidateListProvider({})
+    provider = CandidateListProvider({}, _mock_strategy_config())
 
     mock_calendar = [
         type("MockCal", (), {"cal_date": "20240103", "is_open": 1})(),
@@ -108,7 +121,7 @@ async def test_first_week_no_previous_base():
 @pytest.mark.asyncio
 async def test_skips_missing_data():
     """Week with no resolveable data should be skipped."""
-    provider = CandidateListProvider({})
+    provider = CandidateListProvider({}, _mock_strategy_config())
 
     mock_calendar = [type("MockCal", (), {"cal_date": "20240103", "is_open": 1})()]
 

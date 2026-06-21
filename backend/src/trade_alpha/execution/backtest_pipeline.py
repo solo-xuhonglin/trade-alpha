@@ -508,8 +508,7 @@ class BacktestPipeline:
                 continue
             close_prices = day_data["close"]
 
-            hold_codes = set(self.ctx.portfolio.positions.keys()) if self.strategy_config.use_hold_protection else None
-            candidates = provider.get_candidates_for_date(date, hold_codes)
+            candidates = provider.get_candidates_for_date(date, self.ctx)
 
             # Update warmup pool on period change (tracked internally)
             current_period_key = provider.get_period_key(date)

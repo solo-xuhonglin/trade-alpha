@@ -1,6 +1,8 @@
 """CandidateListProvider — provides weekly dynamic candidate stock pools for backtesting."""
 
-from typing import Dict, List, Optional, Set, Tuple
+from __future__ import annotations
+
+from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from datetime import datetime
 
 from beanie.odm.operators.find.comparison import In
@@ -9,6 +11,9 @@ from trade_alpha.dao import TradeCalendar, StockListHistory, StockList
 from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.data.service import resolve_and_fetch_historical_date
 from trade_alpha.logging import get_logger
+
+if TYPE_CHECKING:
+    from trade_alpha.execution.context import PipelineContext
 
 logger = get_logger("execution.candidate_list_provider")
 
@@ -22,7 +27,7 @@ class CandidateListProvider:
     per date.
     """
 
-    def __init__(self, params: dict, strategy_config=None):
+    def __init__(self, params: dict, strategy_config):
         # Fixed-list mode
         self._ts_codes: Optional[List[str]] = params.get("ts_codes")
         # Dynamic pool params
@@ -30,30 +35,17 @@ class CandidateListProvider:
         self._top_n: int = params.get("top_n", 100)
         self._momentum_n: int = params.get("momentum_n", 20)
         # Momentum selection weights from strategy_config
-        if strategy_config is not None:
-            self._sel_trend_slope_weight = strategy_config.sel_trend_slope_weight
-            self._sel_trend_arrangement_weight = strategy_config.sel_trend_arrangement_weight
-            self._sel_close_position_20_weight = strategy_config.sel_close_position_20_weight
-            self._sel_close_position_60_weight = strategy_config.sel_close_position_60_weight
-            self._sel_bias_20_weight = strategy_config.sel_bias_20_weight
-            self._sel_bias_60_weight = strategy_config.sel_bias_60_weight
-            self._sel_atr_14_weight = strategy_config.sel_atr_14_weight
-            self._sel_log_mv_weight = strategy_config.sel_log_mv_weight
-            self._sel_rank_rise_weight = strategy_config.sel_rank_rise_weight
-            self._sel_ewma_alpha = strategy_config.sel_ewma_alpha
-            self._use_hold_protection = strategy_config.use_hold_protection
-        else:
-            self._sel_trend_slope_weight = 1.0
-            self._sel_trend_arrangement_weight = 1.0
-            self._sel_close_position_20_weight = 1.0
-            self._sel_close_position_60_weight = 1.0
-            self._sel_bias_20_weight = 1.0
-            self._sel_bias_60_weight = 1.0
-            self._sel_atr_14_weight = 0.3
-            self._sel_log_mv_weight = 1.0
-            self._sel_rank_rise_weight = 0.2
-            self._sel_ewma_alpha = 0.7
-            self._use_hold_protection = False
+        self._sel_trend_slope_weight = strategy_config.sel_trend_slope_weight
+        self._sel_trend_arrangement_weight = strategy_config.sel_trend_arrangement_weight
+        self._sel_close_position_20_weight = strategy_config.sel_close_position_20_weight
+        self._sel_close_position_60_weight = strategy_config.sel_close_position_60_weight
+        self._sel_bias_20_weight = strategy_config.sel_bias_20_weight
+        self._sel_bias_60_weight = strategy_config.sel_bias_60_weight
+        self._sel_atr_14_weight = strategy_config.sel_atr_14_weight
+        self._sel_log_mv_weight = strategy_config.sel_log_mv_weight
+        self._sel_rank_rise_weight = strategy_config.sel_rank_rise_weight
+        self._sel_ewma_alpha = strategy_config.sel_ewma_alpha
+        self._use_hold_protection = strategy_config.use_hold_protection
         # Internal state
         self._candidate_map: Dict[str, List[str]] = {}
         self._stock_groups: Dict[str, str] = {}
@@ -79,11 +71,11 @@ class CandidateListProvider:
                 start_date=start_date, end_date=end_date,
             )
 
-    def get_candidates_for_date(self, date: str, hold_codes: Optional[Set[str]] = None) -> List[str]:
+    def get_candidates_for_date(self, date: str, ctx: PipelineContext) -> List[str]:
         """Return candidates for given date. Handles period tracking internally.
 
-        When hold_protection is enabled and hold_codes provided, held stocks
-        are included in the returned set so they remain scored and ranked.
+        When hold_protection is enabled, held stocks from ctx.portfolio are
+        automatically included so they remain scored and ranked.
         """
         if self._ts_codes:
             return self._ts_codes
@@ -93,11 +85,10 @@ class CandidateListProvider:
                 self._current_candidates = self._candidate_map.get(period_key, [])
                 self._last_period_key = period_key
         elif self._candidate_map:
-            # Warmup phase: date is before first candidate period
             self._current_candidates = self._candidate_map[min(self._candidate_map.keys())]
 
-        if hold_codes and self._use_hold_protection:
-            return list(set(self._current_candidates) | hold_codes)
+        if self._use_hold_protection:
+            return list(set(self._current_candidates) | set(ctx.portfolio.positions.keys()))
         return self._current_candidates
 
     async def get_baseline_codes(self, date: str) -> List[str]:

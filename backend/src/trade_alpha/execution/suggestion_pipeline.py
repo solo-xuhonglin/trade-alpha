@@ -87,7 +87,7 @@ class SuggestionPipeline:
             predictor=self.predictor,
             strategy_config=self.strategy_config,
             model_config=self.model_config,
-            candidate_provider=CandidateListProvider({}),
+            candidate_provider=CandidateListProvider({}, strategy_config),
             mode_map={
                 "up": TrendMode(),
                 "flat": RotationMode(),
