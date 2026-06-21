@@ -68,6 +68,8 @@ export interface Strategy {
   sel_log_mv_weight?: number
   sel_rank_rise_weight?: number
   sel_ewma_alpha?: number
+  use_weighted_score?: boolean
+  weighted_score_factor?: number
   use_hold_protection?: boolean
   created_at: string
   updated_at?: string
