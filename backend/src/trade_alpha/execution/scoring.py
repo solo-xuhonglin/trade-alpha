@@ -96,7 +96,7 @@ def smooth_scores(
     raw_alpha = getattr(strategy_config, 'ranking_smooth_alpha', 0.0)
     alpha = raw_alpha if raw_alpha > 0 else None
     for ts_code, r in pred_results.items():
-        composite = r.get("composite_score", r["score"])
+        composite = r["weighted_score"]
         buffer = score_buffer.setdefault(ts_code, [])
         buffer.append(composite)
         r["ranking_score"] = smooth_ewma(buffer, window, alpha)
@@ -334,6 +334,28 @@ class ScoreManager:
     # Public API
     # ------------------------------------------------------------------
 
+    @staticmethod
+    async def _apply_mv_weight(
+        pred_results: Dict[str, Dict],
+        date: str,
+        data_loader: DataLoader,
+        factor: float,
+    ) -> Dict[str, float]:
+        """Compute weighted_score factor: composite * (1 + factor * log_mv_norm)."""
+        log_mv = await data_loader.load_market_cap(date, list(pred_results.keys()))
+        if not log_mv:
+            return {}
+
+        values = list(log_mv.values())
+        mn, mx = min(values), max(values)
+        rng = mx - mn if mx > mn else 1
+
+        factors: Dict[str, float] = {}
+        for ts_code, lmv in log_mv.items():
+            normalized = (lmv - mn) / rng  # [0, 1]
+            factors[ts_code] = 1.0 + factor * normalized
+        return factors
+
     async def predict_and_score(
         self,
         predictor,
@@ -378,6 +400,19 @@ class ScoreManager:
                 - r.get("momentum_penalty", 0)
             )
 
+        # Compute weighted_score (external factor weighting, e.g. market cap)
+        strategy = self._strategy_config
+        if strategy.use_weighted_score and strategy.weighted_score_factor > 0:
+            mv_factors = await self._apply_mv_weight(
+                pred_results, date, data_loader, strategy.weighted_score_factor,
+            )
+            for ts_code, r in pred_results.items():
+                f = mv_factors.get(ts_code, 1.0)
+                r["weighted_score"] = r["composite_score"] * f
+        else:
+            for r in pred_results.values():
+                r["weighted_score"] = r["composite_score"]
+
         smooth_scores(pred_results, self._strategy_config, self._score_buffer)
 
         # Trim score buffer to prevent unbounded growth during long backtests
@@ -398,6 +433,7 @@ class ScoreManager:
                 raw_score=r.get("raw_score", 0.0),
                 composite_score=r.get("composite_score", r["score"]),
                 ranking_score=r.get("ranking_score", r["score"]),
+                weighted_score=r["weighted_score"],
                 trend_bonus=r.get("trend_bonus", 0.0),
                 trend_penalty=r.get("trend_penalty", 0.0),
                 momentum_bonus=r.get("momentum_bonus", 0.0),
