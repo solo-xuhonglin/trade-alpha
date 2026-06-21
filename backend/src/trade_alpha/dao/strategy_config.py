@@ -66,6 +66,21 @@ class StrategyConfig(Document):
     rotation_was_top_pct: float = 0.15
     rotation_pullback_window: int = 5
     rotation_was_top_window: int = 60
+
+    # ── 选股参数 ──
+    sel_trend_slope_weight: float = 1.0
+    sel_trend_arrangement_weight: float = 1.0
+    sel_close_position_20_weight: float = 1.0
+    sel_close_position_60_weight: float = 1.0
+    sel_bias_20_weight: float = 1.0
+    sel_bias_60_weight: float = 1.0
+    sel_atr_14_weight: float = 0.3
+    sel_log_mv_weight: float = 1.0
+    sel_rank_rise_weight: float = 0.2
+
+    # ── 持仓保护 ──
+    use_hold_protection: bool = False
+
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
