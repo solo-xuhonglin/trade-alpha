@@ -332,7 +332,7 @@ class BacktestPipeline:
             close_prices = day_data["close"]
 
             # Determine formal candidates for this date
-            formal_codes = provider.get_candidates_for_date(date)
+            formal_codes = provider.get_candidates_for_date(date, self.ctx)
             formal_close = {k: v for k, v in close_prices.items()
                             if k in formal_codes}
 

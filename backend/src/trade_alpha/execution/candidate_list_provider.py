@@ -327,8 +327,9 @@ class CandidateListProvider:
                 continue
             universe_codes = [r.ts_code for r in universe_records]
             mv_group = universe_codes[:self._top_n]
+            momentum_universe = universe_codes[self._top_n:]
             momentum_group, cur_composite = await self._get_momentum_stocks(
-                resolved, universe_codes, self._momentum_n, prev_composite,
+                resolved, momentum_universe, self._momentum_n, prev_composite,
             )
             prev_composite = cur_composite
             current_base = list(dict.fromkeys(mv_group + momentum_group))
