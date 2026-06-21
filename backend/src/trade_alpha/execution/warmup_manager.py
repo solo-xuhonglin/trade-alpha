@@ -32,9 +32,9 @@ class WarmupManager:
     def __init__(self):
         self._pool: Dict[str, WarmupRecord] = {}
         self._ever_seen: Set[str] = set()
-        self._last_update_key: Optional[str] = None
+        self._last_update_key: str = ""
 
-    def update_pool(self, current_period_key: Optional[str], formal_set: Set[str], candidate_map: Dict[str, List[str]], warmup_days: int = 40) -> None:
+    def update_pool(self, current_period_key: str, formal_set: Set[str], candidate_map: Dict[str, List[str]], warmup_days: int = 40) -> None:
         """Update warmup pool based on current formal set, only on period changes.
 
         Warmup stocks = future formal candidates - current formal - ever_seen.
@@ -43,12 +43,12 @@ class WarmupManager:
         Tracks period changes internally; skips already-processed periods.
 
         Args:
-            current_period_key: Current period key (None if before first candidate period).
+            current_period_key: Current period key.
             formal_set: Current period's formal candidate ts_codes.
             candidate_map: The provider's candidate map.
             warmup_days: Number of trading days needed for score accumulation (~40).
         """
-        if current_period_key is None or current_period_key == self._last_update_key:
+        if current_period_key == self._last_update_key:
             return
         self._last_update_key = current_period_key
 

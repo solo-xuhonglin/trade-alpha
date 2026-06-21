@@ -80,12 +80,9 @@ class CandidateListProvider:
         if self._ts_codes:
             return self._ts_codes
         period_key = self._get_period_key(date)
-        if period_key is not None:
-            if period_key != self._last_period_key:
-                self._current_candidates = self._candidate_map.get(period_key, [])
-                self._last_period_key = period_key
-        elif self._candidate_map:
-            self._current_candidates = self._candidate_map[min(self._candidate_map.keys())]
+        if period_key != self._last_period_key:
+            self._current_candidates = self._candidate_map.get(period_key, [])
+            self._last_period_key = period_key
 
         if self._use_hold_protection:
             return list(set(self._current_candidates) | set(ctx.portfolio.positions.keys()))
@@ -118,15 +115,19 @@ class CandidateListProvider:
             )
         return pending
 
-    def _get_period_key(self, date: str) -> Optional[str]:
-        """Find the period key (YYYYMMDD) that contains the given date from candidate_map."""
+    def _get_period_key(self, date: str) -> str:
+        """Find the period key (YYYYMMDD) <= given date from candidate_map.
+
+        Falls back to the earliest period key when date is before the first
+        period (warmup phase).
+        """
         sorted_keys = sorted(self._candidate_map.keys())
         for key in reversed(sorted_keys):
             if date >= key:
                 return key
-        return None
+        return sorted_keys[0]
 
-    def get_period_key(self, date: str) -> Optional[str]:
+    def get_period_key(self, date: str) -> str:
         """Public wrapper for period key lookup."""
         return self._get_period_key(date)
 
