@@ -141,6 +141,9 @@ class BacktestPipeline:
                 k: v for k, v in self.strategy_config.model_dump().items()
                 if k in {f for f in StrategySnapshotEmbed.model_fields}
             }) if self.strategy_config else None,
+            range_n=self.params.get("range_n"),
+            top_n=self.params.get("top_n"),
+            momentum_n=self.params.get("momentum_n"),
             status="running",
         )
         await result.insert()

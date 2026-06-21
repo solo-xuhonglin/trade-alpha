@@ -47,6 +47,9 @@ def _execution_to_dict(r) -> dict:
         "account_snapshot": r.account_snapshot.model_dump() if r.account_snapshot else None,
         "model_snapshot": r.model_snapshot.model_dump() if r.model_snapshot else None,
         "strategy_snapshot": r.strategy_snapshot.model_dump() if r.strategy_snapshot else None,
+        "range_n": r.range_n,
+        "top_n": r.top_n,
+        "momentum_n": r.momentum_n,
         "created_at": r.created_at,
         "status": r.status,
     }

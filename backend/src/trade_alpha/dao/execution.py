@@ -156,6 +156,9 @@ class ExecutionResult(Document):
     account_snapshot: Optional[AccountSnapshotEmbed] = None
     model_snapshot: Optional[ModelSnapshotEmbed] = None
     strategy_snapshot: Optional[StrategySnapshotEmbed] = None
+    range_n: Optional[int] = None
+    top_n: Optional[int] = None
+    momentum_n: Optional[int] = None
     created_at: datetime = Field(default_factory=datetime.now)
     status: str = Field(default="completed")
 
