@@ -50,7 +50,7 @@
     </v-data-table>
   </v-card>
 
-  <v-dialog v-model="dialog" max-width="700px">
+  <v-dialog v-model="dialog" max-width="900px">
     <v-card>
       <v-card-title class="d-flex justify-space-between align-center">
         {{ editingId ? '编辑策略' : '新建策略' }}
