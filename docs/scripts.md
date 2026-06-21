@@ -11,10 +11,9 @@
 | | `sync_live_portfolio.py` | 同步实盘持仓（配合 `positions.json`） |
 | **数据维护** | `backfill_weekly_features.py` | 回填周线特征数据 |
 | | `reset_stock_data.py` | 重置股票数据（清空日线数据，重新同步） |
+| | `reset_stock_list_history.py` | 清空市值历史并重建唯一索引 |
 | **回测分析** | `analyze_backtest.py` | 分析指定回测结果的交易记录 |
 | | `analyze_backtest_today.py` | 分析当天所有回测结果，输出到 `backtest_analysis/` |
-| | `analyze_momentum_selection.py` | 动量选股策略验证——筛选组合未来收益对比 |
-| | `analyze_momentum_overextend.py` | 动量选股参数优化（惩罚权重/市值权重/回踩策略）对比验证 |
 | | `check_backtests.py` | 快速查看回测结果数量和参数分布 |
 | **服务管理** | `check_server.py` | 检查后端服务是否运行 |
 
