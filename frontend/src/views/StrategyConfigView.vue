@@ -284,6 +284,27 @@
                     label="平滑系数" hint="手动指定 α（0~1），为空则用 2/(window+1)" persistent-hint></v-text-field>
                 </v-col>
               </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <div class="d-flex align-center mb-2">
+                <span class="text-body-2 font-weight-medium">分数加权</span>
+                <v-chip size="x-small" variant="outlined" color="info">用 log 市值对预测分数加权，大市值更可靠</v-chip>
+              </div>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-switch v-model="form.use_weighted_score"
+                    label="启用加权"
+                    hint="开启后用 log 市值对预测分数加权" persistent-hint color="primary"
+                    :disabled="form.type !== 'multi'" />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.weighted_score_factor"
+                    type="number" step="0.1" min="0" max="5"
+                    label="加权因子" hint="默认0.2" persistent-hint
+                    :disabled="!form.use_weighted_score || form.type !== 'multi'" />
+                </v-col>
+              </v-row>
             </div>
           </v-window-item>
 
@@ -571,18 +592,6 @@
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.sel_ewma_alpha" type="number" step="0.05" min="0" max="1"
                     label="EWMA平滑系数" hint="评分EWMA平滑，值越小越平滑（默认0.7）" persistent-hint />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-switch v-model="form.use_weighted_score"
-                    label="启用分数加权"
-                    hint="开启后用 log 市值对预测分数加权，大市值更可靠" persistent-hint color="primary"
-                    :disabled="form.type !== 'multi'" />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field v-model.number="form.weighted_score_factor"
-                    type="number" step="0.1" min="0" max="5"
-                    label="加权因子" hint="加权强度（默认0.2）" persistent-hint
-                    :disabled="!form.use_weighted_score || form.type !== 'multi'" />
                 </v-col>
                 <v-col cols="12" md="6">
                   <v-text-field v-model.number="form.sel_rank_rise_weight" type="number" step="0.05" min="0" max="1"
@@ -879,8 +888,8 @@ const compareFields: CompareField[] = [
   { key: 'sel_log_mv_weight', label: '对数市值权重', group: '选股配置', type: 'number' },
   { key: 'sel_rank_rise_weight', label: '排名上升权重', group: '选股配置', type: 'number' },
   { key: 'sel_ewma_alpha', label: 'EWMA平滑系数', group: '选股配置', type: 'number' },
-  { key: 'use_weighted_score', label: '分数加权', group: '选股配置', type: 'boolean' },
-  { key: 'weighted_score_factor', label: '加权因子', group: '选股配置', type: 'number' },
+  { key: 'use_weighted_score', label: '分数加权', group: '排名优化', type: 'boolean' },
+  { key: 'weighted_score_factor', label: '加权因子', group: '排名优化', type: 'number' },
   { key: 'use_hold_protection', label: '持仓保护', group: '选股配置', type: 'boolean' },
 ]
 

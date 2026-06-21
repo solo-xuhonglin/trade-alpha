@@ -21,6 +21,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 5
+            rank_up_window = 5
             rotation_was_top_window = 5
             rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
@@ -32,6 +33,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 12
             retention_days = 5
             correlation_window = 5
+            rank_up_window = 5
             rotation_was_top_window = 5
             rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
@@ -43,6 +45,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 10
             correlation_window = 5
+            rank_up_window = 5
             rotation_was_top_window = 5
             rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
@@ -54,6 +57,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 15
+            rank_up_window = 5
             rotation_was_top_window = 5
             rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
@@ -65,6 +69,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 5
+            rank_up_window = 5
             rotation_was_top_window = 5
             rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
@@ -76,6 +81,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 5
+            rank_up_window = 5
             rotation_was_top_window = 50
             rotation_pullback_window = 5
         days = BacktestPipeline._compute_warmup_days(FakeConfig())
@@ -87,6 +93,7 @@ class TestComputeWarmupDays:
             market_smooth_window = 5
             retention_days = 5
             correlation_window = 5
+            rank_up_window = 5
             rotation_was_top_window = 5
             rotation_pullback_window = 20
         days = BacktestPipeline._compute_warmup_days(FakeConfig())

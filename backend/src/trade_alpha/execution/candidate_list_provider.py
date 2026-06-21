@@ -119,8 +119,11 @@ class CandidateListProvider:
         """Find the period key (YYYYMMDD) <= given date from candidate_map.
 
         Falls back to the earliest period key when date is before the first
-        period (warmup phase).
+        period (warmup phase). Returns date itself when candidate_map is empty
+        (fixed ts_codes mode).
         """
+        if not self._candidate_map:
+            return date
         sorted_keys = sorted(self._candidate_map.keys())
         for key in reversed(sorted_keys):
             if date >= key:

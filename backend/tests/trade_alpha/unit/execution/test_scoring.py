@@ -122,7 +122,7 @@ class TestScoreManagerRetention:
         assert analyzer._compute_top_n_retention(stock_map) == 0.0
 
     def test_retention_days_one(self):
-        config = StrategyConfig(name="test", type="multi", top_n_retention=2, retention_days=1)
+        config = StrategyConfig(name="test", type="multi", top_n_retention_pct=0.67, retention_days=1)
         analyzer = MarketRegimeAnalyzer(config)
         # Day 1
         for s in [self._make_stock("A", rank=1), self._make_stock("B", rank=2),
@@ -138,7 +138,7 @@ class TestScoreManagerRetention:
         assert abs(result - 0.5) < 0.001
 
     def test_retention_days_two(self):
-        config = StrategyConfig(name="test", type="multi", top_n_retention=2, retention_days=2)
+        config = StrategyConfig(name="test", type="multi", top_n_retention_pct=0.67, retention_days=2)
         analyzer = MarketRegimeAnalyzer(config)
         # Day 1: top2 = {A,B}
         for s in [self._make_stock("A", rank=1), self._make_stock("B", rank=2),
