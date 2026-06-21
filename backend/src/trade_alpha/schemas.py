@@ -18,6 +18,7 @@ class ScoredStock(BaseModel):
     # --- 评分 ---
     raw_score: float = 0.0
     composite_score: float = 0.0
+    weighted_score: float = 0.0
     ranking_score: float = 0.0
 
     # --- 预测概率 ---
