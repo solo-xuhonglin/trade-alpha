@@ -165,9 +165,8 @@ class MultiStockStrategy(BaseStrategy):
 
         # Annotate all orders with candidate group
         for order in orders:
-            if ctx.candidate_provider is not None:
-                group = ctx.candidate_provider.get_stock_group(trade_date, order.ts_code)
-                order.candidate_group = group
+            group = ctx.candidate_provider.get_stock_group(trade_date, order.ts_code)
+            order.candidate_group = group
 
         return orders
 

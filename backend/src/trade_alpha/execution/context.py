@@ -7,11 +7,12 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.model_config import ModelConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
+from trade_alpha.execution.candidate_list_provider import CandidateListProvider
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
-from trade_alpha.execution.candidate_list_provider import CandidateListProvider
+from trade_alpha.execution.warmup_manager import WarmupManager
 
 if TYPE_CHECKING:
     from trade_alpha.strategy.modes.base import PhaseMode
@@ -34,11 +35,11 @@ class PipelineContext:
         portfolio: PortfolioManager,
         strategy_config: StrategyConfig,
         model_config: ModelConfig,
-        candidate_provider: Optional[CandidateListProvider] = None,
-        predictor: Any = None,
+        candidate_provider: CandidateListProvider,
+        predictor: Any,
+        mode_map: Dict[str, PhaseMode],
+        warmup_manager: WarmupManager,
         account_config: Optional[AccountConfig] = None,
-        mode_map: Optional[Dict[str, PhaseMode]] = None,
-        warmup_manager: Optional[WarmupManager] = None,
     ):
         self.data_loader = data_loader
         self.score_manager = score_manager

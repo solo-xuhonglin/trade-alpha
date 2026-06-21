@@ -518,8 +518,7 @@ class BacktestPipeline:
 
             # Hold protection: include current positions in scoring pool
             if self.strategy_config.use_hold_protection:
-                hold_codes = set(ctx.portfolio.positions.keys())
-                all_scored = set(candidates) | hold_codes
+                all_scored = self.ctx.portfolio.expand_with_holdings(candidates)
                 candidate_close = {k: v for k, v in close_prices.items()
                                    if k in all_scored}
                 outdated_candidates = list(all_scored)

@@ -18,6 +18,8 @@ from trade_alpha.dao.live_suggestion_run import LiveSuggestionRun
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.context import PipelineContext
+from trade_alpha.execution.candidate_list_provider import CandidateListProvider
+from trade_alpha.execution.warmup_manager import WarmupManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.portfolio import PortfolioManager
@@ -85,11 +87,13 @@ class SuggestionPipeline:
             predictor=self.predictor,
             strategy_config=self.strategy_config,
             model_config=self.model_config,
+            candidate_provider=CandidateListProvider({}),
             mode_map={
                 "up": TrendMode(),
                 "flat": RotationMode(),
                 "down": RotationMode(),
             },
+            warmup_manager=WarmupManager(),
         )
 
         # Strategy for decision making
