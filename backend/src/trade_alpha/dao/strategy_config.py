@@ -79,6 +79,10 @@ class StrategyConfig(Document):
     sel_rank_rise_weight: float = 0.2
     sel_ewma_alpha: float = 0.7
 
+    # ── 分数加权 ──
+    use_weighted_score: bool = False
+    weighted_score_factor: float = 0.2
+
     # ── 持仓保护 ──
     use_hold_protection: bool = False
 
