@@ -147,7 +147,8 @@ class CandidateListProvider:
 
         Returns:
             (momentum_codes, normalized_composite_scores).
-            When prev_composite is provided, uses score improvement (w=1.0).
+            When prev_composite is provided, combines absolute score (80%)
+            and score improvement (20%) for selection.
             First period with no prev_composite falls back to absolute scores.
         """
         # (field_name, ascending, weight)
@@ -240,7 +241,13 @@ class CandidateListProvider:
             common = set(normalized.keys()) & set(prev_norm.keys())
             improvement = {ts: normalized[ts] - prev_norm[ts] for ts in common}
 
-            sorted_stocks = sorted(improvement.items(), key=lambda x: x[1], reverse=True)
+            # Combined score: 80% absolute + 20% improvement
+            IMPROVEMENT_WEIGHT = 0.2
+            combined = {}
+            for ts in common:
+                combined[ts] = (1 - IMPROVEMENT_WEIGHT) * normalized[ts] + IMPROVEMENT_WEIGHT * improvement[ts]
+
+            sorted_stocks = sorted(combined.items(), key=lambda x: x[1], reverse=True)
             return [ts for ts, _ in sorted_stocks[:momentum_n]], normalized
 
         # First period: use absolute scores
