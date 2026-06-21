@@ -66,6 +66,7 @@
           <v-tab value="rotation">轮动参数</v-tab>
           <v-tab value="ranking">排名优化</v-tab>
           <v-tab value="trading">交易优化</v-tab>
+          <v-tab value="selection">选股配置</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab" v-if="form.type === 'multi'" class="mt-4">
@@ -520,6 +521,64 @@
               </v-row>
             </div>
           </v-window-item>
+
+          <v-window-item value="selection">
+            <div>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_trend_slope_weight" type="number" step="0.1" min="0" max="10"
+                    label="趋势斜率" hint="trend_slope_20 权重（默认1.0）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_trend_arrangement_weight" type="number" step="0.1" min="0" max="10"
+                    label="均线排列" hint="trend_arrangement_20 权重（默认1.0）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_close_position_20_weight" type="number" step="0.1" min="0" max="10"
+                    label="收盘位置20" hint="close_position_20 权重（默认1.0）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_close_position_60_weight" type="number" step="0.1" min="0" max="10"
+                    label="收盘位置60" hint="close_position_60 权重（默认1.0）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_bias_20_weight" type="number" step="0.1" min="0" max="10"
+                    label="乖离率20" hint="bias_20 权重（默认1.0）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_bias_60_weight" type="number" step="0.1" min="0" max="10"
+                    label="乖离率60" hint="bias_60 权重（默认1.0）" persistent-hint />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_atr_14_weight" type="number" step="0.1" min="0" max="10"
+                    label="ATR14" hint="atr_14 权重（值越低越好，默认0.3）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_log_mv_weight" type="number" step="0.1" min="0" max="10"
+                    label="对数市值" hint="log(总市值) 权重（默认1.0）" persistent-hint />
+                </v-col>
+              </v-row>
+
+              <v-divider class="my-4"></v-divider>
+
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-text-field v-model.number="form.sel_rank_rise_weight" type="number" step="0.05" min="0" max="1"
+                    label="排名上升权重" hint="选股时评分改善的占比（默认0.2）" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-switch v-model="form.use_hold_protection" color="primary"
+                    label="持仓保护" hint="持仓股不退出候选池，保持评分和排名" persistent-hint />
+                </v-col>
+              </v-row>
+            </div>
+          </v-window-item>
         </v-window>
 
         <div v-else>
@@ -712,6 +771,16 @@ const form = ref({
   rotation_was_top_pct: 0.15,
   rotation_pullback_window: 5,
   rotation_was_top_window: 60,
+  sel_trend_slope_weight: 1.0,
+  sel_trend_arrangement_weight: 1.0,
+  sel_close_position_20_weight: 1.0,
+  sel_close_position_60_weight: 1.0,
+  sel_bias_20_weight: 1.0,
+  sel_bias_60_weight: 1.0,
+  sel_atr_14_weight: 0.3,
+  sel_log_mv_weight: 1.0,
+  sel_rank_rise_weight: 0.2,
+  use_hold_protection: false,
 })
 
 const headers = [
@@ -781,6 +850,16 @@ const compareFields: CompareField[] = [
   { key: 'rotation_rank_min_pct', label: '排名上限百分比', group: '轮动参数', type: 'number' },
   { key: 'rotation_rank_max_pct', label: '排名下限百分比', group: '轮动参数', type: 'number' },
   { key: 'rotation_use_reversal_check', label: '轮动反转确认', group: '轮动参数', type: 'boolean' },
+  { key: 'sel_trend_slope_weight', label: '趋势斜率权重', group: '选股配置', type: 'number' },
+  { key: 'sel_trend_arrangement_weight', label: '均线排列权重', group: '选股配置', type: 'number' },
+  { key: 'sel_close_position_20_weight', label: '收盘位置20权重', group: '选股配置', type: 'number' },
+  { key: 'sel_close_position_60_weight', label: '收盘位置60权重', group: '选股配置', type: 'number' },
+  { key: 'sel_bias_20_weight', label: '乖离率20权重', group: '选股配置', type: 'number' },
+  { key: 'sel_bias_60_weight', label: '乖离率60权重', group: '选股配置', type: 'number' },
+  { key: 'sel_atr_14_weight', label: 'ATR14权重', group: '选股配置', type: 'number' },
+  { key: 'sel_log_mv_weight', label: '对数市值权重', group: '选股配置', type: 'number' },
+  { key: 'sel_rank_rise_weight', label: '排名上升权重', group: '选股配置', type: 'number' },
+  { key: 'use_hold_protection', label: '持仓保护', group: '选股配置', type: 'boolean' },
 ]
 
 const loadStrategies = async () => {
@@ -862,6 +941,16 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rotation_was_top_pct: item.rotation_was_top_pct ?? 0.15,
       rotation_pullback_window: item.rotation_pullback_window ?? 5,
       rotation_was_top_window: item.rotation_was_top_window ?? 60,
+      sel_trend_slope_weight: item.sel_trend_slope_weight ?? 1.0,
+      sel_trend_arrangement_weight: item.sel_trend_arrangement_weight ?? 1.0,
+      sel_close_position_20_weight: item.sel_close_position_20_weight ?? 1.0,
+      sel_close_position_60_weight: item.sel_close_position_60_weight ?? 1.0,
+      sel_bias_20_weight: item.sel_bias_20_weight ?? 1.0,
+      sel_bias_60_weight: item.sel_bias_60_weight ?? 1.0,
+      sel_atr_14_weight: item.sel_atr_14_weight ?? 0.3,
+      sel_log_mv_weight: item.sel_log_mv_weight ?? 1.0,
+      sel_rank_rise_weight: item.sel_rank_rise_weight ?? 0.2,
+      use_hold_protection: item.use_hold_protection ?? false,
     }
   } else {
     editingId.value = null
@@ -987,6 +1076,16 @@ const saveStrategy = async () => {
       rotation_was_top_pct: form.value.rotation_was_top_pct,  // Deleted: was rotation_was_top_n: ...
       rotation_pullback_window: form.value.rotation_pullback_window,
       rotation_was_top_window: form.value.rotation_was_top_window,
+      sel_trend_slope_weight: form.value.type === 'multi' ? form.value.sel_trend_slope_weight : undefined,
+      sel_trend_arrangement_weight: form.value.type === 'multi' ? form.value.sel_trend_arrangement_weight : undefined,
+      sel_close_position_20_weight: form.value.type === 'multi' ? form.value.sel_close_position_20_weight : undefined,
+      sel_close_position_60_weight: form.value.type === 'multi' ? form.value.sel_close_position_60_weight : undefined,
+      sel_bias_20_weight: form.value.type === 'multi' ? form.value.sel_bias_20_weight : undefined,
+      sel_bias_60_weight: form.value.type === 'multi' ? form.value.sel_bias_60_weight : undefined,
+      sel_atr_14_weight: form.value.type === 'multi' ? form.value.sel_atr_14_weight : undefined,
+      sel_log_mv_weight: form.value.type === 'multi' ? form.value.sel_log_mv_weight : undefined,
+      sel_rank_rise_weight: form.value.type === 'multi' ? form.value.sel_rank_rise_weight : undefined,
+      use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
     })
   } else {
     await strategyConfigApi.create({
@@ -1047,6 +1146,16 @@ const saveStrategy = async () => {
       rotation_was_top_pct: form.value.rotation_was_top_pct,  // Deleted: was rotation_was_top_n: ...
       rotation_pullback_window: form.value.rotation_pullback_window,
       rotation_was_top_window: form.value.rotation_was_top_window,
+      sel_trend_slope_weight: form.value.type === 'multi' ? form.value.sel_trend_slope_weight : undefined,
+      sel_trend_arrangement_weight: form.value.type === 'multi' ? form.value.sel_trend_arrangement_weight : undefined,
+      sel_close_position_20_weight: form.value.type === 'multi' ? form.value.sel_close_position_20_weight : undefined,
+      sel_close_position_60_weight: form.value.type === 'multi' ? form.value.sel_close_position_60_weight : undefined,
+      sel_bias_20_weight: form.value.type === 'multi' ? form.value.sel_bias_20_weight : undefined,
+      sel_bias_60_weight: form.value.type === 'multi' ? form.value.sel_bias_60_weight : undefined,
+      sel_atr_14_weight: form.value.type === 'multi' ? form.value.sel_atr_14_weight : undefined,
+      sel_log_mv_weight: form.value.type === 'multi' ? form.value.sel_log_mv_weight : undefined,
+      sel_rank_rise_weight: form.value.type === 'multi' ? form.value.sel_rank_rise_weight : undefined,
+      use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
     })
   }
   dialog.value = false

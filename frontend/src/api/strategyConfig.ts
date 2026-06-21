@@ -58,6 +58,16 @@ export interface Strategy {
   rotation_use_reversal_check?: boolean
   rotation_was_top_n?: number
   rotation_was_top_window?: number
+  sel_trend_slope_weight?: number
+  sel_trend_arrangement_weight?: number
+  sel_close_position_20_weight?: number
+  sel_close_position_60_weight?: number
+  sel_bias_20_weight?: number
+  sel_bias_60_weight?: number
+  sel_atr_14_weight?: number
+  sel_log_mv_weight?: number
+  sel_rank_rise_weight?: number
+  use_hold_protection?: boolean
   created_at: string
   updated_at?: string
 }
