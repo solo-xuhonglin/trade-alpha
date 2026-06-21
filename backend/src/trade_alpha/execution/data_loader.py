@@ -1,11 +1,12 @@
 """DataLoader for backtest execution pipeline."""
 
+from math import log
 from typing import List, Dict, Optional
 import pandas as pd
 from datetime import datetime, timedelta
 from beanie.odm.operators.find.comparison import In
 from beanie import Document
-from trade_alpha.dao import StockList, StockDaily
+from trade_alpha.dao import StockList, StockDaily, StockListHistory
 from trade_alpha.logging import get_logger
 
 logger = get_logger("execution.data_loader")
@@ -17,6 +18,7 @@ class DataLoader:
     def __init__(self):
         self._history_cache: Dict[str, List] = {}
         self._max_cache_keep: int = 0
+        self._mv_cache: Dict[str, Dict[str, float]] = {}
 
     def _get_cache_start(self, ts_code: str):
         """Get the earliest date in cache for a stock."""
@@ -74,6 +76,28 @@ class DataLoader:
         if latest:
             return latest.trade_date
         return None
+
+    async def load_market_cap(self, date: str, ts_codes: List[str]) -> Dict[str, float]:
+        """Load log market cap for given stocks on a date, with caching.
+
+        Returns {ts_code: log(total_mv)} for stocks with valid market cap data.
+        """
+        if date in self._mv_cache:
+            cached = self._mv_cache[date]
+            return {c: cached[c] for c in ts_codes if c in cached}
+
+        records = await StockListHistory.find(
+            StockListHistory.trade_date == date,
+            In(StockListHistory.ts_code, ts_codes),
+        ).to_list()
+
+        result: Dict[str, float] = {}
+        for r in records:
+            if r.total_mv and r.total_mv > 0:
+                result[r.ts_code] = log(r.total_mv)
+
+        self._mv_cache[date] = result
+        return {c: result[c] for c in ts_codes if c in result}
 
     async def load_day_data(self, date: str, ts_codes: List[str]) -> pd.DataFrame:
         records = await StockDaily.find(
