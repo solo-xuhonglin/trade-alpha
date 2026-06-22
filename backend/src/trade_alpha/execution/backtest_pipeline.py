@@ -315,7 +315,6 @@ class BacktestPipeline:
         all_ts_codes = provider.all_ts_codes
 
         date = warmup_start
-        day_count = 0
 
         while date < actual_start:
             if self._skip_non_trading_day(date):
@@ -363,7 +362,6 @@ class BacktestPipeline:
             self.market_analyzer.analyze(
                 stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
             )
-            day_count += 1
             await TaskService.update_progress(
                 task_id,
                 f"正在预热 {date[:4]}年{date[4:6]}月{date[6:8]}日...",
@@ -475,12 +473,9 @@ class BacktestPipeline:
         daily_returns: List[float] = []
         total_trades = 0
         total_fees = 0.0
-        # Estimate total trading days (~5/7 of calendar days)
-        cal_days = (datetime.strptime(end_date, "%Y%m%d") - datetime.strptime(start_date, "%Y%m%d")).days
-        total_days_est = max(1, int(cal_days * 5 / 7))
         day_count = 0
 
-        await TaskService.update_progress(task_id, 40, "正在执行回测...")
+        await TaskService.update_progress(task_id, "正在执行回测...")
         date = start_date
         import time
         loop_start = time.time()
