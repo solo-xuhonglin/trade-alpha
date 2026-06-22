@@ -113,3 +113,13 @@ class BuyCandidate:
     """A stock recommended by the mode for purchase, with buy reason."""
     stock: ScoredStock
     reason: str = ""
+
+
+class BuyRecommendation(BaseModel):
+    """A stock recommended by strategy, cached in planner for potential purchase."""
+    ts_code: str
+    stock_name: str
+    reason: str
+    candidate_group: str = "base"
+    added_date: str
+    expire_date: str
