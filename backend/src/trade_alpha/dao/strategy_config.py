@@ -86,6 +86,15 @@ class StrategyConfig(Document):
     # ── 持仓保护 ──
     use_hold_protection: bool = False
 
+    # ── 买入执行 ──
+    buy_cache_days: int = 3
+    buy_price_close_weight: float = 0.3
+    buy_price_ma5_weight: float = 0.3
+    buy_price_ma10_weight: float = 0.4
+    buy_price_buffer_pct: float = 0.01
+    buy_score_weight: float = 1.0
+    buy_prob_weight: float = 1.0
+
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
