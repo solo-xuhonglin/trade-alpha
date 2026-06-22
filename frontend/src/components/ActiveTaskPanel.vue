@@ -54,11 +54,8 @@
           <StatusChip :status="item.status" />
         </template>
         <template v-slot:item.progress="{ item }">
-          <div class="d-flex flex-column">
-            <div class="text-caption text-medium-emphasis" style="white-space: pre-line;">
-              {{ item.progress_message || `${item.progress.toFixed(1)}%` }}
-            </div>
-            <v-progress-linear :value="item.progress" height="4" class="mt-1" />
+          <div class="text-caption text-medium-emphasis" style="white-space: pre-line;">
+            {{ item.progress_message || '等待中' }}
           </div>
         </template>
         <template v-slot:item.created_at="{ item }">

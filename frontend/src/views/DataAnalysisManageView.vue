@@ -61,10 +61,7 @@
           <StatusChip :status="item.status" />
         </template>
         <template v-slot:item.progress="{ item }">
-          <div class="d-flex flex-column">
-            <span class="text-caption text-medium-emphasis">{{ item.progress_message || '等待中' }}</span>
-            <v-progress-linear :value="item.progress" height="4" class="mt-1" v-if="item.progress" />
-          </div>
+          <span class="text-caption text-medium-emphasis">{{ item.progress_message || '等待中' }}</span>
         </template>
         <template v-slot:item.created_at="{ item }">
           <span class="text-caption">{{ item.created_at ? new Date(item.created_at).toLocaleString() : '' }}</span>

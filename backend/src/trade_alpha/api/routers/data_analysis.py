@@ -81,7 +81,7 @@ async def run_data_analysis_async(task_id: str):
         
         ts_codes = params.get("ts_codes", [])
         if not ts_codes:
-            await TaskService.update_progress(task.id, 5.0, "正在查询股票列表...")
+            await TaskService.update_progress(task.id, "正在查询股票列表...")
             start_rank = params.get("start_rank", 1)
             end_rank = params.get("end_rank", 1000)
             stocks = await list_stocks_by_mv_rank(start_rank, end_rank)
@@ -144,7 +144,6 @@ async def get_analysis_task(task_id: str):
     return {
         "task_id": str(task.id),
         "status": task.status.value,
-        "progress": task.progress,
         "progress_message": task.progress_message,
         "result": result,
         "created_at": task.created_at.isoformat(),
@@ -180,7 +179,6 @@ async def list_analysis_tasks(
                 "task_id": str(t.id),
                 "name": t.params.get("name", ""),
                 "status": t.status.value,
-                "progress": t.progress,
                 "progress_message": t.progress_message,
                 "created_at": t.created_at.isoformat(),
                 "started_at": t.started_at.isoformat() if t.started_at else None,

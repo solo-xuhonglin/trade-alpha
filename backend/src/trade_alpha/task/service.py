@@ -50,7 +50,6 @@ class TaskService:
         if not task:
             raise ValueError(f"Task not found: {task_id}")
         task.status = TaskStatus.COMPLETED
-        task.progress = 100.0
         task.progress_message = "完成"
         task.result_id = result_id
         task.completed_at = datetime.now()
@@ -105,12 +104,12 @@ class TaskService:
         logger.info(f"Task deleted: {task_id}")
 
     @staticmethod
-    async def update_progress(task_id: Optional[PydanticObjectId], progress: float, message: str) -> None:
-        """Update task progress atomically. No-op if task_id is None."""
+    async def update_progress(task_id: Optional[PydanticObjectId], message: str) -> None:
+        """Update task progress message atomically. No-op if task_id is None."""
         if task_id is None:
             return
         await Task.find_one(Task.id == task_id).update(
-            {"$set": {"progress": progress, "progress_message": message}}
+            {"$set": {"progress_message": message}}
         )
 
     @staticmethod

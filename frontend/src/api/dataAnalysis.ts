@@ -44,7 +44,6 @@ export interface AnalysisTaskStatus {
   task_id: string
   name?: string
   status: string
-  progress: number
   progress_message: string
   result?: AnalysisResult
   created_at?: string

@@ -3,7 +3,6 @@ import api from './index'
 export interface TaskStatusResponse {
   task_id: string
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
-  progress: number
   progress_message?: string
   error_message?: string
   created_at: string
@@ -15,7 +14,6 @@ export interface TaskListResponse {
   items: {
     task_id: string
     status: string
-    progress: number
     progress_message?: string
     error_message?: string
     created_at: string

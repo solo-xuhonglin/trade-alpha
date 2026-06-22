@@ -162,16 +162,10 @@ class BacktestPipeline:
         return datetime.strptime(date, "%Y%m%d").weekday() >= 5
 
     @staticmethod
-    async def _update_progress(task_id: Optional[PydanticObjectId], date: str,
-                                day_count: int, total_days_est: int) -> None:
-        """Update backtest progress per trading day.
-
-        Progress percentage is derived from day_count / estimated total
-        trading days, mapped to the 40 %-90 % range of overall backtest.
-        """
-        progress = 40 + (day_count / total_days_est) * 50
+    async def _update_progress(task_id: Optional[PydanticObjectId], date: str) -> None:
+        """Update backtest progress per trading day."""
         await TaskService.update_progress(
-            task_id, min(progress, 90),
+            task_id,
             f"正在回测 {date[:4]}年{date[4:6]}月{date[6:8]}日...",
         )
 
@@ -372,7 +366,6 @@ class BacktestPipeline:
             day_count += 1
             await TaskService.update_progress(
                 task_id,
-                5 + day_count / warmup_days * 10,
                 f"正在预热 {date[:4]}年{date[4:6]}月{date[6:8]}日...",
             )
             date = _next_date(date)
@@ -388,7 +381,7 @@ class BacktestPipeline:
         result = await self._create_result(start_date, end_date, name)
         await self._ensure_predictor(task_id)
 
-        await TaskService.update_progress(task_id, 0, "正在初始化候选股票列表...")
+        await TaskService.update_progress(task_id, "正在初始化候选股票列表...")
 
         # 1. 延迟初始化 Provider
         provider = self.ctx.candidate_provider
@@ -413,7 +406,7 @@ class BacktestPipeline:
         )
         baseline_tracker.reset_daily_rebalanced_anchor()
 
-        await TaskService.update_progress(task_id, 20, "正在加载股票列表...")
+        await TaskService.update_progress(task_id, "正在加载股票列表...")
 
         daily_values, daily_returns, total_trades, total_fees = await self._run_daily_loop(
             start_date, end_date, result.id, task_id, baseline_tracker, warmup_days,
@@ -451,9 +444,8 @@ class BacktestPipeline:
                 success = await active_stock_data(code)
                 async with lock:
                     completed += 1
-                    progress = 10 + (completed / total) * 10
                     await TaskService.update_progress(
-                        task_id, progress,
+                        task_id,
                         f"正在准备数据 ({completed}/{total})",
                     )
                 if not success:
@@ -503,7 +495,7 @@ class BacktestPipeline:
                 continue
 
             day_count += 1
-            await self._update_progress(task_id, date, day_count, total_days_est)
+            await self._update_progress(task_id, date)
             day_data = await self._load_day_data(date, all_ts_codes, self.data_loader)
             if not day_data:
                 date = _next_date(date)

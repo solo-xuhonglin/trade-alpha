@@ -29,9 +29,9 @@ class BaseRunner(ABC):
             return True
         return False
 
-    async def update_progress(self, progress: float, message: str) -> None:
-        """Update task progress."""
-        await TaskService.update_progress(self.task_id, progress, message)
+    async def update_progress(self, message: str) -> None:
+        """Update task progress message."""
+        await TaskService.update_progress(self.task_id, message)
 
     @abstractmethod
     async def execute(self) -> None:

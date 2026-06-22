@@ -98,7 +98,6 @@ async def get_training_task(task_id: str):
     return {
         "task_id": task_id,
         "status": task.status.value,
-        "progress": task.progress,
         "progress_message": task.progress_message,
         "training": training_result,
         "error_message": task.error_message,
@@ -163,7 +162,6 @@ async def list_training_tasks(
             {
                 "task_id": str(t.id),
                 "status": t.status.value,
-                "progress": t.progress,
                 "progress_message": t.progress_message,
                 "error_message": t.error_message,
                 "created_at": t.created_at,

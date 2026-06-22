@@ -84,7 +84,6 @@ export interface LiveSuggestionTaskItem {
   task_id: string
   task_type: string
   status: string
-  progress: number
   progress_message?: string
   error_message?: string
   created_at: string
