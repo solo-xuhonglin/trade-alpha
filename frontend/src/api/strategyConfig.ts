@@ -12,7 +12,7 @@ export interface Strategy {
   sell_threshold: number
   max_positions?: number
   max_position_pct?: number
-  sell_rank_n?: number
+  sell_rank_pct?: number
   hold_score_threshold?: number
   use_momentum_boost?: boolean
   momentum_window?: number
@@ -45,18 +45,19 @@ export interface Strategy {
   ranking_smooth_alpha?: number
   market_smooth_window?: number
   market_smooth_alpha?: number
-  top_n_retention?: number
+  top_n_retention_pct?: number
   retention_days?: number
   correlation_window?: number
   use_phase_strategy?: boolean
   atr_stop_multiplier?: number
   atr_trail_rate?: number
   max_daily_buys?: number
-  rotation_bottom_threshold?: number
-  rotation_rank_min?: number
-  rotation_rank_max?: number
+  rotation_bottom_pct?: number
+  rotation_rank_min_pct?: number
+  rotation_rank_max_pct?: number
   rotation_use_reversal_check?: boolean
-  rotation_was_top_n?: number
+  rotation_was_top_pct?: number
+  rotation_pullback_window?: number
   rotation_was_top_window?: number
   sel_trend_slope_weight?: number
   sel_trend_arrangement_weight?: number
