@@ -66,6 +66,8 @@ async def create_strategy(
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
     use_phase_strategy: Optional[bool] = None,
+    atr_stop_multiplier: Optional[float] = None,
+    atr_trail_rate: Optional[float] = None,
     max_daily_buys: Optional[int] = None,
     rotation_bottom_pct: Optional[float] = None,
     rotation_rank_min_pct: Optional[float] = None,
@@ -181,6 +183,8 @@ async def update_strategy(
     retention_days: Optional[int] = None,
     correlation_window: Optional[int] = None,
     use_phase_strategy: Optional[bool] = None,
+    atr_stop_multiplier: Optional[float] = None,
+    atr_trail_rate: Optional[float] = None,
     max_daily_buys: Optional[int] = None,
     rotation_bottom_pct: Optional[float] = None,
     rotation_rank_min_pct: Optional[float] = None,
@@ -324,6 +328,10 @@ async def update_strategy(
         strategy.use_phase_strategy = use_phase_strategy
     if max_daily_buys is not None:
         strategy.max_daily_buys = max_daily_buys
+    if atr_stop_multiplier is not None:
+        strategy.atr_stop_multiplier = atr_stop_multiplier
+    if atr_trail_rate is not None:
+        strategy.atr_trail_rate = atr_trail_rate
 
     if rotation_bottom_pct is not None:
         strategy.rotation_bottom_pct = rotation_bottom_pct

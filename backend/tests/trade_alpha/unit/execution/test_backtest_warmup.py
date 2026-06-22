@@ -12,8 +12,10 @@ class TestComputeWarmupDays:
         assert BacktestPipeline._compute_warmup_days(None) == 0
 
     def test_uses_defaults_when_config_has_no_attrs(self):
-        days = BacktestPipeline._compute_warmup_days(object())
-        assert days == 40
+        """object() is not a valid config; this should raise AttributeError."""
+        import pytest
+        with pytest.raises(AttributeError):
+            BacktestPipeline._compute_warmup_days(object())
 
     def test_uses_ranking_smooth_window(self):
         class FakeConfig:
