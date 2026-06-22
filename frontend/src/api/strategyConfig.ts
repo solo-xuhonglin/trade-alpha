@@ -72,6 +72,13 @@ export interface Strategy {
   use_weighted_score?: boolean
   weighted_score_factor?: number
   use_hold_protection?: boolean
+  buy_cache_days?: number
+  buy_price_close_weight?: number
+  buy_price_ma5_weight?: number
+  buy_price_ma10_weight?: number
+  buy_price_buffer_pct?: number
+  buy_score_weight?: number
+  buy_prob_weight?: number
   created_at: string
   updated_at?: string
 }

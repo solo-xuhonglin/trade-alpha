@@ -67,6 +67,7 @@
           <v-tab value="ranking">排名优化</v-tab>
           <v-tab value="trading">交易优化</v-tab>
           <v-tab value="selection">选股配置</v-tab>
+          <v-tab value="execution">买入执行</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab" v-if="form.type === 'multi'" class="mt-4">
@@ -604,6 +605,60 @@
               </v-row>
             </div>
           </v-window-item>
+          <v-window-item value="execution">
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field v-model.number="form.buy_cache_days"
+                  type="number" step="1" min="1" max="30"
+                  label="候选缓存天数" hint="推荐股票在缓存中保留的天数（默认3天）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field v-model.number="form.buy_price_buffer_pct"
+                  type="number" step="0.005" min="0" max="0.1"
+                  label="限价上浮比例" hint="目标价上浮比例，避免因价格波动无法成交（默认0.01）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+            </v-row>
+            <v-divider class="my-3" />
+            <div class="text-body-2 font-weight-medium mb-2">价格权重</div>
+            <v-row>
+              <v-col cols="12" md="4">
+                <v-text-field v-model.number="form.buy_price_close_weight"
+                  type="number" step="0.1" min="0" max="5"
+                  label="收盘价权重" hint="目标价计算中收盘价的权重（默认0.3）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field v-model.number="form.buy_price_ma5_weight"
+                  type="number" step="0.1" min="0" max="5"
+                  label="MA5权重" hint="目标价计算中5日均线的权重（默认0.3）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field v-model.number="form.buy_price_ma10_weight"
+                  type="number" step="0.1" min="0" max="5"
+                  label="MA10权重" hint="目标价计算中10日均线的权重（默认0.4）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+            </v-row>
+            <v-divider class="my-3" />
+            <div class="text-body-2 font-weight-medium mb-2">优先级权重</div>
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field v-model.number="form.buy_score_weight"
+                  type="number" step="0.1" min="0" max="10"
+                  label="评分权重" hint="优先级计算中预测分数的权重（默认1.0）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field v-model.number="form.buy_prob_weight"
+                  type="number" step="0.1" min="0" max="10"
+                  label="概率权重" hint="优先级计算中价格接近度的权重（默认1.0）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
+              </v-col>
+            </v-row>
+          </v-window-item>
         </v-window>
 
         <div v-else>
@@ -809,6 +864,13 @@ const form = ref({
   use_weighted_score: false,
   weighted_score_factor: 0.2,
   use_hold_protection: false,
+  buy_cache_days: 3,
+  buy_price_close_weight: 0.3,
+  buy_price_ma5_weight: 0.3,
+  buy_price_ma10_weight: 0.4,
+  buy_price_buffer_pct: 0.01,
+  buy_score_weight: 1.0,
+  buy_prob_weight: 1.0,
 })
 
 const headers = [
@@ -891,6 +953,13 @@ const compareFields: CompareField[] = [
   { key: 'use_weighted_score', label: '分数加权', group: '排名优化', type: 'boolean' },
   { key: 'weighted_score_factor', label: '加权因子', group: '排名优化', type: 'number' },
   { key: 'use_hold_protection', label: '持仓保护', group: '选股配置', type: 'boolean' },
+  { key: 'buy_cache_days', label: '缓存天数', group: '买入执行', type: 'number' },
+  { key: 'buy_price_close_weight', label: '收盘价权重', group: '买入执行', type: 'number' },
+  { key: 'buy_price_ma5_weight', label: 'MA5权重', group: '买入执行', type: 'number' },
+  { key: 'buy_price_ma10_weight', label: 'MA10权重', group: '买入执行', type: 'number' },
+  { key: 'buy_price_buffer_pct', label: '上浮比例', group: '买入执行', type: 'number' },
+  { key: 'buy_score_weight', label: '分数权重', group: '买入执行', type: 'number' },
+  { key: 'buy_prob_weight', label: '概率权重', group: '买入执行', type: 'number' },
 ]
 
 const loadStrategies = async () => {
@@ -985,6 +1054,13 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       use_weighted_score: item.use_weighted_score ?? false,
       weighted_score_factor: item.weighted_score_factor ?? 0.2,
       use_hold_protection: item.use_hold_protection ?? false,
+      buy_cache_days: item.buy_cache_days ?? 3,
+      buy_price_close_weight: item.buy_price_close_weight ?? 0.3,
+      buy_price_ma5_weight: item.buy_price_ma5_weight ?? 0.3,
+      buy_price_ma10_weight: item.buy_price_ma10_weight ?? 0.4,
+      buy_price_buffer_pct: item.buy_price_buffer_pct ?? 0.01,
+      buy_score_weight: item.buy_score_weight ?? 1.0,
+      buy_prob_weight: item.buy_prob_weight ?? 1.0,
     }
   } else {
     editingId.value = null
@@ -1046,6 +1122,13 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       rotation_was_top_pct: 0.15,
       rotation_pullback_window: 5,
       rotation_was_top_window: 60,
+      buy_cache_days: 3,
+      buy_price_close_weight: 0.3,
+      buy_price_ma5_weight: 0.3,
+      buy_price_ma10_weight: 0.4,
+      buy_price_buffer_pct: 0.01,
+      buy_score_weight: 1.0,
+      buy_prob_weight: 1.0,
     }
   }
   dialog.value = true
@@ -1123,6 +1206,13 @@ const saveStrategy = async () => {
       use_weighted_score: form.value.type === 'multi' ? form.value.use_weighted_score : undefined,
       weighted_score_factor: form.value.type === 'multi' ? form.value.weighted_score_factor : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
+      buy_cache_days: form.value.type === 'multi' ? form.value.buy_cache_days : undefined,
+      buy_price_close_weight: form.value.type === 'multi' ? form.value.buy_price_close_weight : undefined,
+      buy_price_ma5_weight: form.value.type === 'multi' ? form.value.buy_price_ma5_weight : undefined,
+      buy_price_ma10_weight: form.value.type === 'multi' ? form.value.buy_price_ma10_weight : undefined,
+      buy_price_buffer_pct: form.value.type === 'multi' ? form.value.buy_price_buffer_pct : undefined,
+      buy_score_weight: form.value.type === 'multi' ? form.value.buy_score_weight : undefined,
+      buy_prob_weight: form.value.type === 'multi' ? form.value.buy_prob_weight : undefined,
     })
   } else {
     await strategyConfigApi.create({
