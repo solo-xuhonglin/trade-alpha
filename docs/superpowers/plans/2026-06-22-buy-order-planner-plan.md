@@ -42,55 +42,84 @@ git commit -m "feat: add BuyRecommendation schema"
 
 ---
 
-### Task 2: Add load_ma_data to DataLoader
+### Task 2: 移除独立查询 — MA 数据从 day_data 透传
+
+MA5/MA10 和收盘价同属 `stock_daily` 集合，`load_day_data` 已用 `model_dump()` 全量加载。无需新增 `load_ma_data`，只需在 `_load_day_data` 中透传 MA 字段，Planner 从 `day_data` 获取。
 
 **Files:**
-- Modify: `backend/src/trade_alpha/execution/data_loader.py`
+- Modify: `backend/src/trade_alpha/execution/backtest_pipeline.py`
 
-- [ ] **Add import for In operator** at top:
+- [ ] **修改 _load_day_data 返回**，新增 ma_5 和 ma_10 字段（line 182-189）：
 
 ```python
-from beanie.odm.operators.find.comparison import In
+        return {
+            "open": dict(zip(day_df["ts_code"], day_df["open"])),
+            "high": dict(zip(day_df["ts_code"], day_df["high"])),
+            "low": dict(zip(day_df["ts_code"], day_df["low"])),
+            "close": dict(zip(day_df["ts_code"], day_df["close"])),
+            "vol": dict(zip(day_df["ts_code"], day_df["vol"])),
+            "atr_14": dict(zip(day_df["ts_code"], day_df.get("atr_14", {}))),
+            "ma_5": dict(zip(day_df["ts_code"], day_df.get("ma_5", {}))),
+            "ma_10": dict(zip(day_df["ts_code"], day_df.get("ma_10", {}))),
+        }
 ```
 
-- [ ] **Add load_ma_data method** after `load_market_cap` (around line 80):
+- [ ] **BuyOrderPlanner.generate_orders 增加 day_data 参数**：
 
 ```python
-async def load_ma_data(self, date: str, ts_codes: List[str]) -> Dict[str, Dict[str, float]]:
-    """Load MA data for given stocks on a date.
+    async def generate_orders(
+        self,
+        date: str,
+        stock_map: Dict[str, ScoredStock],
+        close_prices: Dict[str, float],
+        day_data: Dict,  # 新增，包含 ma_5, ma_10
+        portfolio,
+        max_daily_buys: int,
+    ) -> List[PendingOrder]:
+```
 
-    Returns {ts_code: {ma_5: float, ma_10: float}} for stocks with MA data.
-    Caches results by date.
-    """
-    cache_key = f"ma_{date}"
-    if cache_key in self._history_cache:
-        cached = self._history_cache[cache_key]
-        return {c: cached[c] for c in ts_codes if c in cached}
+MA 数据从 `day_data` 获取而非调用 `data_loader.load_ma_data`：
 
-    records = await StockDaily.find(
-        StockDaily.trade_date == date,
-        In(StockDaily.ts_code, ts_codes),
-    ).to_list()
+```python
+        ma5_map = day_data.get("ma_5", {})
+        ma10_map = day_data.get("ma_10", {})
+        ...
+        ma5 = ma5_map.get(ts_code, close)
+        ma10 = ma10_map.get(ts_code, close)
+```
 
-    result: Dict[str, Dict[str, float]] = {}
-    for r in records:
-        if r.ma_5 is not None and r.ma_10 is not None:
-            result[r.ts_code] = {"ma_5": r.ma_5, "ma_10": r.ma_10}
+- [ ] **更新 pipeline 调用处**，传入 `day_data`：
 
-    self._history_cache[cache_key] = result
-    return result
+```python
+            buy_orders = await planner.generate_orders(
+                date=date,
+                stock_map=stock_map,
+                close_prices=close_prices,
+                day_data=day_data,
+                portfolio=self.ctx.portfolio,
+                max_daily_buys=self.ctx.strategy_config.max_daily_buys,
+            )
 ```
 
 - [ ] **Verify syntax**
 
-Run: `python -c "import ast; ast.parse(open('src/trade_alpha/execution/data_loader.py',encoding='utf-8').read()); print('OK')"`
+Run: `python -c "import ast; ast.parse(open('src/trade_alpha/execution/backtest_pipeline.py',encoding='utf-8').read()); print('OK')"`
 Expected: OK
+
+- [ ] **更新 BuyOrderPlanner 构造函数**，移除 `data_loader` 参数（不再需要：
+
+```python
+class BuyOrderPlanner:
+    def __init__(self, strategy_config):
+        self._config = strategy_config
+        self._cache: Dict[str, BuyRecommendation] = {}
+```
 
 - [ ] **Commit**
 
 ```bash
-git add backend/src/trade_alpha/execution/data_loader.py
-git commit -m "feat: add load_ma_data to DataLoader"
+git add backend/src/trade_alpha/execution/backtest_pipeline.py backend/src/trade_alpha/execution/buy_order_planner.py
+git commit -m "refactor: pass MA data via day_data instead of separate DB query"
 ```
 
 ---
@@ -223,7 +252,6 @@ git commit -m "feat: add buy order planner params to service layer"
 
 from typing import Dict, List, Tuple
 from trade_alpha.schemas import BuyRecommendation, ScoredStock, PendingOrder
-from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.logging import get_logger
 
 logger = get_logger("buy_order_planner")
@@ -237,9 +265,8 @@ class BuyOrderPlanner:
     and price proximity, then generates PendingOrder for top-ranked candidates.
     """
 
-    def __init__(self, strategy_config, data_loader: DataLoader):
+    def __init__(self, strategy_config):
         self._config = strategy_config
-        self._data_loader = data_loader
         self._cache: Dict[str, BuyRecommendation] = {}
 
     def add_recommendations(self, recs: List[BuyRecommendation]) -> None:
@@ -257,6 +284,7 @@ class BuyOrderPlanner:
         date: str,
         stock_map: Dict[str, ScoredStock],
         close_prices: Dict[str, float],
+        day_data: Dict,
         portfolio,
         max_daily_buys: int,
     ) -> List[PendingOrder]:
@@ -283,15 +311,16 @@ class BuyOrderPlanner:
             return []
 
         # Load MA data
-        ma_data = await self._data_loader.load_ma_data(date, valid_codes)
+        ma5_map = day_data.get("ma_5", {})
+        ma10_map = day_data.get("ma_10", {})
 
         # Build priority list
         candidates: List[Tuple[float, str, ScoredStock, float]] = []
         for ts_code in valid_codes:
             sd = stock_map[ts_code]
             close = close_prices.get(ts_code, sd.close)
-            ma5 = ma_data.get(ts_code, {}).get("ma_5", close)
-            ma10 = ma_data.get(ts_code, {}).get("ma_10", close)
+            ma5 = ma5_map.get(ts_code, close)
+            ma10 = ma10_map.get(ts_code, close)
 
             # Target price: weighted MA average + buffer
             target = (
@@ -758,7 +787,7 @@ git commit -m "feat: add buy execution tab to strategy config UI"
 """Tests for BuyOrderPlanner."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from trade_alpha.schemas import BuyRecommendation, ScoredStock, PendingOrder
 from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
 
@@ -777,29 +806,6 @@ def _mock_config(**kwargs):
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 
-
-def _mock_stock(ts_code, close, ranking_score=1.0, composite_score=1.0):
-    return ScoredStock(
-        ts_code=ts_code,
-        stock_name=ts_code[:6],
-        close=close,
-        ranking_score=ranking_score,
-        composite_score=composite_score,
-    )
-
-
-class TestBuyOrderPlanner:
-    def test_empty_cache_returns_empty_orders(self):
-        planner = BuyOrderPlanner(_mock_config(), MagicMock())
-        orders = []
-        assert orders == []
-
-    @pytest.mark.asyncio
-    async def test_expired_recommendations_are_removed(self):
-        data_loader = AsyncMock()
-        data_loader.load_ma_data = AsyncMock(return_value={})
-        planner = BuyOrderPlanner(_mock_config(), data_loader)
-
         planner.add_recommendations([
             BuyRecommendation(
                 ts_code="000001.SZ", stock_name="平安银行",
@@ -814,12 +820,10 @@ class TestBuyOrderPlanner:
 
     @pytest.mark.asyncio
     async def test_generate_orders_prioritizes_by_score(self):
-        data_loader = AsyncMock()
-        data_loader.load_ma_data = AsyncMock(return_value={})
         portfolio = MagicMock()
         portfolio.positions = {}
 
-        planner = BuyOrderPlanner(_mock_config(), data_loader)
+        planner = BuyOrderPlanner(_mock_config())
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="r1",
                               added_date="20251010", expire_date="20251020"),
@@ -834,19 +838,17 @@ class TestBuyOrderPlanner:
         close_prices = {"A.SZ": 100.0, "B.SZ": 100.0}
 
         orders = await planner.generate_orders(
-            "20251011", stock_map, close_prices, portfolio, max_daily_buys=2,
+            "20251011", stock_map, close_prices, {}, portfolio, max_daily_buys=2,
         )
         assert len(orders) == 2
         assert orders[0].ts_code == "A.SZ"  # Higher ranking_score first
 
     @pytest.mark.asyncio
     async def test_skips_already_held_stocks(self):
-        data_loader = AsyncMock()
-        data_loader.load_ma_data = AsyncMock(return_value={})
         portfolio = MagicMock()
         portfolio.positions = {"A.SZ": MagicMock()}
 
-        planner = BuyOrderPlanner(_mock_config(), data_loader)
+        planner = BuyOrderPlanner(_mock_config())
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="r1",
                               added_date="20251010", expire_date="20251020"),
@@ -856,18 +858,16 @@ class TestBuyOrderPlanner:
         close_prices = {"A.SZ": 100.0}
 
         orders = await planner.generate_orders(
-            "20251011", stock_map, close_prices, portfolio, max_daily_buys=1,
+            "20251011", stock_map, close_prices, {}, portfolio, max_daily_buys=1,
         )
         assert len(orders) == 0
 
     @pytest.mark.asyncio
     async def test_respects_max_daily_buys(self):
-        data_loader = AsyncMock()
-        data_loader.load_ma_data = AsyncMock(return_value={})
         portfolio = MagicMock()
         portfolio.positions = {}
 
-        planner = BuyOrderPlanner(_mock_config(), data_loader)
+        planner = BuyOrderPlanner(_mock_config())
         planner.add_recommendations([
             BuyRecommendation(ts_code=f"{i:03d}.SZ", stock_name=f"S{i}",
                               reason="r", added_date="20251010", expire_date="20251020")
@@ -879,13 +879,13 @@ class TestBuyOrderPlanner:
         close_prices = {f"{i:03d}.SZ": 100.0 for i in range(5)}
 
         orders = await planner.generate_orders(
-            "20251011", stock_map, close_prices, portfolio, max_daily_buys=3,
+            "20251011", stock_map, close_prices, {}, portfolio, max_daily_buys=3,
         )
         assert len(orders) == 3
 
     @pytest.mark.asyncio
     async def test_add_recommendations_does_not_overwrite(self):
-        planner = BuyOrderPlanner(_mock_config(), MagicMock())
+        planner = BuyOrderPlanner(_mock_config())
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="first",
                               added_date="20251010", expire_date="20251020"),
