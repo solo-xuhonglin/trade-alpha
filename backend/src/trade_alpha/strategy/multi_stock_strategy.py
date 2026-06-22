@@ -115,7 +115,6 @@ class MultiStockStrategy(BaseStrategy):
                     up_prob_10d=pos.entry_10d_prob,
                     up_prob_20d=pos.entry_20d_prob,
                     trade_date=trade_date,
-                    settle_date=trade_date,
                     reason=reason,
                 ))
 
@@ -188,7 +187,6 @@ class MultiStockStrategy(BaseStrategy):
             up_prob_10d=stock.up_prob_10d,
             up_prob_20d=stock.up_prob_20d,
             trade_date=trade_date,
-            settle_date=trade_date,
             reason=reason,
             candidate_group=stock.candidate_group,
         )
@@ -300,7 +298,6 @@ class MultiStockStrategy(BaseStrategy):
                 order_shares=-pos.shares,
                 entry_score=0.0,
                 trade_date=trade_date,
-                settle_date=trade_date,
                 reason=SELL_REASON_FULL_POSITION,
             ))
 

@@ -209,16 +209,6 @@ class BaseStrategy:
         return snapshot
 
     @staticmethod
-    def _next_trade_date(date_str: str) -> str:
-        """Return the next trading date skipping weekends."""
-        from datetime import timedelta
-        dt = datetime.strptime(date_str, "%Y%m%d")
-        dt += timedelta(days=1)
-        while dt.weekday() >= 5:
-            dt += timedelta(days=1)
-        return dt.strftime("%Y%m%d")
-
-    @staticmethod
     def calculate_metrics(daily_returns: List[float]) -> Dict[str, float]:
         """Calculate Sharpe ratio, volatility, annual return from daily returns."""
         if not daily_returns:

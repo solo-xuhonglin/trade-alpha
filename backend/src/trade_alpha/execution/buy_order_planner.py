@@ -131,7 +131,6 @@ class BuyOrderPlanner:
                 order_shares=shares,
                 entry_score=sd.composite_score,
                 trade_date=date,
-                settle_date=date,
                 reason=rec.reason,
                 candidate_group=rec.candidate_group,
             ))

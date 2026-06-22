@@ -629,7 +629,6 @@ class BacktestPipeline:
                     order_price=cp,
                     entry_score=pos.entry_score,
                     trade_date=date,
-                    settle_date=date,
                     reason=SELL_REASON_CANDIDATE_EXCLUDED,
                     up_prob_3d=pos.entry_3d_prob,
                     up_prob_5d=pos.entry_5d_prob,

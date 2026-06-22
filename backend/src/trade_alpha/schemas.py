@@ -69,7 +69,7 @@ class PendingOrder(BaseModel):
     order_shares: int
     entry_score: float
     trade_date: str
-    settle_date: str
+    settle_date: str = ""
     reason: str = ""
     up_prob_3d: float = 0.0
     up_prob_5d: float = 0.0

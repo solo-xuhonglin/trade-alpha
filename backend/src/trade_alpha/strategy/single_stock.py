@@ -72,7 +72,6 @@ class SingleStockStrategy(BaseStrategy):
                     up_prob_10d=current_position.entry_10d_prob,
                     up_prob_20d=current_position.entry_20d_prob,
                     trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
                 ))
                 return orders
 
@@ -94,7 +93,6 @@ class SingleStockStrategy(BaseStrategy):
                     up_prob_10d=target_stock.up_prob_10d,
                     up_prob_20d=target_stock.up_prob_20d,
                     trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
                 ))
 
         return orders
