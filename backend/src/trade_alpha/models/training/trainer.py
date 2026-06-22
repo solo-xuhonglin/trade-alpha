@@ -26,10 +26,10 @@ async def create_training(config_id, name, ts_codes, start_date, end_date, task_
 
     classifier = create_classifier(config)
 
-    await TaskService.update_progress(task_id, 10, "正在初始化...")
+    await TaskService.update_progress(task_id, "正在初始化...")
     metrics = await classifier.train(ts_codes, start_date, end_date, task_id)
 
-    await TaskService.update_progress(task_id, 95, "正在保存结果...")
+    await TaskService.update_progress(task_id, "正在保存结果...")
 
     normalized_data_analysis = metrics.pop("normalized_data_analysis", None)
 

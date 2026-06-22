@@ -114,7 +114,7 @@ async def run_data_analysis(
     start_date = to_db_format(start_date)
     end_date = to_db_format(end_date)
 
-    await TaskService.update_progress(task_id, 10, "正在加载数据...")
+    await TaskService.update_progress(task_id, "正在加载数据...")
 
     all_dfs = []
     for idx, ts_code in enumerate(ts_codes):
@@ -127,18 +127,18 @@ async def run_data_analysis(
             df = pd.DataFrame([r.model_dump() for r in records])
             df["ts_code"] = ts_code
             all_dfs.append(df)
-        await TaskService.update_progress(task_id, 10 + (idx + 1) / len(ts_codes) * 60, f"正在处理 {idx+1}/{len(ts_codes)} 只股票...")
+        await TaskService.update_progress(task_id, f"正在处理 {idx+1}/{len(ts_codes)} 只股票...")
 
     if not all_dfs:
         raise ValueError("No data found")
 
-    await TaskService.update_progress(task_id, 70, "正在计算统计数据...")
+    await TaskService.update_progress(task_id, "正在计算统计数据...")
     df = pd.concat(all_dfs, ignore_index=True)
 
-    await TaskService.update_progress(task_id, 80, "正在生成分析结果...")
+    await TaskService.update_progress(task_id, "正在生成分析结果...")
     result = compute_field_analysis(df, feature_fields)
 
-    await TaskService.update_progress(task_id, 95, "正在保存结果...")
+    await TaskService.update_progress(task_id, "正在保存结果...")
 
     return result
 

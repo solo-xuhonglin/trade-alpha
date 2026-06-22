@@ -30,7 +30,7 @@ class XGBoostClassifier(BaseClassifier):
     async def train(self, ts_codes, start_date, end_date, task_id=None):
         """Self-contained training: load data, cross-sectional normalize, train XGBoost."""
 
-        await TaskService.update_progress(task_id, 20, "正在加载数据...")
+        await TaskService.update_progress(task_id, "正在加载数据...")
 
         config = self.config
         target_names = [f"label_{h}d" for h in config.classification_horizons]
@@ -75,7 +75,7 @@ class XGBoostClassifier(BaseClassifier):
         self.models = {}
         self._label_mapping = {}
 
-        await TaskService.update_progress(task_id, 60, "正在训练模型...")
+        await TaskService.update_progress(task_id, "正在训练模型...")
 
         for target_idx, target in enumerate(target_names):
             y_i = y[:, target_idx]
@@ -100,7 +100,7 @@ class XGBoostClassifier(BaseClassifier):
             self.models[target] = model
             self._label_mapping[target] = label_map
 
-        await TaskService.update_progress(task_id, 80, "正在评估模型...")
+        await TaskService.update_progress(task_id, "正在评估模型...")
         metrics = await _evaluate_classifier(self, X, y, config.feature_fields, target_names)
         metrics["sample_count"] = len(X)
         metrics["normalized_data_analysis"] = normalized_data_analysis

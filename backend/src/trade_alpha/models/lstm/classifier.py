@@ -85,7 +85,7 @@ class LSTMClassifier(BaseClassifier):
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(42)
 
-        await TaskService.update_progress(task_id, 20, "正在加载数据...")
+        await TaskService.update_progress(task_id, "正在加载数据...")
 
         config = self.config
         target_names = [f"label_{h}d" for h in config.classification_horizons]
@@ -143,7 +143,7 @@ class LSTMClassifier(BaseClassifier):
             valid_mask = ~np.isnan(y_2d).any(axis=1)
             X_3d, y_2d, dates = X_3d[valid_mask], y_2d[valid_mask], dates[valid_mask]
 
-        await TaskService.update_progress(task_id, 55, "正在创建模型...")
+        await TaskService.update_progress(task_id, "正在创建模型...")
 
         self.models = {}
         self._label_mapping = {}
@@ -171,7 +171,7 @@ class LSTMClassifier(BaseClassifier):
         train_mask = np.isin(dates, train_dates)
         val_mask = np.isin(dates, val_dates)
 
-        await TaskService.update_progress(task_id, 60, "正在训练模型...")
+        await TaskService.update_progress(task_id, "正在训练模型...")
 
         all_epoch_losses = []
         all_val_losses = []
@@ -308,11 +308,11 @@ class LSTMClassifier(BaseClassifier):
                     msg = f"正在训练 {target} - Epoch {epoch + 1}/{config.lstm_epochs}\nTrain Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}, Val AUC: {val_auc:.4f}\n等待早停 {patience_counter}/{patience}"
                 else:
                     msg = f"正在训练 {target} - Epoch {epoch + 1}/{config.lstm_epochs}\nTrain Loss: {avg_train_loss:.4f}, Val Loss: {val_loss:.4f}, Val AUC: {val_auc:.4f}（最佳）"
-                await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, msg)
+                await TaskService.update_progress(task_id, msg)
 
                 if patience_counter >= patience:
                     early_stopped = True
-                    await TaskService.update_progress(task_id, 60 + (target_idx / len(target_names)) * 20, f"{target} 早停于 Epoch {epoch + 1}（最佳 Val AUC: {best_val_auc:.4f}）")
+                    await TaskService.update_progress(task_id, f"{target} 早停于 Epoch {epoch + 1}（最佳 Val AUC: {best_val_auc:.4f}）")
                     break
 
             # 恢复最佳模型
@@ -338,7 +338,7 @@ class LSTMClassifier(BaseClassifier):
             self.models[target] = model.cpu()
             self._label_mapping[target] = label_map
 
-        await TaskService.update_progress(task_id, 80, "正在评估模型...")
+        await TaskService.update_progress(task_id, "正在评估模型...")
         metrics = {
             "final_train_loss": all_epoch_losses[-1] if all_epoch_losses else None,
             "loss_per_epoch": per_target_epoch_losses,
