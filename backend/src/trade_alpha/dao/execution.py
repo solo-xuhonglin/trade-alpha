@@ -91,6 +91,13 @@ class StrategySnapshotEmbed(BaseModel):
     use_weighted_score: bool = False
     weighted_score_factor: float = 0.2
     use_hold_protection: bool = False
+    buy_cache_days: int = 3
+    buy_price_close_weight: float = 0.3
+    buy_price_ma5_weight: float = 0.3
+    buy_price_ma10_weight: float = 0.4
+    buy_price_buffer_pct: float = 0.01
+    buy_score_weight: float = 1.0
+    buy_prob_weight: float = 1.0
 
 
 class ModelSnapshotEmbed(BaseModel):
