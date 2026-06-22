@@ -25,6 +25,7 @@ from trade_alpha.strategy.modes.trend_mode import TrendMode
 from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
+from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
 from trade_alpha.execution.baseline_tracker import BaselineTracker
 from trade_alpha.execution.warmup_manager import WarmupManager
 from trade_alpha.data.service import active_stock_data
@@ -477,6 +478,7 @@ class BacktestPipeline:
 
         prev_total_value: Optional[float] = None
         pending_orders: List[PendingOrder] = []
+        planner = BuyOrderPlanner(self.strategy_config, self.data_loader)
         daily_values: List[float] = []
         daily_returns: List[float] = []
         total_trades = 0
@@ -556,7 +558,7 @@ class BacktestPipeline:
 
             atr_values = day_data.get("atr_14", {})
 
-            pending_orders = await self.strategy.make_orders(
+            sell_orders, recommendations = await self.strategy.make_orders(
                 scored_stocks=list(stock_map.values()),
                 trade_date=date,
                 ctx=self.ctx,
@@ -564,6 +566,15 @@ class BacktestPipeline:
                 market_data=market_data,
                 atr_values=atr_values,
             )
+            planner.add_recommendations(recommendations)
+            buy_orders = await planner.generate_orders(
+                date=date,
+                stock_map=stock_map,
+                close_prices=close_prices,
+                portfolio=self.ctx.portfolio,
+                max_daily_buys=self.ctx.strategy_config.max_daily_buys,
+            )
+            pending_orders = sell_orders + buy_orders
 
             # Mark forced-sell orders for snapshot reporting
             for o in pending_orders:
