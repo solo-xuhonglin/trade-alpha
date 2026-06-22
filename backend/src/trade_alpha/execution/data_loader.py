@@ -99,6 +99,22 @@ class DataLoader:
         self._mv_cache[date] = result
         return {c: result[c] for c in ts_codes if c in result}
 
+    async def load_ma_data(self, date: str, ts_codes: List[str]) -> Dict[str, Dict[str, float]]:
+        """Load MA data for given stocks on a date.
+
+        Returns {ts_code: {ma_5: float, ma_10: float}} for stocks with MA data.
+        """
+        records = await StockDaily.find(
+            StockDaily.trade_date == date,
+            In(StockDaily.ts_code, ts_codes),
+        ).to_list()
+
+        result: Dict[str, Dict[str, float]] = {}
+        for r in records:
+            if r.ma_5 is not None and r.ma_10 is not None:
+                result[r.ts_code] = {"ma_5": r.ma_5, "ma_10": r.ma_10}
+        return result
+
     async def load_day_data(self, date: str, ts_codes: List[str]) -> pd.DataFrame:
         records = await StockDaily.find(
             StockDaily.trade_date == date,
