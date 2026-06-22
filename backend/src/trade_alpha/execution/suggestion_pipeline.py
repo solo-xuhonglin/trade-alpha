@@ -264,7 +264,7 @@ class SuggestionPipeline:
                     atr_values = day_data.get("atr_14", {})
 
                     # Generate buy/sell suggestions
-                    pending_orders = await self.strategy.make_orders(
+                    pending_orders, _ = await self.strategy.make_orders(
                         scored_stocks=list(stock_map.values()),
                         trade_date=date,
                         ctx=self.ctx,

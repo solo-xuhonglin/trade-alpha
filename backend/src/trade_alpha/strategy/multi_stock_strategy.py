@@ -12,7 +12,7 @@ from trade_alpha.constants import (
 )
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.schemas import BuyCandidate, ScoredStock, PendingOrder, MarketDataEmbed
+from trade_alpha.schemas import BuyCandidate, BuyRecommendation, ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.strategy.modes.base import PhaseMode, score_not_declining
 from trade_alpha.logging import get_logger
@@ -57,7 +57,7 @@ class MultiStockStrategy(BaseStrategy):
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
         atr_values: Optional[Dict[str, float]] = None,
-    ) -> List[PendingOrder]:
+    ) -> Tuple[List[PendingOrder], List[BuyRecommendation]]:
         # ── 1. Filter scored_stocks ──
         scored_stocks = [s for s in scored_stocks if not s.is_excluded]
 
@@ -132,43 +132,49 @@ class MultiStockStrategy(BaseStrategy):
         rank_up_candidates = self._get_rank_up_candidates(scored_stocks, ctx)
         buy_candidates = rank_up_candidates + buy_candidates
 
-        # ── 10. Process buy candidates ──
+        # ── 10. Process buy candidates — output recommendations for Planner ──
         hold_ts_codes: Set[str] = set(ctx.portfolio.positions.keys())
         purchased: Set[str] = set()
-        suggestion_count = 0
-        daily_buy_count = 0
-        max_daily = self.strategy_config.max_daily_buys
+        recommendations: List[BuyRecommendation] = []
 
         for cand in buy_candidates:
             if cand.stock.ts_code in hold_ts_codes or cand.stock.ts_code in purchased:
                 continue
-            if suggestion_mode:
-                # suggestion_mode is used for UI display only, not actual trading.
-                # It intentionally skips the max_daily_buys limit so the UI can
-                # show all recommended candidates up to max_positions.
-                if suggestion_count >= self.max_positions:
-                    break
-                suggestion_count += 1
-                orders.append(self._build_order(cand.stock, 0, cand.reason, trade_date))
-                continue
-            if daily_buy_count >= max_daily:
-                break
-            success, shares, _fee = ctx.portfolio.reserve_funds(
-                cand.stock.ts_code, cand.stock.close, close_prices,
-                atr=atr_values.get(cand.stock.ts_code, 0.0) if atr_values else 0.0,
-            )
-            if not success:
-                continue
             purchased.add(cand.stock.ts_code)
-            daily_buy_count += 1
-            orders.append(self._build_order(cand.stock, shares, cand.reason, trade_date))
 
-        # Annotate all orders with candidate group
+            if suggestion_mode:
+                if len(recommendations) >= self.max_positions:
+                    break
+                recommendations.append(BuyRecommendation(
+                    ts_code=cand.stock.ts_code,
+                    stock_name=cand.stock.stock_name,
+                    reason=cand.reason,
+                    candidate_group=cand.stock.candidate_group,
+                    added_date=trade_date,
+                    expire_date=trade_date,
+                ))
+                continue
+
+            # Calculate expire_date = trade_date + buy_cache_days trading days
+            expire_date = trade_date
+            for _ in range(ctx.strategy_config.buy_cache_days):
+                expire_date = self._next_trade_date(expire_date)
+
+            recommendations.append(BuyRecommendation(
+                ts_code=cand.stock.ts_code,
+                stock_name=cand.stock.stock_name,
+                reason=cand.reason,
+                candidate_group=cand.stock.candidate_group,
+                added_date=trade_date,
+                expire_date=expire_date,
+            ))
+
+        # Annotate sell orders with candidate group
         for order in orders:
             group = ctx.candidate_provider.get_stock_group(trade_date, order.ts_code)
             order.candidate_group = group
 
-        return orders
+        return orders, recommendations
 
     def _build_order(
         self,
