@@ -29,7 +29,7 @@ from trade_alpha.models.training.trainer import get_training_by_id
 from trade_alpha.strategy.multi_stock_strategy import MultiStockStrategy
 from trade_alpha.strategy.modes.trend_mode import TrendMode
 from trade_alpha.strategy.modes.rotation_mode import RotationMode
-from trade_alpha.schemas import ScoredStock, MarketDataEmbed
+from trade_alpha.schemas import PendingOrder, ScoredStock, MarketDataEmbed
 from trade_alpha.task.service import TaskService
 from trade_alpha.logging import get_logger
 
@@ -263,7 +263,7 @@ class SuggestionPipeline:
                     atr_values = day_data.get("atr_14", {})
 
                     # Generate buy/sell suggestions
-                    pending_orders, _ = await self.strategy.make_orders(
+                    pending_orders, recommendations = await self.strategy.make_orders(
                         scored_stocks=list(stock_map.values()),
                         trade_date=date,
                         ctx=self.ctx,
@@ -272,6 +272,19 @@ class SuggestionPipeline:
                         atr_values=atr_values,
                         suggestion_mode=True,
                     )
+
+                    # Convert recommendations to suggestion PendingOrders for display
+                    for rec in recommendations:
+                        stock = stock_map.get(rec.ts_code)
+                        pending_orders.append(PendingOrder(
+                            ts_code=rec.ts_code,
+                            stock_name=rec.stock_name,
+                            order_price=close_prices.get(rec.ts_code, 0.0),
+                            order_shares=0,
+                            entry_score=stock.composite_score if stock else 0.0,
+                            trade_date=date,
+                            reason=rec.reason,
+                        ))
 
                     logger.info(f"SuggestionPipeline.run: {date} -> {len(pending_orders)} orders "
                                 f"(buy={sum(1 for o in pending_orders if o.order_shares >= 0)}, "

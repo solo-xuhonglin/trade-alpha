@@ -66,7 +66,7 @@ class MultiStockStrategy(BaseStrategy):
         mode = ctx.mode_map.get(phase, ctx.mode_map.get("up"))
         if mode is None:
             logger.warning(f"make_orders no mode found for phase={phase}, skip")
-            return []
+            return [], []
 
         # ── 3. Apply mode param overrides ──
         self._apply_mode_params(mode)
@@ -133,13 +133,13 @@ class MultiStockStrategy(BaseStrategy):
 
         # ── 10. Process buy candidates — output recommendations for Planner ──
         hold_ts_codes: Set[str] = set(ctx.portfolio.positions.keys())
-        purchased: Set[str] = set()
+        processed: Set[str] = set()
         recommendations: List[BuyRecommendation] = []
 
         for cand in buy_candidates:
-            if cand.stock.ts_code in hold_ts_codes or cand.stock.ts_code in purchased:
+            if cand.stock.ts_code in hold_ts_codes or cand.stock.ts_code in processed:
                 continue
-            purchased.add(cand.stock.ts_code)
+            processed.add(cand.stock.ts_code)
 
             if suggestion_mode:
                 if len(recommendations) >= self.max_positions:
@@ -235,12 +235,12 @@ class MultiStockStrategy(BaseStrategy):
     ) -> List[PendingOrder]:
         """Sell worst-scored stocks when portfolio is over-positioned for N days."""
         forced_orders: List[PendingOrder] = []
-        if not self.strategy_config or not getattr(self.strategy_config, "use_full_position_sell", False):
+        if not self.strategy_config.use_full_position_sell:
             return forced_orders
-        threshold = getattr(self.strategy_config, "full_position_threshold", 0.90)
-        days_required = getattr(self.strategy_config, "full_position_days", 3)
+        threshold = self.strategy_config.full_position_threshold
+        days_required = self.strategy_config.full_position_days
         score_window = self.full_position_score_window
-        sell_count = getattr(self.strategy_config, "full_position_sell_count", 1)
+        sell_count = self.strategy_config.full_position_sell_count
 
         total_value = ctx.portfolio.get_total_value(close_prices)
         if total_value <= 0:
