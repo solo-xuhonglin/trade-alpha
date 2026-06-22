@@ -1,10 +1,10 @@
 """Single-stock strategy - probability-based trading."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.position import PositionEmbed
-from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
+from trade_alpha.schemas import BuyRecommendation, ScoredStock, PendingOrder, MarketDataEmbed
 from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.logging import get_logger
 from trade_alpha.execution.context import PipelineContext
@@ -38,7 +38,7 @@ class SingleStockStrategy(BaseStrategy):
         market_data: Optional[MarketDataEmbed] = None,
         suggestion_mode: bool = False,
         atr_values: Optional[Dict[str, float]] = None,
-    ) -> List[PendingOrder]:
+    ) -> Tuple[List[PendingOrder], List[BuyRecommendation]]:
         """Make decisions based on prediction probabilities.
 
         Uses ctx.portfolio.reserve_funds for buy feasibility.
@@ -95,7 +95,7 @@ class SingleStockStrategy(BaseStrategy):
                     trade_date=trade_date,
                 ))
 
-        return orders
+        return orders, []
 
     def _should_buy(self, scored_stock: ScoredStock) -> bool:
         """Determine if we should buy based on composite_score and threshold."""
