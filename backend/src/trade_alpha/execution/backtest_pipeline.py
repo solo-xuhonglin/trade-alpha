@@ -473,23 +473,15 @@ class BacktestPipeline:
         daily_returns: List[float] = []
         total_trades = 0
         total_fees = 0.0
-        day_count = 0
 
         await TaskService.update_progress(task_id, "正在执行回测...")
         date = start_date
-        import time
-        loop_start = time.time()
         warmup_mgr = self.ctx.warmup_manager
         while date <= end_date:
-            if day_count > 0 and day_count % 20 == 0:
-                elapsed = time.time() - loop_start
-                logger.info(f"Daily loop progress: {day_count} days in {elapsed:.1f}s, "
-                            f"avg {elapsed/day_count:.2f}s/day")
             if self._skip_non_trading_day(date):
                 date = _next_date(date)
                 continue
 
-            day_count += 1
             await self._update_progress(task_id, date)
             day_data = await self._load_day_data(date, all_ts_codes, self.data_loader)
             if not day_data:
