@@ -49,16 +49,34 @@ class TestBuyOrderPlanner:
     async def test_expired_recommendations_are_removed(self):
         data_loader = AsyncMock()
         data_loader.load_ma_data = AsyncMock(return_value={})
-        planner = BuyOrderPlanner(_mock_config(), data_loader)
+        planner = BuyOrderPlanner(_mock_config(buy_cache_days=2), data_loader)
         planner.add_recommendations([
             BuyRecommendation(
                 ts_code="000001.SZ", stock_name="Test",
                 reason="test", added_date="20251010",
-                expire_date="20251013",
             ),
         ])
         assert len(planner._cache) == 1
-        planner.expire_before("20251014")
+
+        # First eval: count=1, not expired yet
+        stock_map = {"000001.SZ": _mock_stock("000001.SZ", 100.0)}
+        close_prices = {"000001.SZ": 100.0}
+        portfolio = _mock_portfolio()
+        await planner.generate_orders(
+            "20251011", stock_map, close_prices, portfolio, max_daily_buys=1,
+        )
+        assert len(planner._cache) == 1
+
+        # Second eval: count=1, still not expired
+        await planner.generate_orders(
+            "20251012", stock_map, close_prices, portfolio, max_daily_buys=1,
+        )
+        assert len(planner._cache) == 1
+
+        # Third eval: count=2 >= buy_cache_days, should expire
+        await planner.generate_orders(
+            "20251013", stock_map, close_prices, portfolio, max_daily_buys=1,
+        )
         assert len(planner._cache) == 0
 
     @pytest.mark.asyncio
@@ -70,9 +88,9 @@ class TestBuyOrderPlanner:
         planner = BuyOrderPlanner(_mock_config(), data_loader)
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="r1",
-                              added_date="20251010", expire_date="20251020"),
+                              added_date="20251010"),
             BuyRecommendation(ts_code="B.SZ", stock_name="B", reason="r2",
-                              added_date="20251010", expire_date="20251020"),
+                              added_date="20251010"),
         ])
 
         stock_map = {
@@ -96,7 +114,7 @@ class TestBuyOrderPlanner:
         planner = BuyOrderPlanner(_mock_config(), data_loader)
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="r1",
-                              added_date="20251010", expire_date="20251020"),
+                              added_date="20251010"),
         ])
 
         stock_map = {"A.SZ": _mock_stock("A.SZ", 100.0)}
@@ -121,7 +139,7 @@ class TestBuyOrderPlanner:
         planner = BuyOrderPlanner(_mock_config(), data_loader)
         planner.add_recommendations([
             BuyRecommendation(ts_code=f"{i:03d}.SZ", stock_name=f"S{i}",
-                              reason="r", added_date="20251010", expire_date="20251020")
+                              reason="r", added_date="20251010")
             for i in range(5)
         ])
         stock_map = {f"{i:03d}.SZ": _mock_stock(f"{i:03d}.SZ", 100.0, ranking_score=float(5-i))
@@ -138,11 +156,11 @@ class TestBuyOrderPlanner:
         planner = BuyOrderPlanner(_mock_config(), MagicMock())
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="first",
-                              added_date="20251010", expire_date="20251020"),
+                              added_date="20251010"),
         ])
         planner.add_recommendations([
             BuyRecommendation(ts_code="A.SZ", stock_name="A", reason="second",
-                              added_date="20251015", expire_date="20251025"),
+                              added_date="20251015"),
         ])
         assert len(planner._cache) == 1
         assert planner._cache["A.SZ"].added_date == "20251010"

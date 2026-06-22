@@ -4,7 +4,6 @@ from typing import Dict, List, Tuple
 
 from trade_alpha.schemas import BuyRecommendation, ScoredStock, PendingOrder
 from trade_alpha.execution.data_loader import DataLoader
-from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.logging import get_logger
 
 logger = get_logger("buy_order_planner")
@@ -22,6 +21,7 @@ class BuyOrderPlanner:
         self._config = strategy_config
         self._data_loader = data_loader
         self._cache: Dict[str, BuyRecommendation] = {}
+        self._eval_count: Dict[str, int] = {}
 
     def add_recommendations(self, recs: List[BuyRecommendation]) -> None:
         """Add recommendations to cache. Existing ts_code not overwritten (keeps earliest)."""
@@ -50,7 +50,15 @@ class BuyOrderPlanner:
         5. Generate PendingOrder
         """
         cfg = self._config
-        self.expire_before(date)
+
+        # Remove expired cache entries (by evaluation count)
+        expired = [
+            c for c in self._cache
+            if self._eval_count.get(c, 0) >= cfg.buy_cache_days
+        ]
+        for c in expired:
+            del self._cache[c]
+            self._eval_count.pop(c, None)
 
         if not self._cache:
             return []
@@ -62,6 +70,10 @@ class BuyOrderPlanner:
         ]
         if not valid_codes:
             return []
+
+        # Increment eval count for remaining candidates
+        for c in valid_codes:
+            self._eval_count[c] = self._eval_count.get(c, 0) + 1
 
         # Load MA data
         ma_data = await self._data_loader.load_ma_data(date, valid_codes)
@@ -107,7 +119,6 @@ class BuyOrderPlanner:
             if not success:
                 continue
 
-            settle_date = BaseStrategy._next_trade_date(date)
             logger.info(
                 f"generate_orders BUY ts_code={ts_code} priority={priority:.3f} "
                 f"target_price={target_price:.2f} close={close_prices.get(ts_code, 0):.2f} "
@@ -120,7 +131,7 @@ class BuyOrderPlanner:
                 order_shares=shares,
                 entry_score=sd.composite_score,
                 trade_date=date,
-                settle_date=settle_date,
+                settle_date=date,
                 reason=rec.reason,
                 candidate_group=rec.candidate_group,
             ))

@@ -122,4 +122,3 @@ class BuyRecommendation(BaseModel):
     reason: str
     candidate_group: str = "base"
     added_date: str
-    expire_date: str

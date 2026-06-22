@@ -115,7 +115,7 @@ class MultiStockStrategy(BaseStrategy):
                     up_prob_10d=pos.entry_10d_prob,
                     up_prob_20d=pos.entry_20d_prob,
                     trade_date=trade_date,
-                    settle_date=self._next_trade_date(trade_date),
+                    settle_date=trade_date,
                     reason=reason,
                 ))
 
@@ -151,14 +151,8 @@ class MultiStockStrategy(BaseStrategy):
                     reason=cand.reason,
                     candidate_group=cand.stock.candidate_group,
                     added_date=trade_date,
-                    expire_date=trade_date,
                 ))
                 continue
-
-            # Calculate expire_date = trade_date + buy_cache_days trading days
-            expire_date = trade_date
-            for _ in range(ctx.strategy_config.buy_cache_days):
-                expire_date = self._next_trade_date(expire_date)
 
             recommendations.append(BuyRecommendation(
                 ts_code=cand.stock.ts_code,
@@ -166,7 +160,6 @@ class MultiStockStrategy(BaseStrategy):
                 reason=cand.reason,
                 candidate_group=cand.stock.candidate_group,
                 added_date=trade_date,
-                expire_date=expire_date,
             ))
 
         # Annotate sell orders with candidate group
@@ -195,7 +188,7 @@ class MultiStockStrategy(BaseStrategy):
             up_prob_10d=stock.up_prob_10d,
             up_prob_20d=stock.up_prob_20d,
             trade_date=trade_date,
-            settle_date=self._next_trade_date(trade_date),
+            settle_date=trade_date,
             reason=reason,
             candidate_group=stock.candidate_group,
         )
@@ -307,7 +300,7 @@ class MultiStockStrategy(BaseStrategy):
                 order_shares=-pos.shares,
                 entry_score=0.0,
                 trade_date=trade_date,
-                settle_date=self._next_trade_date(trade_date),
+                settle_date=trade_date,
                 reason=SELL_REASON_FULL_POSITION,
             ))
 
