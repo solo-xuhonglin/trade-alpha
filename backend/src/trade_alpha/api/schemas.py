@@ -110,6 +110,13 @@ class StrategyCreateRequest(BaseModel):
     use_weighted_score: Optional[bool] = None
     weighted_score_factor: Optional[float] = None
     use_hold_protection: Optional[bool] = None
+    buy_cache_days: Optional[int] = None
+    buy_price_close_weight: Optional[float] = None
+    buy_price_ma5_weight: Optional[float] = None
+    buy_price_ma10_weight: Optional[float] = None
+    buy_price_buffer_pct: Optional[float] = None
+    buy_score_weight: Optional[float] = None
+    buy_prob_weight: Optional[float] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -182,6 +189,13 @@ class StrategyUpdateRequest(BaseModel):
     use_weighted_score: Optional[bool] = None
     weighted_score_factor: Optional[float] = None
     use_hold_protection: Optional[bool] = None
+    buy_cache_days: Optional[int] = None
+    buy_price_close_weight: Optional[float] = None
+    buy_price_ma5_weight: Optional[float] = None
+    buy_price_ma10_weight: Optional[float] = None
+    buy_price_buffer_pct: Optional[float] = None
+    buy_score_weight: Optional[float] = None
+    buy_prob_weight: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):
