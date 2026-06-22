@@ -22,6 +22,13 @@ def _mock_config(**kwargs):
     return SimpleNamespace(**defaults)
 
 
+def _mock_portfolio(positions=None):
+    portfolio = MagicMock()
+    portfolio.positions = positions or {}
+    portfolio.reserve_funds = MagicMock(return_value=(True, 100, 5.0))
+    return portfolio
+
+
 def _mock_stock(ts_code, close, ranking_score=1.0, composite_score=1.0):
     return ScoredStock(
         ts_code=ts_code,
@@ -51,7 +58,6 @@ class TestBuyOrderPlanner:
             ),
         ])
         assert len(planner._cache) == 1
-
         planner.expire_before("20251014")
         assert len(planner._cache) == 0
 
@@ -59,8 +65,7 @@ class TestBuyOrderPlanner:
     async def test_generate_orders_prioritizes_by_score(self):
         data_loader = AsyncMock()
         data_loader.load_ma_data = AsyncMock(return_value={})
-        portfolio = MagicMock()
-        portfolio.positions = {}
+        portfolio = _mock_portfolio()
 
         planner = BuyOrderPlanner(_mock_config(), data_loader)
         planner.add_recommendations([
@@ -80,14 +85,13 @@ class TestBuyOrderPlanner:
             "20251011", stock_map, close_prices, portfolio, max_daily_buys=2,
         )
         assert len(orders) == 2
-        assert orders[0].ts_code == "A.SZ"  # Higher ranking_score first
+        assert orders[0].ts_code == "A.SZ"
 
     @pytest.mark.asyncio
     async def test_skips_already_held_stocks(self):
         data_loader = AsyncMock()
         data_loader.load_ma_data = AsyncMock(return_value={})
-        portfolio = MagicMock()
-        portfolio.positions = {"A.SZ": MagicMock()}
+        portfolio = _mock_portfolio(positions={"A.SZ": MagicMock()})
 
         planner = BuyOrderPlanner(_mock_config(), data_loader)
         planner.add_recommendations([
@@ -104,11 +108,15 @@ class TestBuyOrderPlanner:
         assert len(orders) == 0
 
     @pytest.mark.asyncio
-    async def test_respects_max_daily_buys(self):
+    async def test_respects_max_daily_buys_and_reserve_funds_failure(self):
         data_loader = AsyncMock()
         data_loader.load_ma_data = AsyncMock(return_value={})
-        portfolio = MagicMock()
-        portfolio.positions = {}
+        portfolio = _mock_portfolio()
+        call_count = [0]
+        def reserve_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            return (call_count[0] <= 3, 100, 5.0)
+        portfolio.reserve_funds = MagicMock(side_effect=reserve_side_effect)
 
         planner = BuyOrderPlanner(_mock_config(), data_loader)
         planner.add_recommendations([
@@ -116,13 +124,12 @@ class TestBuyOrderPlanner:
                               reason="r", added_date="20251010", expire_date="20251020")
             for i in range(5)
         ])
-
         stock_map = {f"{i:03d}.SZ": _mock_stock(f"{i:03d}.SZ", 100.0, ranking_score=float(5-i))
                      for i in range(5)}
         close_prices = {f"{i:03d}.SZ": 100.0 for i in range(5)}
 
         orders = await planner.generate_orders(
-            "20251011", stock_map, close_prices, portfolio, max_daily_buys=3,
+            "20251011", stock_map, close_prices, portfolio, max_daily_buys=5,
         )
         assert len(orders) == 3
 
@@ -138,4 +145,4 @@ class TestBuyOrderPlanner:
                               added_date="20251015", expire_date="20251025"),
         ])
         assert len(planner._cache) == 1
-        assert planner._cache["A.SZ"].added_date == "20251010"  # kept earliest
+        assert planner._cache["A.SZ"].added_date == "20251010"

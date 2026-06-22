@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 
 from trade_alpha.schemas import BuyRecommendation, ScoredStock, PendingOrder
 from trade_alpha.execution.data_loader import DataLoader
+from trade_alpha.strategy.base import BaseStrategy
 from trade_alpha.logging import get_logger
 
 logger = get_logger("buy_order_planner")
@@ -97,6 +98,16 @@ class BuyOrderPlanner:
         orders: List[PendingOrder] = []
         for priority, ts_code, sd, target_price in top_n:
             rec = self._cache[ts_code]
+
+            # Reserve funds and calculate shares
+            close = close_prices.get(ts_code, sd.close)
+            success, shares, _fee = portfolio.reserve_funds(
+                ts_code, target_price, close_prices,
+            )
+            if not success:
+                continue
+
+            settle_date = BaseStrategy._next_trade_date(date)
             logger.info(
                 f"generate_orders BUY ts_code={ts_code} priority={priority:.3f} "
                 f"target_price={target_price:.2f} close={close_prices.get(ts_code, 0):.2f} "
@@ -106,10 +117,10 @@ class BuyOrderPlanner:
                 ts_code=ts_code,
                 stock_name=sd.stock_name,
                 order_price=target_price,
-                order_shares=0,
+                order_shares=shares,
                 entry_score=sd.composite_score,
                 trade_date=date,
-                settle_date=date,
+                settle_date=settle_date,
                 reason=rec.reason,
                 candidate_group=rec.candidate_group,
             ))
