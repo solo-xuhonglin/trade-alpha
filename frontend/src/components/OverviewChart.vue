@@ -115,8 +115,7 @@ const renderChart = () => {
         params.forEach((p: any) => {
           if (p.value == null) return
           let val = p.value
-          if (p.seriesName === '仓位系数' || p.seriesName === '买入阈值系数'
-              || p.seriesName === '留存率' || p.seriesName === '评分收益关联度'
+          if (p.seriesName === '留存率' || p.seriesName === '评分收益关联度'
               || p.seriesName === '止损波动率乘数')
             val = val.toFixed(4)
           else if (p.seriesName === '策略累计收益率' || p.seriesName === '基准累计收益率' || p.seriesName === '日重平衡基线')
@@ -130,7 +129,7 @@ const renderChart = () => {
     },
     legend: {
       data: ['策略累计收益率', '基准累计收益率', '日重平衡基线', '仓位占比',
-             '仓位系数', '买入阈值系数', '止损波动率乘数', '>高分线比例', '<低分线比例',
+             '止损波动率乘数', '>高分线比例', '<低分线比例',
              '评分收益关联度', '留存率', 'MA10重平衡', 'MA60重平衡'],
       orient: 'vertical',
       right: 10,
@@ -140,8 +139,6 @@ const renderChart = () => {
         '基准累计收益率': true,
         '日重平衡基线': true,
         '仓位占比': true,
-        '仓位系数': false,
-        '买入阈值系数': false,
         '止损波动率乘数': false,
         '>高分线比例': false,
         '<低分线比例': false,
