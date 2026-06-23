@@ -63,9 +63,9 @@ class BacktestRunRequest(BaseModel):
     name: str = "backtest"
     mode: str = "multi"
     ts_codes: Optional[List[str]] = None
-    top_n: int = 100
+    top_n: int = 150
     range_n: int = 300
-    momentum_n: int = 20
+    momentum_n: int = 0
     strategy_config_id: Optional[str] = None
     
     @field_validator('start_date', 'end_date')

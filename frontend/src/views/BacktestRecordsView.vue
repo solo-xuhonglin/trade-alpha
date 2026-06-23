@@ -484,6 +484,7 @@
       </v-tabs>
       <v-divider />
       <v-card-text>
+        <v-progress-linear v-if="backtestConfigLoading" indeterminate class="mb-4" />
         <v-window v-model="backtestConfigTab">
           <v-window-item value="account">
             <div class="text-subtitle-2 font-weight-medium mb-1">账户信息</div>
@@ -888,8 +889,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
-import { backtestRecordApi, type Backtest, type DailyDetail, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
+import { ref, reactive, computed, nextTick, watch } from 'vue'
+import { backtestRecordApi, type Backtest, type BacktestConfigSnapshots, type DailyDetail, type PnlDetailItem, type PnlDetailSummary } from '@/api/backtestRecord'
 import { strategyConfigApi, type Strategy } from '@/api/strategyConfig'
 import { accountConfigApi, type AccountConfig } from '@/api/accountConfig'
 import { modelConfigApi, type ModelConfig } from '@/api/modelConfig'
@@ -908,6 +909,24 @@ const predictionBacktestId = ref('')
 const deletingItem = ref<Backtest | null>(null)
 const selectedResult = ref<Backtest | null>(null)
 const resultTab = ref('overview')
+const tabLoaded = reactive<Record<string, boolean>>({
+  overview: true,
+  market: false,
+  pnl: false,
+  trading: false,
+})
+
+watch(resultTab, (tab) => {
+  if (tabLoaded[tab]) return
+  tabLoaded[tab] = true
+  if (tab === 'market') {
+    loadMarketData()
+  } else if (tab === 'pnl') {
+    if (selectedResult.value) loadPnlDetails(selectedResult.value.id)
+  } else if (tab === 'trading') {
+    if (selectedResult.value) loadTradingData(selectedResult.value.id)
+  }
+})
 const pnlDetails = ref<PnlDetailItem[]>([])
 const pnlSummary = ref<PnlDetailSummary | null>(null)
 const pnlLoading = ref(false)
@@ -915,6 +934,7 @@ const amountChartRef = ref<HTMLDivElement>()
 const countChartRef = ref<HTMLDivElement>()
 const pnlSortBy = ref<{ key: string; order: 'asc' | 'desc' }[]>([{ key: 'total_pnl_amount', order: 'desc' }])
 const backtestConfigDialog = ref(false)
+const backtestConfigLoading = ref(false)
 
 // Compare state
 const accountCompareDialog = ref(false)
@@ -1077,7 +1097,7 @@ const backtestConfigTab = ref('model')
 const backtestConfigItem = ref<Backtest | null>(null)
 const backtestModelConfig = ref<Record<string, any> | null>(null)
 const backtestStrategyConfig = ref<Partial<Strategy> | null>(null)
-const backtestAccountConfig = ref<Backtest['account_snapshot'] | null>(null)
+const backtestAccountConfig = ref<BacktestConfigSnapshots['account_snapshot'] | null>(null)
 const excludedStocks = ref<any[]>([])
 const forcedSellStocks = ref<any[]>([])
 const tradingLoading = ref(false)
@@ -1169,22 +1189,27 @@ const viewResult = (item: Backtest) => {
     selectedResult.value = item
     resultDialog.value = true
     resultTab.value = 'overview'
-    nextTick(() => {
-      loadPnlDetails(item.id)
-      loadTradingData(item.id)
-      loadMarketData()
-    })
   }
 
-  const openBacktestConfig = (item: Backtest) => {
+  const openBacktestConfig = async (item: Backtest) => {
   backtestConfigItem.value = item
   backtestConfigTab.value = 'account'
-  backtestModelConfig.value = item.model_snapshot ? { ...item.model_snapshot } : null
-  backtestStrategyConfig.value = item.strategy_snapshot
-    ? { ...item.strategy_snapshot } as Partial<Strategy>
-    : null
-  backtestAccountConfig.value = item.account_snapshot ? { ...item.account_snapshot } : null
   backtestConfigDialog.value = true
+  backtestConfigLoading.value = true
+  backtestAccountConfig.value = null
+  backtestStrategyConfig.value = null
+  backtestModelConfig.value = null
+  try {
+    const res = await backtestRecordApi.getConfigSnapshots(item.id)
+    const data = res.data
+    backtestAccountConfig.value = data.account_snapshot ? { ...data.account_snapshot } : null
+    backtestStrategyConfig.value = data.strategy_snapshot
+      ? { ...data.strategy_snapshot } as Partial<Strategy>
+      : null
+    backtestModelConfig.value = data.model_snapshot ? { ...data.model_snapshot } : null
+  } finally {
+    backtestConfigLoading.value = false
+  }
 }
 
 const loadAccountConfigs = async () => {

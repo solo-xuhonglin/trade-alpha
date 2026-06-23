@@ -15,7 +15,6 @@ from trade_alpha.dao.stock_daily import StockDaily
 from trade_alpha.dao.stock_name_cache import get_stock_names
 from trade_alpha.dao.mongodb import get_database
 from trade_alpha.dao.training import TrainingResult
-from trade_alpha.utils.date_utils import to_api_format
 from trade_alpha.logging import get_logger
 
 logger = get_logger("backtest.service")
@@ -58,54 +57,57 @@ async def delete_execution_by_name(name: str) -> bool:
 # ---------------------------------------------------------------------------
 
 async def list_backtest_results(page: int = 1, page_size: int = 20) -> dict:
-    total = await ExecutionResult.find_all().count()
-    results = (
-        await ExecutionResult.find_all()
-        .sort(-ExecutionResult.created_at)
-        .skip((page - 1) * page_size)
-        .limit(page_size)
-        .to_list()
-    )
+    db = await get_database()
+    total = await db["execution_results"].count_documents({})
+    cursor = db["execution_results"].find(
+        {},
+        projection={
+            "account_snapshot": 0,
+            "strategy_snapshot": 0,
+            "model_snapshot": 0,
+        },
+    ).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size)
+    results = await cursor.to_list()
 
     all_codes = set()
     for r in results:
-        codes = r.ts_codes if r.ts_codes else ([r.ts_code] if r.ts_code else [])
+        codes = r.get("ts_codes") if r.get("ts_codes") else ([r["ts_code"]] if r.get("ts_code") else [])
         all_codes.update(c for c in codes if c)
     name_map = await get_stock_names(list(all_codes)) if all_codes else {}
 
+    def _to_api(d: str) -> str:
+        return d[:4] + "-" + d[4:6] + "-" + d[6:8] if d and len(d) == 8 else d
+
     items = []
     for r in results:
-        raw_codes = r.ts_codes if r.ts_codes else ([r.ts_code] if r.ts_code else [])
+        raw_codes = r.get("ts_codes") if r.get("ts_codes") else ([r["ts_code"]] if r.get("ts_code") else [])
         ts_codes = [{"ts_code": c, "ts_name": name_map.get(c, c)} for c in raw_codes]
         items.append({
-            "id": str(r.id),
-            "name": r.name,
+            "id": str(r["_id"]),
+            "name": r.get("name"),
             "strategy_id": None,
-            "training_id": str(r.training_id) if r.training_id else None,
+            "training_id": str(r["training_id"]) if r.get("training_id") else None,
             "ts_codes": ts_codes,
-            "start_date": to_api_format(r.start_date),
-            "end_date": to_api_format(r.end_date),
-            "initial_capital": r.initial_capital,
-            "final_value": r.final_value,
-            "total_return": r.total_return,
-            "annual_return": r.annual_return,
-            "max_drawdown": r.max_drawdown,
-            "sharpe_ratio": r.sharpe_ratio,
-            "win_rate": r.win_rate,
-            "total_trades": r.total_trades,
-            "total_fees": r.total_fees,
-            "volatility": r.volatility,
-            "baseline_return": r.baseline_return,
-            "excess_return": r.excess_return,
-            "baseline_max_drawdown": r.baseline_max_drawdown,
-            "baseline_annual_return": r.baseline_annual_return,
-            "baseline_volatility": r.baseline_volatility,
-            "baseline_sharpe_ratio": r.baseline_sharpe_ratio,
-            "avg_hold_days": r.avg_hold_days,
-            "account_snapshot": r.account_snapshot.model_dump() if r.account_snapshot else None,
-            "strategy_snapshot": r.strategy_snapshot.model_dump() if r.strategy_snapshot else None,
-            "model_snapshot": r.model_snapshot.model_dump() if r.model_snapshot else None,
-            "created_at": r.created_at,
+            "start_date": _to_api(r.get("start_date")),
+            "end_date": _to_api(r.get("end_date")),
+            "initial_capital": r.get("initial_capital"),
+            "final_value": r.get("final_value"),
+            "total_return": r.get("total_return"),
+            "annual_return": r.get("annual_return"),
+            "max_drawdown": r.get("max_drawdown"),
+            "sharpe_ratio": r.get("sharpe_ratio"),
+            "win_rate": r.get("win_rate"),
+            "total_trades": r.get("total_trades"),
+            "total_fees": r.get("total_fees"),
+            "volatility": r.get("volatility"),
+            "baseline_return": r.get("baseline_return"),
+            "excess_return": r.get("excess_return"),
+            "baseline_max_drawdown": r.get("baseline_max_drawdown"),
+            "baseline_annual_return": r.get("baseline_annual_return"),
+            "baseline_volatility": r.get("baseline_volatility"),
+            "baseline_sharpe_ratio": r.get("baseline_sharpe_ratio"),
+            "avg_hold_days": r.get("avg_hold_days"),
+            "created_at": r.get("created_at"),
         })
 
     return {
@@ -645,27 +647,33 @@ async def list_all_trades(
 # ---------------------------------------------------------------------------
 
 async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
-    snapshots = await ExecutionDailySnapshot.find(
-        ExecutionDailySnapshot.backtest_id == result_id,
-    ).sort(ExecutionDailySnapshot.date).to_list()
+    db = await get_database()
+    cursor = db["execution_daily_snapshots"].find(
+        {"backtest_id": result_id},
+        projection={
+            "positions": 0,
+            "predictions": 0,
+        },
+    ).sort("date", 1)
+    snapshots = await cursor.to_list()
 
     return {
         "items": [
             {
-                "date": s.date,
-                "total_value": s.total_value,
-                "baseline_value": s.baseline_value,
-                "day_return": s.day_return,
-                "ranking_high_pct": s.ranking_high_pct,
-                "ranking_low_pct": s.ranking_low_pct,
-                "market_phase": s.market_phase,
-                "daily_rebalanced_cum": s.daily_rebalanced_cum,
-                "rebalanced_ma10_pct": s.rebalanced_ma10_pct,
-                "rebalanced_ma60_pct": s.rebalanced_ma60_pct,
-                "position_pct": s.position_pct,
-                "top_n_retention_rate_smoothed": s.top_n_retention_rate_smoothed,
-                "score_return_corr_smoothed": s.score_return_corr_smoothed,
-                "baseline_vol_multiplier": s.baseline_vol_multiplier,
+                "date": s.get("date"),
+                "total_value": s.get("total_value"),
+                "baseline_value": s.get("baseline_value"),
+                "day_return": s.get("day_return"),
+                "ranking_high_pct": s.get("ranking_high_pct"),
+                "ranking_low_pct": s.get("ranking_low_pct"),
+                "market_phase": s.get("market_phase"),
+                "daily_rebalanced_cum": s.get("daily_rebalanced_cum"),
+                "rebalanced_ma10_pct": s.get("rebalanced_ma10_pct"),
+                "rebalanced_ma60_pct": s.get("rebalanced_ma60_pct"),
+                "position_pct": s.get("position_pct"),
+                "top_n_retention_rate_smoothed": s.get("top_n_retention_rate_smoothed"),
+                "score_return_corr_smoothed": s.get("score_return_corr_smoothed"),
+                "baseline_vol_multiplier": s.get("baseline_vol_multiplier"),
             }
             for s in snapshots
         ]
@@ -805,4 +813,18 @@ async def get_trade_filter_options() -> dict:
         "ts_codes": [{"code": code, "name": name_map.get(code, code)} for code in ts_codes],
         "backtests": [{"id": str(b.id), "name": b.name} for b in results],
         "model_types": model_types,
+    }
+
+
+async def get_config_snapshots(result_id: PydanticObjectId) -> dict:
+    """Get config snapshots (account, strategy, model) for a backtest result."""
+    result = await ExecutionResult.get(result_id)
+    if not result:
+        raise ValueError(f"Result {result_id} not found")
+    return {
+        "id": str(result.id),
+        "name": result.name,
+        "account_snapshot": result.account_snapshot.model_dump() if result.account_snapshot else None,
+        "strategy_snapshot": result.strategy_snapshot.model_dump() if result.strategy_snapshot else None,
+        "model_snapshot": result.model_snapshot.model_dump() if result.model_snapshot else None,
     }

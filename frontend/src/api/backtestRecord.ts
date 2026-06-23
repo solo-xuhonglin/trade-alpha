@@ -3,7 +3,6 @@ import api from './index'
 export interface Backtest {
   id: string
   name: string
-  strategy_id: string
   training_id: string
   ts_codes: Array<{ ts_code: string; ts_name: string }>
   ts_code?: string
@@ -15,7 +14,6 @@ export interface Backtest {
   final_value: number
   total_return: number
   annual_return: number
-  benchmark_return: number
   max_drawdown: number
   sharpe_ratio: number
   win_rate: number
@@ -30,16 +28,6 @@ export interface Backtest {
   baseline_max_drawdown?: number
   avg_hold_days?: number
   trade_win_rate?: number
-  account_snapshot?: {
-    name: string
-    initial_capital: number
-    buy_fee_rate: number
-    sell_fee_rate: number
-    stamp_tax_rate: number
-    min_fee: number
-  }
-  model_snapshot?: Record<string, any>
-  strategy_snapshot?: Record<string, any>
   created_at?: string
 }
 
@@ -65,6 +53,21 @@ export interface BacktestListResponse {
   page: number
   page_size: number
   total_pages: number
+}
+
+export interface BacktestConfigSnapshots {
+  id: string
+  name: string
+  account_snapshot?: {
+    name: string
+    initial_capital: number
+    buy_fee_rate: number
+    sell_fee_rate: number
+    stamp_tax_rate: number
+    min_fee: number
+  }
+  model_snapshot?: Record<string, any>
+  strategy_snapshot?: Record<string, any>
 }
 
 export interface TradeListResponse {
@@ -224,6 +227,9 @@ export const backtestRecordApi = {
 
   getDailySnapshots: (id: string) =>
     api.get<{ items: DailySnapshot[] }>(`/backtests/${id}/daily-snapshots`),
+
+  getConfigSnapshots: (id: string) =>
+    api.get<BacktestConfigSnapshots>(`/backtests/${id}/config-snapshots`),
 
   getPnlDetails: (id: string) =>
     api.get<PnlDetailResponse>(`/backtests/${id}/pnl-details`),

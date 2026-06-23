@@ -19,6 +19,7 @@ from trade_alpha.execution.backtest_service import (
     get_daily_snapshots,
     get_daily_details,
     get_trade_filter_options,
+    get_config_snapshots,
 )
 
 router = APIRouter(prefix="/backtests", tags=["backtest-records"])
@@ -136,6 +137,16 @@ async def daily_details(result_id: str):
     """Get daily detailed snapshots with positions and trades."""
     obj_id = _parse_id(result_id)
     return await get_daily_details(result_id=obj_id)
+
+
+@router.get("/{result_id}/config-snapshots")
+async def config_snapshots(result_id: str):
+    """Get config snapshots for a backtest result."""
+    obj_id = _parse_id(result_id)
+    try:
+        return await get_config_snapshots(obj_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/trades/options")

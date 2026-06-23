@@ -41,7 +41,7 @@ class LiveSuggestionRunRequest(BaseModel):
     strategy_config_id: str
     start_date: Optional[str] = None
     end_date: Optional[str] = None
-    top_n: int = 100
+    top_n: int = 150
     portfolio_id: Optional[str] = None
 
 

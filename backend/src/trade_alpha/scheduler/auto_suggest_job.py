@@ -18,7 +18,7 @@ async def _trigger_auto_suggestion(params: dict):
     """Trigger a live suggestion using the specified config params."""
     training_id = params.get("training_id")
     strategy_config_id = params.get("strategy_config_id")
-    top_n = params.get("top_n", 100)
+    top_n = params.get("top_n", 150)
     portfolio_id = params.get("portfolio_id")
 
     if not training_id or not strategy_config_id:

@@ -210,4 +210,5 @@ class ExecutionResult(Document):
             "training_id",
             "ts_code",
             IndexModel("name", unique=True),
+            [("created_at", -1)],
         ]

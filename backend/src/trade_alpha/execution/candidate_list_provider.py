@@ -32,8 +32,8 @@ class CandidateListProvider:
         self._ts_codes: Optional[List[str]] = params.get("ts_codes")
         # Dynamic pool params
         self._range_n: int = params.get("range_n", 300)
-        self._top_n: int = params.get("top_n", 100)
-        self._momentum_n: int = params.get("momentum_n", 20)
+        self._top_n: int = params.get("top_n", 150)
+        self._momentum_n: int = params.get("momentum_n", 0)
         # Momentum selection weights from strategy_config
         self._sel_trend_slope_weight = strategy_config.sel_trend_slope_weight
         self._sel_trend_arrangement_weight = strategy_config.sel_trend_arrangement_weight
@@ -198,7 +198,7 @@ class CandidateListProvider:
             StockDaily.atr_14 != None,
         ).to_list()
         if not records:
-            return []
+            return [], {}
 
         # Get log market cap for each stock
         mv_records = await StockListHistory.find(
@@ -331,10 +331,13 @@ class CandidateListProvider:
             universe_codes = [r.ts_code for r in universe_records]
             mv_group = universe_codes[:self._top_n]
             momentum_universe = universe_codes[self._top_n:]
-            momentum_group, cur_composite = await self._get_momentum_stocks(
-                resolved, momentum_universe, self._momentum_n, prev_composite,
-            )
-            prev_composite = cur_composite
+            if self._momentum_n > 0:
+                momentum_group, cur_composite = await self._get_momentum_stocks(
+                    resolved, momentum_universe, self._momentum_n, prev_composite,
+                )
+                prev_composite = cur_composite
+            else:
+                momentum_group = []
             current_base = list(dict.fromkeys(mv_group + momentum_group))
             final = list(dict.fromkeys(current_base + prev_base))
             result[resolved] = final

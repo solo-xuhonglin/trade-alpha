@@ -100,7 +100,7 @@ const form = ref({
   portfolio_id: '',
   start_date: _fmtDate(_sixMonthsAgo),
   end_date: _fmtDate(_today),
-  top_n: 100,
+  top_n: 150,
 })
 
 const trainingOptions = ref<{ label: string; value: string }[]>([])
