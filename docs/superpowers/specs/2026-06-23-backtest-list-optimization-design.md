@@ -24,13 +24,12 @@
 
 `GET /backtests/{result_id}/config-snapshots` 返回指定回测的 3 个嵌入式快照和基本识别信息（id、name），供前端点击"查看配置"时按需加载。
 
-### get_daily_snapshots 按月过滤 + 精简
+### get_daily_snapshots 精简
 
-`backtest_service.get_daily_snapshots()` 增加可选参数 `year_month`（格式 YYYYMM，如 202603），当传入时只返回该月的数据。同时使用 MongoDB projection 排除 `positions` 和 `predictions` 字段。
+`backtest_service.get_daily_snapshots()` 使用 MongoDB projection 排除 `positions` 和 `predictions` 字段。图表所需的 equity curve 和排名/市场阶段字段都是顶层标量，不需要聚合结构。
 
-请求示例：
-- `GET /backtests/{id}/daily-snapshots` — 全量（用于初始累计净值曲线）
-- `GET /backtests/{id}/daily-snapshots?year_month=202603` — 查询某月详细数据
+- `positions`: 0
+- `predictions`: 0
 
 ### 索引
 
@@ -60,6 +59,4 @@
 
 每个 tab 的数据首次加载后缓存，再次切换不重复请求。
 
-### 市场分析按月查询
 
-市场分析 tab 中增加月份选择器，默认加载最近 12 个月的数据。用户可选择或切换月份范围来加载特定时间段的详细日线数据。后端通过 `year_month` 参数按需返回对应月份的数据。
