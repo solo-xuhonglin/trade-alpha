@@ -130,6 +130,7 @@ class StrategySnapshotEmbed(BaseModel):
     buy_price_buffer_pct: float = 0.01
     buy_score_weight: float = 1.0
     buy_prob_weight: float = 1.0
+    buy_rank_up_weight: float = 2.0
 
 
 class ModelSnapshotEmbed(BaseModel):

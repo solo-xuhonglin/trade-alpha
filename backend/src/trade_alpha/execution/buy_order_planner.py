@@ -97,8 +97,12 @@ class BuyOrderPlanner:
             divisor = max(target, 0.01)
             prob = 1.0 - abs(close - target) / divisor
 
-            # Priority score
-            priority = cfg.buy_score_weight * sd.ranking_score + cfg.buy_prob_weight * prob
+            # Priority score: score + prob + rank_improvement
+            priority = (
+                cfg.buy_score_weight * sd.ranking_score
+                + cfg.buy_prob_weight * prob
+                + cfg.buy_rank_up_weight * sd.rank_improvement
+            )
             candidates.append((priority, ts_code, sd, target))
 
         # Sort by priority descending

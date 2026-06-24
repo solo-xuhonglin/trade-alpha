@@ -119,6 +119,7 @@ class StrategyCreateRequest(BaseModel):
     buy_price_buffer_pct: Optional[float] = None
     buy_score_weight: Optional[float] = None
     buy_prob_weight: Optional[float] = None
+    buy_rank_up_weight: Optional[float] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -200,6 +201,7 @@ class StrategyUpdateRequest(BaseModel):
     buy_price_buffer_pct: Optional[float] = None
     buy_score_weight: Optional[float] = None
     buy_prob_weight: Optional[float] = None
+    buy_rank_up_weight: Optional[float] = None
 
 
 class AccountConfigCreateRequest(BaseModel):

@@ -98,6 +98,7 @@ async def create_strategy(
     buy_price_buffer_pct: Optional[float] = None,
     buy_score_weight: Optional[float] = None,
     buy_prob_weight: Optional[float] = None,
+    buy_rank_up_weight: Optional[float] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")
@@ -224,6 +225,7 @@ async def update_strategy(
     buy_price_buffer_pct: Optional[float] = None,
     buy_score_weight: Optional[float] = None,
     buy_prob_weight: Optional[float] = None,
+    buy_rank_up_weight: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)
