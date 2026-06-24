@@ -78,8 +78,8 @@ class BuyOrderPlanner:
         # Load MA data
         ma_data = await self._data_loader.load_ma_data(date, valid_codes)
 
-        # Build priority list
-        candidates: List[Tuple[float, str, ScoredStock, float]] = []
+        # Build candidate list with target price and prob
+        candidate_data: List[Tuple[str, ScoredStock, float, float]] = []
         for ts_code in valid_codes:
             sd = stock_map[ts_code]
             close = close_prices.get(ts_code, sd.close)
@@ -97,11 +97,30 @@ class BuyOrderPlanner:
             divisor = max(target, 0.01)
             prob = 1.0 - abs(close - target) / divisor
 
-            # Priority score: score + prob + rank_improvement
+            candidate_data.append((ts_code, sd, target, prob))
+
+        if not candidate_data:
+            return []
+
+        # Normalize ranking_score and rank_improvement to [0, 1]
+        raw_scores = [sd.ranking_score for _, sd, _, _ in candidate_data]
+        raw_ris = [sd.rank_improvement for _, sd, _, _ in candidate_data]
+
+        def to_01(vals):
+            mn, mx = min(vals), max(vals)
+            rng = mx - mn if mx > mn else 1.0
+            return [(v - mn) / rng for v in vals]
+
+        norm_scores = to_01(raw_scores)
+        norm_ris = to_01(raw_ris)
+
+        # Priority score with normalized factors
+        candidates: List[Tuple[float, str, ScoredStock, float]] = []
+        for i, (ts_code, sd, target, prob) in enumerate(candidate_data):
             priority = (
-                cfg.buy_score_weight * sd.ranking_score
+                cfg.buy_score_weight * norm_scores[i]
                 + cfg.buy_prob_weight * prob
-                + cfg.buy_rank_up_weight * sd.rank_improvement
+                + cfg.buy_rank_up_weight * norm_ris[i]
             )
             candidates.append((priority, ts_code, sd, target))
 
