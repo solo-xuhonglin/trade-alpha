@@ -1189,6 +1189,15 @@ const viewResult = (item: Backtest) => {
     selectedResult.value = item
     resultDialog.value = true
     resultTab.value = 'overview'
+    // Reset tab load flags and clear old data for new record
+    tabLoaded.market = false
+    tabLoaded.pnl = false
+    tabLoaded.trading = false
+    marketChartData.value = []
+    pnlDetails.value = []
+    pnlSummary.value = null
+    excludedStocks.value = []
+    forcedSellStocks.value = []
   }
 
   const openBacktestConfig = async (item: Backtest) => {

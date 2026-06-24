@@ -79,6 +79,10 @@ class StrategyConfig(Document):
     sel_rank_rise_weight: float = 0.2
     sel_ewma_alpha: float = 0.7
 
+    # ── 趋势过滤 ──
+    use_ma_trend_filter: bool = False
+    ma_trend_ratio_threshold: float = 1.0
+
     # ── 分数加权 ──
     use_weighted_score: bool = False
     weighted_score_factor: float = 0.2

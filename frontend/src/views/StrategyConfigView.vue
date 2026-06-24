@@ -602,6 +602,14 @@
                   <v-switch v-model="form.use_hold_protection" color="primary"
                     label="持仓保护" hint="持仓股不退出候选池，保持评分和排名" persistent-hint />
                 </v-col>
+                <v-col cols="12" md="6">
+                  <v-switch v-model="form.use_ma_trend_filter" color="primary"
+                    label="MA下降趋势过滤" hint="剔除MA5低于MA60超过阈值的下降趋势股" persistent-hint />
+                </v-col>
+                <v-col cols="12" md="6" v-if="form.use_ma_trend_filter">
+                  <v-text-field v-model.number="form.ma_trend_ratio_threshold" type="number" step="0.01" min="0.5" max="1.5"
+                    label="趋势比率阈值" hint="MA5/MA60 < 此值时剔除（默认1.0）" persistent-hint />
+                </v-col>
               </v-row>
             </div>
           </v-window-item>
@@ -864,6 +872,8 @@ const form = ref({
   use_weighted_score: false,
   weighted_score_factor: 0.2,
   use_hold_protection: false,
+  use_ma_trend_filter: false,
+  ma_trend_ratio_threshold: 1.0,
   buy_cache_days: 3,
   buy_price_close_weight: 0.3,
   buy_price_ma5_weight: 0.3,
@@ -953,6 +963,8 @@ const compareFields: CompareField[] = [
   { key: 'use_weighted_score', label: '分数加权', group: '排名优化', type: 'boolean' },
   { key: 'weighted_score_factor', label: '加权因子', group: '排名优化', type: 'number' },
   { key: 'use_hold_protection', label: '持仓保护', group: '选股配置', type: 'boolean' },
+  { key: 'use_ma_trend_filter', label: 'MA下降趋势过滤', group: '选股配置', type: 'boolean' },
+  { key: 'ma_trend_ratio_threshold', label: '趋势比率阈值', group: '选股配置', type: 'number' },
   { key: 'buy_cache_days', label: '缓存天数', group: '买入执行', type: 'number' },
   { key: 'buy_price_close_weight', label: '收盘价权重', group: '买入执行', type: 'number' },
   { key: 'buy_price_ma5_weight', label: 'MA5权重', group: '买入执行', type: 'number' },
@@ -1054,6 +1066,8 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       use_weighted_score: item.use_weighted_score ?? false,
       weighted_score_factor: item.weighted_score_factor ?? 0.2,
       use_hold_protection: item.use_hold_protection ?? false,
+      use_ma_trend_filter: item.use_ma_trend_filter ?? false,
+      ma_trend_ratio_threshold: item.ma_trend_ratio_threshold ?? 1.0,
       buy_cache_days: item.buy_cache_days ?? 3,
       buy_price_close_weight: item.buy_price_close_weight ?? 0.3,
       buy_price_ma5_weight: item.buy_price_ma5_weight ?? 0.3,
@@ -1206,6 +1220,8 @@ const saveStrategy = async () => {
       use_weighted_score: form.value.type === 'multi' ? form.value.use_weighted_score : undefined,
       weighted_score_factor: form.value.type === 'multi' ? form.value.weighted_score_factor : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
+      use_ma_trend_filter: form.value.type === 'multi' ? form.value.use_ma_trend_filter : undefined,
+      ma_trend_ratio_threshold: form.value.type === 'multi' ? form.value.ma_trend_ratio_threshold : undefined,
       buy_cache_days: form.value.type === 'multi' ? form.value.buy_cache_days : undefined,
       buy_price_close_weight: form.value.type === 'multi' ? form.value.buy_price_close_weight : undefined,
       buy_price_ma5_weight: form.value.type === 'multi' ? form.value.buy_price_ma5_weight : undefined,
@@ -1286,6 +1302,8 @@ const saveStrategy = async () => {
       use_weighted_score: form.value.type === 'multi' ? form.value.use_weighted_score : undefined,
       weighted_score_factor: form.value.type === 'multi' ? form.value.weighted_score_factor : undefined,
       use_hold_protection: form.value.type === 'multi' ? form.value.use_hold_protection : undefined,
+      use_ma_trend_filter: form.value.type === 'multi' ? form.value.use_ma_trend_filter : undefined,
+      ma_trend_ratio_threshold: form.value.type === 'multi' ? form.value.ma_trend_ratio_threshold : undefined,
     })
   }
   dialog.value = false

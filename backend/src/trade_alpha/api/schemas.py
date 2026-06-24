@@ -110,6 +110,8 @@ class StrategyCreateRequest(BaseModel):
     use_weighted_score: Optional[bool] = None
     weighted_score_factor: Optional[float] = None
     use_hold_protection: Optional[bool] = None
+    use_ma_trend_filter: Optional[bool] = None
+    ma_trend_ratio_threshold: Optional[float] = None
     buy_cache_days: Optional[int] = None
     buy_price_close_weight: Optional[float] = None
     buy_price_ma5_weight: Optional[float] = None
@@ -189,6 +191,8 @@ class StrategyUpdateRequest(BaseModel):
     use_weighted_score: Optional[bool] = None
     weighted_score_factor: Optional[float] = None
     use_hold_protection: Optional[bool] = None
+    use_ma_trend_filter: Optional[bool] = None
+    ma_trend_ratio_threshold: Optional[float] = None
     buy_cache_days: Optional[int] = None
     buy_price_close_weight: Optional[float] = None
     buy_price_ma5_weight: Optional[float] = None

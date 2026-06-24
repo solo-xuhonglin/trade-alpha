@@ -46,6 +46,8 @@ class CandidateListProvider:
         self._sel_rank_rise_weight = strategy_config.sel_rank_rise_weight
         self._sel_ewma_alpha = strategy_config.sel_ewma_alpha
         self._use_hold_protection = strategy_config.use_hold_protection
+        self._use_ma_trend_filter = strategy_config.use_ma_trend_filter
+        self._ma_trend_ratio_threshold = strategy_config.ma_trend_ratio_threshold
         # Internal state
         self._candidate_map: Dict[str, List[str]] = {}
         self._stock_groups: Dict[str, str] = {}
@@ -340,6 +342,23 @@ class CandidateListProvider:
                 momentum_group = []
             current_base = list(dict.fromkeys(mv_group + momentum_group))
             final = list(dict.fromkeys(current_base + prev_base))
+            # Apply MA trend filter: exclude stocks where MA5/MA60 < threshold
+            if self._use_ma_trend_filter and final:
+                ma_records = await StockDaily.find(
+                    StockDaily.trade_date == resolved,
+                    In(StockDaily.ts_code, final),
+                    StockDaily.ma_5 != None,
+                    StockDaily.ma_60 != None,
+                ).to_list()
+                valid_codes = set()
+                for r in ma_records:
+                    if r.ma_5 and r.ma_60 and r.ma_60 > 0:
+                        ratio = r.ma_5 / r.ma_60
+                        if ratio >= self._ma_trend_ratio_threshold:
+                            valid_codes.add(r.ts_code)
+                    else:
+                        valid_codes.add(r.ts_code)
+                final = [ts for ts in final if ts in valid_codes]
             result[resolved] = final
             # Refresh stock groups: mv_group → "base", momentum_group → "momentum"
             # prev_base retention stocks keep their existing group assignment

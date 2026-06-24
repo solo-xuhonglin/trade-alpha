@@ -72,6 +72,8 @@ export interface Strategy {
   use_weighted_score?: boolean
   weighted_score_factor?: number
   use_hold_protection?: boolean
+  use_ma_trend_filter?: boolean
+  ma_trend_ratio_threshold?: number
   buy_cache_days?: number
   buy_price_close_weight?: number
   buy_price_ma5_weight?: number

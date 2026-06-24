@@ -118,6 +118,10 @@ class StrategySnapshotEmbed(BaseModel):
     # ── 持仓保护 ──
     use_hold_protection: bool = False
 
+    # ── 趋势过滤 ──
+    use_ma_trend_filter: bool = False
+    ma_trend_ratio_threshold: float = 1.0
+
     # ── 买入执行 ──
     buy_cache_days: int = 3
     buy_price_close_weight: float = 0.3
