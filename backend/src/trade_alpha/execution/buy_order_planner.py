@@ -98,19 +98,15 @@ class BuyOrderPlanner:
         if not candidate_data:
             return []
 
-        # Normalize ranking_score, prob and rank_improvement to [0, 1]
-        raw_scores = [sd.ranking_score for _, sd, _, _ in candidate_data]
-        raw_probs = [p for _, _, _, p in candidate_data]
-        raw_ris = [sd.rank_improvement for _, sd, _, _ in candidate_data]
+        # Normalize factors to [0, 1] with fixed bounds
+        # ranking_score: [-0.5, 0.5] -> [0, 1], rank_improvement: [-0.5, 0.5] -> [0, 1]
+        # prob: naturally in [0, 1], just clip
+        def clip_01(v, lo, hi):
+            return max(0.0, min(1.0, (v - lo) / (hi - lo)))
 
-        def to_01(vals):
-            mn, mx = min(vals), max(vals)
-            rng = mx - mn if mx > mn else 1.0
-            return [(v - mn) / rng for v in vals]
-
-        norm_scores = to_01(raw_scores)
-        norm_probs = to_01(raw_probs)
-        norm_ris = to_01(raw_ris)
+        norm_scores = [clip_01(sd.ranking_score, -0.5, 0.5) for _, sd, _, _ in candidate_data]
+        norm_probs = [max(0.0, min(1.0, p)) for _, _, _, p in candidate_data]
+        norm_ris = [clip_01(sd.rank_improvement, -0.5, 0.5) for _, sd, _, _ in candidate_data]
 
         # Priority score with normalized factors
         candidates: List[Tuple[float, str, ScoredStock, float]] = []
