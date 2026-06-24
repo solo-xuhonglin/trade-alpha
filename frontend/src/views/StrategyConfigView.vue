@@ -668,7 +668,7 @@
               <v-col cols="12" md="6">
                 <v-text-field v-model.number="form.buy_rank_up_weight"
                   type="number" step="0.1" min="0" max="10"
-                  label="排名上升权重" hint="优先级计算中排名改善的权重（默认2.0）" persistent-hint
+                  label="排名上升权重" hint="优先级计算中排名上升的权重（默认2.0）" persistent-hint
                   :disabled="form.type !== 'multi'" />
               </v-col>
             </v-row>
