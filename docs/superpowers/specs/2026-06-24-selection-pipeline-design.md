@@ -30,41 +30,29 @@ universe(300)
 
 ## 架构
 
-### SelectionStep 协议
+### 统一 Step 接口
 
-新增 `execution/selection_step.py`，每个 Step 是统一接口的类：
+在 `candidate_list_provider.py` 中定义，每个 Step 是统一签名的异步方法：
 
 ```python
-class SelectionStep(ABC):
-    """Base class for a selection step in the pipeline."""
-    
-    @abstractmethod
-    async def run(self, date: str, universe: List[str]) -> SelectionResult:
-        ...
+async def _step_market_cap(self, date: str, universe: List[str]) -> Tuple[List[str], Dict[str, float]]:
 ```
 
-`SelectionResult` 包含：
-- `selected: List[str]` — 本轮新入选的股票
-- `scored: Dict[str, float]` — 评分（用于跨周期平滑，动量 step 产出）
+返回 `(selected_codes, scores)`，scores 为选股评分（动量 step 产出，其他 step 返回空 dict）。
 
 ### 3 个 Step
 
-| Step | 职责 | 输入 | 输出 |
-|------|------|------|------|
-| MarketCapStep | 市值前 top_n | universe | 选中的 ts_code 列表 |
-| MomentumStep | 从剩余中加权评分选 momentum_n | universe（不含市值组已选） | 选中列表 + 评分 |
-| MaTrendStep | 剔除 MA5/MA60 < threshold 的 | universe | 过滤后列表 |
+| Step | 方法 | 说明 |
+|------|------|------|
+| 市值 | `_step_market_cap` | 取 universe 前 top_n |
+| 动量 | `_step_momentum` | 从 universe 中加权评分选 momentum_n（现 `_get_momentum_stocks`） |
+| MA趋势 | `_step_ma_trend` | 从 universe 中剔除 MA5/MA60 < threshold |
 
 ### CandidateListProvider 修改
 
-- `__init__`：构建 Step 管道列表
-- `_get_candidates`：每个周期遍历管道，Step 顺序执行
-  - 每个 Step 的 `selected` 累加到 `current_base`
-  - 下一个 Step 的输入 = 当前全部候选（含之前 step 已选的）
-- `_get_momentum_stocks` 迁移到 `MomentumStep.run()`
-
-### 文件改动
-
-- 新增：`execution/selection_step.py` — 协议 + 3 个 Step
-- 修改：`execution/candidate_list_provider.py` — 用管道替代现有逻辑，删除 `_get_momentum_stocks`
-- 其他文件：无改动（对外接口不变）
+- `__init__`：移除 `_range_n`/`_top_n`/`_momentum_n` 等老字段，保留 strategy_config 引用
+- `_get_candidates`：每个周期先取 `universe_codes`，然后顺序调用 3 个 Step
+  - 每个 Step 的输入是截至目前尚未被任何 Step 选中的股票，输出是本次入选的股票
+  - Step 的 `selected` 累加到 `current_base`
+  - `current_base` 中已入选的股票传给下一个 Step 的 universe 中，但 Step 内部会过滤（动量 step 只用尚未入选的做排名）
+- 删除 `_get_momentum_stocks`，逻辑迁移到 `_step_momentum`
