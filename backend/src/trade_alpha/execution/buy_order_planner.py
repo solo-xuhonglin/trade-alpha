@@ -29,10 +29,6 @@ class BuyOrderPlanner:
             if r.ts_code not in self._cache:
                 self._cache[r.ts_code] = r
 
-    def expire_before(self, date: str) -> None:
-        """Remove cached recommendations that expire on or before date."""
-        self._cache = {k: v for k, v in self._cache.items() if v.expire_date > date}
-
     async def generate_orders(
         self,
         date: str,
