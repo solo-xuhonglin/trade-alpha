@@ -53,6 +53,7 @@ class CandidateListProvider:
         self._stock_groups: Dict[str, str] = {}
         self._current_candidates: List[str] = []
         self._last_period_key: Optional[str] = None
+        self._prev_composite: Optional[Dict[str, float]] = None
 
     @property
     def all_ts_codes(self) -> List[str]:
@@ -168,7 +169,7 @@ class CandidateListProvider:
             StockListHistory.total_mv != None,
         ).sort(-StockListHistory.total_mv).limit(top_n).to_list()
 
-    async def _get_momentum_stocks(
+    async def _compute_momentum_scores(
         self, trade_date: str, universe_codes: List[str], momentum_n: int,
         prev_composite: Optional[Dict[str, float]] = None,
     ) -> Tuple[List[str], Dict[str, float]]:
@@ -300,6 +301,45 @@ class CandidateListProvider:
         sorted_stocks = sorted(composite.items(), key=lambda x: x[1], reverse=True)
         return [ts for ts, _ in sorted_stocks[:momentum_n]], scores_to_return
 
+    async def _step_market_cap(
+        self, date: str, universe: List[str],
+    ) -> List[str]:
+        """Select top_n stocks by market cap."""
+        return universe[:self._top_n]
+
+    async def _step_momentum(
+        self, date: str, universe: List[str],
+    ) -> List[str]:
+        """Select momentum_n stocks by weighted composite score."""
+        if self._momentum_n <= 0 or not universe:
+            return []
+        momentum_codes, cur_composite = await self._compute_momentum_scores(
+            date, universe, self._momentum_n, self._prev_composite,
+        )
+        self._prev_composite = cur_composite
+        return momentum_codes
+
+    async def _step_ma_trend(
+        self, date: str, universe: List[str],
+    ) -> List[str]:
+        """Filter out stocks where MA5/MA60 < threshold."""
+        if not self._use_ma_trend_filter or not universe:
+            return universe
+        records = await StockDaily.find(
+            StockDaily.trade_date == date,
+            In(StockDaily.ts_code, universe),
+            StockDaily.ma_5 != None,
+            StockDaily.ma_60 != None,
+        ).to_list()
+        valid = set()
+        for r in records:
+            if r.ma_5 and r.ma_60 and r.ma_60 > 0:
+                if r.ma_5 / r.ma_60 >= self._ma_trend_ratio_threshold:
+                    valid.add(r.ts_code)
+            else:
+                valid.add(r.ts_code)
+        return [ts for ts in universe if ts in valid]
+
     async def _get_candidates(
         self, start_date: str, end_date: str,
     ) -> Dict[str, List[str]]:
@@ -322,7 +362,6 @@ class CandidateListProvider:
 
         result: Dict[str, List[str]] = {}
         prev_base: List[str] = []
-        prev_composite: Optional[Dict[str, float]] = None
         for _week_key, last_trade_date in sorted(weekly.items()):
             resolved = await self._resolve_date(last_trade_date)
             if not resolved:
@@ -331,40 +370,18 @@ class CandidateListProvider:
             if not universe_records:
                 continue
             universe_codes = [r.ts_code for r in universe_records]
-            mv_group = universe_codes[:self._top_n]
-            momentum_universe = universe_codes[self._top_n:]
-            if self._momentum_n > 0:
-                momentum_group, cur_composite = await self._get_momentum_stocks(
-                    resolved, momentum_universe, self._momentum_n, prev_composite,
-                )
-                prev_composite = cur_composite
-            else:
-                momentum_group = []
-            current_base = list(dict.fromkeys(mv_group + momentum_group))
+
+            # Serial pipeline
+            selected_mc = await self._step_market_cap(resolved, universe_codes)
+            remaining = [c for c in universe_codes if c not in selected_mc]
+            selected_mt = await self._step_momentum(resolved, remaining)
+            current_base = await self._step_ma_trend(resolved, selected_mc + selected_mt)
+
             final = list(dict.fromkeys(current_base + prev_base))
-            # Apply MA trend filter: exclude stocks where MA5/MA60 < threshold
-            if self._use_ma_trend_filter and final:
-                ma_records = await StockDaily.find(
-                    StockDaily.trade_date == resolved,
-                    In(StockDaily.ts_code, final),
-                    StockDaily.ma_5 != None,
-                    StockDaily.ma_60 != None,
-                ).to_list()
-                valid_codes = set()
-                for r in ma_records:
-                    if r.ma_5 and r.ma_60 and r.ma_60 > 0:
-                        ratio = r.ma_5 / r.ma_60
-                        if ratio >= self._ma_trend_ratio_threshold:
-                            valid_codes.add(r.ts_code)
-                    else:
-                        valid_codes.add(r.ts_code)
-                final = [ts for ts in final if ts in valid_codes]
             result[resolved] = final
-            # Refresh stock groups: mv_group → "base", momentum_group → "momentum"
-            # prev_base retention stocks keep their existing group assignment
-            for ts in mv_group:
+            for ts in selected_mc:
                 self._stock_groups[ts] = "base"
-            for ts in momentum_group:
+            for ts in selected_mt:
                 self._stock_groups[ts] = "momentum"
             prev_base = current_base
         logger.info(
