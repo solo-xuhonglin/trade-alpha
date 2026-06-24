@@ -363,7 +363,7 @@ class ScoreManager:
         date: str,
         close_prices: Dict[str, float],
         *,
-        market_analyzer=None,
+        market_analyzer,
     ) -> Dict[str, ScoredStock]:
         horizons = self._model_config.classification_horizons
         target_names = [f"label_{h}d" for h in horizons]
@@ -452,22 +452,15 @@ class ScoreManager:
                 kwargs[key] = r[key]
             stock_map[ts_code] = ScoredStock(**kwargs)
 
-        # Record ranks (delegate to MarketRegimeAnalyzer if provided)
+        # Record ranks via MarketRegimeAnalyzer
         scored_list = list(stock_map.values())
-        if market_analyzer is not None:
-            market_analyzer.record_ranking_scores(scored_list, pred_results)
-            window = getattr(self._strategy_config, 'rank_up_window', 5)
-            for stock in scored_list:
-                improvement = market_analyzer.compute_rank_improvement(
-                    stock.ts_code, stock.rank, window
-                )
-                stock.rank_improvement = improvement if improvement is not None else 0.0
-        else:
-            # Fallback: simple rank assignment without history
-            scored_sorted = sorted(scored_list, key=lambda s: s.ranking_score, reverse=True)
-            for rank, stock in enumerate(scored_sorted, start=1):
-                pred_results[stock.ts_code]["rank"] = rank
-                stock.rank = rank
+        market_analyzer.record_ranking_scores(scored_list, pred_results)
+        window = getattr(self._strategy_config, 'rank_up_window', 5)
+        for stock in scored_list:
+            improvement = market_analyzer.compute_rank_improvement(
+                stock.ts_code, stock.rank, window
+            )
+            stock.rank_improvement = improvement if improvement is not None else 0.0
 
         return stock_map
 
