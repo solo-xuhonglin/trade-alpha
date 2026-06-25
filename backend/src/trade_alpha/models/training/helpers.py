@@ -69,12 +69,16 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
 
 
 def _create_safety_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame:
-    """Create safety labels: does stock price stay above open price in horizon days?
+    """Create safety labels based on MA5: does stock price stay above MA5 in horizon days?
 
-    Label = 1  (safe):  min_close[T+1:T+h] >= open[T]
-    Label = -1 (risky): min_low[T+1:T+h]  <  open[T] * 0.95
+    Label = 1  (safe):  min_close[T+1:T+h] >= ma_5[T] * SAFE_FACTOR[h]
+    Label = -1 (risky): min_low[T+1:T+h]  <  ma_5[T] * RISKY_FACTOR[h]
     Label = 0  (neutral): otherwise
+
+    Factors tuned to maintain ~30-40-30 distribution per horizon.
     """
+    SAFE_FACTOR = {3: 1.00, 5: 1.00, 10: 0.99, 20: 0.98}
+    RISKY_FACTOR = {3: 0.96, 5: 0.95, 10: 0.93, 20: 0.90}
     label_cols = [f"label_{h}d" for h in horizons]
     result_parts = []
     for ts_code, group in df.groupby("ts_code"):
@@ -84,8 +88,8 @@ def _create_safety_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame
             min_low = group["low"].rolling(horizon).min().shift(-horizon)
             col = f"label_{horizon}d"
             group[col] = 0
-            group.loc[min_close >= group["open"], col] = 1
-            group.loc[min_low < group["open"] * 0.95, col] = -1
+            group.loc[min_close >= group["ma_5"] * SAFE_FACTOR.get(horizon, 1.0), col] = 1
+            group.loc[min_low < group["ma_5"] * RISKY_FACTOR.get(horizon, 1.0), col] = -1
         group = group.dropna(subset=label_cols)
         result_parts.append(group)
     return pd.concat(result_parts, ignore_index=True)
