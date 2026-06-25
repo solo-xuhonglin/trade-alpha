@@ -100,9 +100,10 @@
                 <v-col cols="12" sm="6">
                   <v-select v-model="form.label_mode" :items="[
                     { title: '涨跌幅阈值', value: 'threshold' },
-                    { title: '均线趋势', value: 'trend' }
+                    { title: '均线趋势', value: 'trend' },
+                    { title: '规避风险', value: 'safety' }
                   ]" label="标签计算模式"
-                    hint="threshold: 基于未来涨跌幅阈值分类; trend: 基于均线位置斜率 + 涨跌幅阈值分类" persistent-hint></v-select>
+                    hint="threshold: 基于未来涨跌幅; trend: 基于均线+涨跌幅; safety: 基于最低价是否跌破开盘价" persistent-hint></v-select>
                 </v-col>
                   <v-col cols="12" sm="3">
                     <v-text-field v-model.number="form.classification_threshold_3d" label="3日涨跌阈值" type="number" step="0.005" hint="短周期，小阈值" persistent-hint></v-text-field>

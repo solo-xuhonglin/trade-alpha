@@ -68,9 +68,34 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
     return pd.concat(result_parts, ignore_index=True)
 
 
+def _create_safety_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame:
+    """Create safety labels: does stock price stay above open price in horizon days?
+
+    Label = 1  (safe):  min_close[T+1:T+h] >= open[T]
+    Label = -1 (risky): min_low[T+1:T+h]  <  open[T] * 0.95
+    Label = 0  (neutral): otherwise
+    """
+    label_cols = [f"label_{h}d" for h in horizons]
+    result_parts = []
+    for ts_code, group in df.groupby("ts_code"):
+        group = group.sort_values("trade_date").copy()
+        for horizon in horizons:
+            min_close = group["close"].rolling(horizon).min().shift(-horizon)
+            min_low = group["low"].rolling(horizon).min().shift(-horizon)
+            col = f"label_{horizon}d"
+            group[col] = 0
+            group.loc[min_close >= group["open"], col] = 1
+            group.loc[min_low < group["open"] * 0.95, col] = -1
+        group = group.dropna(subset=label_cols)
+        result_parts.append(group)
+    return pd.concat(result_parts, ignore_index=True)
+
+
 def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
     if label_mode == "trend":
         return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
+    if label_mode == "safety":
+        return _create_safety_labels(df, horizons)
     return _create_classification_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
 
 
