@@ -1295,15 +1295,15 @@ const loadPnlDetails = async (backtestId: string) => {
     const res = await backtestRecordApi.getPnlDetails(backtestId)
     pnlDetails.value = res.data.items
     pnlSummary.value = res.data.summary
-    if (resultTab.value === 'pnl') {
-      await nextTick()
-      renderCharts()
-    }
   } catch {
     pnlDetails.value = []
     pnlSummary.value = null
   } finally {
     pnlLoading.value = false
+  }
+  if (resultTab.value === 'pnl') {
+    await nextTick()
+    renderCharts()
   }
 }
 
