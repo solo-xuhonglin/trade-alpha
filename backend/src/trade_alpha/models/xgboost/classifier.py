@@ -59,7 +59,7 @@ class XGBoostClassifier(BaseClassifier):
                 all_y.append(year_labels.values)
                 all_norm_dfs.append(norm_data)
             await TaskService.update_progress(
-                task_id, 20 + (year_idx + 1) / len(years) * 30,
+                task_id,
                 f"正在处理 {year} 年数据..."
             )
 

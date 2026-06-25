@@ -105,7 +105,7 @@ class LSTMClassifier(BaseClassifier):
             )
             all_dfs.append(year_df)
             await TaskService.update_progress(
-                task_id, 20 + (year_idx + 1) / len(years) * 30,
+                task_id,
                 f"正在处理 {year} 年数据..."
             )
 
