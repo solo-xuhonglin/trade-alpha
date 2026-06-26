@@ -24,16 +24,18 @@ def _create_classification_labels(df: pd.DataFrame, horizons: List[int], thresho
     return pd.concat(result_parts, ignore_index=True)
 
 
-def _create_trend_labels(df: pd.DataFrame, horizons: List[int], **kwargs) -> pd.DataFrame:
+def _create_trend_labels(df: pd.DataFrame, horizons: List[int],
+                       threshold_3d: float = 0.010,
+                       threshold_5d: float = 0.020,
+                       threshold_10d: float = 0.030,
+                       threshold_20d: float = 0.045) -> pd.DataFrame:
     """Create trend labels based on MA5 forward percentage change.
 
-    Label = 1  (uptrend):  (MA5[T+h] / MA5[T] - 1) > THRESHOLD[h]
-    Label = -1 (downtrend): (MA5[T+h] / MA5[T] - 1) < -THRESHOLD[h]
+    Label = 1  (uptrend):  (MA5[T+h] / MA5[T] - 1) > threshold_{h}d
+    Label = -1 (downtrend): (MA5[T+h] / MA5[T] - 1) < -threshold_{h}d
     Label = 0  (neutral): otherwise
-
-    Thresholds tuned per horizon for ~30-40-30 distribution.
     """
-    THRESHOLDS = {3: 0.010, 5: 0.020, 10: 0.030, 20: 0.045}
+    threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d, 20: threshold_20d}
     label_cols = [f"label_{h}d" for h in horizons]
     result_parts = []
     for ts_code, group in df.groupby("ts_code"):
@@ -42,7 +44,7 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], **kwargs) -> pd.
             continue
         group["ma_5"] = group["ma_5"].astype(float)
         for horizon in horizons:
-            th = THRESHOLDS.get(horizon, 0.02)
+            th = threshold_map.get(horizon, 0.02)
             ma5_now = group["ma_5"]
             ma5_future = group["ma_5"].shift(-horizon)
             ma5_pct = (ma5_future - ma5_now) / ma5_now
@@ -82,7 +84,7 @@ def _create_safety_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame
     return pd.concat(result_parts, ignore_index=True)
 
 
-def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
+def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.010, threshold_5d: float = 0.020, threshold_10d: float = 0.030, threshold_20d: float = 0.045) -> pd.DataFrame:
     if label_mode == "trend":
         return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
     if label_mode == "safety":
