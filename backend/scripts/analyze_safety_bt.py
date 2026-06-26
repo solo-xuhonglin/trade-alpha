@@ -1,19 +1,13 @@
-"""Test MA-based safety labels: compare min_future_close vs MA on day T.
-
-Current: safe = min_close[T+1:T+h] >= open[T]
-Proposed: safe = min_close[T+1:T+h] >= MA_X[T]  (where MA_X is MA5, MA10, or MA20)
-
-Goal: distribution roughly 30-40-30 across all horizons (3d, 5d, 10d, 20d).
-"""
+"""Tune MA5-pct thresholds for best balance of distribution and return separation."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from dotenv import load_dotenv
 load_dotenv()
 import asyncio
+import pandas as pd
 from motor.motor_asyncio import AsyncIOMotorClient
 from trade_alpha.config import load_config
 from collections import defaultdict
-import math
 
 async def main():
     cfg = load_config()
@@ -24,8 +18,7 @@ async def main():
     sample = sorted(all_stocks)[:50]
     records = await db.stock_daily.find(
         {"ts_code": {"$in": sample}},
-        {"ts_code": 1, "trade_date": 1, "open": 1, "close": 1, "low": 1,
-         "ma_5": 1, "ma_10": 1, "ma_20": 1, "ma_60": 1},
+        {"ts_code": 1, "trade_date": 1, "close": 1, "ma_5": 1},
         sort=[("trade_date", 1)]
     ).to_list(200000)
 
@@ -33,133 +26,89 @@ async def main():
     for r in records:
         stock_data[r["ts_code"]].append(r)
 
-    print(f"Loaded {len(records)} records for {len(stock_data)} stocks\n")
+    print(f"Loaded {len(records)} records\n")
 
     horizons = [3, 5, 10, 20]
-    comparisons = [
-        ("open", "open"),  # current: min_close >= open
-        ("ma_5", "ma_5"),
-        ("ma_10", "ma_10"),
-        ("ma_20", "ma_20"),
-        ("ma_60", "ma_60"),
-    ]
 
     for horizon in horizons:
-        print(f"\n{'='*70}")
-        print(f"  HORIZON: {horizon}d")
+        print(f"{'='*70}")
+        print(f"  HORIZON: {horizon}d — Threshold tuning")
         print(f"{'='*70}")
 
-        all_dips = []
+        all_data = []
         for ts_code, days in stock_data.items():
             days.sort(key=lambda x: x["trade_date"])
             for i in range(len(days) - horizon):
                 d = days[i]
-                open_p = d.get("open", 0)
-                if not open_p:
+                if not d.get("ma_5"):
                     continue
-
-                # Min close in future window
-                closes = [days[i+j].get("close", 0) for j in range(1, horizon+1)]
-                min_close = min(c for c in closes if c) if any(c for c in closes) else 0
-                if not min_close:
+                ma5_now = d["ma_5"]
+                close_now = d.get("close", 0)
+                d_future = days[i + horizon]
+                ma5_future = d_future.get("ma_5")
+                if not ma5_future:
                     continue
+                ma5_pct = (ma5_future - ma5_now) / ma5_now
+                close_future = d_future.get("close", 0)
+                close_ret = (close_future - close_now) / close_now if close_now else 0
+                all_data.append((ma5_pct, close_ret))
 
-                # Min low in future window
-                lows = [days[i+j].get("low", 0) for j in range(1, horizon+1)]
-                min_low = min(l for l in lows if l) if any(l for l in lows) else 0
+        n = len(all_data)
+        if n == 0:
+            continue
 
-                all_dips.append({
-                    "ts_code": ts_code,
-                    "date": d["trade_date"],
-                    "open": open_p,
-                    "close": d.get("close", 0),
-                    "min_close_future": min_close,
-                    "min_low_future": min_low,
-                    "ma_5": d.get("ma_5"),
-                    "ma_10": d.get("ma_10"),
-                    "ma_20": d.get("ma_20"),
-                    "ma_60": d.get("ma_60"),
-                })
+        # Score each threshold: balance = how close to 30-40-30, separation = up_ret - down_ret
+        print(f"\n  {'Threshold':>10s}  {'Up%':>5s}  {'Mid%':>5s}  {'Down%':>5s}  "
+              f"{'UpRet':>8s}  {'MidRet':>8s}  {'DownRet':>8s}  {'Spread':>8s}  {'Score':>6s}")
+        print(f"  {'-'*70}")
 
-        n = len(all_dips)
-        print(f"  Total samples: {n}")
+        # Debug: check a few thresholds
+        for debug_th in [0.005, 0.01, 0.02, 0.03, 0.05, 0.08, 0.10]:
+            up = len([d for d in all_data if d[0] > debug_th])
+            down = len([d for d in all_data if d[0] < -debug_th])
+            print(f"    th={debug_th*100:.1f}%: up={up/n*100:.0f}% down={down/n*100:.0f}%")
 
-        # 1. Current safety label distribution (open-based)
-        for label_name, ref_field in [
-            ("open", "open"),
-            ("close", "close"),
-        ]:
-            safe = sum(1 for d in all_dips if d["min_close_future"] >= d[ref_field])
-            risky = 0
-            if ref_field == "open":
-                # Current safety: use low for risky
-                risky = sum(1 for d in all_dips if d["min_low_future"] < d["open"] * 0.95)
-                safe = sum(1 for d in all_dips if d["min_close_future"] >= d["open"])
-            else:
-                # Use close-based threshold for risky too
-                risky = sum(1 for d in all_dips if d["min_close_future"] < d[ref_field] * 0.95)
+        results = []
+        # Scan wider range for thresholds
+        candidates = sorted(set(
+            [t/1000 for t in range(5, 200, 5)] +  # 0.5% to 20% in 0.5% steps
+            [t/100 for t in range(5, 200, 5)]     # 5% to 20% in 5% steps
+        ))
 
-            neutral = n - safe - risky
-            print(f"\n  Current ({ref_field}-based):")
-            print(f"    Safe(min_close>={ref_field}):   {safe:>6d}  {safe/n*100:>5.1f}%")
-            print(f"    Neutral:                          {neutral:>6d}  {neutral/n*100:>5.1f}%")
-            print(f"    Risky(min_low<{ref_field}*0.95):   {risky:>6d}  {risky/n*100:>5.1f}%")
+        for th in sorted(set(candidates)):
+            up = [d for d in all_data if d[0] > th]
+            down = [d for d in all_data if d[0] < -th]
+            mid = [d for d in all_data if -th <= d[0] <= th]
+            up_pct = len(up)/n*100
+            down_pct = len(down)/n*100
+            mid_pct = len(mid)/n*100
 
-        # 2. MA-based safety labels: min_future_close >= MA_X on day T
-        print(f"\n  MA-based (min_future_close >= MA_X):")
-        for ma_field in ["ma_5", "ma_10", "ma_20", "ma_60"]:
-            valid = [d for d in all_dips if d[ma_field] and d[ma_field] > 0]
-            if not valid:
-                continue
-            vn = len(valid)
-            # Find threshold for -1 (risky): min_low < MA_X * threshold
-            # Try to get ~30% safe (min_close >= MA_X)
-            safe = sum(1 for d in valid if d["min_close_future"] >= d[ma_field])
+            if up_pct < 15 or down_pct < 15:
+                continue  # skip too imbalanced
 
-            # For risky: try different thresholds to get ~30%
-            for risky_pct in [0.93, 0.95, 0.97, 0.98, 0.99]:
-                risky = sum(1 for d in valid if d["min_low_future"] < d[ma_field] * risky_pct)
-                ntrl = vn - safe - risky
-                sp = safe/vn*100
-                rp = risky/vn*100
-                np_val = ntrl/vn*100
-                if 20 <= sp <= 40 and 20 <= rp <= 40:
-                    print(f"    {ma_field}: safe(close>={ma_field})={sp:.0f}%  "
-                          f"neutral={np_val:.0f}%  "
-                          f"risky(low<{ma_field}*{risky_pct})={rp:.0f}%  (n={vn})")
-                    break
-            else:
-                # Print best attempt
-                sp = safe/vn*100
-                ntrl = vn - safe
-                print(f"    {ma_field}: safe={sp:.0f}%  (no good risky threshold found)")
+            up_ret = sum(d[1] for d in up)/len(up)*100
+            down_ret = sum(d[1] for d in down)/len(down)*100
+            mid_ret = sum(d[1] for d in mid)/len(mid)*100
+            spread = up_ret - down_ret
 
-        # 3. Try: safe = min_close >= MA_X, risky = min_low < MA_X * factor
-        # Find factors that give ~30-40-30
-        print(f"\n  Search for 30-40-30 with MA-based:")
-        for ma_field in ["ma_5", "ma_10", "ma_20"]:
-            valid = [d for d in all_dips if d[ma_field] and d[ma_field] > 0]
-            if not valid:
-                continue
-            vn = len(valid)
-            best = None
-            for rf in [0.90, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]:
-                # Safe: min_close >= MA_X * safe_factor
-                for sf in [0.95, 0.97, 0.98, 0.99, 1.0, 1.01, 1.02, 1.03, 1.05]:
-                    safe = sum(1 for d in valid if d["min_close_future"] >= d[ma_field] * sf)
-                    risky = sum(1 for d in valid if d["min_low_future"] < d[ma_field] * rf)
-                    ntrl = vn - safe - risky
-                    sp = safe/vn*100
-                    rp = risky/vn*100
-                    if 25 <= sp <= 35 and 25 <= rp <= 35:
-                        if best is None or (abs(sp-30)+abs(rp-30)+abs(100-sp-rp-40) <
-                                            abs(best[0]-30)+abs(best[1]-30)+abs(100-best[0]-best[1]-40)):
-                            best = (sp, rp, sf, rf, ntrl/vn*100, vn)
+            # Score: balance + separation
+            # balance: how close to target (25% each for up/down, 50% for mid)
+            balance_penalty = abs(up_pct - 30) + abs(mid_pct - 40) + abs(down_pct - 30)
+            score = spread - balance_penalty * 0.3  # weighted: spread minus imbalance penalty
 
-            if best:
-                sp, rp, sf, rf, np_val, vn = best
-                print(f"    {ma_field}: safe(close>={ma_field}*{sf:.2f})={sp:.0f}%  "
-                      f"neutral={np_val:.0f}%  risky(low<{ma_field}*{rf:.2f})={rp:.0f}%  (n={vn})")
+            results.append((th, up_pct, mid_pct, down_pct, up_ret, mid_ret, down_ret, spread, score))
+
+        # Show top 15 by score
+        results.sort(key=lambda x: x[8], reverse=True)
+        for r in results[:15]:
+            print(f"  ±{r[0]*100:>6.1f}%  {r[1]:>5.1f}  {r[2]:>5.1f}  {r[3]:>5.1f}  "
+                  f"{r[4]:>+7.2f}%  {r[5]:>+7.2f}%  {r[6]:>+7.2f}%  {r[7]:>+6.2f}%  {r[8]:>5.1f}")
+
+        # Show best result
+        best = results[0]
+        print(f"\n  >> Best: ±{best[0]*100:.1f}%  "
+              f"S:{best[1]:.0f}% N:{best[2]:.0f}% R:{best[3]:.0f}%  "
+              f"up_ret={best[4]:+.2f}% down_ret={best[6]:+.2f}% spread={best[7]:+.2f}%")
 
     client.close()
 
