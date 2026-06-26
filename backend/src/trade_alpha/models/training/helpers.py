@@ -95,11 +95,47 @@ def _create_safety_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame
     return pd.concat(result_parts, ignore_index=True)
 
 
-def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
+def _create_retrace_labels(df: pd.DataFrame, horizons: List[int],
+                          threshold_3d: float = 0.02, threshold_5d: float = 0.02,
+                          threshold_10d: float = 0.03, threshold_20d: float = 0.04,
+                          retrace_3d: float = 0.02, retrace_5d: float = 0.03,
+                          retrace_10d: float = 0.08, retrace_20d: float = 0.06) -> pd.DataFrame:
+    """Create retrace-aware labels: up requires limited pullback from peak.
+
+    Label = 1  (uptrend):  return > threshold[h] AND retrace < retrace[h]
+    Label = -1 (downtrend): return < -threshold[h]
+    Label = 0  (neutral): otherwise
+    """
+    th_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d, 20: threshold_20d}
+    ret_map = {3: retrace_3d, 5: retrace_5d, 10: retrace_10d, 20: retrace_20d}
+    label_cols = [f"label_{h}d" for h in horizons]
+    result_parts = []
+    for ts_code, group in df.groupby("ts_code"):
+        group = group.sort_values("trade_date").copy()
+        for horizon in horizons:
+            ret_th = th_map.get(horizon, 0.02)
+            safe_ret = ret_map.get(horizon, 0.03)
+            # Forward return
+            ret = group["close"].shift(-horizon) / group["close"] - 1
+            # Rolling peak up to horizon
+            peak = group["close"].rolling(horizon).max().shift(-horizon)
+            retrace = (peak - group["close"].shift(-horizon)) / peak
+            col = f"label_{horizon}d"
+            group[col] = 0
+            group.loc[(ret > ret_th) & (retrace < safe_ret), col] = 1
+            group.loc[ret < -ret_th, col] = -1
+        group = group.dropna(subset=label_cols)
+        result_parts.append(group)
+    return pd.concat(result_parts, ignore_index=True)
+
+
+def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.02, threshold_5d: float = 0.02, threshold_10d: float = 0.03, threshold_20d: float = 0.04, retrace_3d: float = 0.02, retrace_5d: float = 0.03, retrace_10d: float = 0.08, retrace_20d: float = 0.06) -> pd.DataFrame:
     if label_mode == "trend":
         return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
     if label_mode == "safety":
         return _create_safety_labels(df, horizons)
+    if label_mode == "retrace":
+        return _create_retrace_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d, retrace_3d, retrace_5d, retrace_10d, retrace_20d)
     return _create_classification_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
 
 

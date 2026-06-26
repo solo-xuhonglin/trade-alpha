@@ -146,6 +146,10 @@ class ModelSnapshotEmbed(BaseModel):
     classification_threshold_3d: float = 0.01
     classification_threshold_5d: float = 0.015
     classification_threshold_10d: float = 0.02
+    classification_retrace_3d: float = 0.02
+    classification_retrace_5d: float = 0.03
+    classification_retrace_10d: float = 0.08
+    classification_retrace_20d: float = 0.06
     xgb_n_estimators: int = 100
     xgb_max_depth: int = 6
     xgb_learning_rate: float = 0.1

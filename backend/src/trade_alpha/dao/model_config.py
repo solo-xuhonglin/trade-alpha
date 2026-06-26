@@ -90,6 +90,11 @@ class ModelConfig(Document):
     classification_threshold_5d: float = DEFAULT_CLASSIFICATION_THRESHOLD_5D
     classification_threshold_10d: float = DEFAULT_CLASSIFICATION_THRESHOLD_10D
     classification_threshold_20d: float = DEFAULT_CLASSIFICATION_THRESHOLD_20D
+    # ── 回撤感知涨跌过滤阈值 ──
+    classification_retrace_3d: float = 0.02
+    classification_retrace_5d: float = 0.03
+    classification_retrace_10d: float = 0.08
+    classification_retrace_20d: float = 0.06
     # xgboost 超参数（仅 model_type="xgboost" 时使用）
     xgb_n_estimators: int = DEFAULT_XGB_N_ESTIMATORS
     xgb_max_depth: int = DEFAULT_XGB_MAX_DEPTH

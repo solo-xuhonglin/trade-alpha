@@ -101,9 +101,10 @@
                   <v-select v-model="form.label_mode" :items="[
                     { title: '涨跌幅阈值', value: 'threshold' },
                     { title: '均线趋势', value: 'trend' },
-                    { title: '规避风险', value: 'safety' }
+                    { title: '规避风险', value: 'safety' },
+                    { title: '回撤感知', value: 'retrace' }
                   ]" label="标签计算模式"
-                    hint="threshold: 基于未来涨跌幅; trend: 基于均线+涨跌幅; safety: 基于最低价是否跌破开盘价" persistent-hint></v-select>
+                    hint="threshold: 基于未来涨跌幅; trend: 基于均线+涨跌幅; safety: 基于最低价是否跌破MA5; retrace: 上涨+回撤过滤" persistent-hint></v-select>
                 </v-col>
                   <v-col cols="12" sm="3">
                     <v-text-field v-model.number="form.classification_threshold_3d" label="3日涨跌阈值" type="number" step="0.005" hint="短周期，小阈值" persistent-hint></v-text-field>
@@ -116,6 +117,18 @@
                   </v-col>
                   <v-col cols="12" sm="3">
                     <v-text-field v-model.number="form.classification_threshold_20d" label="20日涨跌阈值" type="number" step="0.005" hint="更长周期，更大阈值" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="3">
+                    <v-text-field v-model.number="form.classification_retrace_3d" label="3日回撤阈值" type="number" step="0.01" min="0" max="0.5" hint="上涨中允许的最大回撤(3d)" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="3">
+                    <v-text-field v-model.number="form.classification_retrace_5d" label="5日回撤阈值" type="number" step="0.01" min="0" max="0.5" hint="上涨中允许的最大回撤(5d)" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="3">
+                    <v-text-field v-model.number="form.classification_retrace_10d" label="10日回撤阈值" type="number" step="0.01" min="0" max="0.5" hint="上涨中允许的最大回撤(10d)" persistent-hint></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="3">
+                    <v-text-field v-model.number="form.classification_retrace_20d" label="20日回撤阈值" type="number" step="0.01" min="0" max="0.5" hint="上涨中允许的最大回撤(20d)" persistent-hint></v-text-field>
                   </v-col>
               </v-row>
 
@@ -301,7 +314,11 @@ const defaultForm = {
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,
   classification_threshold_10d: 0.02,
-  classification_threshold_20d: 0.05,
+  classification_threshold_20d: 0.04,
+    classification_retrace_3d: 0.02,
+    classification_retrace_5d: 0.03,
+    classification_retrace_10d: 0.08,
+    classification_retrace_20d: 0.06,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
@@ -349,6 +366,10 @@ const compareFields: CompareField[] = [
   { key: 'classification_threshold_5d', label: '5日涨跌阈值', group: '标签参数', type: 'number' },
   { key: 'classification_threshold_10d', label: '10日涨跌阈值', group: '标签参数', type: 'number' },
   { key: 'classification_threshold_20d', label: '20日涨跌阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_retrace_3d', label: '3日回撤阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_retrace_5d', label: '5日回撤阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_retrace_10d', label: '10日回撤阈值', group: '标签参数', type: 'number' },
+  { key: 'classification_retrace_20d', label: '20日回撤阈值', group: '标签参数', type: 'number' },
   { key: 'xgb_n_estimators', label: 'n_estimators', group: 'XGBoost', type: 'number' },
   { key: 'xgb_max_depth', label: 'max_depth', group: 'XGBoost', type: 'number' },
   { key: 'xgb_learning_rate', label: 'learning_rate', group: 'XGBoost', type: 'number' },
@@ -385,7 +406,11 @@ const xgbRecommendedParams = {
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,
   classification_threshold_10d: 0.02,
-  classification_threshold_20d: 0.05,
+  classification_threshold_20d: 0.04,
+    classification_retrace_3d: 0.02,
+    classification_retrace_5d: 0.03,
+    classification_retrace_10d: 0.08,
+    classification_retrace_20d: 0.06,
   xgb_n_estimators: 100,
   xgb_max_depth: 6,
   xgb_learning_rate: 0.1,
@@ -402,7 +427,11 @@ const lstmRecommendedParams = {
   classification_threshold_3d: 0.01,
   classification_threshold_5d: 0.015,
   classification_threshold_10d: 0.02,
-  classification_threshold_20d: 0.05,
+  classification_threshold_20d: 0.04,
+    classification_retrace_3d: 0.02,
+    classification_retrace_5d: 0.03,
+    classification_retrace_10d: 0.08,
+    classification_retrace_20d: 0.06,
   lstm_hidden_size: 64,
   lstm_num_layers: 2,
   lstm_dropout: 0.2,
@@ -460,7 +489,11 @@ const openDialog = (item?: ModelConfig, isCopy = false) => {
       classification_threshold_3d: (item as any).classification_threshold_3d ?? 0.01,
       classification_threshold_5d: (item as any).classification_threshold_5d ?? 0.015,
       classification_threshold_10d: (item as any).classification_threshold_10d ?? 0.02,
-      classification_threshold_20d: (item as any).classification_threshold_20d ?? 0.05,
+      classification_threshold_20d: (item as any).classification_threshold_20d ?? 0.04,
+      classification_retrace_3d: (item as any).classification_retrace_3d ?? 0.02,
+      classification_retrace_5d: (item as any).classification_retrace_5d ?? 0.03,
+      classification_retrace_10d: (item as any).classification_retrace_10d ?? 0.08,
+      classification_retrace_20d: (item as any).classification_retrace_20d ?? 0.06,
       xgb_n_estimators: item.xgb_n_estimators,
       xgb_max_depth: item.xgb_max_depth,
       xgb_learning_rate: item.xgb_learning_rate,

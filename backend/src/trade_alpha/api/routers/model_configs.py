@@ -21,6 +21,10 @@ class ConfigCreate(BaseModel):
     classification_threshold_3d: Optional[float] = None
     classification_threshold_5d: Optional[float] = None
     classification_threshold_10d: Optional[float] = None
+    classification_retrace_3d: Optional[float] = None
+    classification_retrace_5d: Optional[float] = None
+    classification_retrace_10d: Optional[float] = None
+    classification_retrace_20d: Optional[float] = None
     xgb_n_estimators: Optional[int] = None
     xgb_max_depth: Optional[int] = None
     xgb_learning_rate: Optional[float] = None
@@ -54,6 +58,10 @@ class ConfigUpdate(BaseModel):
     classification_threshold_3d: Optional[float] = None
     classification_threshold_5d: Optional[float] = None
     classification_threshold_10d: Optional[float] = None
+    classification_retrace_3d: Optional[float] = None
+    classification_retrace_5d: Optional[float] = None
+    classification_retrace_10d: Optional[float] = None
+    classification_retrace_20d: Optional[float] = None
     xgb_n_estimators: Optional[int] = None
     xgb_max_depth: Optional[int] = None
     xgb_learning_rate: Optional[float] = None
@@ -91,6 +99,10 @@ def config_to_dict(c):
         "classification_threshold_3d": c.classification_threshold_3d,
         "classification_threshold_5d": c.classification_threshold_5d,
         "classification_threshold_10d": c.classification_threshold_10d,
+        "classification_retrace_3d": c.classification_retrace_3d,
+        "classification_retrace_5d": c.classification_retrace_5d,
+        "classification_retrace_10d": c.classification_retrace_10d,
+        "classification_retrace_20d": c.classification_retrace_20d,
         "xgb_n_estimators": c.xgb_n_estimators,
         "xgb_max_depth": c.xgb_max_depth,
         "xgb_learning_rate": c.xgb_learning_rate,
@@ -132,6 +144,10 @@ async def create_config(body: ConfigCreate):
             classification_threshold_3d=body.classification_threshold_3d,
             classification_threshold_5d=body.classification_threshold_5d,
             classification_threshold_10d=body.classification_threshold_10d,
+            classification_retrace_3d=body.classification_retrace_3d,
+            classification_retrace_5d=body.classification_retrace_5d,
+            classification_retrace_10d=body.classification_retrace_10d,
+            classification_retrace_20d=body.classification_retrace_20d,
             xgb_n_estimators=body.xgb_n_estimators,
             xgb_max_depth=body.xgb_max_depth,
             xgb_learning_rate=body.xgb_learning_rate,

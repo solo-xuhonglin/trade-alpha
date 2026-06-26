@@ -12,6 +12,10 @@ export interface ModelConfig {
   classification_threshold_3d: number
   classification_threshold_5d: number
   classification_threshold_10d: number
+  classification_retrace_3d: number
+  classification_retrace_5d: number
+  classification_retrace_10d: number
+  classification_retrace_20d: number
   xgb_n_estimators: number
   xgb_max_depth: number
   xgb_learning_rate: number

@@ -45,7 +45,15 @@ class XGBoostClassifier(BaseClassifier):
             if year_df is None:
                 continue
             year_df = create_labels(
-                year_df, config.classification_horizons, label_mode=config.label_mode, threshold_3d=config.classification_threshold_3d, threshold_5d=config.classification_threshold_5d, threshold_10d=config.classification_threshold_10d
+                year_df, config.classification_horizons, label_mode=config.label_mode,
+                threshold_3d=config.classification_threshold_3d,
+                threshold_5d=config.classification_threshold_5d,
+                threshold_10d=config.classification_threshold_10d,
+                threshold_20d=config.classification_threshold_20d,
+                retrace_3d=config.classification_retrace_3d,
+                retrace_5d=config.classification_retrace_5d,
+                retrace_10d=config.classification_retrace_10d,
+                retrace_20d=config.classification_retrace_20d,
             )
             year_norm = xgb_normalize(
                 year_df, config.feature_fields,

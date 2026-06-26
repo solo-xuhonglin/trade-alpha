@@ -1,4 +1,4 @@
-"""Compare latest backtests with old baseline - score distribution analysis."""
+"""Test retracement-aware labels: up is only 'up' if it doesn't pull back too much."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from dotenv import load_dotenv
@@ -6,156 +6,113 @@ load_dotenv()
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from trade_alpha.config import load_config
-from collections import defaultdict, Counter
-import math
+from collections import defaultdict
 
 async def main():
     cfg = load_config()
     client = AsyncIOMotorClient(cfg.mongodb_uri)
     db = client[cfg.mongodb_db]
 
-    names = [
-        "backtest_lstm_202606261819",  # newest (trend) live_long
-        "backtest_lstm_202606261818",  # newest (trend) big_long
-        "backtest_lstm_202606241707",  # old baseline (threshold)
-    ]
+    all_stocks = await db.stock_daily.distinct("ts_code")
+    sample = sorted(all_stocks)[:50]
+    records = await db.stock_daily.find(
+        {"ts_code": {"$in": sample}},
+        {"ts_code": 1, "trade_date": 1, "close": 1, "ma_5": 1},
+        sort=[("trade_date", 1)]
+    ).to_list(200000)
 
-    for name in names:
-        r = await db.execution_results.find_one({"name": name})
-        if not r:
-            print(f"\n  {name}: NOT FOUND")
+    stock_data = defaultdict(list)
+    for r in records:
+        stock_data[r["ts_code"]].append(r)
+
+    print(f"Loaded {len(records)} records\n")
+
+    for horizon in [5, 10, 20]:
+        print(f"{'='*70}")
+        print(f"  HORIZON: {horizon}d")
+        print(f"{'='*70}")
+
+        all_samples = []
+        for ts_code, days in stock_data.items():
+            days.sort(key=lambda x: x["trade_date"])
+            for i in range(len(days) - horizon):
+                d = days[i]
+                close_now = d.get("close", 0)
+                if not close_now:
+                    continue
+
+                # Get full price path
+                prices = [days[i+j].get("close", 0) for j in range(1, horizon+1)]
+                prices = [p for p in prices if p]
+                if len(prices) < horizon:
+                    continue
+
+                peak = max(prices)
+                final = prices[-1]
+                total_return = (final - close_now) / close_now
+                retracement = (peak - final) / peak if peak > 0 else 0
+
+                # Safety: min close >= MA5
+                ma5_now = d.get("ma_5", 0)
+                min_close = min(prices)
+                safe = 1 if (ma5_now > 0 and min_close >= ma5_now) else 0
+
+                all_samples.append({
+                    "ret": total_return,
+                    "retrace": retracement,
+                    "peak": peak,
+                    "final": final,
+                    "safe": safe,
+                })
+
+        n = len(all_samples)
+        if n == 0:
             continue
-        bt_id = r["_id"]
-        ss = r.get("strategy_snapshot", {})
+        print(f"  Total samples: {n}")
 
-        total_ret = (r.get("total_return") or 0) * 100
-        base_ret = (r.get("baseline_return") or 0) * 100
+        # Search for best retracement thresholds
+        print(f"\n  Searching retracement thresholds (return_th=0.02) for ~30-40-30:")
+        results = []
+        for ret_th in [0.005, 0.01, 0.02, 0.03, 0.04, 0.05]:
+            for risky_ret in [0.03, 0.05, 0.07, 0.10, 0.12, 0.15]:
+                for ret_thresh in [0.01, 0.02, 0.03, 0.04, 0.05]:
+                    up = [s for s in all_samples if s["ret"] > ret_thresh and s["retrace"] < ret_th]
+                    down = [s for s in all_samples if s["retrace"] > risky_ret or s["ret"] < -ret_thresh]
+                    up_set = {id(s) for s in up}
+                    down_set = {id(s) for s in down}
+                    up_only = [s for s in up if id(s) not in down_set]
+                    down_only = [s for s in down if id(s) not in up_set]
+                    mid = [s for s in all_samples if id(s) not in up_set and id(s) not in down_set]
 
-        print(f"\n{'='*70}")
-        print(f"  {name}")
-        print(f"  Return: {total_ret:.1f}%  Baseline: {base_ret:.1f}%  "
-              f"Excess: {total_ret-base_ret:.1f}%")
-        print(f"  Strategy: {ss.get('name')}, max_pos={ss.get('max_positions')}")
-        print(f"  label_mode field is in model_config")
+                    up_pct = len(up_only)/n*100
+                    down_pct = len(down_only)/n*100
+                    mid_pct = len(mid)/n*100
 
-        trades = await db.execution_trades.find({"backtest_id": bt_id}).to_list(10000)
-        filled_sells = [t for t in trades if t.get("action")=="sell" and t.get("status")=="filled"]
-        filled_buys = [t for t in trades if t.get("action")=="buy" and t.get("status")=="filled"]
-        print(f"  Filled buys: {len(filled_buys)}  sells: {len(filled_sells)}")
+                    if up_pct < 20 or down_pct < 20 or up_pct > 45 or down_pct > 45:
+                        continue
+                    if up_pct + down_pct > 80:
+                        continue
 
-        pnls = [t.get("pnl_pct",0) for t in filled_sells if t.get("pnl_pct") is not None]
-        if pnls:
-            wins = [p for p in pnls if p>0]
-            losses = [p for p in pnls if p<=0]
-            print(f"  Win rate: {len(wins)/len(pnls)*100:.0f}%  "
-                  f"avg_win={sum(wins)/len(wins)*100:+.1f}%  "
-                  f"avg_loss={sum(losses)/len(losses)*100:+.1f}%")
+                    up_ret = sum(s["ret"] for s in up_only)/len(up_only)*100 if up_only else 0
+                    down_ret = sum(s["ret"] for s in down_only)/len(down_only)*100 if down_only else 0
+                    mid_ret = sum(s["ret"] for s in mid)/len(mid)*100 if mid else 0
 
-        # ---- Score distribution from daily snapshots ----
-        snaps = await db.execution_daily_snapshots.find(
-            {"backtest_id": bt_id}
-        ).sort("date").to_list(500)
+                    balance = abs(up_pct-30) + abs(mid_pct-40) + abs(down_pct-30)
+                    results.append((balance, ret_thresh, ret_th, risky_ret,
+                                    up_pct, mid_pct, down_pct, up_ret, down_ret, mid_ret))
 
-        # ranking_score distribution
-        all_scores = []
-        for s in snaps[:200]:
-            preds = s.get("predictions", {}) or {}
-            for pred in preds.values():
-                rs = pred.get("ranking_score")
-                if rs is not None:
-                    all_scores.append(rs)
+        results.sort(key=lambda x: x[0])
+        for r in results[:10]:
+            print(f"    ret>={r[1]*100:.1f}% retrace<{r[2]*100:.1f}% risky_retrace>{r[3]*100:.1f}%  "
+                  f"S={r[4]:.0f}% N={r[5]:.0f}% R={r[6]:.0f}%  "
+                  f"up={r[7]:+.2f}% dn={r[8]:+.2f}%")
 
-        if all_scores:
-            all_scores.sort()
-            n = len(all_scores)
-            print(f"\n  ── ranking_score distribution ──")
-            print(f"  Minutean: {sum(all_scores)/n:.4f}")
-            print(f"  Min/Max: {all_scores[0]:.4f} / {all_scores[-1]:.4f}")
-            print(f"  P25/P50/P75: {all_scores[n//4]:.4f} / {all_scores[n//2]:.4f} / {all_scores[3*n//4]:.4f}")
-
-            # Volatility (day-over-day change)
-            score_deltas = []
-            for si in range(1, min(len(snaps), 300)):
-                prev = snaps[si-1].get("predictions", {}) or {}
-                curr = snaps[si].get("predictions", {}) or {}
-                for tc, p in curr.items():
-                    cs = p.get("ranking_score")
-                    ps = prev.get(tc, {}).get("ranking_score")
-                    if cs is not None and ps is not None:
-                        score_deltas.append(abs(cs - ps))
-            score_deltas.sort()
-            nd = len(score_deltas)
-            if nd > 0:
-                print(f"  ── Score day-over-day change ──")
-                print(f"  P50: {score_deltas[nd//2]:.4f}  P90: {score_deltas[9*nd//10]:.4f}  "
-                      f"P99: {score_deltas[99*nd//100]:.4f}")
-
-        # ---- Score vs Forward Return correlation ----
-        print(f"\n  ── Score vs Forward Return (10d) ──")
-        buy_score_rets = []  # (composite_score, forward_return_10d)
-        for si, s in enumerate(snaps[:300]):
-            preds = s.get("predictions", {}) or {}
-            # Get future close from snapshot's predictions
-            for tc, pred in preds.items():
-                cp = pred.get("composite_score")
-                rscore = pred.get("ranking_score")
-                close = pred.get("close", 0)
-                if cp is None or not close:
-                    continue
-                # Look forward 10 days
-                for j in range(si+1, min(si+11, len(snaps))):
-                    fp = snaps[j].get("predictions", {}) or {}
-                    if tc in fp:
-                        fc = fp[tc].get("close", 0)
-                        if fc:
-                            ret = (fc - close) / close
-                            buy_score_rets.append((rscore or 0, cp, ret, tc))
-                            break
-
-        if buy_score_rets:
-            # Sort by composite_score
-            by_score = sorted(buy_score_rets, key=lambda x: x[1])
-            nbs = len(by_score)
-            for qi, qlabel in [(0, "Q1(low)"), (nbs//4, "Q2"), (nbs//2, "Q3"), (3*nbs//4, "Q4(high)")]:
-                if qi + nbs//4 <= nbs:
-                    group = by_score[qi:qi+nbs//4]
-                    avg_score = sum(x[1] for x in group)/len(group)
-                    avg_ret = sum(x[2] for x in group)/len(group)*100
-                    win = sum(1 for x in group if x[2]>0)/len(group)*100
-                    print(f"    {qlabel}: avg_comp={avg_score:+.4f}  10d_ret={avg_ret:+.2f}%  win={win:.0f}%  (n={len(group)})")
-
-        # ---- Score of stocks that were actually BOUGHT vs NOT bought ----
-        print(f"\n  ── Scores of bought vs never-bought stocks ──")
-        bought_scores = []
-        never_bought_scores = []
-        bought_codes = set(t["ts_code"] for t in filled_buys)
-        for s in snaps[:200]:
-            preds = s.get("predictions", {}) or {}
-            for tc, pred in preds.items():
-                rs = pred.get("ranking_score")
-                if rs is None:
-                    continue
-                if tc in bought_codes:
-                    bought_scores.append(rs)
-                else:
-                    never_bought_scores.append(rs)
-        if bought_scores:
-            avg_b = sum(bought_scores)/len(bought_scores)
-            avg_nb = sum(never_bought_scores)/len(never_bought_scores)
-            print(f"    Bought:     avg_score={avg_b:.4f}  (n={len(bought_scores)})")
-            print(f"    Never-bought: avg_score={avg_nb:.4f}  (n={len(never_bought_scores)})")
-
-        # ---- PnL by buy reason ----
-        print(f"\n  ── PnL by buy reason ──")
-        buy_reason_map = {b["ts_code"]: b.get("reason", "?") for b in filled_buys}
-        by_reason = defaultdict(list)
-        for t in filled_sells:
-            r = buy_reason_map.get(t["ts_code"], "?")
-            by_reason[r].append(t.get("pnl_pct", 0) or 0)
-        for reason, pnls in sorted(by_reason.items(), key=lambda x: sum(x[1]), reverse=True):
-            total = sum(pnls) * 100
-            avg = sum(pnls) / len(pnls) * 100
-            print(f"     {reason}: {len(pnls)} trades, total={total:+.1f}%, avg={avg:+.2f}%")
+        # Also compare with simple return-based label
+        print(f"\n  Simple return threshold (±2%):")
+        up_s = sum(1 for s in all_samples if s["ret"] > 0.02)
+        dn_s = sum(1 for s in all_samples if s["ret"] < -0.02)
+        md_s = n - up_s - dn_s
+        print(f"    Up={up_s/n*100:.0f}% Mid={md_s/n*100:.0f}% Down={dn_s/n*100:.0f}%")
 
     client.close()
 
