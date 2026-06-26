@@ -24,34 +24,45 @@ def _create_classification_labels(df: pd.DataFrame, horizons: List[int], thresho
     return pd.concat(result_parts, ignore_index=True)
 
 
-def _create_trend_labels(df: pd.DataFrame, horizons: List[int],
-                       threshold_3d: float = 0.010,
-                       threshold_5d: float = 0.020,
-                       threshold_10d: float = 0.030,
-                       threshold_20d: float = 0.045) -> pd.DataFrame:
-    """Create trend labels based on MA5 forward percentage change.
-
-    Label = 1  (uptrend):  (MA5[T+h] / MA5[T] - 1) > threshold_{h}d
-    Label = -1 (downtrend): (MA5[T+h] / MA5[T] - 1) < -threshold_{h}d
-    Label = 0  (neutral): otherwise
-    """
+def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
+    label_configs = {
+        3: {"ma_base": "ma_20", "ma_slope": "ma_5", "shift": 2},
+        5: {"ma_base": "ma_40", "ma_slope": "ma_10", "shift": 3},
+        10: {"ma_base": "ma_60", "ma_slope": "ma_20", "shift": 5},
+        20: {"ma_base": "ma_60", "ma_slope": "ma_20", "shift": 10},
+    }
     threshold_map = {3: threshold_3d, 5: threshold_5d, 10: threshold_10d, 20: threshold_20d}
+    required_ma = set()
+    for h in horizons:
+        if h in label_configs:
+            required_ma.add(label_configs[h]["ma_base"])
+            required_ma.add(label_configs[h]["ma_slope"])
     label_cols = [f"label_{h}d" for h in horizons]
     result_parts = []
     for ts_code, group in df.groupby("ts_code"):
         group = group.sort_values("trade_date").copy()
-        if "ma_5" not in group.columns:
-            continue
-        group["ma_5"] = group["ma_5"].astype(float)
+        for ma_col in required_ma:
+            if ma_col not in group.columns:
+                raise ValueError(f"Missing required MA column: {ma_col}")
+            group[ma_col] = group[ma_col].astype(float)
         for horizon in horizons:
-            th = threshold_map.get(horizon, 0.02)
-            ma5_now = group["ma_5"]
-            ma5_future = group["ma_5"].shift(-horizon)
-            ma5_pct = (ma5_future - ma5_now) / ma5_now
+            config = label_configs.get(horizon)
+            if config is None:
+                continue
+            ret = group["close"].shift(-horizon) / group["close"] - 1
+            threshold = threshold_map.get(horizon, 0.01)
+            
+            ma_slope_future = group[config["ma_slope"]].shift(-config["shift"])
+            close_future = group["close"].shift(-config["shift"])
+            ma_base_future = group[config["ma_base"]].shift(-config["shift"])
+            
+            trend_up = ((close_future > ma_base_future) & (ma_slope_future > group[config["ma_slope"]]))
+            trend_down = ((close_future < ma_base_future) & (ma_slope_future < group[config["ma_slope"]]))
+            
             col = f"label_{horizon}d"
             group[col] = 0
-            group.loc[ma5_pct > th, col] = 1
-            group.loc[ma5_pct < -th, col] = -1
+            group.loc[trend_up & (ret > threshold), col] = 1
+            group.loc[trend_down & (ret < -threshold), col] = -1
         group = group.dropna(subset=label_cols)
         result_parts.append(group)
     return pd.concat(result_parts, ignore_index=True)
@@ -84,7 +95,7 @@ def _create_safety_labels(df: pd.DataFrame, horizons: List[int]) -> pd.DataFrame
     return pd.concat(result_parts, ignore_index=True)
 
 
-def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.010, threshold_5d: float = 0.020, threshold_10d: float = 0.030, threshold_20d: float = 0.045) -> pd.DataFrame:
+def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
     if label_mode == "trend":
         return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
     if label_mode == "safety":
