@@ -100,17 +100,7 @@ class LSTMClassifier(BaseClassifier):
             year_df = await _load_year_data(year, ts_codes, horizon, extra_days)
             if year_df is None:
                 continue
-            year_df = create_labels(
-                year_df, config.classification_horizons, label_mode=config.label_mode,
-                threshold_3d=config.classification_threshold_3d,
-                threshold_5d=config.classification_threshold_5d,
-                threshold_10d=config.classification_threshold_10d,
-                threshold_20d=config.classification_threshold_20d,
-                retrace_3d=config.classification_retrace_3d,
-                retrace_5d=config.classification_retrace_5d,
-                retrace_10d=config.classification_retrace_10d,
-                retrace_20d=config.classification_retrace_20d,
-            )
+            year_df = create_labels(year_df, config)
             all_dfs.append(year_df)
             await TaskService.update_progress(
                 task_id,

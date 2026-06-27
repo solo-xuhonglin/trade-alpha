@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 import pandas as pd
 import numpy as np
-from trade_alpha.dao import StockDaily, StockList
+from trade_alpha.dao import StockDaily, StockList, ModelConfig
 
 
 def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
@@ -129,7 +129,19 @@ def _create_retrace_labels(df: pd.DataFrame, horizons: List[int],
     return pd.concat(result_parts, ignore_index=True)
 
 
-def create_labels(df: pd.DataFrame, horizons: List[int], label_mode: str = "threshold", threshold_3d: float = 0.02, threshold_5d: float = 0.02, threshold_10d: float = 0.03, threshold_20d: float = 0.04, retrace_3d: float = 0.02, retrace_5d: float = 0.03, retrace_10d: float = 0.08, retrace_20d: float = 0.06) -> pd.DataFrame:
+def create_labels(df: pd.DataFrame, config: ModelConfig) -> pd.DataFrame:
+    """Create labels based on model config."""
+    horizons = config.classification_horizons
+    label_mode = config.label_mode
+    # Extract thresholds from config
+    threshold_3d = config.classification_threshold_3d
+    threshold_5d = config.classification_threshold_5d
+    threshold_10d = config.classification_threshold_10d
+    threshold_20d = config.classification_threshold_20d
+    retrace_3d = config.classification_retrace_3d
+    retrace_5d = config.classification_retrace_5d
+    retrace_10d = config.classification_retrace_10d
+    retrace_20d = config.classification_retrace_20d
     if label_mode == "trend":
         return _create_trend_labels(df, horizons, threshold_3d, threshold_5d, threshold_10d, threshold_20d)
     if label_mode == "safety":
