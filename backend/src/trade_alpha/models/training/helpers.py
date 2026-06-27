@@ -2,9 +2,15 @@
 
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict
+import asyncio
 import pandas as pd
 import numpy as np
-from trade_alpha.dao import StockDaily, StockList, ModelConfig
+from trade_alpha.dao import StockDaily, StockList, StockListHistory, ModelConfig, TradeCalendar
+from trade_alpha.data.service import resolve_and_fetch_historical_date, active_stock_data
+from trade_alpha.task.service import TaskService
+from trade_alpha.logging import get_logger
+
+logger = get_logger("models.training.helpers")
 
 
 def _create_classification_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: float = 0.01, threshold_5d: float = 0.015, threshold_10d: float = 0.02, threshold_20d: float = 0.05) -> pd.DataFrame:
@@ -127,6 +133,71 @@ def _create_retrace_labels(df: pd.DataFrame, horizons: List[int],
         group = group.dropna(subset=label_cols)
         result_parts.append(group)
     return pd.concat(result_parts, ignore_index=True)
+
+
+async def _get_top_n_for_year(year: int, top_n: int) -> List[str]:
+    """Get top N ts_codes by market cap for a given year's last trading day.
+
+    Searches backward from Dec 31 for the year's last trading day,
+    auto-fetches market cap data from Tushare if missing,
+    then returns the top N ts_codes by total_mv.
+    """
+    for i in range(31):
+        check = (datetime(year, 12, 31) - timedelta(days=i)).strftime("%Y%m%d")
+        day = await TradeCalendar.find_one(
+            TradeCalendar.cal_date == check,
+            TradeCalendar.is_open == 1,
+        )
+        if day:
+            resolved = day.cal_date
+            break
+    else:
+        return []
+
+    resolved = await resolve_and_fetch_historical_date(resolved)
+    records = await StockListHistory.find(
+        StockListHistory.trade_date == resolved,
+        StockListHistory.total_mv != None,
+    ).sort(-StockListHistory.total_mv).limit(top_n).to_list()
+    return [s.ts_code for s in records]
+
+
+async def _ensure_stocks_ready(ts_codes: List[str], task_id=None) -> None:
+    """Ensure all stocks have daily data and indicators calculated."""
+    pending = []
+    for code in ts_codes:
+        stock = await StockList.find_one(StockList.ts_code == code)
+        if not stock or stock.sync_status != "active":
+            pending.append(code)
+
+    if not pending:
+        return
+
+    total = len(pending)
+    logger.info(f"Preparing data for {total} stocks...")
+    sem = asyncio.Semaphore(5)
+    completed = 0
+    lock = asyncio.Lock()
+
+    async def prepare_one(code: str) -> bool:
+        nonlocal completed
+        async with sem:
+            await asyncio.sleep(0.2)
+            success = await active_stock_data(code)
+            async with lock:
+                completed += 1
+                await TaskService.update_progress(
+                    task_id,
+                    f"\u6b63\u5728\u51c6\u5907\u6570\u636e ({completed}/{total})",
+                )
+            if not success:
+                logger.warning(f"Data preparation failed for {code}")
+            return success
+
+    tasks = [prepare_one(c) for c in pending]
+    results = await asyncio.gather(*tasks)
+    success = sum(1 for r in results if r)
+    logger.info(f"Data preparation: {success}/{total} succeeded")
 
 
 def create_labels(df: pd.DataFrame, config: ModelConfig) -> pd.DataFrame:

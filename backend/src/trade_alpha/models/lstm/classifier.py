@@ -13,7 +13,7 @@ from sklearn.metrics import roc_auc_score
 from trade_alpha.models.base import BaseClassifier
 from trade_alpha.models.lstm.normalizer import create_sequences, create_sequences_memmap
 from trade_alpha.task.service import TaskService
-from trade_alpha.models.training.helpers import create_labels, _load_year_data
+from trade_alpha.models.training.helpers import create_labels, _load_year_data, _get_top_n_for_year, _ensure_stocks_ready
 from trade_alpha.data.analysis_service import compute_field_analysis
 from trade_alpha.utils.date_utils import get_year_months as _get_year_months
 from trade_alpha.logging import get_logger
@@ -97,7 +97,18 @@ class LSTMClassifier(BaseClassifier):
 
         all_dfs = []
         for year_idx, year in enumerate(years):
-            year_df = await _load_year_data(year, ts_codes, horizon, extra_days)
+            # Dynamic top-N filtering per year
+            await TaskService.update_progress(task_id, f"正在获取 {year} 年股票列表...")
+            year_stocks = await _get_top_n_for_year(year, len(ts_codes))
+            if not year_stocks:
+                continue
+            logger.info(f"{year}: top {len(year_stocks)} stocks")
+
+            # Ensure data availability
+            await TaskService.update_progress(task_id, f"正在准备 {year} 年股票数据...")
+            await _ensure_stocks_ready(year_stocks, task_id=task_id)
+
+            year_df = await _load_year_data(year, year_stocks, horizon, extra_days)
             if year_df is None:
                 continue
             year_df = create_labels(year_df, config)
