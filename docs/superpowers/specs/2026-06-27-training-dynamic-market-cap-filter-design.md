@@ -71,12 +71,13 @@ async def _get_top_n_for_year(year: int, top_n: int) -> List[str]:
     return [s.ts_code for s in records]
 ```
 
-### 数据补全
+### 数据补全（带进度）
 
-对每年 top N 中尚未就绪的股票，复用 `active_stock_data` 下载日线并计算指标：
+对每年 top N 中尚未就绪的股票，复用 `active_stock_data` 下载日线并计算指标。
+每完成一只就更新进度 `(m/total)`，参考回测 `_prepare_candidate_data` 的做法：
 
 ```python
-async def _ensure_stocks_ready(ts_codes: List[str]) -> None:
+async def _ensure_stocks_ready(ts_codes: List[str], task_id=None) -> None:
     """Ensure all stocks have daily data and indicators calculated."""
     pending = []
     for code in ts_codes:
@@ -87,17 +88,31 @@ async def _ensure_stocks_ready(ts_codes: List[str]) -> None:
     if not pending:
         return
 
-    logger.info(f"Preparing data for {len(pending)} stocks...")
-    sem = asyncio.Semaphore(5)  # limit concurrency
+    total = len(pending)
+    logger.info(f"Preparing data for {total} stocks...")
+    sem = asyncio.Semaphore(5)
+    completed = 0
+    lock = asyncio.Lock()
 
     async def prepare_one(code: str) -> bool:
+        nonlocal completed
         async with sem:
-            await asyncio.sleep(0.2)  # rate limit
-            return await active_stock_data(code)
+            await asyncio.sleep(0.2)
+            success = await active_stock_data(code)
+            async with lock:
+                completed += 1
+                await TaskService.update_progress(
+                    task_id,
+                    f"正在准备数据 ({completed}/{total})",
+                )
+            if not success:
+                logger.warning(f"Data preparation failed for {code}")
+            return success
 
-    results = await asyncio.gather(*[prepare_one(c) for c in pending])
+    tasks = [prepare_one(c) for c in pending]
+    results = await asyncio.gather(*tasks)
     success = sum(1 for r in results if r)
-    logger.info(f"Data preparation: {success}/{len(pending)} succeeded")
+    logger.info(f"Data preparation: {success}/{total} succeeded")
 ```
 
 ### 进度更新
@@ -111,7 +126,7 @@ for year in years:
     logger.info(f"{year}: top {len(year_stocks)} stocks")
 
     await TaskService.update_progress(task_id, f"正在准备 {year} 年股票数据...")
-    await _ensure_stocks_ready(year_stocks)
+    await _ensure_stocks_ready(year_stocks, task_id=task_id)
 
     year_df = await _load_year_data(year, year_stocks, horizon)
     ...
