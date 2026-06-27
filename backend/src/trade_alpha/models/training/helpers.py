@@ -57,11 +57,12 @@ def _create_trend_labels(df: pd.DataFrame, horizons: List[int], threshold_3d: fl
             ma_base_future = group[config["ma_base"]].shift(-config["shift"])
             
             trend_up = ((close_future > ma_base_future) & (ma_slope_future > group[config["ma_slope"]]))
+            trend_down = ((close_future < ma_base_future) & (ma_slope_future < group[config["ma_slope"]]))
             
             col = f"label_{horizon}d"
             group[col] = 0
             group.loc[trend_up & (ret > threshold), col] = 1
-            group.loc[ret < -threshold, col] = -1
+            group.loc[trend_down & (ret < -threshold), col] = -1
         group = group.dropna(subset=label_cols)
         result_parts.append(group)
     return pd.concat(result_parts, ignore_index=True)
