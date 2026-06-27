@@ -1,62 +1,58 @@
-"""Check retrace threshold patterns across horizons."""
+"""Analyze trend mode details and compare with other modes."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from dotenv import load_dotenv
 load_dotenv()
-import asyncio, statistics, pandas as pd
+import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from trade_alpha.config import load_config
-from collections import defaultdict
 
 async def main():
     cfg = load_config()
     c = AsyncIOMotorClient(cfg.mongodb_uri)
     db = c[cfg.mongodb_db]
 
-    stocks = sorted(await db.stock_daily.distinct("ts_code"))[:20]
-    recs = await db.stock_daily.find(
-        {"ts_code": {"$in": stocks}},
-        {"ts_code": 1, "trade_date": 1, "close": 1},
-        sort=[("trade_date", 1)]
-    ).to_list(200000)
+    # 1. Show all model configs with their label_mode
+    print("=== ALL CONFIGS ===")
+    configs = await db.model_configs.find().sort("created_at", -1).to_list()
+    for cfg_doc in configs:
+        name = cfg_doc.get("name", "?")
+        mode = cfg_doc.get("label_mode", "?")
+        th = f'{cfg_doc.get("classification_threshold_3d")}/{cfg_doc.get("classification_threshold_5d")}'
+        print(f"  {name:40s} mode={mode:12s} th={th:10s} id={str(cfg_doc['_id'])[-8:]}")
 
-    sd = defaultdict(list)
-    for r in recs:
-        sd[r["ts_code"]].append(r)
-    print(f"Loaded {len(recs)} records, {len(stocks)} stocks\n")
+    # 2. Show training results + their config mapping
+    print("\n=== TRAINING RESULTS + CONFIG ===")
+    docs = await db["training_results"].find().sort("created_at", -1).limit(8).to_list()
+    for d in docs:
+        tid = str(d["_id"])[-8:]
+        cid = str(d.get("config_id", "?"))[-8:] if d.get("config_id") else "?"
+        cfg_doc = await db.model_configs.find_one({"_id": d["config_id"]}) if d.get("config_id") else None
+        mode = cfg_doc.get("label_mode", "?") if cfg_doc else "?"
+        created = d.get("created_at", "?")
+        mm = d.get("model_metrics") or {}
+        auc = mm.get("auc", {})
+        acc = mm.get("accuracy", {})
+        cd = mm.get("class_distribution", {})
+        print(f"\n  train={tid} config={cid} mode={mode:12s} created={str(created)[:16]}")
+        for h in ["label_3d", "label_5d", "label_10d"]:
+            a = auc.get(h, "N/A")
+            ac = acc.get(h, "N/A")
+            dist = cd.get(h, {})
+            print(f"    {h}: AUC={a:.3f} acc={ac:.3f} dist={dist}" if isinstance(a, float) else f"    {h}: {a}")
 
-    th = {3: 0.015, 5: 0.02, 10: 0.03, 20: 0.04}
-
-    # Key insight: retrace = (peak_in_window - close_at_end) / peak_in_window
-    # Longer windows -> peak is max over more days -> peak is higher -> retrace is larger
-    # So retrace threshold should INCREASE with horizon!
-
-    for h in [3, 5, 10, 20]:
-        retraces = []
-        for code, rows in sd.items():
-            df = pd.DataFrame(sorted(rows, key=lambda x: x["trade_date"]))
-            ret = df["close"].shift(-h) / df["close"] - 1
-            peak = df["close"].rolling(h).max().shift(-h)
-            rtr = (peak - df["close"].shift(-h)) / peak
-            up = ret > th[h]
-            retraces.extend(rtr[up].dropna().tolist())
-
-        if retraces:
-            sorted_r = sorted(retraces)
-            print(f"{h}d (ret>={th[h]*100:.1f}%):")
-            print(f"  avg_retrace={sum(retraces)/len(retraces)*100:.2f}%")
-            print(f"  med_retrace={statistics.median(retraces)*100:.2f}%")
-            print(f"  p10={sorted_r[int(len(sorted_r)*0.1)]*100:.2f}%")
-            print(f"  p30={sorted_r[int(len(sorted_r)*0.3)]*100:.2f}%")
-            print(f"  p50={sorted_r[int(len(sorted_r)*0.5)]*100:.2f}%")
-            print(f"  p70={sorted_r[int(len(sorted_r)*0.7)]*100:.2f}%")
-            print(f"  p90={sorted_r[int(len(sorted_r)*0.9)]*100:.2f}%")
-            # What retrace threshold gives ~30% up samples?
-            for rt in [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.10, 0.12]:
-                cnt = sum(1 for x in retraces if x < rt)
-                pct = cnt / len(retraces) * 100
-                print(f"    retrace<{rt*100:.0f}%: retains {pct:.0f}% of up stocks")
-        print()
+    # 3. Backtest results by config
+    print("\n=== BACKTEST RESULTS ===")
+    bts = await db.execution_results.find().sort("created_at", -1).limit(10).to_list()
+    for bt in bts:
+        name = bt.get("name", "?")
+        ret = (bt.get("total_return") or 0) * 100
+        sharpe = bt.get("sharpe_ratio") or 0
+        trades = len(bt.get("execution_trades") or [])
+        config_id = bt.get("config_id")
+        cfg_doc = await db.model_configs.find_one({"_id": config_id}) if config_id else None
+        mode = cfg_doc.get("label_mode", "?") if cfg_doc else "?"
+        print(f"  {name:45s} ret={ret:>6.1f}% sharpe={sharpe:.2f} trades={trades:>4d} mode={mode}")
 
     c.close()
 
