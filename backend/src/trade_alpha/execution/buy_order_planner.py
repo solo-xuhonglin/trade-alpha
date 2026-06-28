@@ -108,6 +108,10 @@ class BuyOrderPlanner:
         norm_probs = [max(0.0, min(1.0, p)) for _, _, _, p in candidate_data]
         norm_ris = [clip_01(sd.rank_improvement, -0.5, 0.5) for _, sd, _, _ in candidate_data]
 
+        # Rank normalization: rank=1 -> 1.0, rank=last -> 0.0
+        total_scored = len(stock_map)
+        norm_ranks = [1.0 - (sd.rank - 1) / max(1, total_scored - 1) for _, sd, _, _ in candidate_data]
+
         # Priority score with normalized factors
         candidates: List[Tuple[float, str, ScoredStock, float]] = []
         for i, (ts_code, sd, target, _prob) in enumerate(candidate_data):
@@ -115,6 +119,7 @@ class BuyOrderPlanner:
                 cfg.buy_score_weight * norm_scores[i]
                 + cfg.buy_prob_weight * norm_probs[i]
                 + cfg.buy_rank_up_weight * norm_ris[i]
+                + cfg.buy_rank_weight * norm_ranks[i]
             )
             candidates.append((priority, ts_code, sd, target))
 

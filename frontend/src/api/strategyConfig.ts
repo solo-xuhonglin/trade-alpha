@@ -80,8 +80,9 @@ export interface Strategy {
   buy_price_ma10_weight?: number
   buy_price_buffer_pct?: number
   buy_score_weight?: number
-    buy_prob_weight?: number
+  buy_prob_weight?: number
   buy_rank_up_weight?: number
+  buy_rank_weight?: number
   created_at: string
   updated_at?: string
 }

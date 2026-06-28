@@ -88,6 +88,7 @@ export interface PredictionStock {
 export interface PredictionItem {
   trade_date: string
   composite_score: number
+  weighted_score?: number
   raw_score?: number
   rank?: number
   momentum_bonus?: number

@@ -670,6 +670,12 @@
                   type="number" step="0.1" min="0" max="10"
                   label="排名上升权重" hint="优先级计算中排名上升的权重（默认2.0）" persistent-hint
                   :disabled="form.type !== 'multi'" />
+                </v-col>
+                <v-col cols="12" sm="3">
+                  <v-text-field v-model.number="form.buy_rank_weight"
+                  type="number" step="0.1" min="0" max="10"
+                  label="高排名权重" hint="优先级计算中高排名的权重（默认2.0）" persistent-hint
+                  :disabled="form.type !== 'multi'" />
               </v-col>
             </v-row>
           </v-window-item>
@@ -888,6 +894,7 @@ const form = ref({
   buy_score_weight: 1.0,
   buy_prob_weight: 1.0,
   buy_rank_up_weight: 2.0,
+  buy_rank_weight: 2.0,
 })
 
 const headers = [
@@ -980,6 +987,7 @@ const compareFields: CompareField[] = [
   { key: 'buy_score_weight', label: '分数权重', group: '买入执行', type: 'number' },
   { key: 'buy_prob_weight', label: '概率权重', group: '买入执行', type: 'number' },
   { key: 'buy_rank_up_weight', label: '排名上升权重', group: '买入执行', type: 'number' },
+  { key: 'buy_rank_weight', label: '高排名权重', group: '买入执行', type: 'number' },
 ]
 
 const loadStrategies = async () => {
@@ -1084,6 +1092,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       buy_score_weight: item.buy_score_weight ?? 1.0,
       buy_prob_weight: item.buy_prob_weight ?? 1.0,
       buy_rank_up_weight: item.buy_rank_up_weight ?? 2.0,
+      buy_rank_weight: item.buy_rank_weight ?? 2.0,
     }
   } else {
     editingId.value = null
@@ -1153,6 +1162,7 @@ const openDialog = (item?: Strategy, isCopy = false) => {
       buy_score_weight: 1.0,
       buy_prob_weight: 1.0,
       buy_rank_up_weight: 2.0,
+      buy_rank_weight: 2.0,
     }
   }
   dialog.value = true
@@ -1240,6 +1250,7 @@ const saveStrategy = async () => {
       buy_score_weight: form.value.type === 'multi' ? form.value.buy_score_weight : undefined,
       buy_prob_weight: form.value.type === 'multi' ? form.value.buy_prob_weight : undefined,
       buy_rank_up_weight: form.value.type === 'multi' ? form.value.buy_rank_up_weight : undefined,
+      buy_rank_weight: form.value.type === 'multi' ? form.value.buy_rank_weight : undefined,
     })
   } else {
     await strategyConfigApi.create({

@@ -402,6 +402,7 @@ async def get_stock_predictions(result_id: PydanticObjectId, ts_code: str) -> di
                 "trade_date": snap.date,
                 "raw_score": pred.raw_score,
                 "composite_score": pred.composite_score,
+                "weighted_score": pred.weighted_score,
                 "ranking_score": pred.ranking_score,
                 "rank": pred.rank,
                 "momentum_bonus": pred.momentum_bonus,

@@ -99,6 +99,7 @@ async def create_strategy(
     buy_score_weight: Optional[float] = None,
     buy_prob_weight: Optional[float] = None,
     buy_rank_up_weight: Optional[float] = None,
+    buy_rank_weight: Optional[float] = None,
 ) -> StrategyConfig:
     """Create a new strategy."""
     logger.info(f"Creating strategy: name={name}, type={strategy_type}")

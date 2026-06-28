@@ -13,6 +13,7 @@ export interface KlineChartItem {
   low: number
   close: number
   composite_score?: number
+  weighted_score?: number
   raw_score?: number
   ranking_score?: number
   rank?: number
@@ -63,6 +64,7 @@ const renderChart = () => {
   const ranks = props.data.map(d => d.rank)
   const maxRank = Math.max(...ranks.filter(r => r != null), 0)
   const rankingScores = props.data.map(d => d.ranking_score)
+  const weightedScores = props.data.map(d => d.weighted_score)
 
   const series: any[] = [
     {
@@ -151,6 +153,20 @@ const renderChart = () => {
     })
     legendData.push('排名分')
     legendSelected['排名分'] = true
+  }
+
+  if (weightedScores.some(v => v != null)) {
+    series.push({
+      name: '加权分',
+      type: 'line',
+      data: weightedScores,
+      yAxisId: 'score',
+      smooth: true,
+      lineStyle: { width: 1.5, color: '#FF9800' },
+      symbol: 'none',
+    })
+    legendData.push('加权分')
+    legendSelected['加权分'] = true
   }
 
   if (maxRank > 0) {
@@ -298,7 +314,7 @@ const renderChart = () => {
         }
 
         const showOHLC = isVisible('K线')
-        const showScoreLines = isVisible('复合评分') || isVisible('原始评分') || isVisible('排名分')
+        const showScoreLines = isVisible('复合评分') || isVisible('加权分') || isVisible('原始评分') || isVisible('排名分')
         const showProbs = props.horizons.some(h => isVisible(`涨(${h}d)`) || isVisible(`跌(${h}d)`))
         const showRank = isVisible('排名')
 
@@ -327,6 +343,9 @@ const renderChart = () => {
           }
           if (isVisible('复合评分') && d.composite_score != null) {
             leftCol += `<br>综合分: ${fmtScore(d.composite_score)}`
+          }
+          if (isVisible('加权分') && d.weighted_score != null) {
+            leftCol += `<br>加权分: ${fmtScore(d.weighted_score)}`
           }
           if (isVisible('排名分') && d.ranking_score != null) {
             leftCol += `<br>排名分: ${fmtScore(d.ranking_score)}`
