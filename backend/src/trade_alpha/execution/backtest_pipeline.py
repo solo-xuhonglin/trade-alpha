@@ -546,7 +546,7 @@ class BacktestPipeline:
                 atr_values=atr_values,
             )
             planner.add_recommendations(recommendations)
-            buy_orders = await planner.generate_orders(
+            buy_orders, planner_candidates = await planner.generate_orders(
                 date=date,
                 stock_map=stock_map,
                 close_prices=close_prices,
@@ -554,6 +554,15 @@ class BacktestPipeline:
                 max_daily_buys=self.ctx.strategy_config.max_daily_buys,
             )
             pending_orders = sell_orders + buy_orders
+
+            # Save planner candidates to daily snapshot
+            if planner_candidates:
+                from trade_alpha.dao.mongodb import get_database
+                mongo_db = await get_database()
+                await mongo_db["execution_daily_snapshots"].update_one(
+                    {"backtest_id": backtest_id, "date": date},
+                    {"$set": {"planner_candidates": [c.model_dump() for c in planner_candidates]}},
+                )
 
             # Mark forced-sell orders for snapshot reporting
             for o in pending_orders:
