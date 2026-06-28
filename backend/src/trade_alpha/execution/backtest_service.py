@@ -685,10 +685,13 @@ async def get_daily_snapshots(result_id: PydanticObjectId) -> dict:
 # get_daily_details
 # ---------------------------------------------------------------------------
 
-async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[str] = None) -> dict:
+async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[str] = None,
+                            year_month: Optional[str] = None) -> dict:
     query = ExecutionDailySnapshot.find(ExecutionDailySnapshot.backtest_id == result_id)
     if trade_date:
         query = query.find(ExecutionDailySnapshot.date == trade_date)
+    if year_month:
+        query = query.find(ExecutionDailySnapshot.date.startswith(year_month))
     snapshots = await query.sort(ExecutionDailySnapshot.date).to_list()
 
     if not snapshots:
@@ -771,6 +774,7 @@ async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[st
             "baseline_cml_return": round(baseline_cml, 4),
             "positions": positions,
             "trades": trades,
+            "planner_candidates": snap.planner_candidates,
         })
 
     return {"items": items}

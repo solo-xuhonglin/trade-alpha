@@ -133,10 +133,13 @@ async def daily_snapshots(result_id: str):
 
 
 @router.get("/{result_id}/daily-details")
-async def daily_details(result_id: str):
+async def daily_details(
+    result_id: str,
+    year_month: Optional[str] = Query(None, description="YYYYMM format for monthly filtering"),
+):
     """Get daily detailed snapshots with positions and trades."""
     obj_id = _parse_id(result_id)
-    return await get_daily_details(result_id=obj_id)
+    return await get_daily_details(result_id=obj_id, year_month=year_month)
 
 
 @router.get("/{result_id}/config-snapshots")
