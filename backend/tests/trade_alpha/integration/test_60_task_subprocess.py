@@ -100,10 +100,9 @@ class TestTaskPersistence:
         task = await TaskService.create_task(TaskType.TRAINING, {})
         await TaskService.start_task(task.id, pid=123)
         
-        await TaskService.update_progress(task.id, 50.0, "Half done")
+        await TaskService.update_progress(task.id, "Half done")
         
         updated = await TaskService.get_task(task.id)
-        assert updated.progress == 50.0
         assert updated.progress_message == "Half done"
 
     async def test_list_tasks_empty(self):

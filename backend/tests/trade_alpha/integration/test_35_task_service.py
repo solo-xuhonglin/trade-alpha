@@ -77,7 +77,6 @@ class TestTaskService:
 
         assert task is not None
         assert task.status == TaskStatus.COMPLETED
-        assert task.progress == 100.0
         assert task.result_id == "result_123"
         assert task.completed_at is not None
 
@@ -117,10 +116,9 @@ class TestTaskService:
         """Test updating task progress."""
         task_id = await self._create_test_task()
 
-        await TaskService.update_progress(task_id, 50.0, "Processing...")
+        await TaskService.update_progress(task_id, "Processing...")
 
         task = await TaskService.get_task(task_id)
-        assert task.progress == 50.0
         assert task.progress_message == "Processing..."
 
     @pytest.mark.asyncio
