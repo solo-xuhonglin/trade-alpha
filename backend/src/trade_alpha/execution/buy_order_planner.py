@@ -3,6 +3,7 @@
 from typing import Dict, List, Tuple
 
 from trade_alpha.schemas import BuyRecommendation, ScoredStock, PendingOrder
+from trade_alpha.dao.execution_daily_snapshot import PlannerCandidateEmbed
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.logging import get_logger
 
@@ -36,7 +37,7 @@ class BuyOrderPlanner:
         close_prices: Dict[str, float],
         portfolio,
         max_daily_buys: int,
-    ) -> List[PendingOrder]:
+    ) -> Tuple[List[PendingOrder], List[PlannerCandidateEmbed]]:
         """Generate buy orders from cached recommendations.
 
         1. Clean expired cache entries
@@ -44,6 +45,9 @@ class BuyOrderPlanner:
         3. Compute target_price and priority for each
         4. Sort by priority, take top max_daily_buys
         5. Generate PendingOrder
+
+        Returns:
+            Tuple of (orders, candidate_details)
         """
         cfg = self._config
 
@@ -57,7 +61,7 @@ class BuyOrderPlanner:
             self._eval_count.pop(c, None)
 
         if not self._cache:
-            return []
+            return [], []
 
         # Filter cache to stocks still in scoring results and not already held
         valid_codes = [
@@ -65,7 +69,7 @@ class BuyOrderPlanner:
             if c in stock_map and c not in portfolio.positions
         ]
         if not valid_codes:
-            return []
+            return [], []
 
         # Increment eval count for remaining candidates
         for c in valid_codes:
@@ -96,7 +100,7 @@ class BuyOrderPlanner:
             candidate_data.append((ts_code, sd, target, prob))
 
         if not candidate_data:
-            return []
+            return [], []
 
         # Normalize factors to [0, 1] with fixed bounds
         # ranking_score: [-0.5, 0.5] -> [0, 1], rank_improvement: [-0.5, 0.5] -> [0, 1]
@@ -126,7 +130,30 @@ class BuyOrderPlanner:
         # Sort by priority descending
         candidates.sort(key=lambda x: x[0], reverse=True)
 
-        # Take top N
+        # Build candidate details for daily snapshot recording
+        candidate_details: List[PlannerCandidateEmbed] = []
+        decided_count = min(max_daily_buys, len(candidates))
+        for i, (priority, ts_code, sd, target) in enumerate(candidates):
+            orig_idx = next(j for j, (c, _, _, _) in enumerate(candidate_data) if c == ts_code)
+            detail = PlannerCandidateEmbed(
+                ts_code=ts_code,
+                stock_name=sd.stock_name,
+                ranking_score=sd.ranking_score,
+                composite_score=sd.composite_score,
+                rank=sd.rank,
+                norm_score=round(cfg.buy_score_weight * norm_scores[orig_idx], 4),
+                norm_prob=round(cfg.buy_prob_weight * norm_probs[orig_idx], 4),
+                norm_ri=round(cfg.buy_rank_up_weight * norm_ris[orig_idx], 4),
+                norm_rank=round(cfg.buy_rank_weight * norm_ranks[orig_idx], 4),
+                final_priority=round(priority, 4),
+                reason=self._cache[ts_code].reason,
+                target_price=round(target, 2),
+                cache_days=self._eval_count.get(ts_code, 0),
+                is_ordered=i < decided_count,
+            )
+            candidate_details.append(detail)
+
+        # Take top N for order generation
         top_n = candidates[:min(max_daily_buys, len(candidates))]
 
         orders: List[PendingOrder] = []
@@ -157,4 +184,4 @@ class BuyOrderPlanner:
                 candidate_group=rec.candidate_group,
             ))
 
-        return orders
+        return orders, candidate_details
