@@ -406,6 +406,46 @@
                     </v-data-table>
                     <div v-else class="text-caption text-medium-emphasis mb-4">无成交记录</div>
 
+                    <!-- 候选排序区域 -->
+                    <div v-if="d.planner_candidates && d.planner_candidates.length > 0" class="mb-4">
+                      <div class="text-subtitle-2 text-medium-emphasis mb-2">
+                        <v-icon size="small" class="mr-1">mdi-format-list-numbered</v-icon>候选排序
+                      </div>
+                      <v-data-table
+                        :headers="plannerHeaders"
+                        :items="d.planner_candidates"
+                        density="compact"
+                        hide-default-footer
+                        items-per-page="-1"
+                      >
+                        <template v-slot:item.norm_score="{ item }">
+                          {{ item.norm_score.toFixed(4) }}
+                        </template>
+                        <template v-slot:item.norm_prob="{ item }">
+                          {{ item.norm_prob.toFixed(4) }}
+                        </template>
+                        <template v-slot:item.norm_ri="{ item }">
+                          {{ item.norm_ri.toFixed(4) }}
+                        </template>
+                        <template v-slot:item.norm_rank="{ item }">
+                          {{ item.norm_rank.toFixed(4) }}
+                        </template>
+                        <template v-slot:item.final_priority="{ item }">
+                          <span class="font-weight-medium">{{ item.final_priority.toFixed(4) }}</span>
+                        </template>
+                        <template v-slot:item.is_ordered="{ item }">
+                          <v-chip :color="item.is_ordered ? 'success' : 'default'" size="x-small">
+                            {{ item.is_ordered ? '已成交' : '未成交' }}
+                          </v-chip>
+                        </template>
+                        <template v-slot:item.reason="{ item }">
+                          <v-chip size="x-small" variant="flat">
+                            {{ item.reason === 'priority_rank_up' ? '排名上升' : '正常买入' }}
+                          </v-chip>
+                        </template>
+                      </v-data-table>
+                    </div>
+
                     <!-- 持仓明细区域 -->
                     <div class="text-subtitle-2 text-medium-emphasis mb-2">
                       <v-icon size="small" class="mr-1">mdi-briefcase</v-icon>持仓明细
@@ -1171,6 +1211,19 @@ const dailyPositionHeaders = [
   { title: '入场评分', key: 'entry_score' },
 ]
 
+const plannerHeaders = [
+  { title: '股票', key: 'stock_name', width: 100 },
+  { title: '综合分', key: 'composite_score', width: 80 },
+  { title: '评分项', key: 'norm_score', width: 80 },
+  { title: '概率项', key: 'norm_prob', width: 80 },
+  { title: '上升项', key: 'norm_ri', width: 80 },
+  { title: '排名项', key: 'norm_rank', width: 80 },
+  { title: '总分', key: 'final_priority', width: 80 },
+  { title: '缓存', key: 'cache_days', width: 60 },
+  { title: '状态', key: 'is_ordered', width: 70 },
+  { title: '原因', key: 'reason', width: 100 },
+]
+
 const loadBacktests = async () => {
   loading.value = true
   const res = await backtestRecordApi.list(page.value, pageSize.value)
@@ -1454,19 +1507,32 @@ const loadMarketData = async () => {
 const viewDailyDetail = async (item: Backtest) => {
   selectedResult.value = item
   dailyDetailDialog.value = true
-  loadingDaily.value = true
   dailyDetails.value = []
   expandedDates.value = new Set()
   dailyPage.value = 1
   selectedMonth.value = '全部'
+  await loadDailyDetails(item.id)
+}
+
+const loadDailyDetails = async (resultId?: string) => {
+  const id = resultId || selectedResult?.id
+  if (!id) return
+  loadingDaily.value = true
   try {
-    const res = await backtestRecordApi.getDailyDetails(item.id)
+    const yearMonth = selectedMonth.value === '全部' ? undefined : selectedMonth.value
+    const res = await backtestRecordApi.getDailyDetails(id, yearMonth)
     dailyDetails.value = res.data.items
   } catch (e) {
     dailyDetails.value = []
   } finally {
     loadingDaily.value = false
   }
+}
+
+function onMonthChange(month: string) {
+  selectedMonth.value = month
+  dailyPage.value = 1
+  loadDailyDetails()
 }
 
 watch(resultTab, () => {
