@@ -189,6 +189,23 @@ export interface DailyTrade {
   pnl_pct?: number
 }
 
+export interface PlannerCandidate {
+  ts_code: string
+  stock_name: string
+  ranking_score: number
+  composite_score: number
+  rank: number
+  norm_score: number
+  norm_prob: number
+  norm_ri: number
+  norm_rank: number
+  final_priority: number
+  reason: string
+  target_price: number
+  cache_days: number
+  is_ordered: boolean
+}
+
 export interface DailyDetail {
   date: string
   cash: number
@@ -200,6 +217,7 @@ export interface DailyDetail {
   baseline_cml_return: number
   positions: DailyPosition[]
   trades: DailyTrade[]
+  planner_candidates?: PlannerCandidate[]
 }
 
 export interface DailyDetailResponse {
@@ -241,8 +259,10 @@ export const backtestRecordApi = {
   getForcedSellStocks: (id: string) =>
     api.get<{ items: any[] }>(`/backtests/${id}/forced-sell-stocks`),
 
-  getDailyDetails: (id: string) =>
-    api.get<DailyDetailResponse>(`/backtests/${id}/daily-details`),
+    getDailyDetails: (id: string, yearMonth?: string) =>
+    api.get<DailyDetailResponse>(`/backtests/${id}/daily-details`, {
+      params: { year_month: yearMonth }
+    }),
 
   delete: (id: string) => api.delete(`/backtests/${id}`),
 }
