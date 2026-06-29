@@ -95,12 +95,10 @@ class BacktestPipeline:
         # Initialize warmup manager (always needed for score history)
         warmup_manager = WarmupManager()
 
+        # Init with placeholder - will be re-initialized after data is ready
         from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
-        from trade_alpha.execution.baseline_tracker import BaselineTracker
         planner = BuyOrderPlanner(self.strategy_config, self.data_loader)
-        baseline_tracker = BaselineTracker(
-            provider.all_ts_codes, self.account_config.initial_capital
-        )
+        baseline_tracker = BaselineTracker([], 0)
 
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
@@ -390,9 +388,10 @@ class BacktestPipeline:
         # 2. 数据准备
         await self._prepare_candidate_data(task_id)
 
-        # 3. Baseline tracker
+        # 3. Baseline tracker (re-init with actual data)
         baseline_codes = await provider.get_baseline_codes(start_date)
-        baseline_tracker = BaselineTracker(baseline_codes, result.initial_capital)
+        self.ctx.baseline_tracker = BaselineTracker(baseline_codes, result.initial_capital)
+        baseline_tracker = self.ctx.baseline_tracker
 
         # Warmup phase: fill ScoreManager buffers without trading
         warmup_days = self._compute_warmup_days(self.strategy_config)
