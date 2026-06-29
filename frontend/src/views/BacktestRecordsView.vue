@@ -1119,14 +1119,9 @@ const paginatedItems = computed(() => {
 })
 
 function onMonthChange(month: string) {
-  if (month === '全部') {
-    dailyPage.value = 1
-    return
-  }
-  const idx = dailyDetails.value.findIndex(d => d.date.startsWith(month))
-  if (idx >= 0) {
-    dailyPage.value = Math.floor(idx / dailyPageSize.value) + 1
-  }
+  selectedMonth.value = month
+  dailyPage.value = 1
+  loadDailyDetails()
 }
 
 function retColor(val: number | null | undefined): string {
@@ -1515,7 +1510,7 @@ const viewDailyDetail = async (item: Backtest) => {
 }
 
 const loadDailyDetails = async (resultId?: string) => {
-  const id = resultId || selectedResult?.id
+  const id = resultId || selectedResult.value?.id
   if (!id) return
   loadingDaily.value = true
   try {
@@ -1527,12 +1522,6 @@ const loadDailyDetails = async (resultId?: string) => {
   } finally {
     loadingDaily.value = false
   }
-}
-
-function onMonthChange(month: string) {
-  selectedMonth.value = month
-  dailyPage.value = 1
-  loadDailyDetails()
 }
 
 watch(resultTab, () => {
