@@ -13,10 +13,11 @@ from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.portfolio import PortfolioManager
 from trade_alpha.execution.scoring import ScoreManager
 from trade_alpha.execution.warmup_manager import WarmupManager
+from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
+from trade_alpha.execution.baseline_tracker import BaselineTracker
 
 if TYPE_CHECKING:
     from trade_alpha.strategy.modes.base import PhaseMode
-    from trade_alpha.execution.warmup_manager import WarmupManager
 
 
 class PipelineContext:
@@ -39,6 +40,8 @@ class PipelineContext:
         predictor: Any,
         mode_map: Dict[str, PhaseMode],
         warmup_manager: WarmupManager,
+        buy_order_planner: BuyOrderPlanner,
+        baseline_tracker: BaselineTracker,
         account_config: Optional[AccountConfig] = None,
     ):
         self.data_loader = data_loader
@@ -52,3 +55,5 @@ class PipelineContext:
         self.candidate_provider = candidate_provider
         self.mode_map = mode_map or {}
         self.warmup_manager = warmup_manager
+        self.buy_order_planner = buy_order_planner
+        self.baseline_tracker = baseline_tracker

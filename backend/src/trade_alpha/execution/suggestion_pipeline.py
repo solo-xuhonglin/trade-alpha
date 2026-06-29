@@ -19,6 +19,8 @@ from trade_alpha.dao.mongodb import get_database
 from trade_alpha.dao.position import PositionEmbed
 from trade_alpha.execution.context import PipelineContext
 from trade_alpha.execution.candidate_list_provider import CandidateListProvider
+from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
+from trade_alpha.execution.baseline_tracker import BaselineTracker
 from trade_alpha.execution.warmup_manager import WarmupManager
 from trade_alpha.execution.data_loader import DataLoader
 from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
@@ -94,6 +96,8 @@ class SuggestionPipeline:
                 "down": RotationMode(),
             },
             warmup_manager=WarmupManager(),
+            buy_order_planner=BuyOrderPlanner(strategy_config, self.data_loader),
+            baseline_tracker=BaselineTracker(CandidateListProvider({}, strategy_config).all_ts_codes, 0),
         )
 
         # Strategy for decision making

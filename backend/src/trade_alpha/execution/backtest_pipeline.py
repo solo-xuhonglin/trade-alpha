@@ -25,7 +25,6 @@ from trade_alpha.strategy.modes.trend_mode import TrendMode
 from trade_alpha.strategy.modes.rotation_mode import RotationMode
 from trade_alpha.strategy.single_stock import SingleStockStrategy
 from trade_alpha.schemas import ScoredStock, PendingOrder, MarketDataEmbed
-from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
 from trade_alpha.execution.baseline_tracker import BaselineTracker
 from trade_alpha.execution.warmup_manager import WarmupManager
 from trade_alpha.data.service import active_stock_data
@@ -96,6 +95,13 @@ class BacktestPipeline:
         # Initialize warmup manager (always needed for score history)
         warmup_manager = WarmupManager()
 
+        from trade_alpha.execution.buy_order_planner import BuyOrderPlanner
+        from trade_alpha.execution.baseline_tracker import BaselineTracker
+        planner = BuyOrderPlanner(self.strategy_config, self.data_loader)
+        baseline_tracker = BaselineTracker(
+            provider.all_ts_codes, self.account_config.initial_capital
+        )
+
         self.ctx = PipelineContext(
             data_loader=self.data_loader,
             score_manager=self.score_manager,
@@ -112,6 +118,8 @@ class BacktestPipeline:
                 "down": RotationMode(),
             },
             warmup_manager=warmup_manager,
+            buy_order_planner=planner,
+            baseline_tracker=baseline_tracker,
         )
         from trade_alpha.execution.snapshot_manager import SnapshotManager
         self._snapshot_manager = SnapshotManager(self.ctx)
@@ -462,7 +470,6 @@ class BacktestPipeline:
 
         prev_total_value: Optional[float] = None
         pending_orders: List[PendingOrder] = []
-        planner = BuyOrderPlanner(self.strategy_config, self.data_loader)
         daily_values: List[float] = []
         daily_returns: List[float] = []
         total_trades = 0
@@ -471,6 +478,9 @@ class BacktestPipeline:
         await TaskService.update_progress(task_id, "正在执行回测...")
         date = start_date
         warmup_mgr = self.ctx.warmup_manager
+
+        # Initialize baseline tracker
+        baseline_tracker = self.ctx.baseline_tracker
         while date <= end_date:
             if self._skip_non_trading_day(date):
                 date = _next_date(date)
@@ -539,8 +549,8 @@ class BacktestPipeline:
                 market_data=market_data,
                 atr_values=atr_values,
             )
-            planner.add_recommendations(recommendations)
-            buy_orders, planner_candidates = await planner.generate_orders(
+            self.ctx.buy_order_planner.add_recommendations(recommendations)
+            buy_orders, planner_candidates = await self.ctx.buy_order_planner.generate_orders(
                 date=date,
                 stock_map=stock_map,
                 close_prices=close_prices,
