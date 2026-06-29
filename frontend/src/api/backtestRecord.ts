@@ -222,6 +222,7 @@ export interface DailyDetail {
 
 export interface DailyDetailResponse {
   items: DailyDetail[]
+  months?: string[]
 }
 
 export const backtestRecordApi = {

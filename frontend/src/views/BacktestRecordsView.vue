@@ -1098,11 +1098,15 @@ const expandedDates = ref<Set<string>>(new Set())
 const dailyPage = ref(1)
 const dailyPageSize = ref(15)
 const selectedMonth = ref('全部')
+let monthOptionsCache: string[] = []
 
 const marketChartData = ref<OverviewChartItem[]>([])
 const marketTrendThreshold = ref(0.05)
 
 const monthOptions = computed(() => {
+  if (monthOptionsCache.length > 0) {
+    return ['全部', ...monthOptionsCache]
+  }
   if (!dailyDetails.value.length) return []
   const months = new Set(dailyDetails.value.map(d => d.date.substring(0, 6)))
   return ['全部', ...Array.from(months).sort()]
@@ -1506,6 +1510,7 @@ const viewDailyDetail = async (item: Backtest) => {
   expandedDates.value = new Set()
   dailyPage.value = 1
   selectedMonth.value = '全部'
+  monthOptionsCache = []
   await loadDailyDetails(item.id)
 }
 
@@ -1517,6 +1522,9 @@ const loadDailyDetails = async (resultId?: string) => {
     const yearMonth = selectedMonth.value === '全部' ? undefined : selectedMonth.value
     const res = await backtestRecordApi.getDailyDetails(id, yearMonth)
     dailyDetails.value = res.data.items
+    if (res.data.months) {
+      monthOptionsCache = res.data.months
+    }
   } catch (e) {
     dailyDetails.value = []
   } finally {

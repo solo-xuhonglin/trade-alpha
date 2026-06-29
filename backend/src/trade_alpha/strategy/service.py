@@ -227,6 +227,7 @@ async def update_strategy(
     buy_score_weight: Optional[float] = None,
     buy_prob_weight: Optional[float] = None,
     buy_rank_up_weight: Optional[float] = None,
+    buy_rank_weight: Optional[float] = None,
 ) -> Optional[StrategyConfig]:
     """Update strategy."""
     strategy = await StrategyConfig.get(strategy_id)

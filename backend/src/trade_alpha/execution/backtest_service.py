@@ -697,12 +697,24 @@ async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[st
     if not snapshots:
         return {"items": []}
 
+    # Return available months list + latest month data on first load
+    all_months = sorted(set(s.date[:6] for s in snapshots))
+    if not year_month:
+        year_month = all_months[-1] if all_months else None
+        if year_month:
+            snapshots = [s for s in snapshots if s.date.startswith(year_month)]
+
     first_total = snapshots[0].total_value
     first_baseline = snapshots[0].baseline_value
 
     all_trades = await ExecutionTrade.find(
         ExecutionTrade.backtest_id == result_id,
     ).sort(ExecutionTrade.trade_date).to_list()
+
+    # Filter trades by snapshot date range for efficiency
+    date_range = [snap.date for snap in snapshots]
+    if date_range:
+        all_trades = [t for t in all_trades if t.trade_date in date_range]
 
     trades_by_date: Dict[str, list] = {}
     for t in all_trades:
@@ -777,11 +789,7 @@ async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[st
             "planner_candidates": snap.planner_candidates,
         })
 
-    return {"items": items}
-
-
-# ---------------------------------------------------------------------------
-# get_trade_filter_options
+    return {"items": items, "months": all_months}
 # ---------------------------------------------------------------------------
 
 async def get_trade_filter_options() -> dict:
