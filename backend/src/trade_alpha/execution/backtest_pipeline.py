@@ -555,15 +555,6 @@ class BacktestPipeline:
             )
             pending_orders = sell_orders + buy_orders
 
-            # Save planner candidates to daily snapshot
-            if planner_candidates:
-                from trade_alpha.dao.mongodb import get_database
-                mongo_db = await get_database()
-                await mongo_db["execution_daily_snapshots"].update_one(
-                    {"backtest_id": backtest_id, "date": date},
-                    {"$set": {"planner_candidates": [c.model_dump() for c in planner_candidates]}},
-                )
-
             # Mark forced-sell orders for snapshot reporting
             for o in pending_orders:
                 if o.order_shares < 0 and o.reason == SELL_REASON_FULL_POSITION:
@@ -586,6 +577,16 @@ class BacktestPipeline:
                 prev_total_value, baseline_tracker.latest_value,
                 baseline_tracker.daily_rebalanced_cum,
             )
+
+            # Save planner candidates to daily snapshot (must be after _save_snapshot)
+            if planner_candidates:
+                from trade_alpha.dao.mongodb import get_database
+                mongo_db = await get_database()
+                await mongo_db["execution_daily_snapshots"].update_one(
+                    {"backtest_id": backtest_id, "date": date},
+                    {"$set": {"planner_candidates": [c.model_dump() for c in planner_candidates]}},
+                )
+
             prev_total_value = day_val
             daily_values.append(day_val)
             if day_ret is not None:
