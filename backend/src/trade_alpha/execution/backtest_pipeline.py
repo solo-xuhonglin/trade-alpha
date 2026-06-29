@@ -113,6 +113,8 @@ class BacktestPipeline:
             },
             warmup_manager=warmup_manager,
         )
+        from trade_alpha.execution.snapshot_manager import SnapshotManager
+        self._snapshot_manager = SnapshotManager(self.ctx)
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -263,29 +265,13 @@ class BacktestPipeline:
         daily_rebalanced_cum: float,
         planner_candidates: Optional[List[PlannerCandidateEmbed]] = None,
     ) -> Tuple[float, Optional[float]]:
-        snapshot = await self.strategy.daily_snapshot(
-            backtest_id=backtest_id, date=date, cash=self.portfolio.cash,
-            positions=self.portfolio.positions, close_prices=close_prices,
-            prev_total_value=prev_total_value, predictions=stock_map,
-            baseline_value=baseline_value,
+        return await self._snapshot_manager.save(
+            date=date, backtest_id=backtest_id,
+            close_prices=close_prices, stock_map=stock_map,
+            prev_total_value=prev_total_value, baseline_value=baseline_value,
+            daily_rebalanced_cum=daily_rebalanced_cum,
+            planner_candidates=planner_candidates,
         )
-        updates = {}
-        if self.market_analyzer.last_result:
-            updates = self.market_analyzer.last_result.model_dump()
-            updates["daily_rebalanced_cum"] = daily_rebalanced_cum
-            tv = snapshot.total_value
-            if tv > 0:
-                updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
-            else:
-                updates["position_pct"] = 0.0
-
-        if planner_candidates:
-            updates["planner_candidates"] = [c.model_dump() for c in planner_candidates]
-
-        if updates:
-            await snapshot.update({"$set": updates})
-
-        return snapshot.total_value, snapshot.day_return
 
     @staticmethod
     def _compute_warmup_days(strategy_config: StrategyConfig) -> int:
