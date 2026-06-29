@@ -7,7 +7,7 @@ from beanie import PydanticObjectId
 from trade_alpha.dao.account_config import AccountConfig
 from trade_alpha.dao.strategy_config import StrategyConfig
 from trade_alpha.dao.model_config import ModelConfig
-from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot
+from trade_alpha.dao.execution_daily_snapshot import ExecutionDailySnapshot, PlannerCandidateEmbed
 from trade_alpha.dao.execution import ExecutionResult, AccountSnapshotEmbed, ModelSnapshotEmbed, StrategySnapshotEmbed
 from trade_alpha.execution.market_regime import MarketRegimeAnalyzer
 from trade_alpha.execution.scoring import ScoreManager
@@ -261,6 +261,7 @@ class BacktestPipeline:
         prev_total_value: Optional[float],
         baseline_value: float,
         daily_rebalanced_cum: float,
+        planner_candidates: Optional[List[PlannerCandidateEmbed]] = None,
     ) -> Tuple[float, Optional[float]]:
         snapshot = await self.strategy.daily_snapshot(
             backtest_id=backtest_id, date=date, cash=self.portfolio.cash,
@@ -268,6 +269,7 @@ class BacktestPipeline:
             prev_total_value=prev_total_value, predictions=stock_map,
             baseline_value=baseline_value,
         )
+        updates = {}
         if self.market_analyzer.last_result:
             updates = self.market_analyzer.last_result.model_dump()
             updates["daily_rebalanced_cum"] = daily_rebalanced_cum
@@ -276,7 +278,13 @@ class BacktestPipeline:
                 updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
             else:
                 updates["position_pct"] = 0.0
+
+        if planner_candidates:
+            updates["planner_candidates"] = [c.model_dump() for c in planner_candidates]
+
+        if updates:
             await snapshot.update({"$set": updates})
+
         return snapshot.total_value, snapshot.day_return
 
     @staticmethod
@@ -576,16 +584,8 @@ class BacktestPipeline:
                 date, backtest_id, close_prices, stock_map,
                 prev_total_value, baseline_tracker.latest_value,
                 baseline_tracker.daily_rebalanced_cum,
+                planner_candidates=planner_candidates,
             )
-
-            # Save planner candidates to daily snapshot (must be after _save_snapshot)
-            if planner_candidates:
-                from trade_alpha.dao.mongodb import get_database
-                mongo_db = await get_database()
-                await mongo_db["execution_daily_snapshots"].update_one(
-                    {"backtest_id": backtest_id, "date": date},
-                    {"$set": {"planner_candidates": [c.model_dump() for c in planner_candidates]}},
-                )
 
             prev_total_value = day_val
             daily_values.append(day_val)
