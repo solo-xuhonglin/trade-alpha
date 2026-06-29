@@ -13,31 +13,32 @@ logger = get_logger("execution.snapshot_manager")
 class SnapshotManager:
     """Creates and saves daily portfolio snapshots with market data.
 
-    Extracted from BacktestPipeline and BaseStrategy.daily_snapshot to
-    decouple snapshot persistence from strategy logic.
+    Empty constructor — receives ctx in save() call.
     """
 
-    def __init__(self, ctx: PipelineContext):
-        self._portfolio = ctx.portfolio
-        self._market_analyzer = ctx.market_analyzer
+    def __init__(self):
+        pass
 
     async def save(
         self,
+        ctx: PipelineContext,
         date: str,
         backtest_id: PydanticObjectId,
         close_prices: Dict[str, float],
         stock_map: Dict[str, ScoredStock],
         prev_total_value: Optional[float],
-        baseline_value: float,
-        daily_rebalanced_cum: float,
         planner_candidates: Optional[List[PlannerCandidateEmbed]] = None,
     ) -> Tuple[float, Optional[float]]:
         """Create daily snapshot, insert it, then apply market/planner updates."""
-        pos_list = self._build_positions(close_prices)
+        portfolio = ctx.portfolio
+        market_analyzer = ctx.market_analyzer
+        baseline_tracker = ctx.baseline_tracker
+
+        pos_list = self._build_positions(portfolio, close_prices)
         total_market_value = sum(
             close_prices.get(p.ts_code, p.buy_price) * p.shares for p in pos_list
         )
-        total_value = self._portfolio.cash + total_market_value
+        total_value = portfolio.cash + total_market_value
 
         day_return = 0.0
         if prev_total_value is not None and prev_total_value > 0:
@@ -46,21 +47,21 @@ class SnapshotManager:
         snapshot = ExecutionDailySnapshot(
             backtest_id=backtest_id,
             date=date,
-            cash=self._portfolio.cash,
+            cash=portfolio.cash,
             positions=pos_list,
             total_market_value=total_market_value,
             total_value=total_value,
             day_return=day_return,
             predictions=stock_map,
-            baseline_value=baseline_value,
+            baseline_value=baseline_tracker.latest_value,
         )
         await snapshot.insert()
 
         # Apply market analyzer data + planner candidates in one update
         updates: Dict = {}
-        if self._market_analyzer.last_result:
-            updates = self._market_analyzer.last_result.model_dump()
-            updates["daily_rebalanced_cum"] = daily_rebalanced_cum
+        if market_analyzer.last_result:
+            updates = market_analyzer.last_result.model_dump()
+            updates["daily_rebalanced_cum"] = baseline_tracker.daily_rebalanced_cum
             tv = snapshot.total_value
             if tv > 0:
                 updates["position_pct"] = max(0.0, (tv - snapshot.cash) / tv * 100)
@@ -75,10 +76,11 @@ class SnapshotManager:
 
         return snapshot.total_value, snapshot.day_return
 
-    def _build_positions(self, close_prices: Dict[str, float]) -> List[PositionEmbed]:
+    @staticmethod
+    def _build_positions(portfolio, close_prices: Dict[str, float]) -> List[PositionEmbed]:
         """Build PositionEmbed list with current market values."""
         pos_list: List[PositionEmbed] = []
-        for ts_code, pos in self._portfolio.positions.items():
+        for ts_code, pos in portfolio.positions.items():
             price = close_prices.get(ts_code, pos.buy_price)
             pos_list.append(PositionEmbed(
                 ts_code=pos.ts_code,

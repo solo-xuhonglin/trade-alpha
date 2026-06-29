@@ -120,7 +120,7 @@ class BacktestPipeline:
             baseline_tracker=baseline_tracker,
         )
         from trade_alpha.execution.snapshot_manager import SnapshotManager
-        self._snapshot_manager = SnapshotManager(self.ctx)
+        self._snapshot_manager = SnapshotManager()
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
         backtest_name = name or f"backtest_{start_date}_{end_date}"
@@ -267,15 +267,12 @@ class BacktestPipeline:
         close_prices: Dict[str, float],
         stock_map: Dict[str, ScoredStock],
         prev_total_value: Optional[float],
-        baseline_value: float,
-        daily_rebalanced_cum: float,
         planner_candidates: Optional[List[PlannerCandidateEmbed]] = None,
     ) -> Tuple[float, Optional[float]]:
         return await self._snapshot_manager.save(
-            date=date, backtest_id=backtest_id,
+            ctx=self.ctx, date=date, backtest_id=backtest_id,
             close_prices=close_prices, stock_map=stock_map,
-            prev_total_value=prev_total_value, baseline_value=baseline_value,
-            daily_rebalanced_cum=daily_rebalanced_cum,
+            prev_total_value=prev_total_value,
             planner_candidates=planner_candidates,
         )
 
@@ -577,8 +574,7 @@ class BacktestPipeline:
 
             day_val, day_ret = await self._save_snapshot(
                 date, backtest_id, close_prices, stock_map,
-                prev_total_value, baseline_tracker.latest_value,
-                baseline_tracker.daily_rebalanced_cum,
+                prev_total_value,
                 planner_candidates=planner_candidates,
             )
 

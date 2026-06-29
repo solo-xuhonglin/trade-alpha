@@ -5,10 +5,10 @@ from typing import Dict, List, Optional
 
 class BaselineTracker:
     """Track buy-and-hold baseline and daily-rebalanced equal-weight baseline."""
-    def __init__(self, ts_codes: Optional[List[str]] = None, initial_capital: float = 0):
-        self.ts_codes = ts_codes or []
-        self.initial_capital = initial_capital
-        self._daily_values: List[float] = [initial_capital]
+    def __init__(self):
+        self.ts_codes: List[str] = []
+        self.initial_capital: float = 0.0
+        self._daily_values: List[float] = [0.0]
         self._shares: Dict[str, float] = {}
         self._initialized = False
         self._daily_rebalanced_values: List[float] = [1.0]
