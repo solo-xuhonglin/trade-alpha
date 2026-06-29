@@ -300,16 +300,10 @@ class BacktestPipeline:
 
 
     async def _run_warmup(
-        self,
-        warmup_start: str,
-        actual_start: str,
-        warmup_days: int,
+        self, warmup_start: str, actual_start: str, warmup_days: int,
         task_id: Optional[PydanticObjectId],
-        baseline_tracker: BaselineTracker,
     ) -> None:
-        provider = self.ctx.candidate_provider
-        warmup_mgr = self.ctx.warmup_manager
-        all_ts_codes = provider.all_ts_codes
+        all_ts_codes = self.ctx.candidate_provider.all_ts_codes
 
         date = warmup_start
 
@@ -325,22 +319,22 @@ class BacktestPipeline:
             close_prices = day_data["close"]
 
             # Determine formal candidates for this date
-            formal_codes = provider.get_candidates_for_date(date, self.ctx)
+            formal_codes = self.ctx.candidate_provider.get_candidates_for_date(date, self.ctx)
             formal_close = {k: v for k, v in close_prices.items()
                             if k in formal_codes}
 
             # Update warmup pool on period change (tracked internally)
-            current_period_key = provider.get_period_key(date)
-            warmup_mgr.update_pool(current_period_key, set(formal_codes), provider.candidate_map, warmup_days)
+            current_period_key = self.ctx.candidate_provider.get_period_key(date)
+            self.ctx.warmup_manager.update_pool(current_period_key, set(formal_codes), self.ctx.candidate_provider.candidate_map, warmup_days)
 
             # Build prediction set including warmup stocks
-            pred_close = warmup_mgr.build_prediction_close(close_prices, set(formal_codes))
+            pred_close = self.ctx.warmup_manager.build_prediction_close(close_prices, set(formal_codes))
 
             logger.info(
-                f"warmup day {date}: formal={len(formal_codes)} warmup={warmup_mgr.warmup_count}",
+                f"warmup day {date}: formal={len(formal_codes)} warmup={self.ctx.warmup_manager.warmup_count}",
             )
 
-            baseline_tracker.track_daily_rebalanced_only(formal_close)
+            self.ctx.baseline_tracker.track_daily_rebalanced_only(formal_close)
 
             stock_map = await self.score_manager.predict_and_score(
                 predictor=self.predictor,
@@ -354,10 +348,10 @@ class BacktestPipeline:
                 continue
 
             # Apply virtual ranking for warmup stocks
-            warmup_mgr.apply_virtual_ranking(stock_map)
+            self.ctx.warmup_manager.apply_virtual_ranking(stock_map)
 
             self.market_analyzer.analyze(
-                stock_map, daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
+                stock_map, daily_rebalanced_values=self.ctx.baseline_tracker.daily_rebalanced_values,
             )
             await TaskService.update_progress(
                 task_id,
@@ -388,7 +382,6 @@ class BacktestPipeline:
         # 3. Baseline tracker (re-init with actual data)
         baseline_codes = await provider.get_baseline_codes(start_date)
         self.ctx.baseline_tracker.start(baseline_codes, result.initial_capital)
-        baseline_tracker = self.ctx.baseline_tracker
 
         # Warmup phase: fill ScoreManager buffers without trading
         warmup_days = self._compute_warmup_days(self.strategy_config)
@@ -398,18 +391,18 @@ class BacktestPipeline:
             f"(before {start_date})"
         )
         await self._run_warmup(
-            warmup_start, start_date, warmup_days, task_id, baseline_tracker,
+            warmup_start, start_date, warmup_days, task_id,
         )
-        baseline_tracker.reset_daily_rebalanced_anchor()
+        self.ctx.baseline_tracker.reset_daily_rebalanced_anchor()
 
         await TaskService.update_progress(task_id, "正在加载股票列表...")
 
         daily_values, daily_returns, total_trades, total_fees = await self._run_daily_loop(
-            start_date, end_date, result.id, task_id, baseline_tracker, warmup_days,
+            start_date, end_date, result.id, task_id, warmup_days,
         )
 
         result = await self._finalize_result(
-            result, daily_values, daily_returns, total_trades, total_fees, baseline_tracker,
+            result, daily_values, daily_returns, total_trades, total_fees, self.ctx.baseline_tracker,
         )
         return result
 
@@ -459,7 +452,7 @@ class BacktestPipeline:
         )
 
     async def _run_daily_loop(
-        self, start_date, end_date, backtest_id, task_id, baseline_tracker, warmup_days,
+        self, start_date, end_date, backtest_id, task_id, warmup_days,
     ):
         provider = self.ctx.candidate_provider
         all_ts_codes = provider.all_ts_codes
@@ -473,10 +466,6 @@ class BacktestPipeline:
 
         await TaskService.update_progress(task_id, "正在执行回测...")
         date = start_date
-        warmup_mgr = self.ctx.warmup_manager
-
-        # Initialize baseline tracker
-        baseline_tracker = self.ctx.baseline_tracker
         while date <= end_date:
             if self._skip_non_trading_day(date):
                 date = _next_date(date)
@@ -493,19 +482,19 @@ class BacktestPipeline:
 
             # Update warmup pool on period change (tracked internally)
             current_period_key = provider.get_period_key(date)
-            warmup_mgr.update_pool(current_period_key, set(candidates), provider.candidate_map, warmup_days)
+            self.ctx.warmup_manager.update_pool(current_period_key, set(candidates), provider.candidate_map, warmup_days)
 
-            baseline_tracker.track(close_prices)
+            self.ctx.baseline_tracker.track(close_prices)
 
             candidate_close = {k: v for k, v in close_prices.items()
                                if k in candidates}
-            pred_close = warmup_mgr.build_prediction_close(close_prices, set(candidates))
+            pred_close = self.ctx.warmup_manager.build_prediction_close(close_prices, set(candidates))
 
             logger.info(
-                f"daily {date}: formal={len(candidates)} warmup={warmup_mgr.warmup_count}",
+                f"daily {date}: formal={len(candidates)} warmup={self.ctx.warmup_manager.warmup_count}",
             )
 
-            baseline_tracker.track_daily_rebalanced_only(candidate_close)
+            self.ctx.baseline_tracker.track_daily_rebalanced_only(candidate_close)
 
             trades_add, fees_add = await self._settle_orders(
                 pending_orders, date, backtest_id, day_data,
@@ -527,7 +516,7 @@ class BacktestPipeline:
 
             self.market_analyzer.analyze(
                 stock_map,
-                daily_rebalanced_values=baseline_tracker.daily_rebalanced_values,
+                        daily_rebalanced_values=self.ctx.baseline_tracker.daily_rebalanced_values,
             )
 
             # Apply virtual ranking for warmup stocks
