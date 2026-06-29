@@ -691,11 +691,17 @@ async def get_daily_details(result_id: PydanticObjectId, trade_date: Optional[st
     if trade_date:
         query = query.find(ExecutionDailySnapshot.date == trade_date)
     if year_month:
-        query = query.find(ExecutionDailySnapshot.date.startswith(year_month))
-    snapshots = await query.sort(ExecutionDailySnapshot.date).to_list()
+        from trade_alpha.dao.mongodb import get_database
+        mongo_db = await get_database()
+        snapshots_raw = await mongo_db["execution_daily_snapshots"].find(
+            {"backtest_id": result_id, "date": {"$regex": f"^{year_month}"}}
+        ).sort("date", 1).to_list()
+        snapshots = [ExecutionDailySnapshot(**s) for s in snapshots_raw]
+    else:
+        snapshots = await query.sort(ExecutionDailySnapshot.date).to_list()
 
     if not snapshots:
-        return {"items": []}
+        return {"items": [], "months": []}
 
     # Return available months list + latest month data on first load
     all_months = sorted(set(s.date[:6] for s in snapshots))
