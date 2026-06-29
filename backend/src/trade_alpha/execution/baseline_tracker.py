@@ -15,8 +15,8 @@ class BaselineTracker:
         self._daily_rebalanced_anchor: float = 1.0
         self._prev_close_prices: Optional[Dict[str, float]] = None
 
-    def reinit(self, ts_codes: List[str], initial_capital: float) -> None:
-        """Re-initialize with actual data after lazy construction."""
+    def start(self, ts_codes: List[str], initial_capital: float) -> None:
+        """Start tracking with actual data after lazy construction."""
         self.ts_codes = ts_codes
         self.initial_capital = initial_capital
         self._daily_values = [initial_capital]

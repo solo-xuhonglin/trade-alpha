@@ -387,7 +387,7 @@ class BacktestPipeline:
 
         # 3. Baseline tracker (re-init with actual data)
         baseline_codes = await provider.get_baseline_codes(start_date)
-        self.ctx.baseline_tracker.reinit(baseline_codes, result.initial_capital)
+        self.ctx.baseline_tracker.start(baseline_codes, result.initial_capital)
         baseline_tracker = self.ctx.baseline_tracker
 
         # Warmup phase: fill ScoreManager buffers without trading
