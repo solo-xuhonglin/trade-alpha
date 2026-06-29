@@ -97,7 +97,7 @@ class SuggestionPipeline:
             },
             warmup_manager=WarmupManager(),
             buy_order_planner=BuyOrderPlanner(strategy_config, self.data_loader),
-            baseline_tracker=BaselineTracker(CandidateListProvider({}, strategy_config).all_ts_codes, 0),
+            baseline_tracker=BaselineTracker(),
         )
 
         # Strategy for decision making

@@ -5,8 +5,8 @@ from typing import Dict, List, Optional
 
 class BaselineTracker:
     """Track buy-and-hold baseline and daily-rebalanced equal-weight baseline."""
-    def __init__(self, ts_codes: List[str], initial_capital: float):
-        self.ts_codes = ts_codes
+    def __init__(self, ts_codes: Optional[List[str]] = None, initial_capital: float = 0):
+        self.ts_codes = ts_codes or []
         self.initial_capital = initial_capital
         self._daily_values: List[float] = [initial_capital]
         self._shares: Dict[str, float] = {}
@@ -14,6 +14,17 @@ class BaselineTracker:
         self._daily_rebalanced_values: List[float] = [1.0]
         self._daily_rebalanced_anchor: float = 1.0
         self._prev_close_prices: Optional[Dict[str, float]] = None
+
+    def reinit(self, ts_codes: List[str], initial_capital: float) -> None:
+        """Re-initialize with actual data after lazy construction."""
+        self.ts_codes = ts_codes
+        self.initial_capital = initial_capital
+        self._daily_values = [initial_capital]
+        self._shares = {}
+        self._initialized = False
+        self._daily_rebalanced_values = [1.0]
+        self._daily_rebalanced_anchor = 1.0
+        self._prev_close_prices = None
 
     def track(self, close_prices: Dict[str, float]) -> None:
         if not self._initialized:
