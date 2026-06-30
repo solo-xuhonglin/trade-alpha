@@ -92,17 +92,12 @@ class BacktestPipeline:
         self.market_analyzer = MarketRegimeAnalyzer(strategy_config)
 
         # Synchronously create Provider (no DB operations in __init__)
-        provider = CandidateListProvider(params, strategy_config)
+        self.candidate_provider = CandidateListProvider(params, strategy_config)
 
         # Initialize warmup manager (always needed for score history)
-        warmup_manager = WarmupManager()
-        planner = BuyOrderPlanner(self.strategy_config, self.data_loader)
-        baseline_tracker = BaselineTracker()
-
-        self.candidate_provider = provider
-        self.warmup_manager = warmup_manager
-        self.buy_order_planner = planner
-        self.baseline_tracker = baseline_tracker
+        self.warmup_manager = WarmupManager()
+        self.buy_order_planner = BuyOrderPlanner(self.strategy_config, self.data_loader)
+        self.baseline_tracker = BaselineTracker()
         self._snapshot_manager = SnapshotManager()
 
         self.ctx = PipelineContext(
@@ -114,15 +109,15 @@ class BacktestPipeline:
             strategy_config=self.strategy_config,
             model_config=self.model_config,
             account_config=self.account_config,
-            candidate_provider=provider,
+            candidate_provider=self.candidate_provider,
             mode_map={
                 "up": TrendMode(),
                 "flat": RotationMode(),
                 "down": RotationMode(),
             },
-            warmup_manager=warmup_manager,
-            buy_order_planner=planner,
-            baseline_tracker=baseline_tracker,
+            warmup_manager=self.warmup_manager,
+            buy_order_planner=self.buy_order_planner,
+            baseline_tracker=self.baseline_tracker,
         )
 
     async def _create_result(self, start_date: str, end_date: str, name: Optional[str] = None) -> ExecutionResult:
